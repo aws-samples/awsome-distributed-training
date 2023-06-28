@@ -2,9 +2,12 @@
 
 This directory contains reference architectures for distributed model training with [AWS ParallelCluster](https://docs.aws.amazon.com/parallelcluster/latest/ug/what-is-aws-parallelcluster.html) and [Amazon EKS](https://docs.aws.amazon.com/eks/latest/userguide/getting-started-console.html) and test cases for different types and sizes of models (Falcon, GPT3, T5) as well as different frameworks and parallel optimizations (Pytorch DDP/FSDP, MegatronLM, MegatronLM-DeepSpeed).
 
+
+The reference architectures shared below and located in the directories `parallelcluster` and `eks`. The directory `test_cases` contains reference test cases.
+
 ## Reference architectures
 
-The reference architectures shared below
+The reference architectures are detailed below.
 
 ### AWS ParallelCluster
 
