@@ -14,6 +14,9 @@ The reference architectures are detailed below.
 Each reference architecture provides consists of the following components:
 
 #### Compute
+
+Compute is represented through the following:
+
 - **head-node**: login and controller node that users will use to submit jobs. It is set to an [m5.8xlarge](https://aws.amazon.com/ec2/instance-types/m5/)..
 - **compute-gpu**: is the queue (or partition) to run your ML training jobs. The instances are either [p4de.24xlarge](https://aws.amazon.com/ec2/instance-types/p4/) or [trn1.32xlarge](https://aws.amazon.com/ec2/instance-types/trn1/) which are recommended for training, especially for LLMs or large models. The default number of instances in the queue has been set to *4* and can be changed as necessary.
 - **inference-gpu**: is an optional queue that can be used to run inference workloads and uses [g5.12xlarge](https://aws.amazon.com/ec2/instance-types/m5/).
@@ -21,6 +24,7 @@ Each reference architecture provides consists of the following components:
 #### Storage
 
 Storage comes in 3 flavors:
+
 - **Local**: head and compute nodes have 200GiB of EBS volume mounted on `/`. In addition, the headnode has an EBS volume of `200GiB` mounted on `/apps` The compute nodes have NVMe drives striped in RAID0 and mounted as `/local_scratch`.
 - **File network storage**: The head-node shares `/home` and `/apps` to the whole cluster through NFS. These directories are automatically mounted on every instance in the cluster and accessible through the same path. `/home` is a regular home directory, `/apps` is a shared directory where applications or shared files can be stored. Please note that none should be used for data intensive tasks.
 - **High performance filesystem**: An [FSx for Lustre](https://docs.aws.amazon.com/fsx/latest/LustreGuide/what-is.html) filesystem can be access from every cluster node on `/fsx`. This is where users would store their datasets. This file system has been sized to 4.8TiB and provides 1.2GB/s of aggregated throughput. You can modify its size and the throughput per TB provisioned in the config file following the service [documentation](https://docs.aws.amazon.com/fsx/latest/LustreGuide/performance.html).
@@ -50,14 +54,38 @@ You can chose to use a custom image or post-install scripts to install your appl
     If not using a custom image, remove the `CustomAmi` field.
 - **Post-install scripts**: these scripts will be executed at instance boot (head+compute). This option is recommended for quick testing and will increase instance boot time. You can run post-install scripts through `CustomActions` for the head node and the compute nodes.
 
-### Architectures templates
+### Architectures
+
+You can deploy a cluster using a template and customizing your templates by replacing placeholder variables.
+
+#### How to deploy a cluster
+
+To create the cluster use the command below:
+
+```bash
+pcluster create-cluster --cluster-configuration cluster.yaml --cluster-name cluster-g4v7 --region us-east-1
+```
+
+You can follow the [documentation](https://docs.aws.amazon.com/parallelcluster/latest/ug/commands-v3.html) to review the list of all AWS ParallelCluster commands.
+
+#### What to replace
+
+The templates contain placeholder variables that you need to replace before use.
+
+- `PLACEHOLDER_CUSTOM_AMI_ID`: if using a custom AMI then replace with the custom AMI ID (`ami-12356790abcd`).
+- `PLACEHOLDER_PUBLIC_SUBNET`: change to the id of a public subnet to host the head-node (`subnet-12356790abcd`).
+- `PLACEHOLDER_PRIVATE_SUBNET`: change to the id of a public subnet to host the compute nodes (`subnet-12356790abcd`).
+- `PLACEHOLDER_SSH_KEY`: ID of the SSH key you'd like to use to connect to the head-node. You can also use AWS Systems Manager Session Manager (SSM).
+- `PLACEHOLDER_CAPACITY_RESERVATION_ID`: if using a capacity reservation put the ID here (`cr-12356790abcd`).
+
+
+#### Cluster templates
 
 Each reference architectures provides an example of cluster for different use cases. The architectures most commonly used are:
 
 - `distributed-training-gpu`: base template, uses the default AMI with no software installed.
 - `distributed-training-p4de_custom_ami`: base cluster with a custom AMI to install custom software.
 - `distributed-training-p4de_postinstall_scripts`: same as above but uses post-install scripts to install Docker, Pyxis and Enroot.
-
 
 Alternatively you can refer to these architectures for more specific use cases:
 
@@ -69,3 +97,6 @@ Alternatively you can refer to these architectures for more specific use cases:
 ![AWS ParallelCluster diagram](/docs/parallelcluster-arch-diagram.png)
 
 ## Test Cases
+
+
+
