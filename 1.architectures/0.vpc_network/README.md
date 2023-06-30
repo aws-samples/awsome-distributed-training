@@ -46,7 +46,7 @@ aws cloudformation create-stack --stack-name vpc-stack-ml\
 
 This template deploys a VPC with a private subnet and a public subnet in a specific Availability Zone. This template is recommended if you want to deploy subnets in a single specific AZ.
 
-- **Template file**: `2.vpc-one-az.yaml`
+- **Template file**: [`2.vpc-one-az.yaml`](./2.vpc-one-az.yaml)
 
 #### List of Parameters
 
