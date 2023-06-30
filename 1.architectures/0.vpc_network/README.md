@@ -10,7 +10,7 @@ The architectures each deploy a VPC, public and private subnets, gateways and en
 
 This template deploys a VPC with private subnets in all Availability zones. Public subnets can be optionally created in every AZ (done by default). This template serves most use cases.
 
-- **Template file**: `1.vpc-all-az.yaml`
+- **Template file**: [`1.vpc-all-az.yaml`](./1.vpc-all-az.yaml)
 
 
 #### List of Parameters
