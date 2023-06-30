@@ -17,7 +17,6 @@ This template deploys a VPC with private subnets in all Availability zones. Publ
 
 The templates takes parameters that are mandatory and optional, see below for more details.
 
-|-------------------------|-------------|-------------------------------------------------------------------|
 | Name                    | Type        | Details                                                           |
 |-------------------------|-------------|-------------------------------------------------------------------|
 | `AvailabilityZones`     | Required    | Pick the AZs in which to deploy a private and a public subnet.   |
@@ -26,7 +25,6 @@ The templates takes parameters that are mandatory and optional, see below for mo
 | `CreatePublicSubnet`    | Optional    | Create public subnets in every selected AZ, defaults to `true`.   |
 | `CreateS3Endpoint`      | Optional    | Create an S3 VPC endpoint, defaults to `true`.                    |
 | `CreateDynamoDBEndpoint`| Optional    | Create a DynamoDB VPC endpoint, defaults to `true`.               |
-|---------------------|-------------|-----------------------------------------------------------------------|
 
 Please note that the deployment of public subnets is optional.
 
@@ -54,14 +52,12 @@ This template deploys a VPC with a private subnet and a public subnet in a speci
 
 The templates takes parameters that are mandatory and optional, see below for more details.
 
-|-------------------------|-------------|-------------------------------------------------------------------|
 | Name                    | Type        | Details                                                           |
 |-------------------------|-------------|-------------------------------------------------------------------|
 | `SubnetsAZ`             | Required    | Availability zone in which to deploy subnets. |
 | `VPCName`               | Optional    | Name of the VPC and subnets you will deploy, defaults to *ML VPC*.|
 | `CreateS3Endpoint`      | Optional    | Create an S3 VPC endpoint, defaults to `true`.                    |
 | `CreateDynamoDBEndpoint`| Optional    | Create a DynamoDB VPC endpoint, defaults to `true`.               |
-|---------------------|-------------|-----------------------------------------------------------------------|
 
 
 #### Deploy with the AWS CLI
