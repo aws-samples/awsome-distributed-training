@@ -35,7 +35,7 @@ The command to deploy the template through the CLI is shown below. Feel free to 
 
 ```bash
 aws cloudformation create-stack --stack-name vpc-stack-ml\
-                                --template-body file://VPC-HPC.yaml \
+                                --template-body file://1.vpc-all-az.yaml \
                                 --parameters ParameterKey=AvailabilityZones,ParameterValue=us-east-1a\\,us-east-1b\\,us-east-1c\\,us-east-1d\\,us-east-1e\\,us-east-1f\
                                     ParameterKey=NumberOfAZs,ParameterValue=6 \
                                     ParameterKey=VPCName,ParameterValue="ML HPC VPC" \
@@ -67,7 +67,7 @@ The command to deploy the template through the CLI is shown below. Feel free to 
 
 ```bash
 aws cloudformation create-stack --stack-name vpc-stack-ml\
-                                --template-body file://VPC-HPC.yaml \
+                                --template-body file://2.vpc-one-az.yaml \
                                 --parameters ParameterKey=SubnetsAZ,ParameterValue=us-east-1a \
                                              ParameterKey=VPCName,ParameterValue="ML HPC VPC" \
                                 --capabilities CAPABILITY_IAM
