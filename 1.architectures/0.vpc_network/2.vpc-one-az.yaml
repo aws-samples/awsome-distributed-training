@@ -1,0 +1,384 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Setup for tightly coupled workloads on AWS. A public subnet and a private
+  subnet are created in an Availability Zone that you provide as a parameter.
+  As part of the template you'll deploy an Internet Gateway and NAT Gateway in
+  the public subnet. In addition you can deploy endpoints for Amzon S3 and
+  Amazon DynamoDB. The VPC contains 2 CIDR blocks with 10.0.0.0/16 and 10.1.0.0/16
+  The first CIDR is used for the public subnet, the second is used for the private.
+  Author: Pierre-Yves Aquilanti - pierreya@
+
+
+####################
+## Stack Metadata ##
+####################
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: General configuration
+        Parameters:
+          - VPCName
+      - Label:
+          default: Availability Zone configuration for the subnets
+        Parameters:
+          - SubnetsAZ
+      - Label:
+          default: Network and S3 endpoints configuration
+        Parameters:
+          - CreateS3Endpoint
+          - CreateDynamoDBEndpoint
+    ParameterLabels:
+      VPCName:
+        default: Name of your VPC
+      SubnetsAZ:
+        default: Availability zone to deploy the subnets
+      CreateS3Endpoint:
+        default: Create an S3 endpoint
+      CreateDynamoDBEndpoint:
+        default: Create a DynamoDB endpoint
+
+######################
+## Stack Parameters ##
+######################
+
+Parameters:
+  VPCName:
+    Description: Name of your VPC
+    Default: 'ML VPC'
+    Type: String
+
+  SubnetsAZ:
+    Description: Availability zone in which the subnets will be created.
+    Type: AWS::EC2::AvailabilityZone::Name
+
+  CreateS3Endpoint:
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Default: 'true'
+    Description:
+      Set to false if to avoid creating an S3 endpoint on your VPC.
+    Type: String
+
+  CreateDynamoDBEndpoint:
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Default: 'true'
+    Description:
+      Set to false if to avoid creating a DynamoDB endpoint on your VPC.
+    Type: String
+
+###############################
+## Conditions for Parameters ##
+###############################
+
+Conditions:
+  S3EndpointCondition: !Equals [!Ref 'CreateS3Endpoint', 'true']
+  DynamoDBEndpointCondition: !Equals [!Ref 'CreateDynamoDBEndpoint', 'true']
+
+#########################
+## VPC & Network Setup ##
+#########################
+
+Mappings:
+  Networking:
+    VPC:
+      CIDR0: 10.0.0.0/16
+      CIDR1: 10.1.0.0/16
+
+Resources:
+  # Create a VPC
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      CidrBlock: !FindInMap [Networking, VPC, CIDR0]
+      Tags:
+        - Key: Name
+          Value: HPC VPC
+
+  VpcCidrBlock:
+    Type: AWS::EC2::VPCCidrBlock
+    DependsOn: VPC
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !FindInMap [Networking, VPC, CIDR1]
+
+  FlowLogsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: vpc-flow-logs.amazonaws.com
+          Action: sts:AssumeRole
+      Policies:
+      - PolicyName: flowlogs-policy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            - logs:DescribeLogGroups
+            - logs:DescribeLogStreams
+            Resource: !GetAtt FlowLogsGroup.Arn
+  FlowLogsGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: 7
+
+  FlowLogVPC:
+    Type: AWS::EC2::FlowLog
+    Properties:
+      DeliverLogsPermissionArn: !GetAtt FlowLogsRole.Arn
+      LogGroupName: FlowLogsGroup
+      ResourceId: !Ref VPC
+      ResourceType: VPC
+      TrafficType: ALL
+
+  # Create an IGW and add it to the VPC
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  GatewayToInternet:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  # Create a NAT GW then add it to the public subnet
+  NATGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt ElasticIP.AllocationId
+      SubnetId: !Ref PublicSubnet
+
+  ElasticIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow EFA communication for Multi-Node Parallel Batch jobs
+      VpcId: !Ref VPC
+  EFASecurityGroupIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      Description: All to all communication for EFA Ingress within Security Group
+      IpProtocol: -1
+      FromPort: -1
+      ToPort: -1
+      GroupId: !Ref SecurityGroup
+      SourceSecurityGroupId: !Ref SecurityGroup
+  EFASecurityGroupEgress:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      Description: All to all communication for EFA Egress  within Security Group
+      IpProtocol: -1
+      FromPort: -1
+      ToPort: -1
+      GroupId: !Ref SecurityGroup
+      DestinationSecurityGroupId: !Ref SecurityGroup
+  EFASecurityGroupEgressECS:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      Description: All to all communication for Egress to all
+      IpProtocol: -1
+      FromPort: -1
+      ToPort: -1
+      GroupId: !Ref SecurityGroup
+      CidrIp: 0.0.0.0/0
+
+  FSXSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow FSX to mount to the head node
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 988
+          ToPort: 988
+          CidrIp: !FindInMap [Networking, VPC, CIDR0]
+        - IpProtocol: tcp
+          FromPort: 1021
+          ToPort: 1023
+          CidrIp: !FindInMap [Networking, VPC, CIDR0]
+        - IpProtocol: tcp
+          FromPort: 988
+          ToPort: 988
+          CidrIp: !FindInMap [Networking, VPC, CIDR1]
+        - IpProtocol: tcp
+          FromPort: 1021
+          ToPort: 1023
+          CidrIp: !FindInMap [Networking, VPC, CIDR1]
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 988
+          ToPort: 988
+          CidrIp: !FindInMap [Networking, VPC, CIDR0]
+        - IpProtocol: tcp
+          FromPort: 1021
+          ToPort: 1023
+          CidrIp: !FindInMap [Networking, VPC, CIDR0]
+        - IpProtocol: tcp
+          FromPort: 988
+          ToPort: 988
+          CidrIp: !FindInMap [Networking, VPC, CIDR1]
+        - IpProtocol: tcp
+          FromPort: 1021
+          ToPort: 1023
+          CidrIp: !FindInMap [Networking, VPC, CIDR1]
+
+
+  # Build the public subnet
+  PublicSubnet:
+    Type: AWS::EC2::Subnet
+    DependsOn: VPC
+    Properties:
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref VPC
+      CidrBlock: !Select [ 0, !Cidr [ !GetAtt VPC.CidrBlock, 2, 15 ]]
+      AvailabilityZone: !Ref SubnetsAZ
+      Tags:
+        - Key: Name
+          Value: !Join [ ' ', [ !Ref VPCName, 'Public Subnet -', !Ref SubnetsAZ ] ]
+
+  # Create the private subnets
+  PrivateSubnet:
+    Type: AWS::EC2::Subnet
+    DependsOn: [VpcCidrBlock]
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Select [ 0, !Cidr [ !FindInMap [Networking, VPC, CIDR1], 2, 15 ]]
+      AvailabilityZone: !Ref SubnetsAZ
+      Tags:
+        - Key: Name
+          Value: !Join [ ' ', [ !Ref VPCName, 'Private Subnet -', !Ref SubnetsAZ ] ]
+
+  # Create and set the public route table
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  # Then the private route table
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+  PrivateRouteToInternet:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NATGateway
+
+  # Associate the public route table to the public subnet
+  PublicSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet
+      RouteTableId: !Ref PublicRouteTable
+
+  # and the private subnets to the private route table
+  PrivateSubnetRTAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet
+      RouteTableId: !Ref PrivateRouteTable
+
+  # S3 endpoint
+  S3Endpoint:
+    Condition: S3EndpointCondition
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+            - Effect: Allow
+              Principal: '*'
+              Action:
+                - '*'
+              Resource:
+                - '*'
+      RouteTableIds:
+        - !Ref PublicRouteTable
+        - !Ref PrivateRouteTable
+      ServiceName: !Join
+        - ''
+        - - com.amazonaws.
+          - !Ref AWS::Region
+          - .s3
+      VpcId: !Ref VPC
+
+  # DynamoDB endpoint
+  DynamoDBEndpoint:
+    Condition: DynamoDBEndpointCondition
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+            - Effect: Allow
+              Principal: '*'
+              Action:
+                - '*'
+              Resource:
+                - '*'
+      RouteTableIds:
+        - !Ref PublicRouteTable
+        - !Ref PrivateRouteTable
+      ServiceName: !Join
+        - ''
+        - - com.amazonaws.
+          - !Ref AWS::Region
+          - .dynamodb
+      VpcId: !Ref VPC
+
+#############
+## Outputs ##
+#############
+Outputs:
+  VPC:
+    Value: !Ref VPC
+    Description: ID of the VPC
+    Export:
+      Name: !Sub ${AWS::StackName}-VPC
+  PublicSubnet:
+    Value: !Ref PublicSubnet
+    Description: ID of the public subnet
+    Export:
+      Name: !Sub ${AWS::StackName}-PublicSubnet
+  PrivateSubnet:
+    Value: !Ref PrivateSubnet
+    Description: ID of the private subnets
+    Export:
+      Name: !Sub ${AWS::StackName}-PrivateSubnet
+  SecurityGroup:
+    Value: !Ref SecurityGroup
+    Description: SecurityGroup for Batch
+    Export:
+      Name: !Sub ${AWS::StackName}-SecurityGroup
+  FSXSecurityGroup:
+    Value: !Ref FSXSecurityGroup
+    Description: Security Group for FSX Lustre
+    Export:
+      Name: !Sub ${AWS::StackName}-FSXSecurityGroup

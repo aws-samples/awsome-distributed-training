@@ -29,7 +29,7 @@ Metadata:
       - Label:
           default: Network and Endpoint Configuration
         Parameters:
-          - CreatePublicSubnet
+          - CreatePublicSubnets
           - CreateS3Endpoint
           - CreateDynamoDBEndpoint
     ParameterLabels:
@@ -39,7 +39,7 @@ Metadata:
         default: Name of your VPC
       NumberOfAZs:
         default: Number of Availability Zones
-      CreatePublicSubnet:
+      CreatePublicSubnets:
         default: Create a Public Subnet
       CreateS3Endpoint:
         default: Create an S3 Endpoint
@@ -72,7 +72,7 @@ Parameters:
     Description: Number of Availability Zones to use in the VPC. This must match your selections in the list of Availability Zones parameter.
     Type: String
 
-  CreatePublicSubnet:
+  CreatePublicSubnets:
     AllowedValues:
       - 'true'
       - 'false'
@@ -128,7 +128,7 @@ Conditions:
     - !Condition 'PublicSubnetCondition'
     - !Condition '6AZCondition'
 
-  PublicSubnetCondition: !Equals [!Ref 'CreatePublicSubnet', 'true']
+  PublicSubnetCondition: !Equals [!Ref 'CreatePublicSubnets', 'true']
   S3EndpointCondition: !Equals [!Ref 'CreateS3Endpoint', 'true']
   DynamoDBEndpointCondition: !Equals [!Ref 'CreateDynamoDBEndpoint', 'true']
 
