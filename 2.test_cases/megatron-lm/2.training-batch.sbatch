@@ -1,4 +1,4 @@
-FROM nvcr.io/nvidia/pytorch:23.01-py3
+FROM nvcr.io/nvidia/pytorch:23.05-py3
 
 ARG EFA_INSTALLER_VERSION=latest
 ARG AWS_OFI_NCCL_VERSION=v1.6.0
@@ -17,17 +17,9 @@ RUN rm -rf /opt/hpcx \
     && ldconfig
 
 ######################
-# Set this enviroment variable for SageMaker to launch SMDDP correctly.
-######################
-ENV SAGEMAKER_TRAINING_MODULE=sagemaker_pytorch_container.training:main
-######################
 # Add enviroment variable for processes to be able to call fork()
 ######################
 ENV RDMAV_FORK_SAFE=1
-######################
-# Indicate the container type
-######################
-ENV DLC_CONTAINER_TYPE=training
 
 RUN DEBIAN_FRONTEND=noninteractive apt install -y --allow-unauthenticated \
     git \
@@ -94,75 +86,19 @@ RUN export OPAL_PREFIX="" \
     && make && make install
 
 ###################################################
-## Install NCCL-tests
-RUN git clone https://github.com/NVIDIA/nccl-tests.git /workspace/nccl-tests \
-    && cd /workspace/nccl-tests \
-    && git checkout ${NCCL_TESTS_VERSION} \
-    && make MPI=1 \
-       MPI_HOME=/opt/amazon/openmpi/ \
-       CUDA_HOME=/usr/local/cuda \
-       NCCL_HOME=/opt/nccl/build \
-       NVCC_GENCODE="-gencode=arch=compute_86,code=sm_86 -gencode=arch=compute_80,code=sm_80 -gencode=arch=compute_75,code=sm_75 -gencode=arch=compute_70,code=sm_70 -gencode=arch=compute_60,code=sm_60"
-
 RUN rm -rf /var/lib/apt/lists/*
 ENV LD_PRELOAD=/opt/nccl/build/lib/libnccl.so
 
 RUN echo "hwloc_base_binding_policy = none" >> /opt/amazon/openmpi/etc/openmpi-mca-params.conf \
  && echo "rmaps_base_mapping_policy = slot" >> /opt/amazon/openmpi/etc/openmpi-mca-params.conf
 
-#RUN pip3 install awscli pynvml sagemaker-training mpi4py
 RUN pip3 install awscli 
 RUN pip3 install pynvml 
-RUN pip3 install sagemaker-training 
-#RUN PATH=$OPEN_MPI_PATH/bin/mpicc:$PATH pip3 install mpi4py
-#RUN pip3 install mpi4py
 
 RUN mv $OPEN_MPI_PATH/bin/mpirun $OPEN_MPI_PATH/bin/mpirun.real \
  && echo '#!/bin/bash' > $OPEN_MPI_PATH/bin/mpirun \
  && echo '/opt/amazon/openmpi/bin/mpirun.real "$@"' >> $OPEN_MPI_PATH/bin/mpirun \
  && chmod a+x $OPEN_MPI_PATH/bin/mpirun
-
-######################
-# Install SageMaker PyTorch training.
-######################
-WORKDIR /root
-RUN pip install --no-cache-dir -U \
-    smclarify \
-    "sagemaker>=2,<3" \
-    sagemaker-experiments==0.* \
-    sagemaker-pytorch-training
-
-######################
-# Install libboost from source.
-# This package is needed for smdataparallel functionality (for networking asynchronous IO).
-######################
-WORKDIR /
-RUN wget https://sourceforge.net/projects/boost/files/boost/1.73.0/boost_1_73_0.tar.gz/download -O boost_1_73_0.tar.gz \
-    && tar -xzf boost_1_73_0.tar.gz \
-    && cd boost_1_73_0 \
-    && ./bootstrap.sh \
-    && ./b2 threading=multi -j 64 cxxflags=-fPIC cflags=-fPIC install || true \
-    && cd .. \
-    && rm -rf boost_1_73_0.tar.gz \
-    && rm -rf boost_1_73_0 
-    
-######################
-# Install SageMaker data parallel binary (SMDDP)
-# Start with dependencies
-######################
-RUN apt-get update && apt-get install -y  --no-install-recommends \
-        jq \
-        libhwloc-dev \
-        libnuma1 \
-        libnuma-dev \
-        libssl1.1 \
-        libtool \
-        hwloc \
-    && rm -rf /var/lib/apt/lists/*
-######################
-# Add boost and SMDDP to LD_LIBRARY path
-######################
-ENV LD_LIBRARY_PATH=/usr/local/lib:/usr/local/lib/python3.8/dist-packages/smdistributed/dataparallel/lib:$LD_LIBRARY_PATH
 
 ######################
 # Transformers dependencies used in the model
@@ -172,13 +108,12 @@ RUN pip install transformers==4.21.0
 #####################
 # Install megatron-lm
 #####################
-RUN cd /tmp && git clone https://github.com/NVIDIA/Megatron-LM.git \
+RUN cd /workspace && git clone https://github.com/NVIDIA/Megatron-LM.git \
 	&& cd Megatron-LM \
-	&& python3 -m pip install pybind11 \
+	&& python3 -m pip install pybind11 nltk pytorch  \
 	&& python -m pip install python-etcd==0.4.5
 	
-
-WORKDIR /tmp/Megatron-LM
+WORKDIR /workspace/Megatron-LM
 
 
 
