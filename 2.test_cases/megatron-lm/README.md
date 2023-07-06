@@ -5,19 +5,16 @@
 - [Megatron-LM: Training Multi-Billion Parameter Language Models Using Model Parallelism](https://arxiv.org/abs/1909.08053)
 - [Efficient Large-Scale Language Model Training on GPU Clusters Using Megatron-LM](https://arxiv.org/abs/1909.08053)
 
-
-## Run a test case
-
 To run a test case you will go through a series of steps described below:
 
 1. Build the data preprocessing container.
-2. Preprocess the data using a tockenizer and the preprocessing container.
+2. Preprocess the data using a tokenizer and the preprocessing container.
 3. Build the container for distributed training
 4. Train!
 
 We describe the steps below for Slurm users. EKS users may follow the sequence but details will vary.
 
-### 0. Preparation
+## 0. Preparation
 
 This guide assumes that you have the following:
 
@@ -32,7 +29,7 @@ export DATA_PATH=/fsx
 export APPS_PATH=/apps
 ```
 
-### 1. Data Preprocessing
+## 1. Data Preprocessing
 
 Before running training jobs you need to retrieve input data and preprocess it. This section of the guide you will retrieve a container then you convert it into a Squash file via [Enroot](https://github.com/NVIDIA/enroot), you will then retrieve input data ans tokenize it using the GPT2 vocabulary.
 
@@ -42,7 +39,7 @@ Below are the steps you need to follow:
 2. Build the container image with the command below
 
    ```bash
-   docker build -t megatronloader 0.data-prep-container.Dockerfile
+   docker build -t megatronloader -f 0.data-prep-container.Dockerfile .
    ```
 
 3. Once the image is built, you can check if it is present with `docker images`. You should see an output similar to this one:
@@ -123,8 +120,15 @@ Below are the steps you need to follow:
     0: Time to startup: 0.9956498146057129
     0: Processed 1000 documents (101.28050670002645 docs/s, 1.258563987556778 MB/s).
     0: Processed 2000 documents (188.07992853480727 docs/s, 2.3571624257619614 MB/s).
-    0: Processed 3000 documents (274.23974981174354 docs/s, 3.556012525715196 MB/s).
-    0: Processed 4000 documents (360.6994103069481 docs/s, 4.652000519768532 MB/s).
-    ....
+    ...
+    0: Processed 78000 documents (1293.9967304914383 docs/s, 16.67556064420713 MB/s).
+    0: Processed 79000 documents (1298.6715286585202 docs/s, 16.763634765830606 MB/s).
     ```
 
+Voilà! You have executed the preprocessing job. You will go through the steps to run your training job.
+
+
+
+   ```bash
+   docker build -t megatronlm -f ./training.Dockerfile .
+   ```
