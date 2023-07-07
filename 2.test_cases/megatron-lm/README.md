@@ -128,9 +128,4 @@ Now that the data is preprocessed, we will pretrain a GPT3 model MegatronLM.
     ```bash
     sbatch 3.distributed-training.sbatch
     ```
-5. You copy the file `3.distributed-training.sbatch`  on your cluster then submit a training jobs with the command below:
-
-    ```bash
-    sbatch 3.distributed-training.sbatch
-    ```
-6. The training starts running and should and output as below if successful.
+5. The training starts running and should and output as below if successful.
