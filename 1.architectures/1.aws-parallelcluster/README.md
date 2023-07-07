@@ -1,22 +1,54 @@
-#  ML Training Reference Architectures & Tests
-
-This directory contains reference architectures for distributed model training with [AWS ParallelCluster](https://docs.aws.amazon.com/parallelcluster/latest/ug/what-is-aws-parallelcluster.html) and [Amazon EKS](https://docs.aws.amazon.com/eks/latest/userguide/getting-started-console.html) and test cases for different types and sizes of models (Falcon, GPT3, T5) as well as different frameworks and parallel optimizations (Pytorch DDP/FSDP, MegatronLM, MegatronLM-DeepSpeed).
+# AWS ParallelCluster Distributed Training Reference Architectures
 
 
-The reference architectures shared below and located in the directories `parallelcluster` and `eks`.
+
+### Architectures
+
+You can deploy a cluster using a template and customizing your templates by replacing placeholder variables.
+
+#### How to deploy a cluster
+
+To create the cluster use the command below and replace `CLUSTER_CONFIG_FILE` by the path to the cluster configuration file (see next section) and `NAME_OF_YOUR_CLUSTER` by the name of your cluster (`realpotato` is a cool name).
+
+```bash
+pcluster create-cluster --cluster-configuration CLUSTER_CONFIG_FILE --cluster-name NAME_OF_YOUR_CLUSTER --region us-east-1
+```
+
+You can follow the [documentation](https://docs.aws.amazon.com/parallelcluster/latest/ug/commands-v3.html) to review the list of all AWS ParallelCluster commands.
+
+#### Cluster templates
+
+Each reference architectures provides an example of cluster for different use cases. The architectures most commonly used are:
+
+- `distributed-training-gpu`: base template, uses the default AMI with no software installed.
+- `distributed-training-p4de_custom_ami`: base cluster with a custom AMI to install custom software.
+- `distributed-training-p4de_postinstall_scripts`: same as above but uses post-install scripts to install Docker, Pyxis and Enroot.
+
+Alternatively you can refer to these architectures for more specific use cases:
+
+- `distributed-training-p4de_batch-inference-g5_custom_ami`: multi-queue template with p4de for training and g5 for inference. It assumes a custom AMI.
+- `distributed-training-trn1_custom_ami`: uses Trainium instances for distributed training. Assumes a custom AMI.
+
+#### What to replace in the templates
+
+The templates contain placeholder variables that you need to replace before use.
+
+- `PLACEHOLDER_CUSTOM_AMI_ID`: if using a custom AMI then replace with the custom AMI ID (`ami-12356790abcd`).
+- `PLACEHOLDER_PUBLIC_SUBNET`: change to the id of a public subnet to host the head-node (`subnet-12356790abcd`).
+- `PLACEHOLDER_PRIVATE_SUBNET`: change to the id of a public subnet to host the compute nodes (`subnet-12356790abcd`).
+- `PLACEHOLDER_SSH_KEY`: ID of the SSH key you'd like to use to connect to the head-node. You can also use AWS Systems Manager Session Manager (SSM).
+- `PLACEHOLDER_CAPACITY_RESERVATION_ID`: if using a capacity reservation put the ID here (`cr-12356790abcd`).
 
 
-### AWS ParallelCluster
-
-Each reference architecture provides consists of the following components:
+### AWS ParallelCluster must know
 
 #### Compute
 
 Compute is represented through the following:
 
-- **head-node**: login and controller node that users will use to submit jobs. It is set to an [m5.8xlarge](https://aws.amazon.com/ec2/instance-types/m5/)..
-- **compute-gpu**: is the queue (or partition) to run your ML training jobs. The instances are either [p4de.24xlarge](https://aws.amazon.com/ec2/instance-types/p4/) or [trn1.32xlarge](https://aws.amazon.com/ec2/instance-types/trn1/) which are recommended for training, especially for LLMs or large models. The default number of instances in the queue has been set to *4* and can be changed as necessary.
-- **inference-gpu**: is an optional queue that can be used to run inference workloads and uses [g5.12xlarge](https://aws.amazon.com/ec2/instance-types/m5/).
+- **Head-node**: login and controller node that users will use to submit jobs. It is set to an [m5.8xlarge](https://aws.amazon.com/ec2/instance-types/m5/)..
+- **Compute-gpu**: is the queue (or partition) to run your ML training jobs. The instances are either [p4de.24xlarge](https://aws.amazon.com/ec2/instance-types/p4/) or [trn1.32xlarge](https://aws.amazon.com/ec2/instance-types/trn1/) which are recommended for training, especially for LLMs or large models. The default number of instances in the queue has been set to *4* and can be changed as necessary.
+- **Inference-gpu**: is an optional queue that can be used to run inference workloads and uses [g5.12xlarge](https://aws.amazon.com/ec2/instance-types/m5/).
 
 #### Storage
 
@@ -51,49 +83,6 @@ You can chose to use a custom image or post-install scripts to install your appl
     If not using a custom image, remove the `CustomAmi` field.
 - **Post-install scripts**: these scripts will be executed at instance boot (head+compute). This option is recommended for quick testing and will increase instance boot time. You can run post-install scripts through `CustomActions` for the head node and the compute nodes.
 
-### Architectures
-
-You can deploy a cluster using a template and customizing your templates by replacing placeholder variables.
-
-#### How to deploy a cluster
-
-To create the cluster use the command below:
-
-```bash
-pcluster create-cluster --cluster-configuration cluster.yaml --cluster-name cluster-g4v7 --region us-east-1
-```
-
-You can follow the [documentation](https://docs.aws.amazon.com/parallelcluster/latest/ug/commands-v3.html) to review the list of all AWS ParallelCluster commands.
-
-#### What to replace
-
-The templates contain placeholder variables that you need to replace before use.
-
-- `PLACEHOLDER_CUSTOM_AMI_ID`: if using a custom AMI then replace with the custom AMI ID (`ami-12356790abcd`).
-- `PLACEHOLDER_PUBLIC_SUBNET`: change to the id of a public subnet to host the head-node (`subnet-12356790abcd`).
-- `PLACEHOLDER_PRIVATE_SUBNET`: change to the id of a public subnet to host the compute nodes (`subnet-12356790abcd`).
-- `PLACEHOLDER_SSH_KEY`: ID of the SSH key you'd like to use to connect to the head-node. You can also use AWS Systems Manager Session Manager (SSM).
-- `PLACEHOLDER_CAPACITY_RESERVATION_ID`: if using a capacity reservation put the ID here (`cr-12356790abcd`).
-
-
-#### Cluster templates
-
-Each reference architectures provides an example of cluster for different use cases. The architectures most commonly used are:
-
-- `distributed-training-gpu`: base template, uses the default AMI with no software installed.
-- `distributed-training-p4de_custom_ami`: base cluster with a custom AMI to install custom software.
-- `distributed-training-p4de_postinstall_scripts`: same as above but uses post-install scripts to install Docker, Pyxis and Enroot.
-
-Alternatively you can refer to these architectures for more specific use cases:
-
-- `distributed-training-p4de_batch-inference-g5_custom_ami`: multi-queue template with p4de for training and g5 for inference. It assumes a custom AMI.
-- `distributed-training-trn1_custom_ami`: uses Trainium instances for distributed training. Assumes a custom AMI.
-
 ### Diagram
 
 ![AWS ParallelCluster diagram](../../0.docs/parallelcluster-arch-diagram.png)
-
-## Test Cases
-
-
-
