@@ -1,10 +1,12 @@
 # AWS ParallelCluster Distributed Training Reference Architectures
 
-## Architectures
 
-Clusters in AWS ParallelCluster share similar components: a head-node, compute nodes (typically P or Trn EC2 family of instances) and one or multiple shared filesystems (FSx for Lustre). You will find below a section on the architectures themselves and how to deploy them. After this section, you will be brief on key elements of these templates (or things you wanna know to avoid potential mistakes).
 
-### How to deploy a cluster
+### Architectures
+
+You can deploy a cluster using a template and customizing your templates by replacing placeholder variables.
+
+#### How to deploy a cluster
 
 To create the cluster use the command below and replace `CLUSTER_CONFIG_FILE` by the path to the cluster configuration file (see next section) and `NAME_OF_YOUR_CLUSTER` by the name of your cluster (`realpotato` is a cool name).
 
@@ -14,7 +16,7 @@ pcluster create-cluster --cluster-configuration CLUSTER_CONFIG_FILE --cluster-na
 
 You can follow the [documentation](https://docs.aws.amazon.com/parallelcluster/latest/ug/commands-v3.html) to review the list of all AWS ParallelCluster commands.
 
-### Cluster templates
+#### Cluster templates
 
 Each reference architectures provides an example of cluster for different use cases. The architectures most commonly used are:
 
@@ -27,7 +29,7 @@ Alternatively you can refer to these architectures for more specific use cases:
 - `distributed-training-p4de_batch-inference-g5_custom_ami`: multi-queue template with p4de for training and g5 for inference. It assumes a custom AMI.
 - `distributed-training-trn1_custom_ami`: uses Trainium instances for distributed training. Assumes a custom AMI.
 
-### What to replace in the templates
+#### What to replace in the templates
 
 The templates contain placeholder variables that you need to replace before use.
 
@@ -38,9 +40,9 @@ The templates contain placeholder variables that you need to replace before use.
 - `PLACEHOLDER_CAPACITY_RESERVATION_ID`: if using a capacity reservation put the ID here (`cr-12356790abcd`).
 
 
-## AWS ParallelCluster must know
+### AWS ParallelCluster must know
 
-### Compute
+#### Compute
 
 Compute is represented through the following:
 
