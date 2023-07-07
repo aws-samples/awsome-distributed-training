@@ -1,88 +1,58 @@
-# AWS ParallelCluster Distributed Training Reference Architectures
+# AWS Batch distributed training architectures
+
+This architecture serves as an example to run distributed training jobs on p4d.24xlarge instances but can be easily be modified to accommodate other instance kinds (Trn or other P instances).
+
+> **Important**: it is assumed that you deployed the VPC template [`2.vpc-one-az.yaml`](../0.vpc_network/2.vpc-oneaz.yaml) as our Batch template will fetch automatically the EFA Security Group ID (SG) and Subnet ID to setup the AWS Batch Compute Environment. Both the SG and Subnet are exported values from the VPC template.
+
+This architecture consists of the following resources:
+
+- [AWS Batch Compute Environment](https://docs.aws.amazon.com/batch/latest/userguide/compute_environments.html) for [Multi-node parallel jobs](https://docs.aws.amazon.com/batch/latest/userguide/multi-node-parallel-jobs.html). It is similar to a compute cluster.
+- [AWS Batch Job Queue](https://docs.aws.amazon.com/batch/latest/userguide/job_queues.html) attached to the compute environment. It is similar to a queue for job schedulers (Slurm, LSF...).
+- [EC2 Launch Template](https://docs.aws.amazon.com/autoscaling/ec2/userguide/launch-templates.html) which used to setup 4 EFA cards on our instance.
+- [Job Definition](https://docs.aws.amazon.com/batch/latest/userguide/job_definitions.html) serves as a template for our jobs and refers to the container registry to pull containers
+- [ECR Container Registry](https://docs.aws.amazon.com/AmazonECR/latest/userguide/what-is-ecr.html) is used to store containers.
+
+## Template
+
+This template deploys AWS Batch and EC2 resources. It can be deployed via the console and the AWS CLI. Regardless of the deployment method it is assumed that you deployed the VPC template [`2.vpc-one-az.yaml`](../0.vpc_network/2.vpc-oneaz.yaml) prior to deploying that one.
+
+- **Template file**: [`aws-batch-distributed-training.yaml`](./aws-batch-distributed-training.yaml)
+
+## List of Parameters
+
+The templates takes parameters that are mandatory and optional, see below for more details.
+
+| Name                    | Type        | Details                                                               |
+|-------------------------|-------------|-----------------------------------------------------------------------|
+| `VPCStackParameter`     | Required    | Name of the VPC stack in CloudFormation.                              |
+| `AMI`                   | Optional    | ID of the AMI if using a custom one otherwise leave blank             |
+| `CapacityReservationId` | Optional    | Use that or the ResourceGroup to refer to an EC2 reservation          |
+| `CapacityReservationResourceGroup`    | Optional    | Use that or the CapacityReservationId.                  |
+| `EC2KeyPair`            | Optional    | EC2 key pair to use in case you want to connect through ssh for debug.|
+| `CreatePlacementGroup`  | Optional    | Create a placement group for the instances.                           |
 
 
+## Deploy with the AWS CLI
 
-### Architectures
+The command to deploy the template through the CLI is shown below. Feel free to edit for your own configuration and parameters.
 
-You can deploy a cluster using a template and customizing your templates by replacing placeholder variables.
-
-#### How to deploy a cluster
-
-To create the cluster use the command below and replace `CLUSTER_CONFIG_FILE` by the path to the cluster configuration file (see next section) and `NAME_OF_YOUR_CLUSTER` by the name of your cluster (`realpotato` is a cool name).
 
 ```bash
-pcluster create-cluster --cluster-configuration CLUSTER_CONFIG_FILE --cluster-name NAME_OF_YOUR_CLUSTER --region us-east-1
+aws cloudformation create-stack --stack-name batch-distributed-training \
+                                --template-body file://aws-batch-distributed-training.yaml \
+                                --parameters ParameterKey=VPCStackParameter,ParameterValue="vpc-stack-ml" \
+                                             ParameterKey=CapacityReservationId,ParameterValue="cr-123567890abc" \
+                                --capabilities CAPABILITY_IAM
 ```
 
-You can follow the [documentation](https://docs.aws.amazon.com/parallelcluster/latest/ug/commands-v3.html) to review the list of all AWS ParallelCluster commands.
+## Gotchas
 
-#### Cluster templates
+There are a few things to know as you evaluate this architecture:
+- EFA interfaces need to be declared explicitly in the EC2 Launch Template and you need to provide the security group used for EFA.
+- The Compute Environment must retrieve the list of private subnets from the VPC template. This list is exported by the VPC template.
+- The Batch Job Definition assumes you are pushing a container with `stress-ng` and is pre-configured as such.
 
-Each reference architectures provides an example of cluster for different use cases. The architectures most commonly used are:
+## Architecture Diagram
 
-- `distributed-training-gpu`: base template, uses the default AMI with no software installed.
-- `distributed-training-p4de_custom_ami`: base cluster with a custom AMI to install custom software.
-- `distributed-training-p4de_postinstall_scripts`: same as above but uses post-install scripts to install Docker, Pyxis and Enroot.
+![img](../../0.docs/batch-arch.png)
 
-Alternatively you can refer to these architectures for more specific use cases:
-
-- `distributed-training-p4de_batch-inference-g5_custom_ami`: multi-queue template with p4de for training and g5 for inference. It assumes a custom AMI.
-- `distributed-training-trn1_custom_ami`: uses Trainium instances for distributed training. Assumes a custom AMI.
-
-#### What to replace in the templates
-
-The templates contain placeholder variables that you need to replace before use.
-
-- `PLACEHOLDER_CUSTOM_AMI_ID`: if using a custom AMI then replace with the custom AMI ID (`ami-12356790abcd`).
-- `PLACEHOLDER_PUBLIC_SUBNET`: change to the id of a public subnet to host the head-node (`subnet-12356790abcd`).
-- `PLACEHOLDER_PRIVATE_SUBNET`: change to the id of a public subnet to host the compute nodes (`subnet-12356790abcd`).
-- `PLACEHOLDER_SSH_KEY`: ID of the SSH key you'd like to use to connect to the head-node. You can also use AWS Systems Manager Session Manager (SSM).
-- `PLACEHOLDER_CAPACITY_RESERVATION_ID`: if using a capacity reservation put the ID here (`cr-12356790abcd`).
-
-
-### AWS ParallelCluster must know
-
-#### Compute
-
-Compute is represented through the following:
-
-- **Head-node**: login and controller node that users will use to submit jobs. It is set to an [m5.8xlarge](https://aws.amazon.com/ec2/instance-types/m5/)..
-- **Compute-gpu**: is the queue (or partition) to run your ML training jobs. The instances are either [p4de.24xlarge](https://aws.amazon.com/ec2/instance-types/p4/) or [trn1.32xlarge](https://aws.amazon.com/ec2/instance-types/trn1/) which are recommended for training, especially for LLMs or large models. The default number of instances in the queue has been set to *4* and can be changed as necessary.
-- **Inference-gpu**: is an optional queue that can be used to run inference workloads and uses [g5.12xlarge](https://aws.amazon.com/ec2/instance-types/m5/).
-
-#### Storage
-
-Storage comes in 3 flavors:
-
-- **Local**: head and compute nodes have 200GiB of EBS volume mounted on `/`. In addition, the headnode has an EBS volume of `200GiB` mounted on `/apps` The compute nodes have NVMe drives striped in RAID0 and mounted as `/local_scratch`.
-- **File network storage**: The head-node shares `/home` and `/apps` to the whole cluster through NFS. These directories are automatically mounted on every instance in the cluster and accessible through the same path. `/home` is a regular home directory, `/apps` is a shared directory where applications or shared files can be stored. Please note that none should be used for data intensive tasks.
-- **High performance filesystem**: An [FSx for Lustre](https://docs.aws.amazon.com/fsx/latest/LustreGuide/what-is.html) filesystem can be access from every cluster node on `/fsx`. This is where users would store their datasets. This file system has been sized to 4.8TiB and provides 1.2GB/s of aggregated throughput. You can modify its size and the throughput per TB provisioned in the config file following the service [documentation](https://docs.aws.amazon.com/fsx/latest/LustreGuide/performance.html).
-
-
-#### Network
-
-Applications will make use of [Elastic Fabric Adapter (EFA)](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa.html) for distributed training. In addition, instances will be placed to one another through the use of placement groups or assistance from AWS.
-
-Placement groups are only relevant for distributed training, not inference. You may remove the placement groups declaration in the config file if requested. In which case you will need to delete these lines
-
-```yaml
-PlacementGroup:
-  Enabled: true
-```
-
-#### Installing applications & libraries
-
-You can chose to use a custom image or post-install scripts to install your application stack.
-
-- **Custom images**: the image needs to be pre-built before creating a cluster. They are preferred for drivers, kernel modules or libraries regularly used and seeing little to no updates. This option is preferred to ensure repeatability. You can use custom images as follows:
-    ```yaml
-    Image:
-      Os: alinux2 #system type
-      CustomAmi: PLACEHOLDER_CUSTOM_AMI_ID #replace by custom imageAMI ID
-    ```
-    If not using a custom image, remove the `CustomAmi` field.
-- **Post-install scripts**: these scripts will be executed at instance boot (head+compute). This option is recommended for quick testing and will increase instance boot time. You can run post-install scripts through `CustomActions` for the head node and the compute nodes.
-
-### Diagram
-
-![AWS ParallelCluster diagram](../../0.docs/parallelcluster-arch-diagram.png)
