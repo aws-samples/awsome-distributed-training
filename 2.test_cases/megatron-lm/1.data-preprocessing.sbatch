@@ -1,12 +1,17 @@
 #!/bin/bash
-#SBATCH -N 1
-#SBATCH --exclusive
+#SBATCH -N 1 # number of nodes we want
+#SBATCH --exclusive # job has exclusive use of the resource, no sharing
 
-# cd MegatronLoader
-# docker build -t megatronloader .
-# .sqsh file produced by enroot import -o ./megatronloader.sqsh  dockerd://megatronloader:latest
-: "${IMAGE:=$APPS_PATH/megatronloader.sqsh}"
+###########################
+###### User Variables #####
+###########################
+
+: "${IMAGE:=$APPS_PATH/megatron-preprocess.sqsh}"
 : "${FSX_MOUNT:=/fsx:/fsx}"
+
+# default variables for Enroot
+: "${APPS_PATH:=/apps}"
+: "${DATA_PATH:=/fsx}"
 
 declare -a ARGS=(
     --container-image $IMAGE
@@ -15,7 +20,7 @@ declare -a ARGS=(
 )
 
 # runs in
-srun -l "${ARGS[@]}"  python3 /workspace/Megatron-LM//tools/preprocess_data.py \
+srun -l "${ARGS[@]}"  python3 /workspace/Megatron-LM/tools/preprocess_data.py \
         --input ${DATA_PATH}/oscar-1GB.jsonl \
         --output-prefix ${DATA_PATH}/my-gpt2 \
         --vocab-file ${DATA_PATH}/gpt2-vocab.json \
