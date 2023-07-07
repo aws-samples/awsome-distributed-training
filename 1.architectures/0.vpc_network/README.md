@@ -42,6 +42,10 @@ aws cloudformation create-stack --stack-name vpc-stack-ml\
                                 --capabilities CAPABILITY_IAM
 ```
 
+#### Architecture Diagram
+
+![img](../../0.docs/vpc-one-az.png)
+
 ### 2. Template VPC One AZs
 
 This template deploys a VPC with a private subnet and a public subnet in a specific Availability Zone. This template is recommended if you want to deploy subnets in a single specific AZ.
@@ -72,3 +76,7 @@ aws cloudformation create-stack --stack-name vpc-stack-ml\
                                              ParameterKey=VPCName,ParameterValue="ML HPC VPC" \
                                 --capabilities CAPABILITY_IAM
 ```
+
+#### Architecture Diagram
+
+![img](../../0.docs/vpc-all-az.png)
