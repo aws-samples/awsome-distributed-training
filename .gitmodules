@@ -1,0 +1,3 @@
+[submodule "2.test_cases/llm-foundry/llm-foundry"]
+	path = 2.test_cases/llm-foundry/mpt-7B/llm-foundry
+	url = https://github.com/mosaicml/llm-foundry.git
