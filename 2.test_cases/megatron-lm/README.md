@@ -117,7 +117,7 @@ Now that the data is preprocessed, we will pretrain a GPT3 model MegatronLM.
 1. Copy the file `2.training-batch.Dockerfile` or its content to your cluster.
 2. Build the container with the command below. This will build a container with all the required dependencies to train your models with MegatronLM.
     ```bash
-    docker build -t megatron-training ./training.Dockerfile .
+    docker build -t megatron-training -f ./2.distributed-training.Dockerfile .
     ```
 3. Convert the docker container to a squash file in `/apps`.
     ```bash
