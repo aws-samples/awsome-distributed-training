@@ -1,0 +1,69 @@
+meta:
+  name_of_run: "scDino_pcluster_full_0"
+  output_dir: "/fsx/outputdir"
+  dataset_dir: "/fsx/data"
+  folder_depth_for_labels: 0 
+  train_datasetsplit_fraction: 0.8
+  seed: 40
+  images_are_RGB: False
+  channel_dict: "aTub,BF,DAPI,Oct4,PE" 
+  selected_channel_combination_per_run: 0,1,2,3,4 
+  center_crop: 0 
+
+train_scDINO:
+  dino_vit_name: "mySCDINOmodel"
+  fraction_for_mean_std_calc: 0.2
+  epochs: 3
+  saveckp_freq: 1
+  num_gpus: 4
+  nnodes: 2
+  batch_size_per_gpu: 30
+  num_workers: 16
+  dist_url: "env://"
+  hyperparameters:
+    arch: "vit_small"
+    patch_size: 16
+    norm_last_layer: True
+    momentum_teacher: 0.996
+    use_bn_in_head: False
+    warmup_teacher_temp: 0.04
+    techer_temp: 0.04
+    warmup_teacher_temp_epochs: 0
+    use_fp16: True
+    weight_decay: 0.04
+    weight_decay_end: 0.4
+    clip_grad: 3
+    freeze_last_layer: 1
+    lr: 0.0005
+    warump_epochs: 1
+    min_lr: 0.000001
+    optimizer: "adamw"
+    drop_path_rate: 0.1
+    local_crops_number: 8
+
+downstream_analyses:
+  compute_cls_features:
+    normalize: True
+    num_gpus: 4
+    nnodes: 2
+    batch_size_per_gpu: 24
+    num_workers: 16
+    checkpoint_key: teacher
+    resize: True
+    resize_length: 224 
+  attention_visualisation:
+    num_images_per_class: 1
+    resize_attention_image: True
+    image_size: 480
+  kNN:
+    global:
+      n_neighbors: [5, 10, 50, 100, 200, 500]
+      temperature: 0.1
+  umap_eval:
+    n_neighbors: 30
+    min_dist: 0.4
+    n_components: 2
+    metric: euclidean
+    spread: 1.1
+    epochs: 100
+    topometry_plots: False
