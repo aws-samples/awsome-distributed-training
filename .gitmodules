@@ -5,5 +5,5 @@
 	path = 2.test_cases/0.nccl-test-on-eks
 	url = git@ssh.gitlab.aws.dev:smml/benchmarking/nccl-test-on-eks.git
 [submodule "2.test_cases/4.MPT/llm-foundry"]
-	path = 2.test_cases/4.MPT/llm-foundry
+	path = 2.test_cases/3.MPT/llm-foundry
 	url = https://github.com/mosaicml/llm-foundry.git
