@@ -1,0 +1,15 @@
+catalyst==22.4
+imageio==2.16.1
+matplotlib==3.5.1
+numpy==1.21.5
+opencv_python==4.5.5.64
+pandas==1.5.0
+Pillow==9.4.0
+PyYAML==6.0
+scikit_image==0.19.2
+scikit_learn==1.2.1
+seaborn==0.12.2
+tifffile==2021.11.2
+topo==0.1.1
+topometry==0.1.1.0
+umap_learn==0.5.3
