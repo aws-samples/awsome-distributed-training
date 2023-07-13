@@ -128,4 +128,28 @@ Now that the data is preprocessed, we will pretrain a GPT3 model MegatronLM.
     ```bash
     sbatch 3.distributed-training.sbatch
     ```
-5. The training starts running and should and output as below if successful.
+5. The training starts running and should produce an output similar to below if successful.
+
+
+```
+1:  iteration       25/73242187 | consumed samples:           50 | elapsed time per iteration (ms): 87.0 | learning rate: 1.638E-08 | global batch size:     2 | lm loss: 1.086954E+01 | loss scale: 4294967296.0 | grad norm: 0.000 | number of skipped iterations:   0 | number of nan iterations:   0 |
+1:  iteration       26/73242187 | consumed samples:           52 | elapsed time per iteration (ms): 86.5 | learning rate: 1.704E-08 | global batch size:     2 | lm loss: 1.086217E+01 | loss scale: 4294967296.0 | grad norm: 0.000 | number of skipped iterations:   0 | number of nan iterations:   0 |
+1:  iteration       27/73242187 | consumed samples:           54 | elapsed time per iteration (ms): 88.4 | learning rate: 1.769E-08 | global batch size:     2 | lm loss: 1.087129E+01 | loss scale: 4294967296.0 | grad norm: 0.000 | number of skipped iterations:   0 | number of nan iterations:   0 |
+```
+
+## 3. What's next?
+
+The example is based on the GPT3 example from MegatronLM's [repository](https://github.com/NVIDIA/Megatron-LM/blob/main/examples/pretrain_gpt.sh). You can modify `NUM_ATTENTION_HEADS`, `NUM_LAYERS`, and `HIDDEN_SIZE`  based on the Table 1 (Page 8) of the document [Efficient Large-Scale Language Model Training on GPU Clusters Using Megatron-LM](https://arxiv.org/abs/2104.04473) to change the model size. You can also run the following commands to launch training for different model sizes before submitting a job.
+
+|------------|------------------------------------------------------------------|
+| Model size | Parameters                                                       |
+|------------|------------------------------------------------------------------|
+| 1.7B       | `export NUM_LAYERS=24 HIDDEN_SIZE=2304 NUM_ATTENTION_HEADS=24`   |
+| 3.6B       | `export NUM_LAYERS=32 HIDDEN_SIZE=3072 NUM_ATTENTION_HEADS=30`   |
+| 7.5B       | `export NUM_LAYERS=32 HIDDEN_SIZE=4096 NUM_ATTENTION_HEADS=36`   |
+| 18.4B      | `export NUM_LAYERS=48 HIDDEN_SIZE=6144 NUM_ATTENTION_HEADS=40`   |
+| 39.1B      | `export NUM_LAYERS=64 HIDDEN_SIZE=8192 NUM_ATTENTION_HEADS=48`   |
+| 76.1B      | `export NUM_LAYERS=80 HIDDEN_SIZE=10240 NUM_ATTENTION_HEADS=60`  |
+| 145.6B     | `export NUM_LAYERS=96 HIDDEN_SIZE=12288 NUM_ATTENTION_HEADS=80`  |
+| 310.1B     | `export NUM_LAYERS=128 HIDDEN_SIZE=16384 NUM_ATTENTION_HEADS=06` |
+|------------|------------------------------------------------------------------|
