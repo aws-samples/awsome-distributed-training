@@ -20,9 +20,9 @@ set -ex;
 # Model parameters, defaults to 39B model
 # Refer to page 8 of this paper on how to tune models parameters
 # https://arxiv.org/pdf/2104.04473.pdf
-: "${NUM_LAYERS:=48}"
-: "${HIDDEN_SIZE:=8192}"
-: "${NUM_ATTENTION_HEADS:=64}"
+: "${NUM_LAYERS:=36}"
+: "${HIDDEN_SIZE:=4096}"
+: "${NUM_ATTENTION_HEADS:=32}"
 : "${SEQ_LENGTH:=2048}"
 : "${MAX_POSITION_EMBEDDINGS:=2048}"
 : "${MICRO_BATCH_SIZE:=1}"
