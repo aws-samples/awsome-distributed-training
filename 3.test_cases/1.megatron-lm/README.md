@@ -22,12 +22,16 @@ This guide assumes that you have the following:
 - Docker, [Pyxis](https://github.com/NVIDIA/pyxis) and [Enroot](https://github.com/NVIDIA/enroot) installed.
 - An FSx for Lustre filesystem mounted on `/fsx`.
 
+It is recommended that you use the templates in the architectures [directory](../../1.architectures)
+
+
 You will also setup the following variables in your terminal environment.
 
 ```bash
 export DATA_PATH=/fsx
 export APPS_PATH=/apps
 ```
+
 
 ## 1. Data Preprocessing
 
@@ -141,7 +145,6 @@ Now that the data is preprocessed, we will pretrain a GPT3 model MegatronLM.
 
 The example is based on the GPT3 example from MegatronLM's [repository](https://github.com/NVIDIA/Megatron-LM/blob/main/examples/pretrain_gpt.sh). You can modify `NUM_ATTENTION_HEADS`, `NUM_LAYERS`, and `HIDDEN_SIZE`  based on the Table 1 (Page 8) of the document [Efficient Large-Scale Language Model Training on GPU Clusters Using Megatron-LM](https://arxiv.org/abs/2104.04473) to change the model size. You can also run the following commands to launch training for different model sizes before submitting a job as follows: `NUM_LAYERS=64 HIDDEN_SIZE=8192 NUM_ATTENTION_HEADS=48 sbatch  3.distributed-training.sbatch`
 
-|------------|-----------------------------------------------------------|
 | Model size | Parameters                                                |
 |------------|-----------------------------------------------------------|
 | 1.7B       | `NUM_ATTENTION_HEADS=24 HIDDEN_SIZE=2304 NUM_LAYERS=24`   |
@@ -152,4 +155,3 @@ The example is based on the GPT3 example from MegatronLM's [repository](https://
 | 76.1B      | `NUM_ATTENTION_HEADS=80 HIDDEN_SIZE=10240 NUM_LAYERS=60`  |
 | 145.6B     | `NUM_ATTENTION_HEADS=96 HIDDEN_SIZE=12288 NUM_LAYERS=80`  |
 | 310.1B     | `NUM_ATTENTION_HEADS=128 HIDDEN_SIZE=16384 NUM_LAYERS=96` |
-|------------|-----------------------------------------------------------|
