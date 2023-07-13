@@ -20,9 +20,9 @@ set -ex;
 # Model parameters, defaults to 39B model
 # Refer to page 8 of this paper on how to tune models parameters
 # https://arxiv.org/pdf/2104.04473.pdf
-: "${NUM_LAYERS:=48}"
-: "${HIDDEN_SIZE:=8192}"
-: "${NUM_ATTENTION_HEADS:=64}"
+: "${NUM_LAYERS:=36}"
+: "${HIDDEN_SIZE:=4096}"
+: "${NUM_ATTENTION_HEADS:=32}"
 : "${SEQ_LENGTH:=2048}"
 : "${MAX_POSITION_EMBEDDINGS:=2048}"
 : "${MICRO_BATCH_SIZE:=1}"
@@ -43,14 +43,13 @@ set -ex;
 ## Plenty of EFA level variables
 export FI_EFA_USE_DEVICE_RDMA=1 # use for p4d
 export FI_EFA_FORK_SAFE=1
-export NCCL_PROTO=simple
 # export NCCL_ALGO=Ring
 export FI_LOG_LEVEL=1
 export FI_PROVIDER=efa # change to eth if you want to use ENA for comparisons
 export FI_EFA_ENABLE_SHM_TRANSFER=1
 # https://discuss.pytorch.org/t/nccl-network-is-unreachable-connection-refused-when-initializing-ddp/137352
 # https://github.com/pytorch/pytorch/issues/68893
-export NCCL_SOCKET_IFNAME=ens
+#export NCCL_SOCKET_IFNAME=ens
 export NCCL_ASYNC_ERROR_HANDLING=1
 export NCCL_DEBUG=INFO
 
