@@ -1,0 +1,17 @@
+---
+- name: "Download AWS CLI v2"
+  ansible.builtin.get_url:
+    url: "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip"
+    dest: "/tmp/awscli-exe-linux-x86_64.zip"
+    mode: '0755'
+
+- name: "Install and configure AWS CLI v2"
+  ansible.builtin.shell: |
+    unzip /tmp/awscli-exe-linux-x86_64.zip
+    sudo /tmp/aws/install
+    aws configure set default.s3.max_concurrent_requests 1
+    aws configure set default.s3.max_queue_size 10000
+    aws configure set default.s3.multipart_threshold 64MB
+    aws configure set default.s3.multipart_chunksize 16MB
+  args:
+    chdir: /tmp
