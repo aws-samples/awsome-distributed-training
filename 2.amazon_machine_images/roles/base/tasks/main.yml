@@ -1,0 +1,8 @@
+---
+- name: "Set sysctl values"
+  ansible.posix.sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    state: present
+    sysctl_set: true
+  loop: "{{ base_sysctl | dict2items }}"

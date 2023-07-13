@@ -1,0 +1,19 @@
+---
+- name: "Install docker"
+  ansible.builtin.shell: amazon-linux-extras install docker
+
+- name: "Enable docker"
+  ansible.builtin.systemd:
+    name: docker.service
+    enabled: true
+
+- name: "Add remote user to docker group for non-privileged users to run docker"
+  user:
+    name: "{{ username }}"
+    groups: "docker"
+    append: yes
+
+- name: "(Re)start docker"
+  ansible.builtin.systemd:
+    name: docker.service
+    state: restarted

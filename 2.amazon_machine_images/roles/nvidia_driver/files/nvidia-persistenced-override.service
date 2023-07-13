@@ -1,0 +1,7 @@
+[Unit]
+Description=Nvidia Persistence Mode
+After=multi-user.target
+
+[Service]
+ExecStart=
+ExecStart=/usr/bin/nvidia-persistenced --user root --persistence-mode --verbose

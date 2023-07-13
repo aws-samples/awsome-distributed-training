@@ -1,0 +1,5 @@
+---
+dependencies:
+  - role: nvidia_driver
+  - role: nvidia_cuda
+  - role: nvidia_fabric
