@@ -1,0 +1,81 @@
+Region: us-west-2
+Image:
+  Os: alinux2
+  CustomAmi: ami-04912fde9e80170b8
+HeadNode:
+  InstanceType: c5.4xlarge
+  Ssh:
+    KeyName: pcluster-key
+  Iam:
+    ## (Un)comment S3 Access and provide one of your S3 buckets name
+    ## https://docs.aws.amazon.com/parallelcluster/latest/ug/HeadNode-v3.html#HeadNode-v3-Iam
+    S3Access:
+      - BucketName: pcluster-ml-workshop
+        EnableWriteAccess: true
+    AdditionalIamPolicies:
+      - Policy: arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      - Policy: arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+  Networking:
+    SubnetId: subnet-0e0944955bfdce9f1
+  LocalStorage:
+    RootVolume:
+      Size: 100
+SharedStorage:
+    # install your shared applications in /apps, it can be archived through
+    # a snapshot that you can reuse with other clusters.
+  - Name: SharedEBS
+    StorageType: Ebs
+    MountDir: /apps
+    EbsSettings:
+      VolumeType: gp3
+      Size: 200
+      Throughput: 300
+      Iops: 6000
+  - Name: FsxLustre0
+    StorageType: FsxLustre
+    MountDir: /fsx
+    FsxLustreSettings:
+      StorageCapacity: 4800
+      DeploymentType: PERSISTENT_1
+      PerUnitStorageThroughput: 200
+      DataCompressionType: LZ4
+## Review the following doc:
+## https://docs.aws.amazon.com/parallelcluster/latest/ug/Scheduling-v3.html
+## If local storage is needed this can be configured as required
+Scheduling:
+  Scheduler: slurm
+  SlurmQueues:
+    - Name: train-g4dn-2xl
+      ComputeSettings:
+        LocalStorage:
+          # NVMe drives will be set in RAID0
+          EphemeralVolume:
+            MountDir: /local_scratch
+          # This is your root volume
+          RootVolume:
+            Size: 200
+        ## We set the MinCount default to 0 to confirm that we get the
+        ## instances from our ODCR when running a job. Then we change MinCount
+        ## to 16 in order to avoid scale down
+      ComputeResources:
+        - MinCount: 2
+          MaxCount: 6
+          InstanceType: g4dn.2xlarge
+          Name: train-g4dn-2xl
+          Efa:
+            Enabled: false
+            GdrSupport: false
+      Networking:
+        PlacementGroup:
+          Enabled: true
+        SubnetIds:
+          - subnet-01526f003e8c4e085
+      ## for IAM see this doc:
+      ## https://docs.aws.amazon.com/parallelcluster/latest/ug/Scheduling-v3.html#Scheduling-v3-SlurmQueues-Iam
+      Iam:
+        S3Access:
+          - BucketName: pcluster-ml-workshop
+        AdditionalIamPolicies:
+          - Policy: arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+          - Policy: arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+
