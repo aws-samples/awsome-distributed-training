@@ -1,0 +1,31 @@
+.env.unversioned
+
+*.log
+inventory/packer-provisioner-ansible*
+
+# vscode: retain launch.json for sample invocation
+.vscode/*
+!.vscode/launch.json
+
+# MS-Office temporary files
+~$*
+
+# OSX specific
+.DS_Store
+
+# VIM temporary files
+.*.sw[po]
+*.sw[po]
+
+# pyspark
+derby.log
+metastore_db
+spark-warehouse
+
+# pytorch, tensorflow, tensorboard
+*.pt
+*.pt[ch]
+*.ckpt
+*.ckpt.*
+*.h5
+*.tfevents.*
