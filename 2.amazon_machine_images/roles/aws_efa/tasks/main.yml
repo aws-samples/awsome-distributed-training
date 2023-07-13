@@ -1,0 +1,42 @@
+---
+- name: "Download EFA installer"
+  ansible.builtin.get_url:
+    url: "{{ aws_efa_url }}"
+    dest: "{{ aws_efa_work_dir }}/{{ aws_efa_archive }}"
+    mode: '0644'
+
+- name: "Extract EFA installer"
+  ansible.builtin.unarchive:
+    src: "{{ aws_efa_work_dir }}/{{ aws_efa_archive }}"
+    remote_src: true
+    dest: "{{ aws_efa_work_dir }}"
+    creates: "{{ aws_efa_work_dir }}/aws-efa-installer"
+
+- name: "Execute EFA installer"
+  ansible.builtin.command:
+    cmd: "bash efa_installer.sh -y -n {{ '-g' if enable_gpus else '' }}"
+  args:
+    chdir: "{{ aws_efa_work_dir }}/aws-efa-installer"
+
+- name: Adding the NCCL preload profile file
+  ansible.builtin.blockinfile:
+    path: /etc/profile.d/nccl.sh
+    create: yes
+    block: |
+      export FI_PROVIDER=efa
+      export NCCL_PROTO=simple
+
+- name: Adding the NCCL preload profile file
+  ansible.builtin.blockinfile:
+    path: /etc/profile.d/nccl.sh
+    create: yes
+    block: |
+      export LD_PRELOAD=/opt/nccl/build/lib/libnccl.so:/opt/aws-ofi-nccl/lib/libnccl-net.so
+
+# TODO automate
+# - name: "Disable ptrace protection"
+#   ansible.builtin.sysctl:
+#     name: kernel.yama.ptrace_scop
+#     value: '0'
+#     state: present
+#     reload: true
