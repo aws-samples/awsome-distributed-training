@@ -41,7 +41,7 @@ deploy-s3: # Deploy S3 bucket using CloudFormation
 	bash scripts/deploy-s3.sh
 
 deploy-vpc: # Deploy VPC using CloudFormation
-	aws cloudformation create-stack --stack-name vpc-$(NAME)  --template-body file://cloudformation/VPC-Large-Scale-singleAZ.yaml \
-		--parameters ParameterKey=VPCName,ParameterValue=$(VPC_NAME) ParameterKey=SubnetsAZ,ParameterValue=$(AZ) \
-		--region $(REGION) --capabilities=CAPABILITY_IAM
+	bash scripts/deploy-vpc.sh
 
+deploy-pcluster:
+	bash scripts/deploy-pcluster.sh
