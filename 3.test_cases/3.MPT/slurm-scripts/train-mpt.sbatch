@@ -33,7 +33,9 @@ declare -a ARGS=(
     --container-image $IMAGE
 )
 NODES=( $( scontrol show hostnames $SLURM_JOB_NODELIST ) )
-HEAD_NODE_IP=$(srun --nodes=1 --ntasks=1 -w "$head_node" hostname --ip-address)
+NODES_ARRAY=($NODES)
+HEAD_NODE=${NODES_ARRAY[0]}
+HEAD_NODE_IP=$(srun --nodes=1 --ntasks=1 -w "$HEAD_NODE" hostname --ip-address)
 srun -l "${ARGS[@]}" nsys profile -w true -t cuda,nvtx,osrt,cudnn,cublas \
   --force-overwrite=true -s cpu --cudabacktrace=true -x true -o ${PROFILE_FILE} composer \
   --nproc 8 \
