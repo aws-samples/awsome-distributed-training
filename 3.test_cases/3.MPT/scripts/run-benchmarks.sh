@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-set -euxo pipefail
-
+. config.env
 # Prepare dataset
+set_options
 
 export PROFILE_FILE=/report/profile_file
-docker run \
+run docker run \
   --gpus all --ipc=host --ulimit memlock=-1 --ulimit stack=67108864 \
   --rm \
   -i \
@@ -12,7 +12,6 @@ docker run \
   --name llm-foundry \
   llm-foundry \
   /bin/bash -s <<EOF
-set -euxo pipefail
 cd /llm-foundry/scripts
 
 # Convert C4 dataset to StreamingDataset format
@@ -33,5 +32,6 @@ nsys profile -w true -t cuda,nvtx,osrt,cudnn,cublas \
   max_duration=3ba \
   eval_interval=0 \
   save_folder=mpt-7b \
+  device_train_microbatch_size=8 \
   global_train_batch_size=256
 EOF
