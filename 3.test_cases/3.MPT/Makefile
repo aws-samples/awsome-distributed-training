@@ -38,9 +38,7 @@ install-pcluster: # Install pcluster cli command using pip
 	python3 -m pip install --upgrade "aws-parallelcluster==3.6.0"
 
 deploy-s3: # Deploy S3 bucket using CloudFormation
-	aws cloudformation create-stack --stack-name s3-$(NAME) --template-body file://cloudformation/s3-bucket.yaml \
-		--parameters ParameterKey=S3BucketName,ParameterValue=$(S3BucketName) \
-		--region $(REGION) --capabilities=CAPABILITY_IAM
+	bash scripts/deploy-s3.sh
 
 deploy-vpc: # Deploy VPC using CloudFormation
 	aws cloudformation create-stack --stack-name vpc-$(NAME)  --template-body file://cloudformation/VPC-Large-Scale-singleAZ.yaml \
