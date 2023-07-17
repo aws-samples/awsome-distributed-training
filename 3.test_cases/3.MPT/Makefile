@@ -43,5 +43,8 @@ deploy-s3: # Deploy S3 bucket using CloudFormation
 deploy-vpc: # Deploy VPC using CloudFormation
 	bash scripts/deploy-vpc.sh
 
-deploy-pcluster:
+deploy-pcluster: # Deploy ParallelCluster using pcluster command
 	bash scripts/deploy-pcluster.sh
+
+print-headnode-login: # Print login command for headnode
+	bash scripts/print-headnode-login.sh
