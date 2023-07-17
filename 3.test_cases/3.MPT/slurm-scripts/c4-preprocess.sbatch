@@ -1,0 +1,39 @@
+#!/bin/bash
+
+#SBATCH -N 8 # number of nodes to use, 24 p4d(e) = 192 A100 GPUs
+#SBATCH --job-name=data-preprocess # name of your job
+#SBATCH --output=logs/%x_%j.out
+#SBATCH --error=logs/%x_%j.err
+#SBATCH --ntasks-per-node 8 # Number of GPU per node
+#SBATCH --gres=gpu:8 # number of GPU we reserve
+#SBATCH --exclusive
+#SBATCH --wait-all-nodes=1
+
+
+# default variables for Enroot
+: "${APPS_PATH:=/apps}"
+: "${IMAGE:=$APPS_PATH/llm-foundry.sqsh}"
+
+## Plenty of EFA level variables
+export FI_EFA_USE_DEVICE_RDMA=1 # use for p4d
+export FI_EFA_FORK_SAFE=1
+# export NCCL_ALGO=Ring
+export FI_LOG_LEVEL=1
+export FI_PROVIDER=efa # change to eth if you want to use ENA for comparisons
+export FI_EFA_ENABLE_SHM_TRANSFER=1
+# https://discuss.pytorch.org/t/nccl-network-is-unreachable-connection-refused-when-initializing-ddp/137352
+# https://github.com/pytorch/pytorch/issues/68893
+#export NCCL_SOCKET_IFNAME=ens
+export NCCL_ASYNC_ERROR_HANDLING=1
+export NCCL_DEBUG=INFO
+
+
+declare -a ARGS=(
+    --container-image $IMAGE
+)
+
+
+srun -l "${ARGS[@]}" python /llm-foundry/scripts/data_prep/convert_dataset_hf.py \
+  --dataset c4 --data_subset en \
+  --out_root my-copy-c4 --splits train_small val_small \
+  --concat_tokens 2048 --tokenizer EleutherAI/gpt-neox-20b --eos_text '<|endoftext|>'
