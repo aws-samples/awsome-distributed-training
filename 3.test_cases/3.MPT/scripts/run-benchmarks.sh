@@ -12,7 +12,7 @@ run docker run \
   --name llm-foundry \
   llm-foundry \
   /bin/bash -s <<EOF
-cd /workspace/llm-foundry/scripts
+cd /llm-foundry/scripts
 
 # Convert C4 dataset to StreamingDataset format
 python data_prep/convert_dataset_hf.py \
