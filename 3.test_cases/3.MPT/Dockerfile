@@ -103,6 +103,12 @@ RUN mv $OPEN_MPI_PATH/bin/mpirun $OPEN_MPI_PATH/bin/mpirun.real \
  && echo '/opt/amazon/openmpi/bin/mpirun.real "$@"' >> $OPEN_MPI_PATH/bin/mpirun \
  && chmod a+x $OPEN_MPI_PATH/bin/mpirun
 
+######################
+# Transformers dependencies used in the model
+######################
+RUN pip install transformers==4.21.0
+RUN pip uninstall -y transformer-engine
+
 
 
 COPY llm-foundry llm-foundry

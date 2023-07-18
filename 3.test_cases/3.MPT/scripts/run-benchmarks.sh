@@ -12,7 +12,7 @@ run docker run \
   --name llm-foundry \
   llm-foundry \
   /bin/bash -s <<EOF
-cd /llm-foundry/scripts
+cd /workspace/llm-foundry/scripts
 
 # Convert C4 dataset to StreamingDataset format
 python data_prep/convert_dataset_hf.py \
@@ -29,6 +29,7 @@ nsys profile -w true -t cuda,nvtx,osrt,cudnn,cublas \
   data_local=my-copy-c4 \
   train_loader.dataset.split=train_small \
   eval_loader.dataset.split=val_small \
+  model.loss_fn=torch_crossentropy \
   max_duration=3ba \
   eval_interval=0 \
   save_folder=mpt-7b \
