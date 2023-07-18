@@ -1,5 +1,5 @@
-# FROM mosaicml/pytorch:2.0.1_cu118-python3.10-ubuntu20.04
-FROM nvcr.io/nvidia/pytorch:23.05-py3
+FROM mosaicml/pytorch:2.0.1_cu118-python3.10-ubuntu20.04
+# FROM nvcr.io/nvidia/pytorch:23.05-py3
 
 ARG EFA_INSTALLER_VERSION=latest
 ARG AWS_OFI_NCCL_VERSION=v1.6.0
@@ -12,7 +12,7 @@ ARG OPEN_MPI_PATH=/opt/amazon/openmpi
 RUN apt-get update -y
 RUN apt-get remove -y --allow-change-held-packages \
                       libmlx5-1 ibverbs-utils libibverbs-dev libibverbs1 \
-                      libnccl2 libnccl-dev
+                      libnccl2 libnccl-dev libibnetdisc5
 RUN rm -rf /opt/hpcx \
     && rm -rf /usr/local/mpi \
     && rm -rf /usr/local/ucx \
@@ -106,9 +106,6 @@ RUN mv $OPEN_MPI_PATH/bin/mpirun $OPEN_MPI_PATH/bin/mpirun.real \
 ######################
 # Transformers dependencies used in the model
 ######################
-RUN pip install transformers==4.21.0
-RUN pip uninstall -y transformer-engine
-
 
 
 COPY llm-foundry llm-foundry
