@@ -2,4 +2,4 @@
 . config.env
 
 set_options
-pcluster ssh --region ${REGION} --dry-run --cluster-name pcluster-${NAME}
+pcluster ssh --region ${REGION} --cluster-name pcluster-${NAME} -i ~/.ssh/${SSH_KEY} --dryrun True
