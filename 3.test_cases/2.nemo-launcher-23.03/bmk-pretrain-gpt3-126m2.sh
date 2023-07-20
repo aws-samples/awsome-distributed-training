@@ -6,7 +6,8 @@
 # Override the default values in the underlying step-02-bmk-pretrain-gpt3.sh script.
 # See that underlying script to learn about the defaults.
 
-export NUM_NODES=8
+export MODEL_SIZE=126m
+export NUM_NODES=2
 export RUNTIME=30m
 export MAX_STEPS=40
 export UNIQUE_OUTPUT_DIR=1
