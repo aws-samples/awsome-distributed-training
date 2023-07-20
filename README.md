@@ -1,9 +1,6 @@
 # ML Training Reference Architectures & Tests <!-- omit from toc -->
 
-This directory contains:
-
-1. reference architectures for distributed model training with [AWS ParallelCluster](https://docs.aws.amazon.com/parallelcluster/latest/ug/what-is-aws-parallelcluster.html), [AWS Batch](https://docs.aws.amazon.com/batch/latest/userguide/what-is-batch.html), and [Amazon EKS](https://docs.aws.amazon.com/eks/latest/userguide/getting-started-console.html)
-2. test cases for different types and sizes of models (Falcon, GPT3, T5) as well as different frameworks and parallel optimizations (Pytorch DDP/FSDP, MegatronLM, MegatronLM-DeepSpeed).
+This directory contains reference architectures and test cases for distributed model training with [AWS ParallelCluster](https://docs.aws.amazon.com/parallelcluster/latest/ug/what-is-aws-parallelcluster.html), [AWS Batch](https://docs.aws.amazon.com/batch/latest/userguide/what-is-batch.html), and [Amazon EKS](https://docs.aws.amazon.com/eks/latest/userguide/getting-started-console.html). The test cases cover different types and sizes of models (Falcon, GPT3, T5) as well as different frameworks and parallel optimizations (Pytorch DDP/FSDP, MegatronLM, MegatronLM-DeepSpeed).
 
 The major components of this directory are:
 
@@ -19,17 +16,9 @@ reference-architectures/
 `-- ...
 ```
 
-## 1. Reference architectures
-
-Various reference architectures are detailed below. In general, the deployment looks as follows:
-
-1. choose a template,
-2. customize the template by replacing placeholder variables,
-3. follow the deployment instruction for this particular template.
-
 **NOTE**: the architectures are designed to work with the S3 bucket and VPC created using reference templates `1.architectures/0.s3/` and `1.architectures/1.vpc_network/`. _You're strongly recommended to deploy these two templates **before** deploying any of the reference architectures._
 
-### 1.1. AWS ParallelCluster
+## 1. AWS ParallelCluster
 
 ![AWS ParallelCluster diagram](0.docs/parallelcluster-arch-diagram.png)
 
@@ -54,7 +43,7 @@ This reference architecture consists of the following components:
      Enabled: true
    ```
 
-### 1.2. Pre-Deployment decision: AMI vs post-install scripts
+### 1.1. Pre-Deployment decision: AMI vs post-install scripts
 
 Parallel Cluster offers you two options to install applications & libraries into the nodes via _custom AMI_ or _post-install scripts_.
 
@@ -69,7 +58,7 @@ Parallel Cluster offers you two options to install applications & libraries into
     If not using a custom image, remove the `CustomAmi` field.
 - **Post-install scripts**: these scripts will be executed **during** deployment which is at instance boot (head+compute). This option is recommended for quick testing and will increase instance boot time. You can run post-install scripts through `CustomActions` for the head node and the compute nodes.
 
-### 1.2.1. Select cluster template
+### 1.2. Select cluster template
 
 Choose one of the available Parallel Cluster templates. Each template provides an example of cluster for different use cases. The architectures most commonly used are:
 
@@ -82,7 +71,7 @@ Alternatively you can refer to these architectures for more specific use cases:
 - `distributed-training-p4de_batch-inference-g5_custom_ami`: multi-queue template with p4de for training and g5 for inference. It assumes a custom AMI.
 - `distributed-training-trn1_custom_ami`: uses Trainium instances for distributed training. Assumes a custom AMI.
 
-### 1.2.2. Deploy a cluster
+### 1.3. Deploy a cluster
 
 The templates contain placeholder variables that you **must** to replace before use.
 
