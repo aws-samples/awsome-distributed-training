@@ -102,6 +102,14 @@ pcluster create-cluster --cluster-configuration cluster.yaml --cluster-name clus
 
 You can follow the [documentation](https://docs.aws.amazon.com/parallelcluster/latest/ug/commands-v3.html) to review the list of all AWS ParallelCluster commands.
 
-## 2. Test Cases
+## 2. Test Cases: Support Matrix
 
-**QUESTION: Is `3.test_cases/` portable across architectures (i.e., PC, AWS Batch, EKS)?**
+All test cases are under `3.test_cases/`.
+
+| Test case               | PC  | EKS | AWS Batch |
+| ----------------------- | --- | --- | --------- |
+| `0.nccl-tests`          | ✅   | ❓   | ❓         |
+| `1.megatron-lm`         | ✅   | ❓   | ❓         |
+| `2.nemo-launcher-23.03` | ✅   | ❌   | ❌         |
+| `3.MPT`                 | ❓   | ❓   | ❓         |
+| `4.DDP`                 | ❓   | ❓   | ❓         |
