@@ -13,7 +13,7 @@ srun -N 1 \
     bash -c "cp -a /opt/NeMo-Megatron-Launcher/launcher_scripts /opt/NeMo-Megatron-Launcher/auto_configurator /opt/FasterTransformer /workspace/mount_dir/"
 
 cd /fsx/ubuntu/sample-slurm-jobs/nemo-launcher-23.03/
-python3 -m venv .venv
+/usr/bin/python3 -m venv .venv
 source /fsx/ubuntu/sample-slurm-jobs/nemo-launcher-23.03/.venv/bin/activate
 curl -LO https://raw.githubusercontent.com/NVIDIA/NeMo-Megatron-Launcher/23.03/requirements.txt
 pip3 install -r requirements.txt
