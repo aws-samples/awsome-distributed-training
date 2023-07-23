@@ -22,7 +22,7 @@ To build the container:
 1. Copy the file `0.nccl-tests.Dockerfile` or its content to your head-node.
 2. Build the container image with the command below
    ```bash
-   docker build -t nccl-tests -f 1.nccl-tests.Dockerfile .
+   docker build -t nccl-tests -f 0.nccl-tests.Dockerfile .
    ```
 3. Once the image is built, you can check if it is present with `docker images`. You should see an output similar to this one:
    ```
@@ -33,7 +33,7 @@ To build the container:
    ```
 3. Convert the container image to a squash file via Enroot
    ```bash
-   enroot import -o /apps/nccl.sqsh  dockerd://nccl:latest
+   enroot import -o /apps/nccl.sqsh  dockerd://nccl-tests:latest
    ```
    The file will be stored in the `/apps` directory.
 

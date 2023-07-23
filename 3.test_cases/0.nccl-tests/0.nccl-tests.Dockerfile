@@ -30,14 +30,14 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -y --allow-unauthenticated \
     gdb \
     automake \
     cmake \
-    apt-utils
+    apt-utils \
+    python3 \
+    python3-pip
 
 ENV LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:/opt/amazon/openmpi/lib:/opt/nccl/build/lib:/opt/amazon/efa/lib:/opt/aws-ofi-nccl/install/lib:$LD_LIBRARY_PATH
 ENV PATH=/opt/amazon/openmpi/bin/:/opt/amazon/efa/bin:/usr/bin:/usr/local/bin:$PATH
 
-RUN curl https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py \
-    && python /tmp/get-pip.py \
-    && pip install awscli pynvml
+RUN pip3 install awscli pynvml
 
 #################################################
 ## Install EFA installer
