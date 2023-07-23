@@ -1,13 +1,16 @@
 #!/bin/bash
-#SBATCH --nodes=1 # number of nodes to use, 24 p4d(e) = 192 A100 GPUs
+#SBATCH --nodes=2 # number of nodes to use, 24 p4d(e) = 192 A100 GPUs
+#SBATCH --ntasks=2
 #SBATCH --job-name=train-mpt # name of your job
 #SBATCH --output=logs/%x_%j.out
 #SBATCH --error=logs/%x_%j.err
 #SBATCH --ntasks-per-node 1 # Number of GPU per node
 #SBATCH --gpus-per-node=8 # Number of GPU per node
+#SBATCH --gpus-per-task=8 # Number of GPU per node
 #SBATCH --gres=gpu:8 # number of GPU we reserve
 #SBATCH --exclusive
 #SBATCH --wait-all-nodes=1
+set -euxo pipefail
 
 
 # default variables for Enroot
@@ -39,17 +42,44 @@ NODES=( $( scontrol show hostnames $SLURM_JOB_NODELIST ) )
 NODES_ARRAY=($NODES)
 HEAD_NODE=${NODES_ARRAY[0]}
 HEAD_NODE_IP=$(srun --nodes=1 --ntasks=1 -w "$HEAD_NODE" hostname --ip-address)
+MASTER_PORT=$RANDOM
 srun -l "${ARGS[@]}" python -c "import streaming; streaming.base.util.clean_stale_shared_memory()"
-srun -l "${ARGS[@]}" composer  --verbose /llm-foundry/scripts/train/train.py \
-  /llm-foundry/scripts/train/yamls/pretrain/mpt-7b.yaml \
-  data_local=/fsx/my-copy-c4 \
-  train_loader.dataset.split=train_small \
-  eval_loader.dataset.split=val_small \
-  max_duration=3ba \
-  eval_interval=0 \
-  save_folder=mpt-7b \
-  device_train_microbatch_size=8 \
-  global_train_batch_size=256
+
+srun --exclude=${HEAD_NODE} --ntasks=1 -l "${ARGS[@]}" composer \
+    --world_size 16 \
+    --nproc 8 \
+    --node_rank 1 \
+    --master_addr $HEAD_NODE_IP \
+    --master_port $MASTER_PORT \
+    --verbose /llm-foundry/scripts/train/train.py \
+    /llm-foundry/scripts/train/yamls/pretrain/mpt-7b.yaml \
+    data_local=/fsx/my-copy-c4 \
+    train_loader.dataset.split=train_small \
+    eval_loader.dataset.split=val_small \
+    max_duration=3ba \
+    eval_interval=0 \
+    save_folder=mpt-7b \
+    device_train_microbatch_size=8 \
+    global_train_batch_size=256 &
+srun --nodelist=${HEAD_NODE} --ntasks=1 -l "${ARGS[@]}" composer \
+    --world_size 16 \
+    --nproc 8 \
+    --node_rank 0 \
+    --master_addr $HEAD_NODE_IP \
+    --master_port $MASTER_PORT \
+    --verbose /llm-foundry/scripts/train/train.py \
+    /llm-foundry/scripts/train/yamls/pretrain/mpt-7b.yaml \
+    data_local=/fsx/my-copy-c4 \
+    train_loader.dataset.split=train_small \
+    eval_loader.dataset.split=val_small \
+    max_duration=3ba \
+    eval_interval=0 \
+    save_folder=mpt-7b \
+    device_train_microbatch_size=8 \
+    global_train_batch_size=256 &
+
+wait
+
 
 # #!/bin/bash
 # #SBATCH -N 1 # number of nodes to use, 24 p4d(e) = 192 A100 GPUs
