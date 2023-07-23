@@ -10,7 +10,11 @@ export FI_EFA_ENABLE_SHM_TRANSFER=1
 # https://discuss.pytorch.org/t/nccl-network-is-unreachable-connection-refused-when-initializing-ddp/137352
 # https://github.com/pytorch/pytorch/issues/68893
 #export NCCL_SOCKET_IFNAME=ens
-
+# https://discuss.pytorch.org/t/nccl-network-is-unreachable-connection-refused-when-initializing-ddp/137352
+# https://github.com/pytorch/pytorch/issues/68893
+#export NCCL_SOCKET_IFNAME=ens
+export NCCL_ASYNC_ERROR_HANDLING=1
+export NCCL_DEBUG=INFO
 export NCCL_ASYNC_ERROR_HANDLING=1
 export NCCL_DEBUG=INFO
 composer \
