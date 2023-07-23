@@ -1,6 +1,15 @@
 #!/usr/bin/env bash
+echo "Hello, I am $(hostname)"
+echo "Run composer with args: "
 set -euxo pipefail
 
+export WORLD_SIZE=$1
+export N_PROC=$2
+export NODE_RANK=$3
+export MASTER_ADDR=$4
+export MASTER_PORT=$5
+
+echo "Set Environment variables for distributed training"
 export FI_EFA_USE_DEVICE_RDMA=1 # use for p4d
 export FI_EFA_FORK_SAFE=1
 # export NCCL_ALGO=Ring
@@ -10,23 +19,21 @@ export FI_EFA_ENABLE_SHM_TRANSFER=1
 # https://discuss.pytorch.org/t/nccl-network-is-unreachable-connection-refused-when-initializing-ddp/137352
 # https://github.com/pytorch/pytorch/issues/68893
 #export NCCL_SOCKET_IFNAME=ens
-# https://discuss.pytorch.org/t/nccl-network-is-unreachable-connection-refused-when-initializing-ddp/137352
-# https://github.com/pytorch/pytorch/issues/68893
-#export NCCL_SOCKET_IFNAME=ens
 export NCCL_ASYNC_ERROR_HANDLING=1
 export NCCL_DEBUG=INFO
 export NCCL_ASYNC_ERROR_HANDLING=1
 export NCCL_DEBUG=INFO
+
+echo "Sanity check"
+nvidia-smi
+
 composer \
-    --verbose \
-    --rank $1 \
-    --local_rank $2 \
-    --node_rank $3 \
-    --world_size $4 \
-    --local_world_size $5 \
-    --master_addr $6 \
-    --master_port $7 \
-    /llm-foundry/scripts/train/train.py \
+    --world_size ${WORLD_SIZE} \
+    --nproc ${N_PROC} \
+    --node_rank ${NODE_RANK} \
+    --master_addr ${MASTER_ADDR} \
+    --master_port ${MASTER_PORT} \
+    --verbose /llm-foundry/scripts/train/train.py \
     /llm-foundry/scripts/train/yamls/pretrain/mpt-7b.yaml \
     data_local=/fsx/my-copy-c4 \
     train_loader.dataset.split=train_small \
@@ -34,6 +41,5 @@ composer \
     max_duration=3ba \
     eval_interval=0 \
     save_folder=mpt-7b \
-    model.loss_fn=torch_crossentropy \
     device_train_microbatch_size=8 \
-    global_train_batch_size=256
+    global_train_batch_size=256 
