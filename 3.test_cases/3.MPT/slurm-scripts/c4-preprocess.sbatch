@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH -N 8 # number of nodes to use, 24 p4d(e) = 192 A100 GPUs
+#SBATCH -N 1 # number of nodes to use, 24 p4d(e) = 192 A100 GPUs
 #SBATCH --job-name=data-preprocess # name of your job
 #SBATCH --output=logs/%x_%j.out
 #SBATCH --error=logs/%x_%j.err
@@ -13,6 +13,8 @@
 # default variables for Enroot
 : "${APPS_PATH:=/apps}"
 : "${IMAGE:=$APPS_PATH/llm-foundry.sqsh}"
+: "${DATA_PATH:=/fsx}"
+: "${FSX_MOUNT:=$DATA_PATH:$DATA_PATH}"
 
 ## Plenty of EFA level variables
 export FI_EFA_USE_DEVICE_RDMA=1 # use for p4d
@@ -30,10 +32,11 @@ export NCCL_DEBUG=INFO
 
 declare -a ARGS=(
     --container-image $IMAGE
+    --container-mounts $FSX_MOUNT
 )
 
 
 srun -l "${ARGS[@]}" python /llm-foundry/scripts/data_prep/convert_dataset_hf.py \
   --dataset c4 --data_subset en \
-  --out_root my-copy-c4 --splits train_small val_small \
+  --out_root /fsx/my-copy-c4 --splits train_small val_small \
   --concat_tokens 2048 --tokenizer EleutherAI/gpt-neox-20b --eos_text '<|endoftext|>'
