@@ -66,8 +66,8 @@ SharedStorage:
     StorageType: FsxLustre
     FsxLustreSettings:
       StorageCapacity: 4800 # size it to your storage and throughput needs
-      PerUnitStorageThroughput: 250 # this can be increased to 500 and 100
-      DeploymentType: PERSISTENT_2
+      # PerUnitStorageThroughput: 250 # this can be increased to 500 and 100
+      DeploymentType: SCRATCH_2
       ImportPath: s3://${S3_BUCKET_NAME}
   - Name: SharedEBS
     StorageType: Ebs
