@@ -33,7 +33,6 @@ export FI_EFA_ENABLE_SHM_TRANSFER=1
 export NCCL_ASYNC_ERROR_HANDLING=1
 export NCCL_DEBUG=INFO
 
-export PROFILE_FILE=/report/profile_file
 
 declare -a ARGS=(
     --container-image $IMAGE
@@ -50,17 +49,24 @@ NPROC=8
 WORLD_SIZE=$((NNODES * NPROC))
 srun -l "${ARGS[@]}" python -c "import streaming; streaming.base.util.clean_stale_shared_memory()"
 function run_compose() {
-    if [ ${NODE_RANK} -eq 0 ]; then
-        OPTION="nodelist"
-    else
-        OPTION="exclude"
-    fi
-    srun --${OPTION}=${HEAD_NODE} --ntasks=1 -l "${ARGS[@]}" bash \
+    # if [ ${NODE_RANK} -eq 0 ]; then
+    #     OPTION="nodelist"
+    # else
+    #     OPTION="exclude"
+    # fi
+    srun --nodelist=${NODE} --ntasks=1 -l "${ARGS[@]}" bash \
     /apps/reference-architectures/3.test_cases/3.MPT/slurm-scripts/run-composer.sh \
     ${WORLD_SIZE} ${NPROC} ${NODE_RANK} ${MASTER_ADDR} ${MASTER_PORT}
 }
 NODE_RANK=1
-run_compose &
+for (( NODE_RANK=1; NODE_RANK<${NNODES}; NODE_RANK++ ))
+do  
+    NODE=${NODES[$NODE_RANK]}
+    echo "Run compute node ${NODE} for rank: ${NODE_RANK}"
+    run_compose &
+done
 NODE_RANK=0
-run_compose &
+NODE=${HEAD_NODE}
+echo "Run master node ${NODE} for rank: ${NODE_RANK}"
+run_compose
 wait
