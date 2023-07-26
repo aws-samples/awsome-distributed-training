@@ -48,3 +48,11 @@ deploy-pcluster: # Deploy ParallelCluster using pcluster command
 
 print-headnode-login: # Print login command for headnode
 	bash scripts/print-headnode-login.sh
+
+
+#################################################
+# Multi-node job submisison on Slurm headnode
+##################################################
+enroot-import: # Enroot
+	enroot import -o /apps/llm-foundry.sqsh dockerd://llm-foundry:latest
+
