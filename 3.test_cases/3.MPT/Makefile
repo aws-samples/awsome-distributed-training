@@ -35,7 +35,7 @@ install-pcluster: # Install pcluster cli command using pip
 	python3 -m pip install --user --upgrade virtualenv
 	python3 -m virtualenv ~/deepspeed-on-aws-tutorials-venv
 	source ~/deepspeed-on-aws-tutorials-venv/bin/activate
-	python3 -m pip install --upgrade "aws-parallelcluster==3.6.0"
+	python3 -m pip install --upgrade "aws-parallelcluster==3.6.1"
 
 deploy-s3: # Deploy S3 bucket using CloudFormation
 	bash scripts/deploy-s3.sh
