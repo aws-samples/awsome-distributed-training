@@ -1,6 +1,6 @@
 IMAGE=registry.gitlab.aws.dev/smml/benchmarking/tools/preflight
 DEPLOY_IMAGE=deploy
-AWS_REGION=us-east-1
+AWS_REGION=us-west-2
 container_build:
 	docker build -t ${IMAGE} ./preflight
 container_run:
