@@ -1,6 +1,8 @@
 .env.unversioned
-
+*.out
+*.err
 *.log
+*.pem
 inventory/packer-provisioner-ansible*
 
 # vscode: retain launch.json for sample invocation
