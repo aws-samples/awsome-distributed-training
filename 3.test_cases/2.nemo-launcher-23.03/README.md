@@ -1,4 +1,4 @@
-# Nemo Megatron on SMC <!-- omit from toc -->
+# Nemo Megatron on Slurm <!-- omit from toc -->
 
 Table of contents:
 
@@ -16,18 +16,17 @@ Table of contents:
    still under NVIDIA's open-beta, and you need to register
    [here](https://developer.nvidia.com/nemo-framework-open-beta).
 
-2. This directory is already on the SMC cluster as
-   `/admin/ubuntu/sample-slurm-jobs/nemo-launcher-23.03/`. This should've been the case if you
-   follow the [SMC customer pack's deployment guide](../../../DEPLOYMENT.md).
+2. This directory is already located on the FSx Lustre filesystem. For simplicity, assume the path
+   is `/fsx/ubuntu/sample-slurm-jobs/nemo-launcher-23.03/`.
 
 3. You have set the executable bits of the shell scripts
 
    ```bash
-   find /admin/ubuntu/sample-slurm-jobs/nemo-launcher-23.03 \
+   find /fsx/ubuntu/sample-slurm-jobs/nemo-launcher-23.03 \
        -name '*.sh' ! -executable -exec chmod ugo+x {} \;
    ```
 
-4. Your current working directory is `/admin/ubuntu/sample-slurm-jobs/nemo-launcher-23.03/`.
+4. Your current working directory is `/fsx/ubuntu/sample-slurm-jobs/nemo-launcher-23.03/`.
 
 ## 2. Build AWS-optimized Nemo-Launcher image
 
@@ -51,7 +50,7 @@ docker login nvcr.io
 <summary>[OPTIONAL] Try enroot image by starting a container out of it.</summary>
 
 ```bash
-  /usr/bin/time enroot create --name test-nemo /admin/ubuntu/aws-nemo-megatron_23.03-py3.sqsh
+  /usr/bin/time enroot create --name test-nemo /fsx/ubuntu/aws-nemo-megatron_23.03-py3.sqsh
   # 3.21user 29.64system 0:27.88elapsed 117%CPU (0avgtext+0avgdata 581864maxresident)k
   # Will create /tmp/enroot/data/user-1000/test-nemo/ taking up the same size of sqsh file
 
@@ -59,7 +58,7 @@ docker login nvcr.io
   enroot list
 
   declare -a ENROOT_START_ARGS=(
-      # Needed when starting on CPU-only instances.
+      # Needed when starting on CPU-only instances (e.g., on head node).
       -e NVIDIA_VISIBLE_DEVICES=void
   )
   enroot start "${ENROOT_START_ARGS[@]}" test-nemo
@@ -99,7 +98,7 @@ Next, you need to prepare the configuration files as follow:
 This section assumes the following has been done:
 
 ```bash
-source /admin/ubuntu/sample-slurm-jobs/nemo-launcher-23.03/.venv/bin/activate
+source /fsx/ubuntu/sample-slurm-jobs/nemo-launcher-23.03/.venv/bin/activate
 ```
 
 ### 4.1. Prepare Sample Dataset
@@ -112,7 +111,7 @@ source /admin/ubuntu/sample-slurm-jobs/nemo-launcher-23.03/.venv/bin/activate
 Once completed, expect the training data (vocab and the pre-processed Pile dataset) as follows:
 
 ```text
-/scratch/ubuntu/data
+/fsx/ubuntu/data
 ├── bpe                                 # Vocabulary from HF Hub
 │   ├── merges.txt
 │   └── vocab.json
@@ -128,7 +127,7 @@ Once completed, expect the training data (vocab and the pre-processed Pile datas
 Job logs available here:
 
 ```text
-/scratch/ubuntu/nemo-megatron-23.03/results/
+/fsx/ubuntu/nemo-megatron-23.03/results/
 └── download_gpt3_pile                                               # Correspond to stage
     ├── download                                                     # Job within a stage
     │   ├── download_gpt3_pile_hydra.yaml                            # Interpolated config
