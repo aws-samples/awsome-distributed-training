@@ -11,5 +11,3 @@
     - packages
     - aws_efa
     - nvidia_driver
-
-    # - observability
