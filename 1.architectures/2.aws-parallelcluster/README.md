@@ -4,6 +4,56 @@
 
 Clusters in AWS ParallelCluster share similar components: a head-node, compute nodes (typically P or Trn EC2 family of instances) and one or multiple shared filesystems (FSx for Lustre). You will find below a section on the architectures themselves and how to deploy them. After this section, you will be brief on key elements of these templates (or things you wanna know to avoid potential mistakes).
 
+### Initial setup
+
+Before deploying a cluster, let's ensure you have AWS ParallelCluster (PC) accessible and that you have generated an EC2 key pair that you can use to connect to your head-node. If you have both PC installed and the key pair generated then skip this section and go deploy a cluster.
+
+#### Install AWS ParallelCluster
+
+Run the script below to install AWS ParallelCluster in a Python virtual environment and access this environment.
+
+
+```bash
+#!/bin/bash
+
+VIRTUAL_ENV_PATH=~/apc-ve # change the path to your liking
+
+# Update pip and the virtual env module
+python3 -m pip install --upgrade pip
+python3 -m pip install --user --upgrade virtualenv
+
+python3 -m virtualenv $VIRTUAL_ENV_PATH # create the virtual env
+
+source $VIRTUAL_ENV_PATH/bin/activate # activate the environment
+pip3 install awscli # install the AWS CLI
+pip3 install aws-parallelcluster # then AWS ParallelCluster
+```
+
+#### Create your EC2 Keypair (if needed)
+
+The EC2 key pair enables your to connect to your cluster on the head-node through ssh or [AWS Systems Manager](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-sessions-start.html). We will cover for SSH here.
+
+You can list your public keys on your [AWS Console](https://console.aws.amazon.com/ec2/home?#KeyPairs:) and you may also check your SSH directory for the private keys (`~/ssh` if using Linux or OSX).
+
+If you do not have a keypair that you can use then we will create one with the command below (see [this documentation](https://docs.aws.amazon.com/parallelcluster/latest/ug/set-up-keypair.html)).
+
+
+```bash
+#!/bin/bash
+
+AWS_TARGET_REGION=us-east-1
+KEYPAIR_NAME=pcluster-workshop-key
+
+# Create the key pair using the AWS CLI and retrieve the private part (.pem file)
+aws ec2 create-key-pair --key-name pcluster-workshop-key \
+                        --query KeyMaterial \
+                        --region $AWS_TARGET_REGION \
+                        --output text > $KEYPAIR_NAME.pem
+# the private part of your key pair is located in the current directory
+# we change the access rights to the current user only
+sudo chmod 600 $KEYPAIR_NAME.pem
+```
+
 ### How to deploy a cluster
 
 To create the cluster use the command below and replace `CLUSTER_CONFIG_FILE` by the path to the cluster configuration file (see next section) and `NAME_OF_YOUR_CLUSTER` by the name of your cluster (`realpotato` is a cool name).
@@ -34,7 +84,7 @@ The templates contain placeholder variables that you need to replace before use.
 - `PLACEHOLDER_CUSTOM_AMI_ID`: if using a custom AMI then replace with the custom AMI ID (`ami-12356790abcd`).
 - `PLACEHOLDER_PUBLIC_SUBNET`: change to the id of a public subnet to host the head-node (`subnet-12356790abcd`).
 - `PLACEHOLDER_PRIVATE_SUBNET`: change to the id of a public subnet to host the compute nodes (`subnet-12356790abcd`).
-- `PLACEHOLDER_SSH_KEY`: ID of the SSH key you'd like to use to connect to the head-node. You can also use AWS Systems Manager Session Manager (SSM).
+- `PLACEHOLDER_SSH_KEY`: ID of the SSH key you'd like to use to connect to the head-node, use the name of the key. You can also use AWS Systems Manager Session Manager (SSM).
 - `PLACEHOLDER_CAPACITY_RESERVATION_ID`: if using a capacity reservation put the ID here (`cr-12356790abcd`).
 
 
@@ -84,3 +134,10 @@ You can chose to use a custom image or post-install scripts to install your appl
 ### Diagram
 
 ![AWS ParallelCluster diagram](../../0.docs/parallelcluster-arch-diagram.png)
+
+
+### Troubleshooting
+
+A common issue we see customer face is a problem with the post install scripts or issue to access capacity due to a mis-configuration. This can manifest itself through a `HeadNodeWaitCondition` that'll cause the ParallelCluster to fail a cluster deployment.
+
+To solve that, you can look at the cluster logs in CloudWatch in the cluster loggroup, otherwise use the option `--rollback-on-failure false` to keep resources up upon failure for further troubleshooting.
