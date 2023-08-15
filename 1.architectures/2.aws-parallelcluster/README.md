@@ -4,11 +4,11 @@
 
 Clusters in AWS ParallelCluster share similar components: a head-node, compute nodes (typically P or Trn EC2 family of instances) and one or multiple shared filesystems (FSx for Lustre). You will find below a section on the architectures themselves and how to deploy them. After this section, you will be brief on key elements of these templates (or things you wanna know to avoid potential mistakes).
 
-### Initial setup
+## Initial setup
 
 Before deploying a cluster, let's ensure you have AWS ParallelCluster (PC) accessible and that you have generated an EC2 key pair that you can use to connect to your head-node. If you have both PC installed and the key pair generated then skip this section and go deploy a cluster.
 
-#### Install AWS ParallelCluster
+### Install AWS ParallelCluster
 
 Run the script below to install AWS ParallelCluster in a Python virtual environment and access this environment.
 
@@ -29,7 +29,7 @@ pip3 install awscli # install the AWS CLI
 pip3 install aws-parallelcluster # then AWS ParallelCluster
 ```
 
-#### Create your EC2 Keypair (if needed)
+### Create your EC2 Keypair (if needed)
 
 The EC2 key pair enables your to connect to your cluster on the head-node through ssh or [AWS Systems Manager](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-sessions-start.html). We will cover for SSH here.
 
@@ -49,10 +49,15 @@ aws ec2 create-key-pair --key-name pcluster-workshop-key \
                         --query KeyMaterial \
                         --region $AWS_TARGET_REGION \
                         --output text > $KEYPAIR_NAME.pem
+
 # the private part of your key pair is located in the current directory
 # we change the access rights to the current user only
 sudo chmod 600 $KEYPAIR_NAME.pem
 ```
+
+## Deploy Clusters
+
+We will show you how to
 
 ### How to deploy a cluster
 
@@ -86,7 +91,6 @@ The templates contain placeholder variables that you need to replace before use.
 - `PLACEHOLDER_PRIVATE_SUBNET`: change to the id of a public subnet to host the compute nodes (`subnet-12356790abcd`).
 - `PLACEHOLDER_SSH_KEY`: ID of the SSH key you'd like to use to connect to the head-node, use the name of the key. You can also use AWS Systems Manager Session Manager (SSM).
 - `PLACEHOLDER_CAPACITY_RESERVATION_ID`: if using a capacity reservation put the ID here (`cr-12356790abcd`).
-
 
 ## AWS ParallelCluster must know
 
