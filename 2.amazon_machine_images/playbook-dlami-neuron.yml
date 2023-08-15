@@ -13,4 +13,3 @@
     - docker
     - nvidia_enroot_pyxis
     - aws_lustre
-    # - observability
