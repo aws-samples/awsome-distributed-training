@@ -8,6 +8,7 @@ This guide assumes that you have the following:
 
 - A functional Slurm cluster on AWS.
 - Docker, [Pyxis](https://github.com/NVIDIA/pyxis) and [Enroot](https://github.com/NVIDIA/enroot) installed.
+- Enroot requires libmd to compile and squashfs-tools to execute.
 - A shared directory mounted on `/apps`
 
 It is recommended that you use the templates in the architectures [directory](../../1.architectures)
