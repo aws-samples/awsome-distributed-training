@@ -54,5 +54,4 @@ There are a few things to know as you evaluate this architecture:
 
 ## Architecture Diagram
 
-![img](../../0.docs/batch-arch.png)
-
+<img src="../../0.docs/batch-arch.png" width="500">
