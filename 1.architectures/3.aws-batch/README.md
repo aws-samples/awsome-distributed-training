@@ -34,7 +34,7 @@ The templates takes parameters that are mandatory and optional, see below for mo
 
 ## Deploy with the AWS CLI
 
-The command to deploy the template through the CLI is shown below. Feel free to edit for your own configuration and parameters.
+The command to deploy the template through the CLI is shown below. Please edit the parameters values with your own configuration.
 
 
 ```bash
