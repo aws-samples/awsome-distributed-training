@@ -33,7 +33,7 @@
     name: nouveau
     state: present
 
-- name: "Download the NVidia Installer"
+- name: "Download the Nvidia Installer"
   ansible.builtin.get_url:
     url: "https://us.download.nvidia.com/tesla/{{ nvidia_driver_version }}/NVIDIA-Linux-x86_64-{{ nvidia_driver_version }}.run"
     dest: "/tmp/nvidia-installer.run"
