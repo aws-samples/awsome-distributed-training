@@ -81,8 +81,9 @@ pip3.8 install -r <(curl -fsSL https://raw.githubusercontent.com/NVIDIA/NeMo-Meg
 Next, you need to prepare the configuration files as follow:
 
 1. Review and update the partition name in the .yaml config file `conf.template/cluster/bcm.yaml`. Here is a summary of the values.
-| Value            | Default | Definition                                                                                                   |
-| ---------------- | ---------- | --------------------------------------------------------------------------------------------------------- |
+
+| Value            | Default                       | Definition                                                                             |
+| ---------------- | ----------------------------- | -------------------------------------------------------------------------------------- |
 | partition        | `null`                        | Slurm partition, same as a job queue                                                   |
 | account          | `null`                        | Account if using [accounting](https://slurm.schedmd.com/accounting.html)               |
 | exclusive        | `True`                        | The job has [exclusive](https://stackoverflow.com/questions/66817279/what-does-the-keyword-exclusive-mean-in-slurm) use the instances it runs on (no other job can take it)                                     |
