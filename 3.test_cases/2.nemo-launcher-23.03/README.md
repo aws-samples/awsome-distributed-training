@@ -25,6 +25,7 @@ export REPO=aws-nemo-megatron
 export TAG=$NEMO_VERSION-py3
 export TARGET_PATH=/fsx/nemo-launcher-$NEMO_VERSION #
 export TEST_CASE_PATH=/home/ec2-user/2.nemo-launcher-23.03 # where you copy the test case or set to your test case path
+export ENROOT_IMAGE=/apps/${REPO}_${TAG}.sqsh
 
 cd $TEST_CASE_PATH
 ```
@@ -44,7 +45,7 @@ docker build --progress plain -t ${REPO}:${TAG} -f 0.NemoMegatron-aws-optimized.
 ```
 4. Convert the Docker container image to an [Enroot](https://github.com/NVIDIA/enroot) squash file that will be stored in `/apps`. This step takes a few minutes.
 ```bash
-IMAGE=/apps/${REPO}_${TAG}.sqsh ; [[ -e $IMAGE ]] && rm $IMAGE ; /usr/bin/time enroot import -o $IMAGE dockerd://${REPO}:${TAG}
+[[ -e $ENROOT_IMAGE ]] && rm $ENROOT_IMAGE ; /usr/bin/time enroot import -o $ENROOT_IMAGE dockerd://${REPO}:${TAG}
 ```
 
 The Enroot squash file will be placed into the `/apps` directory.
@@ -64,7 +65,7 @@ mkdir -p $TARGET_PATH
 cd $TARGET_PATH
 enroot start --mount $TARGET_PATH:/workspace/mount_dir \
              --env NVIDIA_VISIBLE_DEVICES=void \
-             /apps/${REPO}_${TAG}.sqsh \
+             $ENROOT_IMAGE \
              cp -a /opt/NeMo-Megatron-Launcher/launcher_scripts /opt/NeMo-Megatron-Launcher/auto_configurator /opt/FasterTransformer /workspace/mount_dir/
 ```
 The `NVIDIA_VISIBLE_DEVICES` variable is set to void to prevent the process to check for the Nvidia driver presence (since we don't need GPUs here).
@@ -93,9 +94,11 @@ Next, you need to prepare the configuration files as follow:
 | srun_args        | `"--no-container-mount-home"` | Arguments for the [srun](https://slurm.schedmd.com/srun.html) command (here for Pyxis) |
 | stderr_to_stdout | `True`                        | Merge `stderr` and `stdout`                                                            |
 
-2. OnCopy all the .yaml config files `{conf.template/ => launcher_scripts/conf/}` with this command:
+2. Copy all the .yaml config files `{conf.template/ => launcher_scripts/conf/}` and substitute environment variables as follows:
 ```bash
-cp -TRv ${TEST_CASE_PATH}/conf.template/ ${TARGET_PATH}/launcher_scripts/conf/
+cp -Rv ${TEST_CASE_PATH}/conf.template/cluster ${TARGET_PATH}/launcher_scripts/conf/cluster
+cp -Rv ${TEST_CASE_PATH}/conf.template/data_preparation ${TARGET_PATH}/launcher_scripts/conf/data_preparation
+envsubst < ${TEST_CASE_PATH}/conf.template/config.yaml > ${TARGET_PATH}/launcher_scripts/conf/config.yaml
 ```
 
 
@@ -111,7 +114,7 @@ source ${TARGET_PATH}/.venv/bin/activate
 Run the data preparation stage by executing the following script. It will submit the data preparation jobs. You can check progress with `squeue` to get the jobs in your Slurm queues and their status.
 
 ```bash
-bash 1.data-preparation.sh
+bash ${TEST_CASE_PATH}/1.data-preparation.sh
 ```
 
 Once completed, expect the training data (vocab and the pre-processed Pile dataset) as follows:
