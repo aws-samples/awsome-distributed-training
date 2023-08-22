@@ -5,13 +5,12 @@
 
 set -exuo pipefail
 
-: "${WORKSPACE_CONT:=/fsx/ubuntu/nemo-megatron-23.03}"
-CONT_DATA_DIR=${WORKSPACE_CONT}/data/the_pile_gpt3
-CONT_TOKENIZER_DIR=${WORKSPACE_CONT}/data/bpe
+CONT_DATA_DIR=${TARGET_PATH}/data/the_pile_gpt3
+CONT_TOKENIZER_DIR=${TARGET_PATH}/data/bpe
 
 # data_preparation.file_numbers='0-29' \
 mkdir -p $CONT_DATA_DIR
-HYDRA_FULL_ERROR=1 python3 /fsx/ubuntu/sample-slurm-jobs/nemo-launcher-23.03/launcher_scripts/main.py \
+HYDRA_FULL_ERROR=1 python3 $TARGET_PATH/launcher_scripts/main.py \
     stages=[data_preparation] \
     data_dir=$CONT_DATA_DIR \
     data_preparation.file_numbers='0-0' \
