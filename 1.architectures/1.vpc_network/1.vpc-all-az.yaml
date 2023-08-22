@@ -40,11 +40,11 @@ Metadata:
       NumberOfAZs:
         default: Number of Availability Zones
       CreatePublicSubnets:
-        default: Create a Public Subnet
+        default: Create public subnets
       CreateS3Endpoint:
-        default: Create an S3 Endpoint
+        default: Create an S3 endpoint
       CreateDynamoDBEndpoint:
-        default: Create a DynamoDB Endpoint
+        default: Create a DynamoDB endpoint
 
 ######################
 ## Stack Parameters ##
