@@ -23,7 +23,7 @@ variable "ami_version" {
 
 variable "parallel_cluster_version" {
   type    = string
-  default = "3.6.0"
+  default = "3.6.1"
 }
 
 variable "eks_version" {
@@ -33,7 +33,7 @@ variable "eks_version" {
 
 variable "aws_region" {
   type    = string
-  default = "us-west-2"
+  default = "us-east-1"
 }
 
 variable "instance_type" {
