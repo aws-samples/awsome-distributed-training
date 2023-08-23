@@ -74,6 +74,15 @@ A Scatter performance test will be executed from 8B to 2 GB, the output should l
 To change the type of collective to test, modify the line with `srun` in the file `1.nccl-tests.sbatch` and change `scatter_perf` to any of: `all_gather_perf`, `alltoall_perf`, `gather_perf`, `reduce_perf`, `scatter_perf`, `all_reduce_perf`, `broadcast_perf`, `hypercube_perf`, `reduce_scatter_perf`, `sendrecv_perf`.
 
 
+### 2.1 Measure multiple collectives with one job
+
+Run the NCCL tests for different collectives in one job using the submission script `2.nccl-3collectives.sbatch`. It will execute tests on the collectives [AllReduce](https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/usage/collectives.html#allreduce), [AllGather](https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/usage/collectives.html#allgather) and [ReduceScatter](https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/usage/collectives.html#reducescatter).
+
+```bash
+sbatch 2.nccl-3collectives.sbatch
+```
+
+
 ## 3. Understanding NCCL Bandwidth
 
 The NCCL tests reports metrics for the time to execute a given communication collective operation, the Algorithmic bandwidth and the bus bandwidth.
