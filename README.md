@@ -36,9 +36,8 @@ Custom machine images can be built using [Packer](www.packer.io) for AWS Paralle
 
 All test cases are under `3.test_cases/`. You can go in each test case directory to learn how to run it.
 
-| Test case               | PC   | EKS   | AWS Batch |
+| Test cases              | PC   | EKS   | AWS Batch |
 | ----------------------- | ---- | ----- | --------- |
-| `0.nccl-tests`          | ✅   | ❓   | ❓        |
 | `1.megatron-lm`         | ✅   | ❓   | ❓        |
 | `2.nemo-launcher-23.03` | ✅   | ❌   | ❌        |
 | `3.MPT`                 | ❓   | ❓   | ❓        |
