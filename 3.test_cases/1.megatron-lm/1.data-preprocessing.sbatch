@@ -12,7 +12,7 @@
 
 # default variables for Enroot
 : "${APPS_PATH:=/apps}"
-: "${DATA_PATH:=/fsx}"
+: "${DATA_PATH:=/fsx/gpt2}"
 
 declare -a ARGS=(
     --container-image $IMAGE
