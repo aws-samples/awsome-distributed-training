@@ -8,11 +8,11 @@
 ###########################
 
 : "${IMAGE:=$APPS_PATH/megatron-preprocess.sqsh}"
-: "${FSX_MOUNT:=/fsx:/fsx}"
+: "${FSX_MOUNT:=/fsx/gpt2:/fsx}"
 
 # default variables for Enroot
 : "${APPS_PATH:=/apps}"
-: "${DATA_PATH:=/fsx/gpt2}"
+: "${DATA_PATH:=/fsx}"
 
 declare -a ARGS=(
     --container-image $IMAGE
