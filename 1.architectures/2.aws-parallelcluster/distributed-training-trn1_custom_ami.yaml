@@ -2,13 +2,13 @@ Imds:
   ImdsSupport: v2.0
 Image:
   Os: alinux2
-  CustomAmi: PLACEHOLDER_CUSTOM_AMI_ID
+  CustomAmi: ${PLACEHOLDER_CUSTOM_AMI_ID}
 HeadNode:
   InstanceType: m5.8xlarge
   Networking:
-    SubnetId: PLACEHOLDER_PUBLIC_SUBNET
+    SubnetId: ${PLACEHOLDER_PUBLIC_SUBNET}
   Ssh:
-    KeyName: PLACEHOLDER_SSH_KEY
+    KeyName: ${PLACEHOLDER_SSH_KEY}
   LocalStorage:
     RootVolume:
       Size: 100
@@ -27,9 +27,7 @@ Scheduling:
       CapacityType: ONDEMAND
       Networking:
         SubnetIds:
-          - PLACEHOLDER_PRIVATE_SUBNET
-        PlacementGroup:
-          Enabled: true
+          - ${PLACEHOLDER_PRIVATE_SUBNET}
       ComputeSettings:
         LocalStorage:
           EphemeralVolume:
@@ -40,15 +38,19 @@ Scheduling:
       # with a targeted ODCRs. You can also use a capacity resource group and
       # CapacityReservationResourceGroupArn if you want to regroup
       # multiple reservations
-      CapacityReservationTarget:
-        CapacityReservationId: PLACEHOLDER_CAPACITY_RESERVATION_ID
       ComputeResources:
         - Name: distributed-ml
           InstanceType: trn1.32xlarge
-          MinCount: 4 # if min = max then capacity is maintained and will
-          MaxCount: 4 # not scale down
+          MinCount: ${PLACEHOLDER_NUM_INSTANCES} # if min = max then capacity is maintained and will
+          MaxCount: ${PLACEHOLDER_NUM_INSTANCES} # not scale down
           Efa:
             Enabled: true
+          CapacityReservationTarget:
+            CapacityReservationId: ${PLACEHOLDER_CAPACITY_RESERVATION_ID}
+          Networking:
+            PlacementGroup:
+              Enabled: true
+              Id: ${PLACEHOLDER_PLACEMENT_GROUP}
 SharedStorage:
   - MountDir: /fsx
     Name: fsx
