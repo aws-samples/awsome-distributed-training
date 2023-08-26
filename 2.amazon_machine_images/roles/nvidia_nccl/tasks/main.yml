@@ -14,7 +14,7 @@
   ansible.builtin.git:
     repo: https://github.com/{{ nccl_repo }}/nccl.git
     dest: /opt/nccl
-    version: '{{ nccl_tag }}'
+    version: "{{ nccl_tag }}"
 
 - name: Build NCCL
   ansible.builtin.shell: |
@@ -32,7 +32,15 @@
 
 - name: Adding the NCCL preload profile file
   ansible.builtin.blockinfile:
-    path: /etc/profile.d/nccl-preload.sh
+    path: /etc/profile.d/nccl.sh
+    create: yes
+    block: |
+      export FI_PROVIDER=efa
+      export NCCL_PROTO=simple
+
+- name: Adding the NCCL preload profile file
+  ansible.builtin.blockinfile:
+    path: /etc/profile.d/nccl.sh
     create: yes
     block: |
       export LD_PRELOAD=/opt/nccl/build/lib/libnccl.so:/opt/aws-ofi-nccl/lib/libnccl-net.so
