@@ -16,3 +16,4 @@
     - aws_efa_ofi
     - aws_lustre
     - neuron_driver
+    - pytorch_neuron
