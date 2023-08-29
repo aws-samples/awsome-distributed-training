@@ -4,11 +4,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
 REPO=aws-nemo-megatron
-TAG=23.03-py3
+TAG=23.05-py3
 
 # EC2 instance: us-west-2, EBS: gp3, 3k IOPS, 350 MB/s throughput.
 # Time: ~3min
-/usr/bin/time docker pull nvcr.io/ea-bignlp/bignlp-training:23.03-py3
+/usr/bin/time docker pull nvcr.io/ea-bignlp/bignlp-training:23.05-py3
 
 # EC2 instance: m5.4xlarge, EBS: gp3, 3k IOPS, 350 MB/s throughput.
 # Time: ~6min

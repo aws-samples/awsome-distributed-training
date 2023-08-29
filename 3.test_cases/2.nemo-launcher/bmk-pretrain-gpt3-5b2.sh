@@ -19,7 +19,6 @@ BIN_DIR=$(dirname `readlink -e ${BASH_SOURCE[0]}`)
 # Below settings is similar to 22.09, except that 22.09 funnily didn't OOM with
 # activations_checkpoint_num_layers=0.
 $BIN_DIR/step-02-bmk-pretrain-gpt3.sh \
-    training.model.data.data_prefix=[1.0,\${data_dir}/my-gpt3_00_text_document] \
     training.model.activations_checkpoint_granularity='full' \
     training.model.activations_checkpoint_method='block' \
     training.model.activations_checkpoint_num_layers=1
