@@ -57,7 +57,10 @@ The above utility will help make this file : ```nemo.collections.nlp.data.langua
 This tutorial makes use of a Red pyjama dataset. The dataset can be downloaded to your cluster by running the following commands on the head node:
 
 ```
+mkdir /fsx/data/llama2
 wget https://data.together.xyz/redpajama-data-1T/v1.0.0/book/book.jsonl
+or
+wget https://huggingface.co/datasets/togethercomputer/RedPajama-Data-1T-Sample/resolve/main/book_sample.jsonl -O /fsx/data/llama2/book.jsonl
 ```
 
 The above command will give you the raw dataset of around 50G which needs to be tokenized using a llamaV2 tokenizer. To tokenize the data, you need to request the tokenizer from hugging face and meta following the below link : 

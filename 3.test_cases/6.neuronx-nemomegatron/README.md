@@ -24,6 +24,8 @@ you will see
 us-west-2: ami-0f5ed52f73351d999
 ```
 
+once AMI creation completed.
+
 ## 3. Setup infrastrcutre
 
 ```
