@@ -1,0 +1,19 @@
+#!/bin/bash
+
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+# Based on https://github.com/NVIDIA/NeMo-Megatron-Launcher/tree/23.05#5111-slurm
+
+set -exuo pipefail
+
+srun -N 1 \
+    --container-mounts=/fsx/ubuntu/sample-slurm-jobs/nemo-launcher-23.05:/workspace/mount_dir \
+    --container-image=/fsx/ubuntu/aws-nemo-megatron_23.05-py3.sqsh \
+    bash -c "cp -a /opt/NeMo-Megatron-Launcher/launcher_scripts /opt/NeMo-Megatron-Launcher/auto_configurator /opt/FasterTransformer /workspace/mount_dir/"
+
+cd /fsx/ubuntu/sample-slurm-jobs/nemo-launcher-23.05/
+/usr/bin/python3 -m venv .venv
+source /fsx/ubuntu/sample-slurm-jobs/nemo-launcher-23.05/.venv/bin/activate
+curl -LO https://raw.githubusercontent.com/NVIDIA/NeMo-Megatron-Launcher/23.05/requirements.txt
+pip3 install -r requirements.txt

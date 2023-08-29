@@ -10,7 +10,7 @@ set -exuo pipefail
 : "${NUM_NODES:=8}"
 : "${RUNTIME:=4h}"
 : "${MAX_STEPS:=5}"
-: "${WORKSPACE_CONT:=/fsx/ubuntu/nemo-megatron-23.03}"
+: "${WORKSPACE_CONT:=/fsx/ubuntu/nemo-megatron-23.05}"
 CONT_DATA_DIR=${WORKSPACE_CONT}/data/the_pile_gpt3
 CONT_TOKENIZER_DIR=${WORKSPACE_CONT}/data/bpe
 CONT_RESULT_DIR=${WORKSPACE_CONT}/results
@@ -36,9 +36,13 @@ declare -a BMK_ARGS=(
     # Ignore checkpoints
     training.exp_manager.create_checkpoint_callback=False
     training.exp_manager.resume_if_exists=False
+
+    # https://github.com/NVIDIA/NeMo/pull/6181/files
+    training.model.data.data_impl=mock
+    training.model.data.data_prefix=[]
 )
 
-HYDRA_FULL_ERROR=1 python3 /fsx/ubuntu/sample-slurm-jobs/nemo-launcher-23.03/launcher_scripts/main.py \
+HYDRA_FULL_ERROR=1 python3 /fsx/ubuntu/sample-slurm-jobs/nemo-launcher-23.05/launcher_scripts/main.py \
     stages=[training] \
     training=${MODEL}/${MODEL_SIZE} \
     data_dir=${CONT_DATA_DIR} \
@@ -46,7 +50,5 @@ HYDRA_FULL_ERROR=1 python3 /fsx/ubuntu/sample-slurm-jobs/nemo-launcher-23.03/lau
     training.trainer.num_nodes=$NUM_NODES \
     training.trainer.max_steps=$MAX_STEPS \
     training.trainer.val_check_interval=$MAX_STEPS \
-    training.model.tokenizer.vocab_file=${CONT_TOKENIZER_DIR}/vocab.json \
-    training.model.tokenizer.merge_file=${CONT_TOKENIZER_DIR}/merges.txt \
     "${BMK_ARGS[@]}" \
     "$@"

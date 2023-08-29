@@ -2,9 +2,9 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # DOCKER_BUILDKIT=1 docker build --progress plain -t aws-nemo-megatron:latest .
-# Customized from: https://github.com/NVIDIA/NeMo-Megatron-Launcher/blob/23.03/csp_tools/aws/Dockerfile
+# Customized from: https://github.com/NVIDIA/NeMo-Megatron-Launcher/blob/23.05/csp_tools/aws/Dockerfile
 
-FROM nvcr.io/ea-bignlp/bignlp-training:23.03-py3
+FROM nvcr.io/ea-bignlp/bignlp-training:23.05-py3
 
 ARG DEBIAN_FRONTEND=noninteractive
 ENV EFA_INSTALLER_VERSION=latest

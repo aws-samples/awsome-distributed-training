@@ -14,13 +14,12 @@ reference-architectures/
 
 **NOTE**: the architectures are designed to work with the S3 bucket and VPC created using reference templates `1.architectures/0.s3/` and `1.architectures/1.vpc_network/`. _You're strongly recommended to deploy these two templates **before** deploying any of the reference architectures._
 
-
 ## 1. Architectures
 
 Architectures are located in `1.architectures` and consists of utilities and service related architectures
 
-| Name                    | Category | Usage
-|-------------------------|----------|-----------------------------------------------------|
+| Name                    | Category | Usage                                               |
+| ----------------------- | -------- | --------------------------------------------------- |
 | `0.s3`                  | Storage  | Create an S3 bucket                                 |
 | `1.vpc_network`         | Network  | Create a VPC with subnets required resources        |
 | `2.aws-parallelcluster` | Compute  | Cluster templates for GPU & custom silicon training |
@@ -36,9 +35,9 @@ Custom machine images can be built using [Packer](www.packer.io) for AWS Paralle
 
 All test cases are under `3.test_cases/`. You can go in each test case directory to learn how to run it.
 
-| Test cases              | PC   | EKS   | AWS Batch |
-| ----------------------- | ---- | ----- | --------- |
-| `1.megatron-lm`         | ✅   | ❓   | ❓        |
-| `2.nemo-launcher-23.03` | ✅   | ❌   | ❌        |
-| `3.MPT`                 | ❓   | ❓   | ❓        |
-| `4.DDP`                 | ❓   | ❓   | ❓        |
+| Test cases        | PC  | EKS | AWS Batch |
+| ----------------- | --- | --- | --------- |
+| `1.megatron-lm`   | ✅   | ❓   | ❓         |
+| `2.nemo-launcher` | ✅   | ❌   | ❌         |
+| `3.MPT`           | ❓   | ❓   | ❓         |
+| `4.DDP`           | ❓   | ❓   | ❓         |
