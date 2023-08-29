@@ -1,1 +1,5 @@
 pcluster.yaml
+*.log
+log-neuron-cc.txt
+all_metrics.csv
+nemo_experiments

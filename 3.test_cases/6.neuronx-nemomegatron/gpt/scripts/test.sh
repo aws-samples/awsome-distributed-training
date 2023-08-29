@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-set -euxo pipefail
+set -o pipefail
+# set -euxo pipefail
 
 sudo sysctl -w net.ipv4.ip_local_reserved_ports=48620
 
@@ -93,7 +94,7 @@ fi
 export FFN_HS=$(($HS*4))
 echo "SEQ_LEN=$SEQ_LENGTH, HS=$HS, FFN_HS=$FFN_HS TP=$TP PP=$PP N_LAYERS=$N_LAYERS N_AH=$N_AH GBS=$GBS UBS=$UBS"
 source /home/ec2-user/aws_neuron_venv_pytorch/bin/activate
-python3 megatron_gpt_pretraining.py  \
+python3 /home/ec2-user/neuronx-nemo-megatron/nemo/examples/nlp/language_modeling/megatron_gpt_pretraining.py  \
     --config-path=conf \
     --config-name=megatron_gpt_config \
     trainer.devices=$NEURON_NUM_DEVICES \
