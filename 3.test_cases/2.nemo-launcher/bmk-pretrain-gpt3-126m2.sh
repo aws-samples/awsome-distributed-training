@@ -14,6 +14,5 @@ export UNIQUE_OUTPUT_DIR=1
 
 BIN_DIR=$(dirname `readlink -e ${BASH_SOURCE[0]}`)
 
-# Node_count == 8 can work without full activations checkpointing.
-$BIN_DIR/step-02-bmk-pretrain-gpt3.sh \
-    training.model.data.data_prefix=[1.0,\${data_dir}/my-gpt3_00_text_document]
+# Node_count == 2 can work without full activations checkpointing.
+$BIN_DIR/step-02-bmk-pretrain-gpt3.sh
