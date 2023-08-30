@@ -20,8 +20,8 @@ You will need to setup the following environment variables before running the sc
 export NEMO_VERSION=23.07
 export REPO=aws-nemo-megatron
 export TAG=$NEMO_VERSION-py3
-export TARGET_PATH=/fsx/nemo-launcher-$NEMO_VERSION #
-export TEST_CASE_PATH=/home/ec2-user/2.nemo-launcher-23.07 # where you copy the test case or set to your test case path
+export TARGET_PATH=/fsx/nemo-launcher-$NEMO_VERSION         # must be a shared filesystem
+export TEST_CASE_PATH=/home/ec2-user/2.nemo-launcher-23.07  # where you copy the test case or set to your test case path
 export ENROOT_IMAGE=/apps/${REPO}_${TAG}.sqsh
 
 cd $TEST_CASE_PATH
@@ -73,6 +73,7 @@ enroot start --mount $TARGET_PATH:/workspace/mount_dir \
 ```
 
 The `NVIDIA_VISIBLE_DEVICES` variable is set to void to prevent the process to check for the Nvidia driver presence (since we don't need GPUs here).
+
 3. Install the NemoMegatron requirements in a Python VirtualEnv by running the set of commands below.
 
 ```bash
@@ -80,6 +81,7 @@ cd $TARGET_PATH
 sudo amazon-linux-extras install -y python3.8 # we need Python =>3.8
 /usr/bin/python3.8 -m venv .venv
 source .venv/bin/activate
+pip3.8 install --upgrade pip setuptools
 pip3.8 install -r <(curl -fsSL https://raw.githubusercontent.com/NVIDIA/NeMo-Megatron-Launcher/$NEMO_VERSION/requirements.txt)
 ```
 
@@ -87,24 +89,23 @@ Next, you need to prepare the configuration files as follow:
 
 1. Review and update the partition name in the .yaml config file `conf.template/cluster/bcm.yaml`. Here is a summary of the values.
 
-| Value            | Default                       | Definition                                                                                                                                                                  |
-| ---------------- | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| partition        | `null`                        | Slurm partition, same as a job queue                                                                                                                                        |
-| account          | `null`                        | Account if using [accounting](https://slurm.schedmd.com/accounting.html)                                                                                                    |
-| exclusive        | `True`                        | The job has [exclusive](https://stackoverflow.com/questions/66817279/what-does-the-keyword-exclusive-mean-in-slurm) use the instances it runs on (no other job can take it) |
-| gpus_per_task    | `null`                        | Number of instances of GPUs per job                                                                                                                                         |
-| gpus_per_node    | `8`                           | Number of GPUs to use per node. This is set to 8 GPUs as for th p4d.24xlarge                                                                                                |
-| mem              | `0`                           | Requested memory (all)                                                                                                                                                      |
-| job_name_prefix  | `"nemo-megatron-"`            | Prefix for your job names                                                                                                                                                   |
-| gres             | `"gpu:8"`                     | Generic resource [scheduling](https://slurm.schedmd.com/gres.html)                                                                                                          |
-| srun_args        | `"--no-container-mount-home"` | Arguments for the [srun](https://slurm.schedmd.com/srun.html) command (here for Pyxis)                                                                                      |
-| stderr_to_stdout | `True`                        | Merge `stderr` and `stdout`                                                                                                                                                 |
+| Value              | Default                       | Definition                                                                                                                                                                  |
+| ------------------ | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `partition`        | `null`                        | Slurm partition, same as a job queue                                                                                                                                        |
+| `account`          | `null`                        | Account if using [accounting](https://slurm.schedmd.com/accounting.html)                                                                                                    |
+| `exclusive`        | `True`                        | The job has [exclusive](https://stackoverflow.com/questions/66817279/what-does-the-keyword-exclusive-mean-in-slurm) use the instances it runs on (no other job can take it) |
+| `gpus_per_task`    | `null`                        | Number of instances of GPUs per job                                                                                                                                         |
+| `gpus_per_node`    | `8`                           | Number of GPUs to use per node. This is set to 8 GPUs as for th p4d.24xlarge                                                                                                |
+| `mem`              | `0`                           | Requested memory (all)                                                                                                                                                      |
+| `job_name_prefix`  | `"nemo-megatron-"`            | Prefix for your job names                                                                                                                                                   |
+| `gres`             | `"gpu:8"`                     | Generic resource [scheduling](https://slurm.schedmd.com/gres.html)                                                                                                          |
+| `srun_args`        | `"--no-container-mount-home"` | Arguments for the [srun](https://slurm.schedmd.com/srun.html) command (here for Pyxis)                                                                                      |
+| `stderr_to_stdout` | `True`                        | Merge `stderr` and `stdout`                                                                                                                                                 |
 
 2. Copy all the .yaml config files `{conf.template/ => launcher_scripts/conf/}` and substitute environment variables as follows:
 
 ```bash
 cp -Rv ${TEST_CASE_PATH}/conf.template/cluster ${TARGET_PATH}/launcher_scripts/conf/cluster
-cp -Rv ${TEST_CASE_PATH}/conf.template/data_preparation ${TARGET_PATH}/launcher_scripts/conf/data_preparation
 envsubst < ${TEST_CASE_PATH}/conf.template/config.yaml > ${TARGET_PATH}/launcher_scripts/conf/config.yaml
 ```
 
@@ -114,13 +115,18 @@ This section assumes that you went through the previous sections and 1/ retrieve
 
 ```bash
 source ${TARGET_PATH}/.venv/bin/activate
+
+# Download tokenizer data (one-time activity)
+mkdir -p $TARGET_PATH/bpe
+curl -L https://huggingface.co/gpt2/raw/main/config.json > $TARGET_PATH/bpe/vocab.json
+curl -L https://huggingface.co/gpt2/raw/main/merges.txt > $TARGET_PATH/bpe/merges.txt
 ```
 
 Run pre-training as follows:
 
 ```bash
 # Choose one of these options:
-# 1. edit then run step-02-pretrain-gpt3.sh, or
+# 1. edit then run step-01-pretrain-gpt3.sh, or
 # 2. review, edit (if necessary), then run pretrain-gpt3-*.sh.
 #
 # Below show option 2.
