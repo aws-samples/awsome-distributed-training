@@ -12,7 +12,7 @@ TAG=23.07-py3
 
 # EC2 instance: m5.4xlarge, EBS: gp3, 3k IOPS, 350 MB/s throughput.
 # Time: ~6min
-docker build --progress plain -t ${REPO}:${TAG} .
+docker build --progress plain -t ${REPO}:${TAG} -f 0.NemoMegatron-aws-optimized.Dockerfile .
 
 # On m5.8xlarge (32 vcpu). /fsx is FSxL 1.2TB configured with 500 MB/s/TB throughput.
 IMAGE=/apps/${REPO}_${TAG}.sqsh ; [[ -e $IMAGE ]] && rm $IMAGE
