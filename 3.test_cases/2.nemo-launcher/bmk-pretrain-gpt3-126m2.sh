@@ -15,4 +15,4 @@ export UNIQUE_OUTPUT_DIR=1
 BIN_DIR=$(dirname `readlink -e ${BASH_SOURCE[0]}`)
 
 # Node_count == 2 can work without full activations checkpointing.
-$BIN_DIR/step-02-bmk-pretrain-gpt3.sh
+$BIN_DIR/step-01-bmk-pretrain-gpt3.sh
