@@ -11,8 +11,6 @@ set -exuo pipefail
 : "${RUNTIME:=4h}"
 : "${MAX_STEPS:=5}"
 : "${WORKSPACE_CONT:=/fsx/ubuntu/nemo-megatron-23.07}"
-CONT_DATA_DIR=${WORKSPACE_CONT}/data/the_pile_gpt3
-CONT_TOKENIZER_DIR=${WORKSPACE_CONT}/data/bpe
 CONT_RESULT_DIR=${WORKSPACE_CONT}/results
 
 : "${UNIQUE_OUTPUT_DIR:=0}"
@@ -42,11 +40,10 @@ declare -a BMK_ARGS=(
     training.model.data.data_prefix=[]
 )
 
-HYDRA_FULL_ERROR=1 python3 /fsx/ubuntu/sample-slurm-jobs/nemo-launcher-23.07/launcher_scripts/main.py \
+#    base_results_dir=${CONT_RESULT_DIR} \
+HYDRA_FULL_ERROR=1 python3 /fsx/ubuntu/nemo-launcher-23.07/launcher_scripts/main.py \
     stages=[training] \
     training=${MODEL}/${MODEL_SIZE} \
-    data_dir=${CONT_DATA_DIR} \
-    base_results_dir=${CONT_RESULT_DIR} \
     training.trainer.num_nodes=$NUM_NODES \
     training.trainer.max_steps=$MAX_STEPS \
     training.trainer.val_check_interval=$MAX_STEPS \
