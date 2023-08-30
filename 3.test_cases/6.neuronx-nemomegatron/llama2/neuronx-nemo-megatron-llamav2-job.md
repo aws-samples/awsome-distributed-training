@@ -49,35 +49,30 @@ compile_helper()"
 The above utility will help make this file : ```nemo.collections.nlp.data.language_modeling.megatron.dataset_utils``` and below is the expected output (You can ignore the error)
 ```
 2023-Aug-17 22:53:01.0674 47940:47940 ERROR  TDRV:tdrv_get_dev_info                       No neuron device available
-[NeMo W 2023-08-17 22:53:03 optimizers:67] Could not import distributed_fused_adam optimizer from Apex
+[NeMo W 2023-08-1722:53:03 optimizers:67] Could not import distributed_fused_adam optimizer from Apex
 [NeMo W 2023-08-17 22:53:04 experimental:27] Module <class 'nemo.collections.nlp.data.language_modeling.megatron.megatron_batch_samplers.MegatronPretrainingRandomBatchSampler'> is experimental, not ready for production and is not fully supported. Use at your own risk.
 ```
 
-## Download LlamaV2 dataset and tokenizer
+## Tokenize dataset
 This tutorial makes use of a Red pyjama dataset. The dataset can be downloaded to your cluster by running the following commands on the head node:
 
 ```
-mkdir /fsx/data/llama2
+mkdir -p /fsx/data/llama2
 wget https://data.together.xyz/redpajama-data-1T/v1.0.0/book/book.jsonl
 or
 wget https://huggingface.co/datasets/togethercomputer/RedPajama-Data-1T-Sample/resolve/main/book_sample.jsonl -O /fsx/data/llama2/book.jsonl
 ```
 
-The above command will give you the raw dataset of around 50G which needs to be tokenized using a llamaV2 tokenizer. To tokenize the data, you need to request the tokenizer from hugging face and meta following the below link : 
-
-[Request Tokenizer and model weights from hugging face](https://huggingface.co/meta-llama/Llama-2-7b)
-
-Note: Use of this model is governed by the Meta license. In order to download the model weights and tokenizer, please visit the above website and accept our License before requesting access here.
-
 Once you have the Tokenizer and the dataset. You can tokenize the dataset following the below command : 
 ```
-python nemo/scripts/nlp_language_modeling/preprocess_data_for_megatron.py \
-    --input=DATA_FOLDER/DATA.jsonl \
+source ~/aws_neuron_venv_pytorch/bin/activate
+python /home/ec2-user/neuronx-nemo-megatron/nemo/scripts/nlp_language_modeling/preprocess_data_for_megatron.py \
+    --input=/fsx/data/llama2/book.jsonl \
     --json-keys=text \
     --tokenizer-library=huggingface \
-    --tokenizer-type=TOKENIZER_FOLDER/llama7b-hf \
+    --tokenizer-type=/fsx \
     --dataset-impl=mmap \
-    --output-prefix=DATA_FOLDER/DATA_tokenized \
+    --output-prefix=/fsx/data/llama2/book-tokenized \
     --append-eod \
     --need-pad-id \
     --workers=32

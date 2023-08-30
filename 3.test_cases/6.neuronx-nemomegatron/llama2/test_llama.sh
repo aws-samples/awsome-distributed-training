@@ -26,6 +26,7 @@ else
     NODEID=$SLURM_NODEID
     NTASKS=$SLURM_NTASKS
     export NEMO_EXPM_VERSION=$SLURM_JOB_ID
+    NNODES=${SLURM_NNODES}
 fi
 
 export HYDRA_FULL_ERROR=1
@@ -39,7 +40,7 @@ export TPU_CHIPS_PER_HOST_BOUNDS=$NEURON_RT_NUM_CORES
 export NEURON_RT_DBG_A2A_CC=0
 export NEURON_RT_ASYNC_EXEC_MODE=0
 
-DISTRIBUTED_ARGS="--nproc_per_node $PROCESSES_PER_NODE --nnodes $NTASKS --node_rank $NODEID --master_addr $MASTER_ADDR --master_port $MASTER_PORT"
+DISTRIBUTED_ARGS="--nproc_per_node $PROCESSES_PER_NODE --nnodes $NNODES --node_rank $NODEID --master_addr $MASTER_ADDR --master_port $MASTER_PORT"
 echo $DISTRIBUTED_ARGS
 
 export NEURON_FUSE_SOFTMAX=1
@@ -77,7 +78,7 @@ echo "SEQ_LEN=$SEQ_LENGTH, HS=$HS, FFN_HS=$FFN_HS TP=$TP PP=$PP N_LAYERS=$N_LAYE
 
 LOG_PATH=logs/$SLURM_JOB_ID/$NODEID/
 mkdir -p $LOG_PATH
-
+source ~/aws_neuron_venv_pytorch/bin/activate
 $MAYBE_COMPILE torchrun $DISTRIBUTED_ARGS megatron_gpt_pretraining.py  \
     --config-path=conf \
     --config-name=megatron_llama_config \
@@ -91,7 +92,7 @@ $MAYBE_COMPILE torchrun $DISTRIBUTED_ARGS megatron_gpt_pretraining.py  \
     trainer.limit_test_batches=1 \
     trainer.accumulate_grad_batches=1 \
     trainer.precision=32 \
-    model.tokenizer.type='/root/scripts/example_datasets/llamav2_weights/7b-hf' \
+    model.tokenizer.type='/fsx/Llama2-7b-hf' \
     model.micro_batch_size=$UBS \
     model.global_batch_size=$GBS \
     model.tensor_model_parallel_size=$TP \
@@ -105,7 +106,7 @@ $MAYBE_COMPILE torchrun $DISTRIBUTED_ARGS megatron_gpt_pretraining.py  \
     model.init_method_std=0.021 \
     model.hidden_dropout=0 \
     model.layernorm_epsilon=1e-5 \
-    model.data.data_prefix=[1.0,/root/scripts/data/books/book.jsonl-processed_text_document] \
+    model.data.data_prefix=[1.0,/fsx/data/llama2/book/book-tokenized_text_document.idx] \
     model.data.num_workers=1 \
     model.data.seq_length=$SEQ_LENGTH \
     model.optim.name=adamw \
@@ -121,11 +122,11 @@ $MAYBE_COMPILE torchrun $DISTRIBUTED_ARGS megatron_gpt_pretraining.py  \
     model.activations_checkpoint_granularity=full \
     model.activations_checkpoint_method=uniform \
     model.activations_checkpoint_num_layers=1 \
-    +model.save_xser=True \
+    +model.save_xser=False \
     exp_manager.create_tensorboard_logger=$CREATE_TB_LOGGER \
     exp_manager.resume_if_exists=False \
     exp_manager.resume_ignore_no_checkpoint=False \
-    exp_manager.create_checkpoint_callback=$CHECKPOINT_CALLBACK \
+    exp_manager.create_checkpoint_callback=False \
     +exp_manager.checkpoint_callback_params.train_time_interval=36000 \
     exp_manager.checkpoint_callback_params.save_last=False \
     model.use_cpu_initialization=True   2>&1  | tee  $LOG_PATH/log

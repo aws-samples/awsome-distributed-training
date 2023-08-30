@@ -1,0 +1,13 @@
+2023-08-30 02:21:49.000579:  105111  INFO ||PARALLEL_COMPILE||: Running trial run (add option to terminate trial run early; also ignore trial run's generated outputs, i.e. loss, checkpoints)
+usage: torchrun [-h] [--nnodes NNODES] [--nproc_per_node NPROC_PER_NODE]
+                [--rdzv_backend RDZV_BACKEND] [--rdzv_endpoint RDZV_ENDPOINT]
+                [--rdzv_id RDZV_ID] [--rdzv_conf RDZV_CONF] [--standalone]
+                [--max_restarts MAX_RESTARTS]
+                [--monitor_interval MONITOR_INTERVAL]
+                [--start_method {spawn,fork,forkserver}] [--role ROLE] [-m]
+                [--no_python] [--run_path] [--log_dir LOG_DIR] [-r REDIRECTS]
+                [-t TEE] [--node_rank NODE_RANK] [--master_addr MASTER_ADDR]
+                [--master_port MASTER_PORT]
+                training_script ...
+torchrun: error: argument --nnodes: expected one argument
+2023-08-30 02:21:50.000995:  105111  ERROR ||PARALLEL_COMPILE||: There was an error in the training script.
