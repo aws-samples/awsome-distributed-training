@@ -17,11 +17,11 @@ The following pre-requisites are needed to run this example:
 You will need to setup the following environment variables before running the scripts. :
 
 ```bash
-export NEMO_VERSION=23.05
+export NEMO_VERSION=23.07
 export REPO=aws-nemo-megatron
 export TAG=$NEMO_VERSION-py3
 export TARGET_PATH=/fsx/nemo-launcher-$NEMO_VERSION #
-export TEST_CASE_PATH=/home/ec2-user/2.nemo-launcher-23.05 # where you copy the test case or set to your test case path
+export TEST_CASE_PATH=/home/ec2-user/2.nemo-launcher-23.07 # where you copy the test case or set to your test case path
 export ENROOT_IMAGE=/apps/${REPO}_${TAG}.sqsh
 
 cd $TEST_CASE_PATH
@@ -54,7 +54,7 @@ The Enroot squash file will be placed into the `/apps` directory.
 
 ## 3. Set-up the NemoMegatron environment
 
-You will setup the target directory to host the configurations and requirements for NemoMegatron. It is assumed that your have an FSx for Lustre file system available to all nodes of your cluster via the mountpoint `/fsx`. We follow the same logic as in the [NemoMegatron Launcher documentation](https://github.com/NVIDIA/NeMo-Megatron-Launcher/tree/23.05#5111-slurm)
+You will setup the target directory to host the configurations and requirements for NemoMegatron. It is assumed that your have an FSx for Lustre file system available to all nodes of your cluster via the mountpoint `/fsx`. We follow the same logic as in the [NemoMegatron Launcher documentation](https://github.com/NVIDIA/NeMo-Megatron-Launcher/tree/23.07#5111-slurm)
 
 1. Create the target directory with the command below:
 
