@@ -13,7 +13,7 @@ HeadNode:
     KeyName: PLACEHOLDER_SSH_KEY
   LocalStorage:
     RootVolume:
-      Size: 100
+      Size: 500
       DeleteOnTermination: true # that's your root and /home volume for users
   Iam:
     AdditionalIamPolicies: # grant ECR, SSM and S3 read access
