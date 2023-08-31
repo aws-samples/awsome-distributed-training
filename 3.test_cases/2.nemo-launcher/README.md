@@ -20,8 +20,8 @@ You will need to setup the following environment variables before running the sc
 export NEMO_VERSION=23.07
 export REPO=aws-nemo-megatron
 export TAG=$NEMO_VERSION-py3
-export TARGET_PATH=/fsx/nemo-launcher-$NEMO_VERSION         # must be a shared filesystem
-export TEST_CASE_PATH=/home/ec2-user/2.nemo-launcher-23.07  # where you copy the test case or set to your test case path
+export TARGET_PATH=/fsx/nemo-launcher-$NEMO_VERSION   # must be a shared filesystem
+export TEST_CASE_PATH=/home/ec2-user/2.nemo-launcher  # where you copy the test case or set to your test case path
 export ENROOT_IMAGE=/apps/${REPO}_${TAG}.sqsh
 
 cd $TEST_CASE_PATH
