@@ -15,6 +15,6 @@ TAG=23.03-py3
 docker build --progress plain -t ${REPO}:${TAG} .
 
 # On m5.8xlarge (32 vcpu). /fsx is FSxL 1.2TB configured with 500 MB/s/TB throughput.
-IMAGE=/fsx/ubuntu/${REPO}_${TAG}.sqsh ; [[ -e $IMAGE ]] && rm $IMAGE
+IMAGE=/apps/${REPO}_${TAG}.sqsh ; [[ -e $IMAGE ]] && rm $IMAGE
 /usr/bin/time enroot import -o $IMAGE dockerd://${REPO}:${TAG}
 # 25.09user 102.21system 2:17.85elapsed 92%CPU (0avgtext+0avgdata 17450056maxresident)k
