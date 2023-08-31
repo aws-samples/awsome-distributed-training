@@ -41,13 +41,9 @@ export FI_EFA_ENABLE_SHM_TRANSFER=1
 export NCCL_ASYNC_ERROR_HANDLING=1
 export NCCL_DEBUG=INFO
 
-
 declare -a ARGS=(
     --container-image $IMAGE
 )
-
-
-export HELLO_WORLD="${1-undefined}"
 
 echo "
 Hostname: $(hostname)
@@ -59,7 +55,7 @@ echo "
 ########################################
 # srun
 ########################################"
-srun bash -c 'hostname ; env | egrep "^NCCL|^FI|^HELLO" | sed "s/^/`hostname`: /g"'
+srun -l "${ARGS[@]}" --mpi=pmix bash -c 'hostname ; env | egrep "^NCCL|^FI|^HELLO" | sed "s/^/`hostname`: /g"'
 
 echo "
 ########################################
