@@ -40,13 +40,11 @@ declare -a ARGS=(
     --container-image $IMAGE
 )
 
-
 echo "
 Hostname: $(hostname)
 "
 
 env
-
 
 echo "
 ################################################################################
