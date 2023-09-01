@@ -118,7 +118,7 @@ source ${TARGET_PATH}/.venv/bin/activate
 
 # Download tokenizer data (one-time activity)
 mkdir -p $TARGET_PATH/bpe
-curl -L https://huggingface.co/gpt2/raw/main/config.json > $TARGET_PATH/bpe/vocab.json
+curl -L https://huggingface.co/gpt2/raw/main/vocab.json > $TARGET_PATH/bpe/vocab.json
 curl -L https://huggingface.co/gpt2/raw/main/merges.txt > $TARGET_PATH/bpe/merges.txt
 ```
 
@@ -130,5 +130,5 @@ Run pre-training as follows:
 # 2. review, edit (if necessary), then run pretrain-gpt3-*.sh.
 #
 # Below show option 2.
-./pretrain-gpt3-126m2.sh
+./bmk-pretrain-gpt3-126m2.sh
 ```
