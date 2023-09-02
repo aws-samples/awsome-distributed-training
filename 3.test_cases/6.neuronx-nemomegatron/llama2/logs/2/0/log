@@ -1,0 +1,44 @@
+2023-09-01 13:29:42.000197:  41011  INFO ||PARALLEL_COMPILE||: Running trial run (add option to terminate trial run early; also ignore trial run's generated outputs, i.e. loss, checkpoints)
+WARNING:torch.distributed.run:
+*****************************************
+Setting OMP_NUM_THREADS environment variable for each process to be 1 in default, to avoid your system being overloaded, please further tune the variable for optimal performance in your application as needed. 
+*****************************************
+Traceback (most recent call last):
+  File "/home/ec2-user/aws_neuron_venv_pytorch/bin/torchrun", line 8, in <module>
+    sys.exit(main())
+  File "/home/ec2-user/aws_neuron_venv_pytorch/lib64/python3.8/site-packages/torch/distributed/elastic/multiprocessing/errors/__init__.py", line 346, in wrapper
+    return f(*args, **kwargs)
+  File "/home/ec2-user/aws_neuron_venv_pytorch/lib64/python3.8/site-packages/torch/distributed/run.py", line 762, in main
+    run(args)
+  File "/home/ec2-user/aws_neuron_venv_pytorch/lib64/python3.8/site-packages/torch/distributed/run.py", line 753, in run
+    elastic_launch(
+  File "/home/ec2-user/aws_neuron_venv_pytorch/lib64/python3.8/site-packages/torch/distributed/launcher/api.py", line 132, in __call__
+    return launch_agent(self._config, self._entrypoint, list(args))
+  File "/home/ec2-user/aws_neuron_venv_pytorch/lib64/python3.8/site-packages/torch/distributed/launcher/api.py", line 237, in launch_agent
+    result = agent.run()
+  File "/home/ec2-user/aws_neuron_venv_pytorch/lib64/python3.8/site-packages/torch/distributed/elastic/metrics/api.py", line 129, in wrapper
+    result = f(*args, **kwargs)
+  File "/home/ec2-user/aws_neuron_venv_pytorch/lib64/python3.8/site-packages/torch/distributed/elastic/agent/server/api.py", line 709, in run
+    result = self._invoke_run(role)
+  File "/home/ec2-user/aws_neuron_venv_pytorch/lib64/python3.8/site-packages/torch/distributed/elastic/agent/server/api.py", line 844, in _invoke_run
+    self._initialize_workers(self._worker_group)
+  File "/home/ec2-user/aws_neuron_venv_pytorch/lib64/python3.8/site-packages/torch/distributed/elastic/metrics/api.py", line 129, in wrapper
+    result = f(*args, **kwargs)
+  File "/home/ec2-user/aws_neuron_venv_pytorch/lib64/python3.8/site-packages/torch/distributed/elastic/agent/server/api.py", line 678, in _initialize_workers
+    self._rendezvous(worker_group)
+  File "/home/ec2-user/aws_neuron_venv_pytorch/lib64/python3.8/site-packages/torch/distributed/elastic/metrics/api.py", line 129, in wrapper
+    result = f(*args, **kwargs)
+  File "/home/ec2-user/aws_neuron_venv_pytorch/lib64/python3.8/site-packages/torch/distributed/elastic/agent/server/api.py", line 541, in _rendezvous
+    workers = self._assign_worker_ranks(store, group_rank, group_world_size, spec)
+  File "/home/ec2-user/aws_neuron_venv_pytorch/lib64/python3.8/site-packages/torch/distributed/elastic/metrics/api.py", line 129, in wrapper
+    result = f(*args, **kwargs)
+  File "/home/ec2-user/aws_neuron_venv_pytorch/lib64/python3.8/site-packages/torch/distributed/elastic/agent/server/api.py", line 610, in _assign_worker_ranks
+    role_infos = self._share_and_gather(store, group_rank, group_world_size, spec)
+  File "/home/ec2-user/aws_neuron_venv_pytorch/lib64/python3.8/site-packages/torch/distributed/elastic/agent/server/api.py", line 647, in _share_and_gather
+    role_infos_bytes = store_util.synchronize(
+  File "/home/ec2-user/aws_neuron_venv_pytorch/lib64/python3.8/site-packages/torch/distributed/elastic/utils/store.py", line 64, in synchronize
+    agent_data = get_all(store, rank, key_prefix, world_size)
+  File "/home/ec2-user/aws_neuron_venv_pytorch/lib64/python3.8/site-packages/torch/distributed/elastic/utils/store.py", line 34, in get_all
+    data = store.get(f"{prefix}{idx}")
+RuntimeError: Socket Timeout
+2023-09-01 13:49:49.000642:  41011  ERROR ||PARALLEL_COMPILE||: There was an error in the training script.

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-set -o pipefail
+set -xo pipefail
+# set -euxo pipefail
 
-ulimit -n 65535
-
-sudo sysctl -w net.ipv4.ip_local_reserved_ports=41000
+sudo sysctl -w net.ipv4.ip_local_reserved_ports=48620
 
 export FI_EFA_USE_DEVICE_RDMA=1
 export FI_PROVIDER=efa
 export FI_EFA_FORK_SAFE=1
+export TPU_PORT=51101
 
 if [ -z "${SLURM_NNODES}" ]
 then
@@ -15,7 +15,6 @@ then
     HOSTS=(localhost)
     NODEID=0
     NTASKS=1
-    export NEMO_EXPM_VERSION=$(date "+%Y-%m-%d_%H-%M-%S")
 else
     # SLURM runs, single or multi-node
     IPS=""
@@ -25,44 +24,66 @@ else
     HOSTS=(${IPS//\ / })
     NODEID=$SLURM_NODEID
     NTASKS=$SLURM_NTASKS
-    export NEMO_EXPM_VERSION=$SLURM_JOB_ID
-    NNODES=${SLURM_NNODES}
 fi
-
-export HYDRA_FULL_ERROR=1
+export LOG_PATH=logs-gpt-ver
+mkdir -p ${LOG_PATH}
+export HYDRA_FULL_ERROR=1 
 export PROCESSES_PER_NODE=32
+export XRT_LOCAL_WORKER="c_localservice:$NODEID"
+export XRT_SHARD_ORDINAL=$NODEID
+export XRT_MESH_SERVICE_ADDRESS=${HOSTS[0]}:8477
+export TPU_MESH_CONTROLLER_ADDRESS=${HOSTS[0]}:8476
+export TPU_MESH_CONTROLLER_PORT=8476
+export NEURON_RT_ROOT_COMM_ID=${HOSTS[0]}:48620
+export TF_GRPC_DEFAULT_OPTIONS="grpc.keepalive_time_ms=60000,grpc.keepalive_timeout_ms=14400000,grpc.http2.max_pings_without_data=0,grpc.http2.min_ping_interval_without_data_ms=300000"
+export XRT_SHARD_WORLD_SIZE=$NTASKS
+export WORLD_SIZE=$((NTASKS*PROCESSES_PER_NODE))
 export MASTER_ADDR=${HOSTS[0]}
 export MASTER_PORT=41000
-
-export NEURON_RT_EXEC_TIMEOUT=100
-export TPU_NUM_DEVICES=$NEURON_RT_NUM_CORES
-export TPU_CHIPS_PER_HOST_BOUNDS=$NEURON_RT_NUM_CORES
-export NEURON_RT_DBG_A2A_CC=0
-export NEURON_RT_ASYNC_EXEC_MODE=0
-
-DISTRIBUTED_ARGS="--nproc_per_node $PROCESSES_PER_NODE --nnodes $NNODES --node_rank $NODEID --master_addr $MASTER_ADDR --master_port $MASTER_PORT"
-echo $DISTRIBUTED_ARGS
+export ALLOW_MULTIPLE_LIBTPU_LOAD=1
+export NEURON_USE_LOAD_COLLECTIVES=1
+export NEURON_GLOBAL_DEVICE_COUNT=$WORLD_SIZE
+export NEURON_RT_NUM_CORES=$PROCESSES_PER_NODE
+export NEURON_NUM_DEVICES=$NEURON_RT_NUM_CORES
+export CLOUD_TPU_TASK_ID=$NODEID
+export RANK=$((NODEID*PROCESSES_PER_NODE))
+export NEURON_GLOBAL_DEVICE_ID=$RANK
 
 export NEURON_FUSE_SOFTMAX=1
-export NEURON_RT_STOCHASTIC_ROUNDING_EN=1
-export NEURON_RT_ENABLE_VERBOSE_NUMERICAL_ERRORS=0
-export NEURON_RT_ASYNC_EXEC_MAX_INFLIGHT_REQUESTS=3
+export NEURON_RT_STOCHASTIC_ROUNDING_EN=0
 export NEURON_TRANSFER_WITH_STATIC_RING_OPS=""
-export MALLOC_ARENA_MAX=128
+export ALLOC_ARENA_MAX=128
+
+#### Need to set all the server related env variables before server launch
+export TPU_CHIPS_PER_HOST_BOUNDS=$NEURON_RT_NUM_CORES,$NEURON_RT_NUM_CORES
 
 export XLA_USE_BF16=1
-export NEURON_CC_FLAGS="--model-type transformer --distribution-strategy=nemo --cache_dir=$HOME/neuron_cache/llama/`hostname`"
+export NEURON_CC_FLAGS="--model-type=transformer --enable-internal-seeded-rng-dropout --tensorizer-options='--no-keep-remat-dma-transpose' --cache_dir=$HOME/neuron_cache/$NODEID"
 export TF_NUM_INTEROP_THREADS=8192
 
-export TRAIN_ITERS=20000
-CREATE_TB_LOGGER=True
-CHECKPOINT_CALLBACK=True
-if [ "$COMPILE" = "1" ]; then
-    echo "compiling only run"
-    MAYBE_COMPILE="neuron_parallel_compile"
+echo "Starting XRT server"
+if [ "$NODEID" = 0 ]; then
+    idx=0
+    for ip in ${HOSTS[@]}; do
+        tpu_configs+=("c_localservice;$((idx++));$ip:$TPU_PORT")
+    done
+    export XRT_TPU_CONFIG=$(IFS="|"; echo "${tpu_configs[*]}")
+    export TPU_NUM_DEVICES=$PROCESSES_PER_NODE
+fi
+
+echo "NTASKS: $NTASKS"
+if [ $NTASKS = 1 ]; then
+    export XRT_TPU_CONFIG="localservice;0;localhost:$TPU_PORT"
+    export XRT_LOCAL_WORKER="localservice:$NODEID"
+    export TPU_NUM_DEVICES=$PROCESSES_PER_NODE
+fi
+
+export XRT_START_LOCAL_SERVER=0
+
+export TRAIN_ITERS=300000
+export GBS=$((NTASKS*32))
+if [ "$NEURON_EXTRACT_GRAPHS_ONLY" = "1" ]; then
     export TRAIN_ITERS=3
-    CREATE_TB_LOGGER=False
-    CHECKPOINT_CALLBACK=False
 fi
 
 : ${SEQ_LENGTH:=2048}
@@ -72,17 +93,13 @@ fi
 : ${N_LAYERS:=32}
 : ${N_AH:=32}
 : ${UBS:=1}
-: ${FFN_HS:=11008}
-: ${GBS:=256}
+export FFN_HS=$(($HS*4))
 echo "SEQ_LEN=$SEQ_LENGTH, HS=$HS, FFN_HS=$FFN_HS TP=$TP PP=$PP N_LAYERS=$N_LAYERS N_AH=$N_AH GBS=$GBS UBS=$UBS"
-
-LOG_PATH=logs/$SLURM_JOB_ID/$NODEID/
-mkdir -p $LOG_PATH
-source ~/aws_neuron_venv_pytorch/bin/activate
-$MAYBE_COMPILE torchrun $DISTRIBUTED_ARGS /home/ec2-user/neuronx-nemo-megatron/nemo/examples/nlp/language_modeling/megatron_gpt_pretraining.py  \
+source /home/ec2-user/aws_neuron_venv_pytorch/bin/activate
+python3 /home/ec2-user/neuronx-nemo-megatron/nemo/examples/nlp/language_modeling/megatron_gpt_pretraining.py  \
     --config-path=conf \
     --config-name=megatron_llama_config \
-    trainer.devices=$PROCESSES_PER_NODE \
+    trainer.devices=$NEURON_NUM_DEVICES \
     trainer.num_nodes=$NTASKS \
     trainer.max_epochs=null \
     trainer.max_steps=$TRAIN_ITERS\
@@ -122,14 +139,14 @@ $MAYBE_COMPILE torchrun $DISTRIBUTED_ARGS /home/ec2-user/neuronx-nemo-megatron/n
     model.activations_checkpoint_granularity=full \
     model.activations_checkpoint_method=uniform \
     model.activations_checkpoint_num_layers=1 \
-    +model.save_xser=False \
-    exp_manager.create_tensorboard_logger=$CREATE_TB_LOGGER \
+    +model.save_xser=True \
+    exp_manager.create_tensorboard_logger=False \
     exp_manager.resume_if_exists=False \
     exp_manager.resume_ignore_no_checkpoint=False \
     exp_manager.create_checkpoint_callback=False \
     +exp_manager.checkpoint_callback_params.train_time_interval=36000 \
     exp_manager.checkpoint_callback_params.save_last=False \
-    model.use_cpu_initialization=True   2>&1  | tee  $LOG_PATH/log
+    model.use_cpu_initialization=True   2>&1  | tee  $LOG_PATH/log &
 
 # Note: to resume training using a checkpoint, please add the following configuration above, adjusting for your checkpoint path
     # model.use_cpu_initialization=False \
@@ -137,3 +154,4 @@ $MAYBE_COMPILE torchrun $DISTRIBUTED_ARGS /home/ec2-user/neuronx-nemo-megatron/n
     # +model.resume_from_checkpoint='/root/scripts/example_datasets/llamav2_weights/llama7b_hf_converted_nemo_v3//mp_rank_07/model_optim_rng.ckpt' \
 # To use mixed precision optimizer, add
     # model.megatron_amp_O2=True \
+python3 -m torch_neuronx.distributed._xrt_run_server --port $TPU_PORT --pid_to_track $!

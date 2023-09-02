@@ -14,4 +14,4 @@ export GBS=256
 # make
 # popd
 
-./test_llama_gpt_ver.sh
+./test_llama.sh
