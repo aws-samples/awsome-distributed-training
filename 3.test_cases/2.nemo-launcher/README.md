@@ -5,7 +5,9 @@ Table of contents:
 - [1. Pre-requisites](#1-pre-requisites)
 - [2. Build AWS-optimized Nemo-Launcher image](#2-build-aws-optimized-nemo-launcher-image)
 - [3. Set-up the NemoMegatron environment](#3-set-up-the-nemomegatron-environment)
-- [4. Pre-training GPT3](#4-pre-training-gpt3)
+- [4. Download vocabularies](#4-download-vocabularies)
+- [5. Pre-training GPT3](#5-pre-training-gpt3)
+- [6. Customizing Pre-Training](#6-customizing-pre-training)
 
 ## 1. Pre-requisites
 
@@ -109,27 +111,77 @@ cp -Rv ${TEST_CASE_PATH}/conf.template/cluster ${TARGET_PATH}/launcher_scripts/c
 envsubst < ${TEST_CASE_PATH}/conf.template/config.yaml > ${TARGET_PATH}/launcher_scripts/conf/config.yaml
 ```
 
-## 4. Pre-training GPT3
+## 4. Download vocabularies
 
-This section assumes that you went through the previous sections and 1/ retrieved and built the AWS optimized NemoMegatron container, 2/ setup the NemoMegatron environment. To start, source the NemoMegatron environment:
+The pre-training process we're going to run uses the [GPT2](https://huggingface.co/gpt2) tokenizer which requires you to download the vocabularies files:
 
 ```bash
-source ${TARGET_PATH}/.venv/bin/activate
-
-# Download tokenizer data (one-time activity)
 mkdir -p $TARGET_PATH/bpe
 curl -L https://huggingface.co/gpt2/raw/main/vocab.json > $TARGET_PATH/bpe/vocab.json
 curl -L https://huggingface.co/gpt2/raw/main/merges.txt > $TARGET_PATH/bpe/merges.txt
 ```
 
-Run pre-training as follows:
+## 5. Pre-training GPT3
+
+This section assumes that you went through the previous sections and 1/ retrieved and built the AWS optimized NemoMegatron container, 2/ setup the NemoMegatron environment, and 3/ download the vocabularies.
+
+To start pre-training, source the NemoMegatron environment:
 
 ```bash
-# Choose one of these options:
-# 1. edit then run step-01-pretrain-gpt3.sh, or
-# 2. review, edit (if necessary), then run pretrain-gpt3-*.sh.
-#
-# Below show option 2.
+source ${TARGET_PATH}/.venv/bin/activate
+```
+
+To pre-train a GPT3-126m on two instances with mock dataset, run the following:
+
+```bash
 cd $TARGET_PATH
 $TEST_CASE_PATH/bmk-pretrain-gpt3-126m2.sh
 ```
+
+which results in this execution tree:
+
+```bash
+$TEST_CASE_PATH/bmk-pretrain-gpt3-126m.sh
+\_ $TEST_CASE_PATH/1.bmk-pretrain-gpt3.sh
+   \_ $TARGET_PATH/launcher_scripts/main.py
+      \_ sbatch
+```
+
+As can be seen, Nemo-launcher `launcher_scripts/main.py` interacts with Slurm on our behalf to generate an `.sbatch` file and submit it to Slurm. Nemo-launcher logs all the invocation commands, output, and error to `$TARGET_PATH/results/<MODEL_SIZE>/` described below.
+
+```bash
+$TARGET_PATH/results/gpt3_126m
+├── gpt3_126m_hydra.yaml                        # The fully interpolated pre-training configuration
+├── launcher_cmd.log                            # The full invocation command of launcher_scripts/main.py
+├── launcher.log                                # Job id produced by the sbatch command
+├── log-nemo-megatron-gpt3_126m_<JOB_ID>.out    # Stdout of the pre-training Slurm job
+├── nemo-megatron-gpt3_126m_submission.sh       # .sbatch file generated and submitted by nemo-launcher
+└── results
+    ├── cmd-args.log                            # The full invocation command of the pre-training script
+    ├── events.out.tfevents.*                   # Tensorboard logs
+    ├── git-info.log                            # The commit hash of the NeMO repo provided in the container.
+    ├── hparams.yaml                            # Pre-training hyperparameters
+    ├── lightning_logs.txt                      # Additional logs from PyTorch-Lightning
+    ├── nemo_error_log.txt                      # Stderr of pre-training step
+    └── nemo_log_globalrank-*.txt               # Log of each rank
+```
+
+Please note that except for `log-nemo-megatron-gpt3_126m_<JOB_ID>.out`, the other files will be overridden when you launch another pre-training of that same model size. To completely separate the output among jobs, edit `TEST_CASE_PATH/bmk-pretrain-gpt3-126m.sh` and uncomment the `#export UNIQUE_OUTPUT_DIR=1` line to produce this output dir instead:
+
+```bash
+$TARGET_PATH/results-<TIMESTAMP>/gpt3_126m/
+├── gpt3_126m_hydra.yaml
+├── ...
+└── results
+    ├── cmd-args.log
+    ├── ...
+    └── nemo_log_globalrank-*.txt\
+```
+
+Congratulations! You've successfully run this test case to completion.
+
+## 6. Customizing Pre-Training
+
+The `$TEST_CASE_PATH` comes with `bmk-pretrain-gpt3-126m2.sh` and `bmk-pretrain-gpt3-5b2.sh` to pre-train 126m and 5b models, respectively, on two instances.
+
+To pre-train a different model size on different instance count, create your own `bmk-pretrain-gpt3-<SIZE><INSTANCE>.sh` based on those examples. Please that pre-training LLM requires understanding on the hyperparameters such as parallelism and batches. Please refer to the NeMO project ([website](https://developer.nvidia.com/nemo), [GitHub](https://github.com/NVIDIA/NeMo), [NeMo-Megatron-Launcher](https://github.com/NVIDIA/NeMo-Megatron-Launcher)) and the Megatron papers ([Shoeybi20](https://arxiv.org/abs/1909.08053), [Narayanan21](https://arxiv.org/abs/2104.04473)).
