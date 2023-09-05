@@ -130,5 +130,6 @@ Run pre-training as follows:
 # 2. review, edit (if necessary), then run pretrain-gpt3-*.sh.
 #
 # Below show option 2.
-./bmk-pretrain-gpt3-126m2.sh
+cd $TARGET_PATH
+$TEST_CASE_PATH/bmk-pretrain-gpt3-126m2.sh
 ```

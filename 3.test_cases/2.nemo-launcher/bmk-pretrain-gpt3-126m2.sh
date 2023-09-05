@@ -10,7 +10,7 @@ export MODEL_SIZE=126m
 export NUM_NODES=2
 export RUNTIME=30m
 export MAX_STEPS=40
-export UNIQUE_OUTPUT_DIR=1
+#export UNIQUE_OUTPUT_DIR=1
 
 BIN_DIR=$(dirname `readlink -e ${BASH_SOURCE[0]}`)
 
