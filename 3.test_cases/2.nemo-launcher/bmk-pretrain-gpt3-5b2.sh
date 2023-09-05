@@ -9,7 +9,7 @@
 export NUM_NODES=2
 export RUNTIME=30m
 export MAX_STEPS=20
-export UNIQUE_OUTPUT_DIR=1
+#export UNIQUE_OUTPUT_DIR=1
 
 BIN_DIR=$(dirname `readlink -e ${BASH_SOURCE[0]}`)
 

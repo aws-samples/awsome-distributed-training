@@ -10,22 +10,10 @@ set -exuo pipefail
 : "${NUM_NODES:=8}"
 : "${RUNTIME:=4h}"
 : "${MAX_STEPS:=5}"
-: "${WORKSPACE_CONT:=/fsx/ubuntu/nemo-megatron-23.07}"
+: "${WORKSPACE_CONT:=/fsx/nemo-launcher-23.07}"
 CONT_RESULT_DIR=${WORKSPACE_CONT}/results
 
 : "${UNIQUE_OUTPUT_DIR:=0}"
-
-if [[ ${UNIQUE_OUTPUT_DIR} -eq 1 ]]; then
-    # For debugging: each run has its own output dir.
-    TIMESTAMP=$(date +'%Y%m%d-%H%M%Sutc-%N')-$((RANDOM))
-    CONT_RESULT_DIR=${CONT_RESULT_DIR}-${TIMESTAMP}
-fi
-
-echo "
-####################
-This run will write to directory ${CONT_RESULT_DIR}
-####################
-"
 
 declare -a BMK_ARGS=(
     # Disable validation, as we're only interested to measure the training time.
@@ -40,8 +28,21 @@ declare -a BMK_ARGS=(
     training.model.data.data_prefix=[]
 )
 
-#    base_results_dir=${CONT_RESULT_DIR} \
-HYDRA_FULL_ERROR=1 python3 /fsx/ubuntu/nemo-launcher-23.07/launcher_scripts/main.py \
+if [[ ${UNIQUE_OUTPUT_DIR} -eq 1 ]]; then
+    # For debugging: each run has its own output dir.
+    TIMESTAMP=$(date +'%Y%m%d-%H%M%Sutc-%N')-$((RANDOM))
+    CONT_RESULT_DIR=${CONT_RESULT_DIR}-${TIMESTAMP}
+
+    BMK_ARGS+=(base_results_dir=${CONT_RESULT_DIR})
+
+    echo "
+    ####################
+    This run will write to directory ${CONT_RESULT_DIR}
+    ####################
+    "
+fi
+
+HYDRA_FULL_ERROR=1 python3 /fsx/nemo-launcher-23.07/launcher_scripts/main.py \
     stages=[training] \
     training=${MODEL}/${MODEL_SIZE} \
     training.trainer.num_nodes=$NUM_NODES \
