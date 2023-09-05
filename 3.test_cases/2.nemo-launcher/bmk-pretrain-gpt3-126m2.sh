@@ -15,4 +15,4 @@ export MAX_STEPS=40
 BIN_DIR=$(dirname `readlink -e ${BASH_SOURCE[0]}`)
 
 # Node_count == 2 can work without full activations checkpointing.
-$BIN_DIR/step-01-bmk-pretrain-gpt3.sh
+$BIN_DIR/1.bmk-pretrain-gpt3.sh
