@@ -111,14 +111,20 @@ cp -Rv ${TEST_CASE_PATH}/conf.template/cluster ${TARGET_PATH}/launcher_scripts/c
 envsubst < ${TEST_CASE_PATH}/conf.template/config.yaml > ${TARGET_PATH}/launcher_scripts/conf/config.yaml
 ```
 
-## 4. Download vocabularies
+## 4. Prepare Input Data
 
-The pre-training process we're going to run uses the [GPT2](https://huggingface.co/gpt2) tokenizer which requires you to download the vocabularies files:
+The pre-training we're going to run uses the [GPT2](https://huggingface.co/gpt2) tokenizer which requires you to download the vocabularies files:
 
 ```bash
 mkdir -p $TARGET_PATH/bpe
 curl -L https://huggingface.co/gpt2/raw/main/vocab.json > $TARGET_PATH/bpe/vocab.json
 curl -L https://huggingface.co/gpt2/raw/main/merges.txt > $TARGET_PATH/bpe/merges.txt
+```
+
+We also create an input directory but leave it empty for our pre-training which uses a mock dataset generated on-the-fly.
+
+```bash
+ mkdir -p $TARGET_PATH/data
 ```
 
 ## 5. Pre-training GPT3
@@ -185,3 +191,15 @@ Congratulations! You've successfully run this test case to completion.
 The `$TEST_CASE_PATH` comes with `bmk-pretrain-gpt3-126m2.sh` and `bmk-pretrain-gpt3-5b2.sh` to pre-train 126m and 5b models, respectively, on two instances.
 
 To pre-train a different model size on different instance count, create your own `bmk-pretrain-gpt3-<SIZE><INSTANCE>.sh` based on those examples. Please that pre-training LLM requires understanding on the hyperparameters such as parallelism and batches. Please refer to the NeMO project ([website](https://developer.nvidia.com/nemo), [GitHub](https://github.com/NVIDIA/NeMo), [NeMo-Megatron-Launcher](https://github.com/NVIDIA/NeMo-Megatron-Launcher)) and the Megatron papers ([Shoeybi20](https://arxiv.org/abs/1909.08053), [Narayanan21](https://arxiv.org/abs/2104.04473)).
+
+At the very least, you'd want to review and customize one or more YAML files under `$TARGET_PATH/launcher_scripts/conf/`. Nemo-launcher organizes its config files in an opinionated hierarchy. Below is an example of relevant YAML files when launching `$TARGET_PATH/launcher_scripts/main.py` for `training` stage for `gpt3/126m` (see `$TEST_CASE_PATH/1.bmk-pretrain-gpt3.sh`).
+
+```bash
+$TARGET_PATH/launcher_scripts/conf
+├── config.yaml        # Config for generating job scripts (.sbatch, .yaml, etc.)
+├── cluster
+│   └── bcm.yaml       # Config for Slurm jobs
+└── training           # Config for stage "training"
+    └── gpt3           # Config for model "gpt3"
+        └── 126m.yaml  # Config for model size "126m"
+```
