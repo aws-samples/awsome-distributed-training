@@ -124,7 +124,7 @@ curl -L https://huggingface.co/gpt2/raw/main/merges.txt > $TARGET_PATH/bpe/merge
 We also create an input directory but leave it empty for our pre-training which uses a mock dataset generated on-the-fly.
 
 ```bash
- mkdir -p $TARGET_PATH/data
+mkdir -p $TARGET_PATH/data
 ```
 
 ## 5. Pre-training GPT3
