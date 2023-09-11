@@ -6,11 +6,11 @@ You will find here a collection of cloudformation templates to deploy a VPC with
 
 The architectures each deploy a VPC, public and private subnets, gateways and endpoints. You can deploy them through the AWS Console or AWS CLI.
 
-### 1. Template VPC All AZs
+### 1. Template VPC Multiple AZs
 
-This template deploys a VPC with private subnets in all Availability zones. Public subnets can be optionally created in every AZ (done by default). This template serves most use cases.
+This template deploys a VPC with private subnets in multiple Availability zones. Public subnets can be optionally created in every AZ (done by default). This template serves most use cases.
 
-- **Template file**: [`1.vpc-all-az.yaml`](./1.vpc-all-az.yaml)
+- **Template file**: [`1.vpc-multi-az.yaml`](./1.vpc-multi-az.yaml)
 
 
 #### List of Parameters
@@ -30,12 +30,12 @@ Please note that the deployment of public subnets is optional.
 
 #### Deploy with the AWS CLI
 
-The command to deploy the template through the CLI is shown below. Feel free to edit for your own configuration and parameters.
+The command to deploy the template through the CLI is shown below. Feel free to edit for your own configuration and parameters. Please ensure that the `NumberOfAZs` parameter value matches the number of AZs that you specified.
 
 
 ```bash
 aws cloudformation create-stack --stack-name vpc-stack-ml\
-                                --template-body file://1.vpc-all-az.yaml \
+                                --template-body file://1.vpc-multi-az.yaml \
                                 --parameters ParameterKey=AvailabilityZones,ParameterValue=us-east-1a\\,us-east-1b\\,us-east-1c\\,us-east-1d\\,us-east-1e\\,us-east-1f\
                                     ParameterKey=NumberOfAZs,ParameterValue=6 \
                                     ParameterKey=VPCName,ParameterValue="ML HPC VPC" \
