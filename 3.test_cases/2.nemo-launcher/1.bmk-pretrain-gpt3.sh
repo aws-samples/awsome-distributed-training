@@ -28,9 +28,6 @@ declare -a BMK_ARGS=(
     # https://github.com/NVIDIA/NeMo/pull/6181/files
     training.model.data.data_impl=mock
     training.model.data.data_prefix=[]
-    training.model.tokenizer.vocab_file=${CONT_TOKENIZER_DIR}/vocab.json
-    training.model.tokenizer.merge_file=${CONT_TOKENIZER_DIR}/merges.txt
-
 )
 
 if [[ ${UNIQUE_OUTPUT_DIR} -eq 1 ]]; then

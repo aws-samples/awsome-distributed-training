@@ -121,11 +121,7 @@ curl -L https://huggingface.co/gpt2/raw/main/vocab.json > $TARGET_PATH/data/bpe/
 curl -L https://huggingface.co/gpt2/raw/main/merges.txt > $TARGET_PATH/data/bpe/merges.txt
 ```
 
-We also create an input directory but leave it empty for our pre-training which uses a mock dataset generated on-the-fly.
-
-```bash
-mkdir -p $TARGET_PATH/data
-```
+That's all needed to pre-train with a mock dataset generated on-the-fly.
 
 ## 5. Pre-training GPT3
 
@@ -153,7 +149,7 @@ $TEST_CASE_PATH/bmk-pretrain-gpt3-126m.sh
       \_ sbatch
 ```
 
-As can be seen, Nemo-launcher `launcher_scripts/main.py` interacts with Slurm on our behalf to generate an `.sbatch` file and submit it to Slurm. Nemo-launcher logs all the invocation commands, output, and error to `$TARGET_PATH/results/<MODEL_SIZE>/` described below.
+As can be seen, Nemo-launcher `launcher_scripts/main.py` interacts with Slurm on our behalf to generate an `.sbatch` file and submits it to Slurm. Nemo-launcher logs all the invocation commands, output, and error to `$TARGET_PATH/results/<MODEL_SIZE>/` described below.
 
 ```bash
 $TARGET_PATH/results/gpt3_126m
