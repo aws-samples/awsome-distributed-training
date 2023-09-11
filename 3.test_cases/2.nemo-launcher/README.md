@@ -5,7 +5,7 @@ Table of contents:
 - [1. Pre-requisites](#1-pre-requisites)
 - [2. Build AWS-optimized Nemo-Launcher image](#2-build-aws-optimized-nemo-launcher-image)
 - [3. Set-up the NemoMegatron environment](#3-set-up-the-nemomegatron-environment)
-- [4. Download vocabularies](#4-download-vocabularies)
+- [4. Prepare Input Data](#4-prepare-input-data)
 - [5. Pre-training GPT3](#5-pre-training-gpt3)
 - [6. Customizing Pre-Training](#6-customizing-pre-training)
 
@@ -116,9 +116,9 @@ envsubst < ${TEST_CASE_PATH}/conf.template/config.yaml > ${TARGET_PATH}/launcher
 The pre-training we're going to run uses the [GPT2](https://huggingface.co/gpt2) tokenizer which requires you to download the vocabularies files:
 
 ```bash
-mkdir -p $TARGET_PATH/bpe
-curl -L https://huggingface.co/gpt2/raw/main/vocab.json > $TARGET_PATH/bpe/vocab.json
-curl -L https://huggingface.co/gpt2/raw/main/merges.txt > $TARGET_PATH/bpe/merges.txt
+mkdir -p $TARGET_PATH/data/bpe
+curl -L https://huggingface.co/gpt2/raw/main/vocab.json > $TARGET_PATH/data/bpe/vocab.json
+curl -L https://huggingface.co/gpt2/raw/main/merges.txt > $TARGET_PATH/data/bpe/merges.txt
 ```
 
 We also create an input directory but leave it empty for our pre-training which uses a mock dataset generated on-the-fly.
