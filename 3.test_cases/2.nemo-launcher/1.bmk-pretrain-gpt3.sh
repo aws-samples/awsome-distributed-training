@@ -10,8 +10,10 @@ set -exuo pipefail
 : "${NUM_NODES:=8}"
 : "${RUNTIME:=4h}"
 : "${MAX_STEPS:=5}"
-: "${WORKSPACE_CONT:=/fsx/nemo-launcher-23.07}"
+: "${TARGET_PATH:=/fsx/nemo-launcher-23.07}"
+WORKSPACE_CONT=$TARGET_PATH
 CONT_RESULT_DIR=${WORKSPACE_CONT}/results
+CONT_TOKENIZER_DIR=${WORKSPACE_CONT}/data/bpe
 
 : "${UNIQUE_OUTPUT_DIR:=0}"
 
@@ -26,6 +28,9 @@ declare -a BMK_ARGS=(
     # https://github.com/NVIDIA/NeMo/pull/6181/files
     training.model.data.data_impl=mock
     training.model.data.data_prefix=[]
+    training.model.tokenizer.vocab_file=${CONT_TOKENIZER_DIR}/vocab.json
+    training.model.tokenizer.merge_file=${CONT_TOKENIZER_DIR}/merges.txt
+
 )
 
 if [[ ${UNIQUE_OUTPUT_DIR} -eq 1 ]]; then
