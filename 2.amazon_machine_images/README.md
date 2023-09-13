@@ -133,3 +133,4 @@ Alternatively, you can add a new role to install a new software component, ensur
 * For Enroot, we are using shared filesystem (`/fsx`) for container cache, set this accordingly to your cluster in `roles/nvidia_enroot_pyxis/templates/enroot.conf` variable `ENROOT_CACHE_PATH`.
 * Review variables (dependency versions) in `./roles/*/defaults/main.yml` according to [Ansible directory structure](https://docs.ansible.com/ansible/latest/tips_tricks/sample_setup.html).
 * These are based upon using the default VPCs found in the account.  If this does not exist, the default VPC can be recreated with `aws ec2 create-default-vpc`.
+* If packer can't find the AMI with the following message `Error querying AMI: InvalidAMIID.NotFound`, force the region by prepending your `make` command by the region `AWS_REGION=us-east-1`.
