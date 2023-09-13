@@ -29,6 +29,9 @@ pip3 install awscli # install the AWS CLI
 pip3 install aws-parallelcluster # then AWS ParallelCluster
 ```
 
+> **Note**: you can use virtual environments to test different versions of AWS ParallelCluster by setting the version during the installation. For example to use 3.6.1, change the command `pip3 install aws-parallelcluster==3.6.1`.
+
+
 ### Create your EC2 Keypair (if needed)
 
 The EC2 key pair enables your to connect to your cluster on the head-node through ssh or [AWS Systems Manager](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-sessions-start.html). We will cover for SSH here.
