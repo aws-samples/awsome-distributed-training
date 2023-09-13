@@ -33,10 +33,3 @@
     block: |
       export LD_PRELOAD=/opt/nccl/build/lib/libnccl.so:/opt/aws-ofi-nccl/lib/libnccl-net.so
 
-# TODO automate
-# - name: "Disable ptrace protection"
-#   ansible.builtin.sysctl:
-#     name: kernel.yama.ptrace_scop
-#     value: '0'
-#     state: present
-#     reload: true
