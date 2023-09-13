@@ -7,8 +7,6 @@ set -exo pipefail
 [[ -z "${TARGET_PATH}" ]] \
     && { echo Please set environment variable TARGET_PATH ; exit 1 ; } \
     || echo TARGET_PATH=$TARGET_PATH
-set -u
-
 
 ################################################################################
 # 000: Modify this section to define pre-training configuration: model size,
@@ -19,24 +17,7 @@ export MODEL_SIZE=126m
 export NUM_NODES=2
 export RUNTIME=30m
 export MAX_STEPS=40
-declare -a MODEL_ARGS=()
-
-## Uncomment below to pre-train gpt3-5b on 2 nodes for 5 steps
-# export MODEL=gpt3
-# export MODEL_SIZE=5b
-# export NUM_NODES=2
-# export RUNTIME=4h
-# export MAX_STEPS=5
-## When node_count < 8, needs full activations checkpointing. These're settings found on
-## Nemo repo's Jenkin script.
-##
-## Below settings is similar to 22.09, except that 22.09 funnily didn't OOM with
-## activations_checkpoint_num_layers=0.
-# declare -a MODEL_ARGS=(
-#     training.model.activations_checkpoint_granularity='full'
-#     training.model.activations_checkpoint_method='block'
-#     training.model.activations_checkpoint_num_layers=1
-# )
+export MODEL=gpt3
 
 
 ################################################################################
