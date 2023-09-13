@@ -14,7 +14,6 @@ reference-architectures/
 
 **NOTE**: the architectures are designed to work with the S3 bucket and VPC created using reference templates `1.architectures/0.s3/` and `1.architectures/1.vpc_network/`. _You're strongly recommended to deploy these two templates **before** deploying any of the reference architectures._
 
-
 ## 1. Architectures
 
 Architectures are located in `1.architectures` and consists of utilities and service related architectures
@@ -42,3 +41,17 @@ All test cases are under `3.test_cases/`. You can go in each test case directory
 | `2.nemo-launcher-23.03` | ✅   | ❌   | ❌        |
 | `3.MPT`                 | ❓   | ❓   | ❓        |
 | `4.DDP`                 | ❓   | ❓   | ❓        |
+
+
+## 4. Contributors
+
+Thanks to all the contributors for building, reviewing and testing.
+
+- Pierre-Yves Aquilanti - pierreya@
+- Verdi March - marcverd@
+- Uros Lipovsek - lipovsek@
+- Keita Watanabe - mlkeita@
+- Ankur Srivastava - awsankur@
+- Alex Iankoulski - iankouls@
+- Tom McDonald - tjm@
+- Sean Smith - seaam@
