@@ -177,7 +177,25 @@ $TARGET_PATH/results-<TIMESTAMP>/gpt3_126m/
 └── results
     ├── cmd-args.log
     ├── ...
-    └── nemo_log_globalrank-*.txt\
+    └── nemo_log_globalrank-*.txt
+```
+
+You can use Slurm command `squeue` to monitor the job progress. Sample output below shows a `nemo-megatron` job with job id `1234` is in running state (`ST` = `R`). A queued job will have state `ST` = `PD` (pending). Please refer to the complete of job states in this [Slurm documentation](https://slurm.schedmd.com/squeue.html#SECTION_JOB-STATE-CODES).
+
+```text
+JOBID   PARTITION        NAME      USER  ST       TIME  NODES NODELIST(REASON)
+ 1234   my-cluste   nemo-mega  ec2-user   R   00:19:40      1 p4de-dy-p4de-24xlarge-[1-2]
+```
+
+Once a job finishes, check the `log-nemo-megatron-<MODEL_NAME>_<MODEL_SIZE>_<JOB_ID>.err`, and see it should contains ``Trainer.fit` stopped: `max_steps=40` reached``.
+
+```console
+$ tail -5 $TARGET_PATH/results/gpt3_126m/log-nemo-megatron-gpt3_126m_72.err
+
+[NeMo W 2023-09-11 22:31:45 nemo_logging:349] /usr/local/lib/python3.8/dist-packages/pytorch_lightning/trainer/connectors/logger_connector/result.py:232: UserWarning: You called `self.log('consumed_samples', ...)` in your `training_step` but the value needs to be floating point. Converting it to torch.float32.
+      warning_cache.warn(
+
+`Trainer.fit` stopped: `max_steps=40` reached.
 ```
 
 Congratulations! You've successfully run this test case to completion.
