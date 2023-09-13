@@ -25,7 +25,6 @@ export TAG=$NEMO_VERSION-py3
 export TARGET_PATH=/fsx/nemo-launcher-$NEMO_VERSION   # must be a shared filesystem
 export TEST_CASE_PATH=/home/ec2-user/2.nemo-launcher  # where you copy the test case or set to your test case path
 export ENROOT_IMAGE=/apps/${REPO}_${TAG}.sqsh
-
 cd $TEST_CASE_PATH
 ```
 
@@ -125,83 +124,72 @@ That's all needed to pre-train with a mock dataset generated on-the-fly.
 
 ## 5. Pre-training GPT3
 
-This section assumes that you went through the previous sections and 1/ retrieved and built the AWS optimized NemoMegatron container, 2/ setup the NemoMegatron environment, and 3/ download the vocabularies.
+This section assumes that you went through the previous sections and 1/ retrieved and built the AWS optimized NemoMegatron container, 2/ setup the NemoMegatron environment, and 3/ download the vocabularies. Here you start a pre-training on a small model of 126M parameters, this serves as a quick sanity check.
 
-To start pre-training, source the NemoMegatron environment:
+1. Source the NemoMegatron environment created earlier.
+    ```bash
+    source ${TARGET_PATH}/.venv/bin/activate
+    ```
+2. To pre-train a GPT3-126m on two instances with mock dataset, run the commands below to let :
+    ```bash
+    cd $TARGET_PATH
+    $TEST_CASE_PATH/1.bmk-pretrain-gpt3-126m.sh
+    ```
+3. Check the file `$TARGET_PATH/launcher_scripts/main.py`. The `launcher_scripts/main.py` interacts with Slurm on our behalf to generate an `.sbatch` file and submits it to Slurm. Nemo-launcher logs all the invocation commands, output, and error to `$TARGET_PATH/results/<MODEL_SIZE>/` described below.
+    ```bash
+    $TARGET_PATH/results/gpt3_126m
+    ├── gpt3_126m_hydra.yaml                        # The fully interpolated pre-training configuration
+    ├── launcher_cmd.log                            # The full invocation command of launcher_scripts/main.py
+    ├── launcher.log                                # Job id produced by the sbatch command
+    ├── log-nemo-megatron-gpt3_126m_<JOB_ID>.out    # Stdout of the pre-training Slurm job
+    ├── nemo-megatron-gpt3_126m_submission.sh       # .sbatch file generated and submitted by nemo-launcher
+    └── results
+        ├── cmd-args.log                            # The full invocation command of the pre-training script
+        ├── events.out.tfevents.*                   # Tensorboard logs
+        ├── git-info.log                            # The commit hash of the NeMO repo provided in the container.
+        ├── hparams.yaml                            # Pre-training hyperparameters
+        ├── lightning_logs.txt                      # Additional logs from PyTorch-Lightning
+        ├── nemo_error_log.txt                      # Stderr of pre-training step
+        └── nemo_log_globalrank-*.txt               # Log of each rank
+    ```
+    Please note that except for `log-nemo-megatron-gpt3_126m_<JOB_ID>.out`, the other files will be overridden when you launch another pre-training of that same model size. To completely separate the output among jobs, edit `TEST_CASE_PATH/bmk-pretrain-gpt3-126m.sh` and uncomment the `#export UNIQUE_OUTPUT_DIR=1` line to produce this output dir instead:
 
-```bash
-source ${TARGET_PATH}/.venv/bin/activate
-```
+4. You can use Slurm command `squeue` to monitor the job status in the queue. The ample output below shows a `nemo-megatron` job with job id `1234` is in running state (`ST` = `R`). A queued job will have state `ST` = `PD` (pending). Please refer to the complete of job states in this [Slurm documentation](https://slurm.schedmd.com/squeue.html#SECTION_JOB-STATE-CODES).
 
-To pre-train a GPT3-126m on two instances with mock dataset, run the following:
+    ```text
+    JOBID   PARTITION        NAME      USER  ST       TIME  NODES NODELIST(REASON)
+     1234   my-cluste   nemo-mega  ec2-user   R   00:19:40      1 p4de-dy-p4de-24xlarge-[1-2]
+    ```
+5. Once a job finishes, check the `log-nemo-megatron-<MODEL_NAME>_<MODEL_SIZE>_<JOB_ID>.err`, and see it should contains ``Trainer.fit` stopped: `max_steps=40` reached`` (disregard the warnings).
+    ```console
+    $ tail -5 $TARGET_PATH/results/gpt3_126m/log-nemo-megatron-gpt3_126m_72.err
 
-```bash
-cd $TARGET_PATH
-$TEST_CASE_PATH/1.bmk-pretrain-gpt3.sh
-```
+    [NeMo W 2023-09-11 22:31:45 nemo_logging:349] /usr/local/lib/python3.8/dist-packages/pytorch_lightning/trainer/connectors/logger_connector/result.py:232: UserWarning: You called `self.log('consumed_samples', ...)` in your `training_step` but the value needs to be floating point. Converting it to torch.float32.
+          warning_cache.warn(
 
-which results in this execution tree:
-
-```bash
-$TEST_CASE_PATH/1.bmk-pretrain-gpt3.sh
-\_ $TARGET_PATH/launcher_scripts/main.py
-    \_ sbatch
-```
-
-As can be seen, Nemo-launcher `launcher_scripts/main.py` interacts with Slurm on our behalf to generate an `.sbatch` file and submits it to Slurm. Nemo-launcher logs all the invocation commands, output, and error to `$TARGET_PATH/results/<MODEL_SIZE>/` described below.
-
-```bash
-$TARGET_PATH/results/gpt3_126m
-├── gpt3_126m_hydra.yaml                        # The fully interpolated pre-training configuration
-├── launcher_cmd.log                            # The full invocation command of launcher_scripts/main.py
-├── launcher.log                                # Job id produced by the sbatch command
-├── log-nemo-megatron-gpt3_126m_<JOB_ID>.out    # Stdout of the pre-training Slurm job
-├── nemo-megatron-gpt3_126m_submission.sh       # .sbatch file generated and submitted by nemo-launcher
-└── results
-    ├── cmd-args.log                            # The full invocation command of the pre-training script
-    ├── events.out.tfevents.*                   # Tensorboard logs
-    ├── git-info.log                            # The commit hash of the NeMO repo provided in the container.
-    ├── hparams.yaml                            # Pre-training hyperparameters
-    ├── lightning_logs.txt                      # Additional logs from PyTorch-Lightning
-    ├── nemo_error_log.txt                      # Stderr of pre-training step
-    └── nemo_log_globalrank-*.txt               # Log of each rank
-```
-
-Please note that except for `log-nemo-megatron-gpt3_126m_<JOB_ID>.out`, the other files will be overridden when you launch another pre-training of that same model size. To completely separate the output among jobs, edit `TEST_CASE_PATH/bmk-pretrain-gpt3-126m.sh` and uncomment the `#export UNIQUE_OUTPUT_DIR=1` line to produce this output dir instead:
-
-```bash
-$TARGET_PATH/results-<TIMESTAMP>/gpt3_126m/
-├── gpt3_126m_hydra.yaml
-├── ...
-└── results
-    ├── cmd-args.log
-    ├── ...
-    └── nemo_log_globalrank-*.txt
-```
-
-You can use Slurm command `squeue` to monitor the job progress. Sample output below shows a `nemo-megatron` job with job id `1234` is in running state (`ST` = `R`). A queued job will have state `ST` = `PD` (pending). Please refer to the complete of job states in this [Slurm documentation](https://slurm.schedmd.com/squeue.html#SECTION_JOB-STATE-CODES).
-
-```text
-JOBID   PARTITION        NAME      USER  ST       TIME  NODES NODELIST(REASON)
- 1234   my-cluste   nemo-mega  ec2-user   R   00:19:40      1 p4de-dy-p4de-24xlarge-[1-2]
-```
-
-Once a job finishes, check the `log-nemo-megatron-<MODEL_NAME>_<MODEL_SIZE>_<JOB_ID>.err`, and see it should contains ``Trainer.fit` stopped: `max_steps=40` reached``.
-
-```console
-$ tail -5 $TARGET_PATH/results/gpt3_126m/log-nemo-megatron-gpt3_126m_72.err
-
-[NeMo W 2023-09-11 22:31:45 nemo_logging:349] /usr/local/lib/python3.8/dist-packages/pytorch_lightning/trainer/connectors/logger_connector/result.py:232: UserWarning: You called `self.log('consumed_samples', ...)` in your `training_step` but the value needs to be floating point. Converting it to torch.float32.
-      warning_cache.warn(
-
-`Trainer.fit` stopped: `max_steps=40` reached.
-```
+    `Trainer.fit` stopped: `max_steps=40` reached.
+    ```
+6. Review the output file (`log-nemo-megatron-gpt3_126m_<JOB_ID>.out`) which contains the `stdout` output of the job. The end of the file should be similar to the snippet below
+    ```console
+    [NeMo I 2023-09-11 22:31:28 lr_scheduler:910] Scheduler "<nemo.core.optim.lr_scheduler.CosineAnnealing object at 0x7f8ffd427490>"
+        will be used during training (effective maximum steps = 40) -
+        Parameters :
+        (warmup_steps: 636
+        constant_steps: 100000
+        min_lr: 6.0e-05
+        max_steps: 40
+        )
+    Epoch 0: 100%|██████████| 40/40 [00:31<00:00,  1.27it/s, loss=10.9, v_num=, reduced_train_loss=10.90, global_step=39.00, consumed_samples=9984.0]
+    ```
 
 Congratulations! You've successfully run this test case to completion.
 
-## 6. Customizing Pre-Training
+> **Note**: Execute 2
 
-To pre-train a different model size on different instance count, open `$TEST_CASE_PATH/1.bmk-pretrain-gpt3.sh` and edit section `000` to choose the right hyperparameters. Be aware that pre-training LLM requires understanding on the hyperparameters such as parallelism and batches. Please refer to the NeMO project ([website](https://developer.nvidia.com/nemo), [GitHub](https://github.com/NVIDIA/NeMo), [NeMo-Megatron-Launcher](https://github.com/NVIDIA/NeMo-Megatron-Launcher)) and the Megatron papers ([Shoeybi20](https://arxiv.org/abs/1909.08053), [Narayanan21](https://arxiv.org/abs/2104.04473)).
+
+## 7. Customizing Pre-Training
+
+To pre-train for a different model size on different instance count, open `$TEST_CASE_PATH/1.bmk-pretrain-gpt3-126m.sh` and edit section `000` to choose the right hyperparameters. Be aware that pre-training LLM requires understanding on the hyperparameters such as parallelism and batches. Please refer to the NeMO project ([website](https://developer.nvidia.com/nemo), [GitHub](https://github.com/NVIDIA/NeMo), [NeMo-Megatron-Launcher](https://github.com/NVIDIA/NeMo-Megatron-Launcher)) and the Megatron papers ([Shoeybi20](https://arxiv.org/abs/1909.08053), [Narayanan21](https://arxiv.org/abs/2104.04473)).
 
 At the very least, you'd want to review and customize one or more YAML files under `$TARGET_PATH/launcher_scripts/conf/`. Nemo-launcher organizes its config files in an opinionated hierarchy. Below is an example of relevant YAML files when launching `$TARGET_PATH/launcher_scripts/main.py` for `training` stage for `gpt3/126m` (see `$TEST_CASE_PATH/1.bmk-pretrain-gpt3.sh`).
 
