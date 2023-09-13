@@ -3,6 +3,8 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
+# This script is meant for advance users who've gone through README.md
+#
 # Override the default values in the underlying step-02-bmk-pretrain-gpt3.sh script.
 # See that underlying script to learn about the defaults.
 
