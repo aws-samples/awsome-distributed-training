@@ -137,16 +137,15 @@ To pre-train a GPT3-126m on two instances with mock dataset, run the following:
 
 ```bash
 cd $TARGET_PATH
-$TEST_CASE_PATH/bmk-pretrain-gpt3-126m2.sh
+$TEST_CASE_PATH/1.bmk-pretrain-gpt3.sh
 ```
 
 which results in this execution tree:
 
 ```bash
-$TEST_CASE_PATH/bmk-pretrain-gpt3-126m.sh
-\_ $TEST_CASE_PATH/1.bmk-pretrain-gpt3.sh
-   \_ $TARGET_PATH/launcher_scripts/main.py
-      \_ sbatch
+$TEST_CASE_PATH/1.bmk-pretrain-gpt3.sh
+\_ $TARGET_PATH/launcher_scripts/main.py
+    \_ sbatch
 ```
 
 As can be seen, Nemo-launcher `launcher_scripts/main.py` interacts with Slurm on our behalf to generate an `.sbatch` file and submits it to Slurm. Nemo-launcher logs all the invocation commands, output, and error to `$TARGET_PATH/results/<MODEL_SIZE>/` described below.
@@ -202,9 +201,7 @@ Congratulations! You've successfully run this test case to completion.
 
 ## 6. Customizing Pre-Training
 
-The `$TEST_CASE_PATH` comes with `bmk-pretrain-gpt3-126m2.sh` and `bmk-pretrain-gpt3-5b2.sh` to pre-train 126m and 5b models, respectively, on two instances.
-
-To pre-train a different model size on different instance count, create your own `bmk-pretrain-gpt3-<SIZE><INSTANCE>.sh` based on those examples. Please that pre-training LLM requires understanding on the hyperparameters such as parallelism and batches. Please refer to the NeMO project ([website](https://developer.nvidia.com/nemo), [GitHub](https://github.com/NVIDIA/NeMo), [NeMo-Megatron-Launcher](https://github.com/NVIDIA/NeMo-Megatron-Launcher)) and the Megatron papers ([Shoeybi20](https://arxiv.org/abs/1909.08053), [Narayanan21](https://arxiv.org/abs/2104.04473)).
+To pre-train a different model size on different instance count, open `$TEST_CASE_PATH/1.bmk-pretrain-gpt3.sh` and edit section `000` to choose the right hyperparameters. Be aware that pre-training LLM requires understanding on the hyperparameters such as parallelism and batches. Please refer to the NeMO project ([website](https://developer.nvidia.com/nemo), [GitHub](https://github.com/NVIDIA/NeMo), [NeMo-Megatron-Launcher](https://github.com/NVIDIA/NeMo-Megatron-Launcher)) and the Megatron papers ([Shoeybi20](https://arxiv.org/abs/1909.08053), [Narayanan21](https://arxiv.org/abs/2104.04473)).
 
 At the very least, you'd want to review and customize one or more YAML files under `$TARGET_PATH/launcher_scripts/conf/`. Nemo-launcher organizes its config files in an opinionated hierarchy. Below is an example of relevant YAML files when launching `$TARGET_PATH/launcher_scripts/main.py` for `training` stage for `gpt3/126m` (see `$TEST_CASE_PATH/1.bmk-pretrain-gpt3.sh`).
 
@@ -216,4 +213,16 @@ $TARGET_PATH/launcher_scripts/conf
 └── training           # Config for stage "training"
     └── gpt3           # Config for model "gpt3"
         └── 126m.yaml  # Config for model size "126m"
+```
+
+You can edit directly the `gpt3/<MODEL_SIZE>.yaml` to customize the number of instances, tensor parallelism, pipeline parallelism, batch sizes (micro and global), experiment tracking, etc. on this file. Alternatively, you can override the settings through the CLI options of `$TARGET_PATH/launcher_scripts/main.py` (refer to `1.bmk-pretrain-gpt3.sh`). For example, this CLI arg `training.trainer.num_nodes=$NUM_NODES` is equivalent to editing file `$TARGET_PATH/launcher_scripts/training_scripts/conf/training/<MODEL_NAME>/<MODEL_SIZE>.yaml` to set key `trainer -> num_nodes` to `$NUM_NODES`.
+
+```text
+    +-- file `training/<MODEL_NAME>/<MODEL_SIZE>.yaml` under `$TARGET_PATH/launcher_scripts/conf`
+    |
+/---+--\
+training.trainer.num_nodes=$NUM_NODES
+         \_______________/
+                |
+                └── key 'trainer -> num_nodes' in the `.yaml` file.
 ```
