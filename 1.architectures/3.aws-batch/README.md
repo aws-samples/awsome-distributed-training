@@ -16,7 +16,7 @@ This architecture consists of the following resources:
 
 This template deploys AWS Batch and EC2 resources. It can be deployed via the console and the AWS CLI. Regardless of the deployment method it is assumed that you deployed the VPC template [`2.vpc-one-az.yaml`](../0.vpc_network/2.vpc-oneaz.yaml) prior to deploying that one.
 
-- **Template file**: [`aws-batch-distributed-training.yaml`](./aws-batch-distributed-training.yaml)
+- **Template file**: [`0.aws-batch-distributed-training.yaml`](./0.aws-batch-distributed-training.yaml)
 
 ## List of Parameters
 
@@ -39,7 +39,7 @@ The command to deploy the template through the CLI is shown below. Please edit t
 
 ```bash
 aws cloudformation create-stack --stack-name batch-distributed-training \
-                                --template-body file://aws-batch-distributed-training.yaml \
+                                --template-body file://0.aws-batch-distributed-training.yaml \
                                 --parameters ParameterKey=VPCStackParameter,ParameterValue="vpc-stack-ml" \
                                              ParameterKey=CapacityReservationId,ParameterValue="cr-123567890abc" \
                                 --capabilities CAPABILITY_IAM
