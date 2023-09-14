@@ -17,7 +17,8 @@ export MODEL=gpt3
 export MODEL_SIZE=5b
 export NUM_NODES=2
 export RUNTIME=4h
-export MAX_STEPS=5
+export MAX_STEPS=30
+export MBS=2 # setting for A100 80GB (p4de, p5), reduce to 1 for A100 40GB (p4d)
 # When node_count < 8, needs full activations checkpointing. These're settings found on
 # Nemo repo's Jenkin script.
 
@@ -44,6 +45,7 @@ declare -a BMK_ARGS=(
     # https://github.com/NVIDIA/NeMo/pull/6181/files
     training.model.data.data_impl=mock
     training.model.data.data_prefix=[]
+    training.model.micro_batch_size=${MBS}
 )
 
 
