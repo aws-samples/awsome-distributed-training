@@ -16,7 +16,7 @@ set -exo pipefail
 export MODEL_SIZE=126m
 export NUM_NODES=2
 export RUNTIME=30m
-export MAX_STEPS=40
+export MAX_STEPS=100
 export MODEL=gpt3
 
 
