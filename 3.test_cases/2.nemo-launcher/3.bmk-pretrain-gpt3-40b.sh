@@ -12,24 +12,24 @@ set -exo pipefail
 # 000: Modify this section to define pre-training configuration: model size,
 # number of nodes, max. pre-training steps, job's max. runtime.
 ################################################################################
-## Pre-train gpt3-5b on 2 nodes for 5 steps
+## Pre-train gpt3-40b on 2 nodes for 5 steps
 export MODEL=gpt3
 export MODEL_SIZE=5b
 export NUM_NODES=2
 export RUNTIME=4h
-export MAX_STEPS=30
-export MBS=2 # setting for A100 80GB (p4de, p5), reduce to 1 for A100 40GB (p4d)
+export MAX_STEPS=5
+export MBS=1 # setting for A100 80GB (p4de, p5), reduce to 1 for A100 40GB (p4d)
 declare -a MODEL_ARGS=(
     training.model.micro_batch_size=${MBS}
 
-    # When node_count < 8, needs full activations checkpointing. These're settings found on
-    # Nemo repo's Jenkin script.
-    #
-    # Below settings is similar to 22.09, except that 22.09 funnily didn't OOM with
-    # activations_checkpoint_num_layers=0.
+    # Activation checkpointing
     training.model.activations_checkpoint_granularity='full'
     training.model.activations_checkpoint_method='block'
     training.model.activations_checkpoint_num_layers=1
+
+    # Not applicable for A100
+    training.model.transformer_engine=False
+    training.model.ub_tp_comm_overlap=False
 )
 
 
