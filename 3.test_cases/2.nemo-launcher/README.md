@@ -185,7 +185,7 @@ This section assumes that you went through the previous sections and 1/ retrieve
 
 Congratulations! You've successfully run this test case to completion.
 
-> **Note**: Execute 2
+> **Note**: Should you run into an OOM error, you can adjust the minimum batch size by setting the MBS in `bmk` launch scripts. You can tune the NemoMegatron and PyTorch parameters in such way as well.
 
 
 ## 7. Customizing Pre-Training
