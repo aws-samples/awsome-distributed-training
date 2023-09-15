@@ -41,3 +41,18 @@ All test cases are under `3.test_cases/`. You can go in each test case directory
 | `2.nemo-launcher` | ✅   | ❌   | ❌         |
 | `3.MPT`           | ❓   | ❓   | ❓         |
 | `4.DDP`           | ❓   | ❓   | ❓         |
+
+
+## 4. Contributors
+
+Thanks to all the contributors for building, reviewing and testing.
+
+- Pierre-Yves Aquilanti - pierreya@
+- Verdi March - marcverd@
+- Uros Lipovsek - lipovsek@
+- Keita Watanabe - mlkeita@
+- Ankur Srivastava - awsankur@
+- Alex Iankoulski - iankouls@
+- Tom McDonald - tjm@
+- Sean Smith - seaam@
+>>>>>>> main
