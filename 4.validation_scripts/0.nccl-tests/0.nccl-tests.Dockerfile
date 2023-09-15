@@ -1,3 +1,6 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 FROM nvidia/cuda:12.2.0-devel-ubuntu20.04
 
 ARG EFA_INSTALLER_VERSION=latest
