@@ -1,7 +1,0 @@
-https://the-eye.eu/public/AI/pile/train/00.jsonl.zst
-https://the-eye.eu/public/AI/pile/train/01.jsonl.zst
-https://the-eye.eu/public/AI/pile/train/02.jsonl.zst
-https://the-eye.eu/public/AI/pile/train/03.jsonl.zst
-https://the-eye.eu/public/AI/pile/train/04.jsonl.zst
-https://the-eye.eu/public/AI/pile/val.jsonl.zst
-https://the-eye.eu/public/AI/pile/test.jsonl.zst
