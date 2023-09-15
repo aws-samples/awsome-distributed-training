@@ -12,7 +12,7 @@
 ###########################
 
 : "${IMAGE:=$APPS_PATH/megatron-preprocess.sqsh}"
-: "${FSX_MOUNT:=/fsx:/fsx}"
+: "${FSX_MOUNT:=/fsx/gpt2:/fsx}"
 
 # default variables for Enroot
 : "${APPS_PATH:=/apps}"
