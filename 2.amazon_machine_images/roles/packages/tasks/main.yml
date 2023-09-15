@@ -8,6 +8,12 @@
     update_cache: true
   when: packages_update
 
+- name: "Update packages for security"
+  ansible.builtin.yum:
+    security: yes
+    state: latest
+  check_mode: yes
+
 - name: "Reboot system"
   reboot:
   when: allow_reboot
