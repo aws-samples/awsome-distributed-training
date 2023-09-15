@@ -2,8 +2,8 @@
 import os
 
 import aws_cdk as cdk
-
 from cluster.cluster_stack import ClusterStack
+import boto3
 
 app = cdk.App()
 ClusterStack(app, "ClusterStack",
@@ -22,7 +22,6 @@ ClusterStack(app, "ClusterStack",
     #env=cdk.Environment(account='************', region='us-west-2'),
 
     # For more information, see https://docs.aws.amazon.com/cdk/latest/guide/environments.html
-
     )
 
 app.synth()

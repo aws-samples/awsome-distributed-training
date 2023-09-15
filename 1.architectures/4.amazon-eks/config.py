@@ -8,5 +8,4 @@ eks_sys_ng_disk_size=50
 eks_sys_ng_min_size=1
 eks_sys_ng_desired_size=2
 eks_sys_ng_max_size=10
-#eks_sys_ng_ami_type=eks.NodegroupAmiType.AL2_X86_64
 eks_kubernetes_version=eks.KubernetesVersion.V1_27
