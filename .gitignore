@@ -31,3 +31,4 @@ spark-warehouse
 *.ckpt.*
 *.h5
 *.tfevents.*
+*.venv*
