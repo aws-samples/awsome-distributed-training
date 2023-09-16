@@ -20,3 +20,4 @@
     - nvidia_enroot_pyxis
     - aws_efa_ofi
     - aws_lustre
+    # - observability
