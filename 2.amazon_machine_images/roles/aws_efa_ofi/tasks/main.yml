@@ -10,7 +10,7 @@
   ansible.builtin.git:
     repo: https://github.com/aws/aws-ofi-nccl.git
     dest: /tmp/aws-ofi-nccl
-    version: aws
+    version: v1.7.2-aws
 
 - name: Build AWS EFA OFI
   ansible.builtin.shell: |
