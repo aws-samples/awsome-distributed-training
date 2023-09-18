@@ -23,7 +23,7 @@ variable "ami_version" {
 
 variable "parallel_cluster_version" {
   type    = string
-  default = "3.6.1"
+  default = "3.7.0"
 }
 
 variable "eks_version" {

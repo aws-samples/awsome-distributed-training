@@ -1,11 +1,15 @@
 #!/bin/bash
 
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 #SBATCH --nodes=24 # number of nodes to use, 24 p4d(e) = 192 A100 GPUs
 #SBATCH --job-name=megatron_gpt # name of your job
 #SBATCH --gpus-per-node=8 # Number of GPU per node
 #SBATCH --gres=gpu:8 # number of GPU we reserve
 #SBATCH --exclusive # job has exclusive use of the resource, no sharing
 #SBATCH --wait-all-nodes=1
+#SBATCH --export=NIL # do not export env vars from the host env
 
 set -ex;
 
