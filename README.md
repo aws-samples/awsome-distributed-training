@@ -31,17 +31,25 @@ More will come, feel free to add new ones (EKS, Ray?)
 
 Custom machine images can be built using [Packer](www.packer.io) for AWS ParallelCluster, Amazon EKS and plain EC2. These images are based are on Ansible roles and playbooks.
 
-## 3. Test Cases: Support Matrix
+## 3. Test cases: support matrix
 
 All test cases are under `3.test_cases/`. You can go in each test case directory to learn how to run it.
 
-| Test cases        | PC  | EKS | AWS Batch |
-| ----------------- | --- | --- | --------- |
-| `1.megatron-lm`   | ✅   | ❓   | ❓         |
-| `2.nemo-launcher` | ✅   | ❌   | ❌         |
-| `3.MPT`           | ❓   | ❓   | ❓         |
-| `4.DDP`           | ❓   | ❓   | ❓         |
+| Test cases        | Slurm | EKS | AWS Batch  |
+| ----------------- | ----- | --- | ---------- |
+| `1.megatron-lm`   | ✅    | ❓  | ❓         |
+| `2.nemo-launcher` | ✅    | ❌  | ❌         |
+| `3.MPT`           | ❓    | ❓  | ❓         |
+| `4.DDP`           | ❓    | ❓  | ❓         |
 
+
+## 4. Validation scripts
+
+Utilities scripts and micro-benchmarks examples are set under `4.validation_scripts/`.
+
+## 5. Contributors
+
+Thanks to all the contributors for building, reviewing and testing.
 
 ## 4. Contributors
 
@@ -55,4 +63,3 @@ Thanks to all the contributors for building, reviewing and testing.
 - Alex Iankoulski - iankouls@
 - Tom McDonald - tjm@
 - Sean Smith - seaam@
->>>>>>> main
