@@ -1,3 +1,6 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
 FROM nvcr.io/nvidia/pytorch:23.05-py3
 
 ARG EFA_INSTALLER_VERSION=latest
