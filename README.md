@@ -1,6 +1,6 @@
 # ML Training Reference Architectures & Tests <!-- omit from toc -->
 
-This directory contains reference architectures and test cases for distributed model training with [AWS ParallelCluster](https://docs.aws.amazon.com/parallelcluster/latest/ug/what-is-aws-parallelcluster.html), [AWS Batch](https://docs.aws.amazon.com/batch/latest/userguide/what-is-batch.html), and [Amazon EKS](https://docs.aws.amazon.com/eks/latest/userguide/getting-started-console.html). The test cases cover different types and sizes of models (Falcon, GPT3, T5) as well as different frameworks and parallel optimizations (Pytorch DDP/FSDP, MegatronLM, MegatronLM-DeepSpeed).
+This repository contains reference architectures and test cases for distributed model training with [AWS ParallelCluster](https://docs.aws.amazon.com/parallelcluster/latest/ug/what-is-aws-parallelcluster.html), [AWS Batch](https://docs.aws.amazon.com/batch/latest/userguide/what-is-batch.html), and [Amazon EKS](https://docs.aws.amazon.com/eks/latest/userguide/getting-started-console.html). The test cases cover different types and sizes of models as well as different frameworks and parallel optimizations (Pytorch DDP/FSDP, MegatronLM, NemoMegatron...).
 
 The major components of this directory are:
 
@@ -14,13 +14,12 @@ reference-architectures/
 
 **NOTE**: the architectures are designed to work with the S3 bucket and VPC created using reference templates `1.architectures/0.s3/` and `1.architectures/1.vpc_network/`. _You're strongly recommended to deploy these two templates **before** deploying any of the reference architectures._
 
-
 ## 1. Architectures
 
 Architectures are located in `1.architectures` and consists of utilities and service related architectures
 
-| Name                    | Category | Usage
-|-------------------------|----------|-----------------------------------------------------|
+| Name                    | Category | Usage                                               |
+| ----------------------- | -------- | --------------------------------------------------- |
 | `0.s3`                  | Storage  | Create an S3 bucket                                 |
 | `1.vpc_network`         | Network  | Create a VPC with subnets required resources        |
 | `2.aws-parallelcluster` | Compute  | Cluster templates for GPU & custom silicon training |
@@ -36,6 +35,7 @@ Custom machine images can be built using [Packer](www.packer.io) for AWS Paralle
 
 All test cases are under `3.test_cases/`. You can go in each test case directory to learn how to run it.
 
+<<<<<<< HEAD
 | Test cases        | Slurm | EKS | AWS Batch  |
 | ----------------- | ----- | --- | ---------- |
 | `1.megatron-lm`   | ✅    | ❓  | ❓         |
@@ -50,6 +50,10 @@ Utilities scripts and micro-benchmarks examples are set under `4.validation_scri
 
 
 ## 5. Contributors
+
+Thanks to all the contributors for building, reviewing and testing.
+
+## 4. Contributors
 
 Thanks to all the contributors for building, reviewing and testing.
 

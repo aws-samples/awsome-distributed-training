@@ -40,6 +40,22 @@ GitHub provides additional document on [forking a repository](https://help.githu
 [creating a pull request](https://help.github.com/articles/creating-a-pull-request/).
 
 
+## Contributions format
+Assets in this repository are organized differently depending on their nature but regardless of that each test example, architecture must have the following:
+
+- Must be self contained with documentation and scripts. Dependencies are accepted for the network architecture (VPC templates) and if they are within the repository. If your scripts depend on external software (libs, frameworks, containers...) then fix the versions via a tag or commit ID to ensure reproducibility and do not use a `latest` tag.
+- A README file in markdown format with the prerequisites, instructions on deploying the architecture or running the test case and notes for known edge cases or common issues.
+- Scripts templates must be numbered in sequence in their usage order starting by 0. Example: `0.preprocessing.sh`, `1.processing.sh`, `2.post-processing.sh`.
+- All contributions must be done through PRs at the exception of hotfixes.
+- Contributions should follow a KISS principle, **K**eep **I**t **S**imple and **S**tupid. Users should expect to copy paste commands, reproduce tests as is and have some guidance on what to modify if they need to.
+
+For guidance specific on assets:
+
+- *Architectures*: self-contained, ensure you stick to AWS CloudFormation, the AWS CDK or Terraform.
+- *Machine Image*: based on Packer and use Ansible. No specific guidance.
+- *Test cases*: self-contained models & frameworks test cases, please ensure that these are tested and run at the target scale (if you say 256 A100, test on that scale).
+- *Validation scripts*: self contained, keep them simple enough, no need to boil the ocean.
+
 ## Finding contributions to work on
 Looking at the existing issues is a great way to find something to contribute on. As our projects, by default, use the default GitHub issue labels (enhancement/bug/duplicate/help wanted/invalid/question/wontfix), looking at any 'help wanted' issues is a great place to start.
 
