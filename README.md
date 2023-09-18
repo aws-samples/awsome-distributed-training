@@ -35,7 +35,6 @@ Custom machine images can be built using [Packer](www.packer.io) for AWS Paralle
 
 All test cases are under `3.test_cases/`. You can go in each test case directory to learn how to run it.
 
-<<<<<<< HEAD
 | Test cases        | Slurm | EKS | AWS Batch  |
 | ----------------- | ----- | --- | ---------- |
 | `1.megatron-lm`   | ✅    | ❓  | ❓         |
@@ -47,7 +46,6 @@ All test cases are under `3.test_cases/`. You can go in each test case directory
 ## 4. Validation scripts
 
 Utilities scripts and micro-benchmarks examples are set under `4.validation_scripts/`.
-
 
 ## 5. Contributors
 
