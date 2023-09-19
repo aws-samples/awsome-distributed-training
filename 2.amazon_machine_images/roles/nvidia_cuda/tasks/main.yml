@@ -21,9 +21,9 @@
     path: /etc/profile.d/cuda.sh
     create: yes
     block: |
-      export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64:/usr/local/cuda/extras/CUPTI/lib64
-      export PATH=$PATH:/usr/local/cuda/bin
-      export CPATH=${CPATH}:/usr/local/cuda/targets/x86_64-linux/include
+      export LD_LIBRARY_PATH=/usr/local/cuda/lib64:/usr/local/cuda/extras/CUPTI/lib64:$LD_LIBRARY_PATH
+      export PATH=/usr/local/cuda/bin:$PATH
+      export CPATH=/usr/local/cuda/targets/x86_64-linux/include:$CPATH
 
 - name: yum clean metadata
   ansible.builtin.command:
