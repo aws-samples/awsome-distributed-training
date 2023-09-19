@@ -1,0 +1,50 @@
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: eks-g4dn-vpc
+  version: "1.27"
+  region: us-east-1
+
+vpc:
+  id: vpc-xxxxxxxxxxxxxxxxx
+  subnets:
+    public:
+      endpoint-one:
+        id: subnet-xxxxxxxxxxxxxxx11
+      endpoint-two:
+        id: subnet-xxxxxxxxxxxxxxx12
+    private:
+      p4de-1a:
+        id: subnet-xxxxxxxxxxxxxxx21
+      p4de-1c:
+        id: subnet-xxxxxxxxxxxxxxx22
+
+managedNodeGroups:
+  - name: sys
+    instanceType: c5.2xlarge
+    desiredCapacity: 1
+    iam:
+      withAddonPolicies:
+        autoScaler: true
+        cloudWatch: true
+  - name g4dn
+    instanceType: g4dn.metal
+    instancePrefix: g4dn-vpc
+    privateNetworking: true
+    efaEnabled: true
+    minSize: 0
+    desiredCapacity: 2
+    maxSize: 10
+    volumeSize: 500
+    subnets:
+    - subnet-xxxxxxxxxxxxxxx22
+    iam:
+      withAddonPolicies:
+        autoScaler: true
+        cloudWatch: true
+        ebs: true
+        fsx: true
+
+iam:
+  withOIDC: true
