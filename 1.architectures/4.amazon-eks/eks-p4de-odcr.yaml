@@ -1,0 +1,44 @@
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: eks-p4de-odcr
+  version: "1.27"
+  region: us-east-1
+
+availabilityZones:
+  - us-east-1a
+  - us-east-1c
+
+managedNodeGroups:
+  - name: sys
+    instanceType: c5.2xlarge
+    desiredCapacity: 1
+    iam:
+      withAddonPolicies:
+        autoScaler: true
+        cloudWatch: true
+ 
+nodeGroups: 
+  - name: p4de-odcr
+    instanceType: p4de.24xlarge
+    instancePrefix: p4de-odcr
+    privateNetworking: true
+    efaEnabled: true
+    minSize: 0
+    desiredCapacity: 2
+    maxSize: 10
+    volumeSize: 500
+    availabilityZones: ["us-east-1c"]
+    capacityReservation:
+      capacityReservationTarget:
+        capacityReservationID: "cr-xxxxxxxxxxxxxxxxx"
+    iam:
+      withAddonPolicies:
+        autoScaler: true
+        cloudWatch: true
+        ebs: true
+        fsx: true
+
+iam:
+  withOIDC: true
