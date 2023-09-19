@@ -3,9 +3,12 @@
 This project module uses [eksctl](eksctl.io) and a cluster manifest to create your specified Amazon EKS cluster.
 
 ## Prerequisites
-1. [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
-2. [eksctl](https://eksctl.io)
-5. [kubectl](https://kubernetes.io/docs/tasks/tools/#kubectl) 
+
+To deploy the architectures you must install the dependencies below. You are advised to go through the fist two steps of the [Getting started with Amazon EKS](https://docs.aws.amazon.com/eks/latest/userguide/getting-started.html) guide from the AWS Documentation.
+
+1. [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) is the AWS command line interface.
+2. [eksctl](https://eksctl.io) command line tool to manage EKS clusters.
+3. [kubectl](https://kubernetes.io/docs/tasks/tools/#kubectl) command line for Kubernetes.
 
 ## Cluster configuration
 
