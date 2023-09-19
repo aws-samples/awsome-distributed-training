@@ -36,6 +36,6 @@
     path: /etc/profile.d/gdrcopy.sh
     create: yes
     block: |
-      export PATH=$PATH:/usr/local/gdrcopy/bin
-      export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/gdrcopy/lib
-      export CPATH=$CPATH:/usr/local/gdrcopy/include
+      export PATH=/usr/local/gdrcopy/bin:$PATH
+      export LD_LIBRARY_PATH=/usr/local/gdrcopy/lib:$LD_LIBRARY_PATH
+      export CPATH=/usr/local/gdrcopy/include:$CPATH
