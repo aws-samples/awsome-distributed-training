@@ -16,6 +16,8 @@ The following digram shows a common architecture that can be used for distribute
 
 <img align="center" src="../../0.docs/eks-model-training-single-az.png" width="60%" />
 
+The EKS cluster has two nodegroups. A `system` nodegroup is used to run pods like kube-dns, kubeflow training operator, etc. which provide internal cluster-scope services and can run on CPU. A worker nodegroup built with an accelerated instance type is used to run the distributed training workload. 
+
 ## Cluster configuration
 
 The cluster configuration is specified via a yaml manifest file. If a cluster version is not specified in the manifest, then the default EKS API version will be used. For our examples we set the version to 1.27. This setting may be adjusted before creating clusters as needed.
