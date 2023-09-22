@@ -82,3 +82,8 @@ You should see an output similar to the sample below (MatMult):
 0:       1024,       1024,        256,       0.000040     13.291
 0:       1024,       1024,        512,       0.000071     15.208
 ```
+
+## Authors / Reviewers
+
+- [A] Uros Lipovsek - lipovsek@
+- [R] Pierre-Yves Aquilanti - pierreya@
