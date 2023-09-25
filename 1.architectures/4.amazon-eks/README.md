@@ -1,6 +1,7 @@
 
 # Amazon EKS distributed training architecture
-This project module uses [eksctl](eksctl.io) and a cluster manifest to create your specified Amazon EKS cluster.
+
+This project provides several reference architectures to run distributed training on Amazon EKS for different use cases using `p4d.24xlarge` instances (you can replace them by `p5` or `trn1`. These examples use [eksctl](eksctl.io) and a cluster manifest to create your specified Amazon EKS cluster.
 
 ## Prerequisites
 
@@ -31,35 +32,28 @@ The following example cluster configurations for distributed training are provid
 
 ## Cluster creation
 
-1. Create a cluster configuration
+### Edit the cluster configuration
 
 To configure your desired cluster, edit the cluster manifest file that most closely matches your desired configuration or copy the file and customize it, following the [cluster manifest schema](https://eksctl.io/usage/schema/). Any of the values in the manifests can be changed and more node groups can be added to the same cluster. The minimal set of values to specify for each file are described above.
 
-2. Create cluster
+### Create a cluster
 
-Let's assume that your desired cluster configuration is stored in file `cluster.yaml`. Then to create the cluster, execute the following command:
-
-```
-$ eksctl create cluster -f ./cluster.yaml
-```
-
-Example output:
-```
-YYYY-MM-DD HH:mm:SS [ℹ] eksctl version x.yyy.z
-YYYY-MM-DD HH:mm:SS [ℹ] using region <region_name>
-...
-YYYY-MM-DD HH:mm:SS [✔] EKS cluster "<cluster_name>" in "<region_name>" region is ready
-```
-
-Cluster creation may take between 15 and 30 minutes. Upon successful creation your local `~/.kube/config` file gets updated with connection information to your cluster.
-
-3. Validate cluster
-
-Execute the following command line in order to verify that the cluster is accessible:
-
-```
-$ kubectl get nodes
-```
+1. Let's assume that your desired cluster configuration is stored in file `cluster.yaml`. Then to create the cluster, execute the following command:
+    ```bash
+    eksctl create cluster -f ./cluster.yaml
+    ```
+    Example output:
+    ```console
+    YYYY-MM-DD HH:mm:SS [ℹ] eksctl version x.yyy.z
+    YYYY-MM-DD HH:mm:SS [ℹ] using region <region_name>
+    ...
+    YYYY-MM-DD HH:mm:SS [✔] EKS cluster "<cluster_name>" in "<region_name>" region is ready
+    ```
+    Cluster creation may take between 15 and 30 minutes. Upon successful creation your local `~/.kube/config` file gets updated with connection information to your cluster.
+2. Execute the following command line in order to verify that the cluster is accessible:
+    ```bash
+    kubectl get nodes
+    ```
 
 You should see a list of three nodes. One would be a system node instance of type c5.2xlarge, and the others will belong to the nodegroup of instances with your desired instance type for distributed training.
 
@@ -67,18 +61,19 @@ You should see a list of three nodes. One would be a system node instance of typ
 
 When it is time to decommission your cluster, execute the following command:
 
-```
-$ kubectl delete cluster -f ./cluster.yaml
+```bash
+kubectl delete cluster -f ./cluster.yaml
 ```
 
 Example output:
-```
+```console
 YYYY-MM-DD HH:mm:SS [ℹ] deleting EKS cluster "<cluster_name>"
 ...
 YYYY-MM-DD HH:mm:SS [ℹ] waiting for CloudFormation stack "<stack_name>"
 ```
 
 ## References
+
 For further information regarding EKS cluster infrastructure see the [aws-do-eks](https://github.com/aws-samples/aws-do-eks) project. More cluster configurations are available [here](https://github.com/aws-samples/aws-do-eks/tree/main/wd/conf/eksctl/yaml). 
 
 Related resources for further reading can be found at the links below:
