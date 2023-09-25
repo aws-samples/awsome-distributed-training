@@ -28,10 +28,11 @@ It is recommended that you use the templates in the architectures [directory](..
 You will also setup the following variables in your terminal environment.
 
 ```bash
-export DATA_PATH=/fsx
-export APPS_PATH=/apps
+export DATA_PATH=/fsx # FSx for Lustre shared file-system
+export APPS_PATH=/apps # this is were the squash file (Enroot file) will be stored
+export TEST_CASE_PATH=${HOME}/1.megatron-lm # it is assumes that this test case is copied in your home directory
+cd ${TEST_CASE_PATH}
 ```
-
 
 ## 1. Data Preprocessing
 
@@ -56,9 +57,9 @@ Below are the steps you need to follow:
    ```
 4. Create the squash file with the command below.
    ```bash
-   enroot import -o /apps/megatron-preprocess.sqsh  dockerd://megatron-preprocess:latest
+   enroot import -o ${APPS_PATH}/megatron-preprocess.sqsh  dockerd://megatron-preprocess:latest
    ```
-   The file will be stored in the `/apps` directory. The output should look as below.
+   The file will be stored in the `/apps` directory (if left as default). The output should look as below.
 
     ```bash
     [ec2-user@ip-10-0-10-78 ~]$ enroot import -o ./megatron-preprocess.sqsh  dockerd://megatron-preprocess:latest
@@ -125,7 +126,7 @@ Now that the data is preprocessed, we will pretrain a GPT3 model MegatronLM.
     ```
 3. Convert the docker container to a squash file in `/apps`.
     ```bash
-    enroot import -o /apps/megatron-training.sqsh  dockerd://megatron-training:latest
+    enroot import -o ${APPS_PATH}/megatron-training.sqsh  dockerd://megatron-training:latest
     ```
 4. You copy the file `3.distributed-training.sbatch`  on your cluster then submit a training jobs with the command below:
 
