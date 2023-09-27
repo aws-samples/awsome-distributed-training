@@ -51,10 +51,6 @@ Utilities scripts and micro-benchmarks examples are set under `4.validation_scri
 
 Thanks to all the contributors for building, reviewing and testing.
 
-## 4. Contributors
-
-Thanks to all the contributors for building, reviewing and testing.
-
 - Pierre-Yves Aquilanti - pierreya@
 - Verdi March - marcverd@
 - Uros Lipovsek - lipovsek@
