@@ -25,18 +25,9 @@ export NCCL_DEBUG=INFO
 
 echo "Sanity check"
 nvidia-smi
-PROFILE_FILE=/fsx/logs/profile
 
-# if [ ${NODE_RANK} -eq 0 ]; then
-#     # Use nvidia-nsight only on RANK 0
-#     mkdir -p /fsx/logs
-#     PROFILER="nsys profile -w true -t cuda,nvtx,osrt,cudnn,cublas -s cpu --capture-range=cudaProfilerApi --cudabacktrace=true -x true -o /fsx/logs/profile-rank-${NODE_RANK}"
-# else
-#     PROFILER=""
-# fi
 mkdir -p /fsx/logs
 MODEL=mpt-7b
-PROFILER="nsys profile --force-overwrite=true  -w true -t cuda,nvtx,osrt,cudnn,cublas -s cpu --capture-range=cudaProfilerApi --cudabacktrace=true -x true -o /fsx/logs/profile-mpt30b-rank-${NODE_RANK}"
 start=${SECONDS}
 composer \
     --world_size ${WORLD_SIZE} \
