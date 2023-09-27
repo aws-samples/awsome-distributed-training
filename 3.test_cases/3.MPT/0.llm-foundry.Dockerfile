@@ -107,10 +107,3 @@ RUN git clone https://github.com/mosaicml/llm-foundry.git llm-foundry \
     && pip install -e ".[gpu]" \
     && pip install xformers nvtx 'flash-attn==v1.0.3.post0'
 
-######################
-# Install Nsight Systems
-######################
-
-RUN wget https://developer.download.nvidia.com/devtools/nsight-systems/NsightSystems-linux-cli-public-2023.2.1.122-3259852.deb
-RUN apt-get install -y libglib2.0-0 \
-    && dpkg -i NsightSystems-linux-cli-public-2023.2.1.122-3259852.deb
