@@ -52,4 +52,5 @@ nsys profile  --duration 300 --delay 30 --force-overwrite=true -w true -t cuda,n
     max_duration=3ba \
     eval_interval=0 \
     save_folder=${MODEL}
+end=$(date +%s)
 echo "Elapsed Time: $(($end-$start)) seconds"
