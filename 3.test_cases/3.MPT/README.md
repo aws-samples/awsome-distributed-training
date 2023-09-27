@@ -15,16 +15,24 @@ This guide assumes that you have the following:
 - Docker, [Pyxis](https://github.com/NVIDIA/pyxis) and [Enroot](https://github.com/NVIDIA/enroot) installed.
 - An FSx for Lustre filesystem mounted on `/fsx`.
 
-It is recommended that you use the templates in the architectures [directory](../../1.architectures)
+It is recommended that you use the templates in the architectures [directory](../../1.architectures). You will need to setup the following environment variables before running the scripts:
 
+```bash
+export APPS_PATH=/apps
+export ENROOT_IMAGE=$APPS_PATH/llm-foundry.sqsh
+export FSX_PATH=/fsx
+export DATA_PATH=$FSX_PATH/c4-dataset
+export TEST_CASE_PATH=${HOME}/3.MPT  # where you copy the test case or set to your test case path
+cd $TEST_CASE_PATH
+```
 
-## 1. Data Preprocessing
+## 1. Build the container
 
-Before running training jobs you need to retrieve input data and preprocess it. This section of the guide you will retrieve a container then you convert it into a Squash file via [Enroot](https://github.com/NVIDIA/enroot), you will then retrieve input data and tokenize it.
+Before running training jobs you need to retrieve input data and preprocess it. This section of the guide you will retrieve a container then you convert it into a Squash file via [Enroot](https://github.com/NVIDIA/enroot).
 
 Below are the steps you need to follow:
 
-1. Clone this repository along with submodule.
+1. Copy the test case files to your cluster. You will need `0.llm-foundry.Dockerfile`,
 2. Build the container image with the command below in this directory.
 
    ```bash
@@ -42,9 +50,9 @@ Below are the steps you need to follow:
 4. Create the squash file with the command below.
 
    ```bash
-   enroot import -o /apps/llm-foundry.sqsh dockerd://llm-foundry:latest
+   enroot import -o ${ENROOT_IMAGE} dockerd://llm-foundry:latest
    ```
-   The file will be stored in the `/apps` directory. The output should look as below.
+   The file will be stored in the `/apps` directory (default). The output should look as below.
 
     ```bash
     [INFO] Fetching image
@@ -64,22 +72,33 @@ Below are the steps you need to follow:
     ...
     ```
 
-   It will take roughly 5 minutes.
 
-5. Go to `slurm-scripts` subdirectory and then run `1.c4-preprocess.sbatch` script
+It will take around 5 minutes to convert the container image from Docker to the Enroot format. Once done proceed to the next stage.
 
+## 2. Run the processing job
+
+Before running training jobs you need to retrieve input data and preprocess it before running the training job.
+
+1. Run a preprocessing job by submitting the script `1.c4-preprocess.sbatch` to Slurm. The command will return the Slurm Job ID. You can use `squeue` to consult the status of your jobs.
     ```bash
     sbatch 1.c4-preprocess.sbatch
     ```
+    It will create the streaming dataset for composer library using C4 dataset in `/fsx/c4-dataset` (default).
 
-It will create the streaming dataset for composer library using C4 dataset.
+2. You see a new file in your current working directory called `c4-preprocess_XY.out` where `XY` corresponds the Slurm job ID. This is your output file and will capture the `STDOUT` and `STDERR` from your job. You can check how it progresses via the command `tail -f c4-preprocess_XY.out` with the correct job ID instead of `XY`. If running successfully, the job will generate an output similar to the except below.
+    ```console
+    Downloading (…)okenizer_config.json: 100%|██████████| 156/156 [00:00<00:00, 1.09MB/s]
+    ...
+    Downloading metadata: 100%|██████████| 2.40M/2.40M [00:01<00:00, 2.05MB/s]
+    ...
+    train_small:  32%|███▏      | 31745/100000 [01:51<00:19, 3538.83it/s]
+    ...
+    val_small: 100%|██████████| 10000/10000 [00:19<00:00, 514.19it/s]
+    ```
 
-7. You will see a new file in your current working directory called `c4-preprocess-XY.out` where `XY` is a number. This is your outputfile and will capture the `STDOUT` and `STDERR` from your job. You can check how it progresses via the command `tail -f slurm-XY.out` but with the relevant filename.
-
-Once the job completed, you will see the following data under `/fsx/my-c4-copy`.
-
+3. After the job completed, check `/fsx/c4-dataset` (default) which will contain a structure similar as below
     ```bash
-    /fsx/my-copy-c4/
+    /fsx/c4-dataset/
     ├── train_small
     │   ├── index.json
     │   ├── shard.00000.mds
