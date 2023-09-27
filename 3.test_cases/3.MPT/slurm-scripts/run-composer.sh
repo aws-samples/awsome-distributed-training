@@ -38,7 +38,7 @@ mkdir -p /fsx/logs
 MODEL=mpt-7b
 PROFILER="nsys profile --force-overwrite=true  -w true -t cuda,nvtx,osrt,cudnn,cublas -s cpu --capture-range=cudaProfilerApi --cudabacktrace=true -x true -o /fsx/logs/profile-mpt30b-rank-${NODE_RANK}"
 start=${SECONDS}
-nsys profile  --duration 300 --delay 30 --force-overwrite=true -w true -t cuda,nvtx,osrt,cudnn,cublas -s cpu -x true -o /fsx/logs/${MODEL}-p4d-worldsize-${WORLD_SIZE}-rank-${NODE_RANK}.profile composer \
+composer \
     --world_size ${WORLD_SIZE} \
     --nproc ${N_PROC} \
     --node_rank ${NODE_RANK} \
