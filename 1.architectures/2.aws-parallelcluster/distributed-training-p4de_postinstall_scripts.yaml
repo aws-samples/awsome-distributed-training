@@ -56,6 +56,7 @@ Scheduling:
           MaxCount: 4 # not scale down
           Efa:
             Enabled: true
+      JobExclusiveAllocation: true   # GenAI training likes to gobble all GPUs in an instance
       CustomActions:
         OnNodeConfigured:
           Sequence:
