@@ -60,7 +60,7 @@ function run_compose() {
 }
 NODE_RANK=1
 for (( NODE_RANK=1; NODE_RANK<${NNODES}; NODE_RANK++ ))
-do  
+do
     NODE=${NODES[$NODE_RANK]}
     echo "Run compute node ${NODE} for rank: ${NODE_RANK}"
     run_compose &
