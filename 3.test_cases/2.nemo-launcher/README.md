@@ -1,4 +1,6 @@
-# Nemo Megatron on Slurm <!-- omit from toc -->
+# Train GPT3 NemoMegatron on Slurm <!-- omit from toc -->
+
+This project provides a guide to run [NemoMegatron](https://docs.nvidia.com/deeplearning/nemo/user-guide/docs/en/stable/nlp/megatron.html) on AWS using a container from Nvidia GPU Cloud (NGC). The test cases in this case cover NemoMegatron for different model sizes: [126M](1.bmk-pretrain-gpt3-126m.sh), [5B](1.bmk-pretrain-gpt3-5b.sh), [40B](1.bmk-pretrain-gpt3-40b.sh) and [175B](1.bmk-pretrain-gpt3-175b.sh) parameters. The test cases can be executed on Slurm and use Nvidia Enroot and Nvidia Pyxis.
 
 Table of contents:
 
@@ -215,3 +217,14 @@ training.trainer.num_nodes=$NUM_NODES
                 |
                 └── key 'trainer -> num_nodes' in the `.yaml` file.
 ```
+
+
+## 8. References
+
+- Nvidia NemoMegatron Documentation: https://docs.nvidia.com/deeplearning/nemo/user-guide/docs/en/stable/nlp/megatron.html
+- Train Large Scale NLP with Nemo Megatron from Nvidia: https://docs.nvidia.com/launchpad/ai/base-command-nemo/latest/index.html
+
+## Authors / Reviewers
+
+- [A] Verdi March - marcverd@
+- [R] Pierre-Yves Aquilanti - pierreya@
