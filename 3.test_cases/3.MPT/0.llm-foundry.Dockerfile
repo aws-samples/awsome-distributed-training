@@ -9,8 +9,7 @@ ARG OPEN_MPI_PATH=/opt/amazon/openmpi
 RUN apt-get update -y
 RUN apt-get remove -y --allow-change-held-packages \
     libmlx5-1 ibverbs-utils libibverbs-dev libibverbs1 \
-    libnccl2 libnccl-dev libibnetdisc5 libibmad5 libibumad3 \
-    libpmix-dev libpmix2
+    libnccl2 libnccl-dev libibnetdisc5 libibmad5 libibumad3
 RUN rm -rf /opt/hpcx \
     && rm -rf /usr/local/mpi \
     && rm -rf /usr/local/ucx \
@@ -34,6 +33,8 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -y --allow-unauthenticated \
     cmake \
     apt-utils \
     libhwloc-dev \
+    libpmix-dev \ 
+    libpmix2 \
     aptitude && \
     DEBIAN_FRONTEND=noninteractive apt autoremove -y
 
@@ -90,9 +91,6 @@ ENV LD_PRELOAD=/opt/nccl/build/lib/libnccl.so
 
 RUN echo "hwloc_base_binding_policy = none" >> /opt/amazon/openmpi/etc/openmpi-mca-params.conf \
     && echo "rmaps_base_mapping_policy = slot" >> /opt/amazon/openmpi/etc/openmpi-mca-params.conf
-
-RUN pip3 install awscli
-RUN pip3 install pynvml
 
 RUN mv $OPEN_MPI_PATH/bin/mpirun $OPEN_MPI_PATH/bin/mpirun.real \
     && echo '#!/bin/bash' > $OPEN_MPI_PATH/bin/mpirun \
