@@ -36,7 +36,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -y --allow-unauthenticated \
     libpmix-dev \ 
     libpmix2 \
     aptitude && \
-    DEBIAN_FRONTEND=noninteractive apt autoremove -y
+    DEBIAN_FRONTEND=noninteractive apt-get autoremove -y
 
 ENV LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/:/usr/local/cuda/extras/CUPTI/lib64:/opt/amazon/openmpi/lib:/opt/nccl/build/lib:/opt/amazon/efa/lib:/opt/aws-ofi-nccl/install/lib:$LD_LIBRARY_PATH
 ENV PATH=/opt/amazon/openmpi/bin/:/opt/amazon/efa/bin:/usr/bin:/usr/local/bin:$PATH
