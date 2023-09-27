@@ -37,7 +37,7 @@ PROFILE_FILE=/fsx/logs/profile
 mkdir -p /fsx/logs
 MODEL=mpt-7b
 PROFILER="nsys profile --force-overwrite=true  -w true -t cuda,nvtx,osrt,cudnn,cublas -s cpu --capture-range=cudaProfilerApi --cudabacktrace=true -x true -o /fsx/logs/profile-mpt30b-rank-${NODE_RANK}"
-start=$(date +%s)
+start=${SECONDS}
 nsys profile  --duration 300 --delay 30 --force-overwrite=true -w true -t cuda,nvtx,osrt,cudnn,cublas -s cpu -x true -o /fsx/logs/${MODEL}-p4d-worldsize-${WORLD_SIZE}-rank-${NODE_RANK}.profile composer \
     --world_size ${WORLD_SIZE} \
     --nproc ${N_PROC} \
@@ -52,5 +52,5 @@ nsys profile  --duration 300 --delay 30 --force-overwrite=true -w true -t cuda,n
     max_duration=3ba \
     eval_interval=0 \
     save_folder=${MODEL}
-end=$(date +%s)
+end=${SECONDS}
 echo "Elapsed Time: $(($end-$start)) seconds"
