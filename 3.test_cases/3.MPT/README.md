@@ -152,3 +152,8 @@ Now that the data is preprocessed, we will pretrain a MPT model with composer.
 ...
 ```
 
+## Authors / Reviewers
+
+- [A] Keita Watanabe - mlkeita@
+- [R] Pierre-Yves Aquilanti - pierreya@
+- [R] Verdi March - marcverd@
