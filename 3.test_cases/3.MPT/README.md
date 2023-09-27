@@ -1,32 +1,34 @@
 # Mosaic Pretraind Transformers (MPT) Test Case
 
-MPT are GPT-style models in llm-foundry with some special features -- Flash Attention for efficiency, ALiBi for context length extrapolation, and stability improvements to mitigate loss spikes (<https://github.com/mosaicml/llm-foundry/tree/main>).
-This subdirectory contains:
+MPT are GPT-style models in [llm-foundry](https://github.com/mosaicml/llm-foundry/tree/main) with some special features -- [Flash Attention](https://arxiv.org/abs/2205.14135) for efficiency, [ALiBi](https://arxiv.org/abs/2108.12409) for context length extrapolation, and stability improvements to mitigate loss spikes.
 
-* AWS optimized llm-foundary container image
-* Slurm scripts for c4 dataset preparation and multi-node training
+This project contains:
+
+* AWS optimized [llm-foundry](https://github.com/mosaicml/llm-foundry/tree/main) container image.
+* Slurm scripts for the [c4 dataset](https://huggingface.co/datasets/c4) preparation and multi-node distributed training.
 
 ## 0. Preparation
 
 This guide assumes that you have the following:
 
-* A functional Slurm cluster on AWS.
-* Docker, [Pyxis](https://github.com/NVIDIA/pyxis) and [Enroot](https://github.com/NVIDIA/enroot) installed.
-* An FSx for Lustre filesystem mounted on `/fsx`.
+- A functional Slurm cluster on AWS.
+- Docker, [Pyxis](https://github.com/NVIDIA/pyxis) and [Enroot](https://github.com/NVIDIA/enroot) installed.
+- An FSx for Lustre filesystem mounted on `/fsx`.
 
 It is recommended that you use the templates in the architectures [directory](../../1.architectures)
 
+
 ## 1. Data Preprocessing
 
-Before running training jobs you need to retrieve input data and preprocess it. This section of the guide you will retrieve a container then you convert it into a Squash file via [Enroot](https://github.com/NVIDIA/enroot), you will then retrieve input data ans tokenize it.
+Before running training jobs you need to retrieve input data and preprocess it. This section of the guide you will retrieve a container then you convert it into a Squash file via [Enroot](https://github.com/NVIDIA/enroot), you will then retrieve input data and tokenize it.
 
 Below are the steps you need to follow:
 
 1. Clone this repository along with submodule.
-2. Build the container image with the command below in this directory
+2. Build the container image with the command below in this directory.
 
    ```bash
-   docker build -t llm-foundry -f 0.Dockerfile .
+   docker build -t llm-foundry -f 0.llm-foundry.Dockerfile .
    ```
 
 3. Once the image is built, you can check if it is present with `docker images`. You should see an output similar to this one:
@@ -42,7 +44,6 @@ Below are the steps you need to follow:
    ```bash
    enroot import -o /apps/llm-foundry.sqsh dockerd://llm-foundry:latest
    ```
-
    The file will be stored in the `/apps` directory. The output should look as below.
 
     ```bash
@@ -98,14 +99,15 @@ Once the job completed, you will see the following data under `/fsx/my-c4-copy`.
 
 Now that the data is preprocessed, we will pretrain a MPT model with composer.
 
+
 1. Go to `slurm-scripts` subdirectory.
 2. Run the training script as follows:
-
     ```bash
     sbatch 2.train-mpt-manual-distributed.sbatch
     ```
 
 3. The training starts running and should produce an output similar to below if successful.
+
 
 ```
 ...
@@ -130,3 +132,4 @@ Now that the data is preprocessed, we will pretrain a MPT model with composer.
 0:       Train time/val: 0.0000
 ...
 ```
+
