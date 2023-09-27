@@ -1,6 +1,6 @@
 # Mosaic Pretraind Transformers (MPT) Test Case
 
-MPT are GPT-style models in llm-foundry with some special features -- Flash Attention for efficiency, ALiBi for context length extrapolation, and stability improvements to mitigate loss spikes (https://github.com/mosaicml/llm-foundry/tree/main). 
+MPT are GPT-style models in llm-foundry with some special features -- Flash Attention for efficiency, ALiBi for context length extrapolation, and stability improvements to mitigate loss spikes (<https://github.com/mosaicml/llm-foundry/tree/main>).
 This subdirectory contains:
 
 * AWS optimized llm-foundary container image
@@ -10,12 +10,11 @@ This subdirectory contains:
 
 This guide assumes that you have the following:
 
-- A functional Slurm cluster on AWS.
-- Docker, [Pyxis](https://github.com/NVIDIA/pyxis) and [Enroot](https://github.com/NVIDIA/enroot) installed.
-- An FSx for Lustre filesystem mounted on `/fsx`.
+* A functional Slurm cluster on AWS.
+* Docker, [Pyxis](https://github.com/NVIDIA/pyxis) and [Enroot](https://github.com/NVIDIA/enroot) installed.
+* An FSx for Lustre filesystem mounted on `/fsx`.
 
 It is recommended that you use the templates in the architectures [directory](../../1.architectures)
-
 
 ## 1. Data Preprocessing
 
@@ -43,6 +42,7 @@ Below are the steps you need to follow:
    ```bash
    enroot import -o /apps/llm-foundry.sqsh dockerd://llm-foundry:latest
    ```
+
    The file will be stored in the `/apps` directory. The output should look as below.
 
     ```bash
@@ -65,7 +65,7 @@ Below are the steps you need to follow:
 
    It will take roughly 5 minutes.
 
-5. Go to `slurm-scripts` subdirectory and then run `1.c4-preprocess.sbatch` script 
+5. Go to `slurm-scripts` subdirectory and then run `1.c4-preprocess.sbatch` script
 
     ```bash
     sbatch 1.c4-preprocess.sbatch
@@ -73,7 +73,7 @@ Below are the steps you need to follow:
 
 It will create the streaming dataset for composer library using C4 dataset.
 
-7. You will see a new file in your current working directory called `c4-preprocess-XY.out` where `XY` is a number. This is your outputfile and will capture the `STDOUT` and `STDERR` from your job. You can check how it progresses via the command `tail -f slurm-XY.out` but with the relevant filename. 
+7. You will see a new file in your current working directory called `c4-preprocess-XY.out` where `XY` is a number. This is your outputfile and will capture the `STDOUT` and `STDERR` from your job. You can check how it progresses via the command `tail -f slurm-XY.out` but with the relevant filename.
 
 Once the job completed, you will see the following data under `/fsx/my-c4-copy`.
 
@@ -98,15 +98,14 @@ Once the job completed, you will see the following data under `/fsx/my-c4-copy`.
 
 Now that the data is preprocessed, we will pretrain a MPT model with composer.
 
-
 1. Go to `slurm-scripts` subdirectory.
 2. Run the training script as follows:
+
     ```bash
     sbatch 2.train-mpt-manual-distributed.sbatch
     ```
-   
-3. The training starts running and should produce an output similar to below if successful.
 
+3. The training starts running and should produce an output similar to below if successful.
 
 ```
 ...
@@ -131,4 +130,3 @@ Now that the data is preprocessed, we will pretrain a MPT model with composer.
 0:       Train time/val: 0.0000
 ...
 ```
-
