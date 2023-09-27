@@ -9,7 +9,8 @@ ARG OPEN_MPI_PATH=/opt/amazon/openmpi
 RUN apt-get update -y
 RUN apt-get remove -y --allow-change-held-packages \
     libmlx5-1 ibverbs-utils libibverbs-dev libibverbs1 \
-    libnccl2 libnccl-dev libibnetdisc5 libibmad5 libibumad3
+    libnccl2 libnccl-dev libibnetdisc5 libibmad5 libibumad3 \
+    libpmix-dev libpmix2
 RUN rm -rf /opt/hpcx \
     && rm -rf /usr/local/mpi \
     && rm -rf /usr/local/ucx \
