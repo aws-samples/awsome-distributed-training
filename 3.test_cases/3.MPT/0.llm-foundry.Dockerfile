@@ -1,10 +1,10 @@
 FROM mosaicml/pytorch:2.0.1_cu118-python3.10-ubuntu20.04
 ARG EFA_INSTALLER_VERSION=1.26.1
-ARG AWS_OFI_NCCL_VERSION=master
+ARG AWS_OFI_NCCL_VERSION=1.7.2-aws
 ARG NCCL_TESTS_VERSION=master
 ARG NCCL_VERSION=v2.12.7-1
+ARG LLM_FOUNDRY_VERSION=0.2.0
 ARG OPEN_MPI_PATH=/opt/amazon/openmpi
-
 
 RUN apt-get update -y
 RUN apt-get remove -y --allow-change-held-packages \
@@ -73,7 +73,7 @@ RUN export OPAL_PREFIX="" \
     --with-cuda=/usr/local/cuda \
     --with-nccl=/opt/nccl/build \
     --with-mpi=/opt/amazon/openmpi/ \
-    && make && make install
+    && make -j && make install
 
 ###################################################
 ## Install NCCL-tests
@@ -101,11 +101,16 @@ RUN mv $OPEN_MPI_PATH/bin/mpirun $OPEN_MPI_PATH/bin/mpirun.real \
 # Transformers dependencies used in the model
 ######################
 
-
-COPY llm-foundry llm-foundry
-RUN cd llm-foundry \
+RUN git clone https://github.com/mosaicml/llm-foundry.git llm-foundry \
+    && cd llm-foundry \
+    && git checkout $LLM_FOUNDRY_VERSION \
     && pip install -e ".[gpu]" \
     && pip install xformers nvtx 'flash-attn==v1.0.3.post0'
+
+######################
+# Install Nsight Systems
+######################
+
 RUN wget https://developer.download.nvidia.com/devtools/nsight-systems/NsightSystems-linux-cli-public-2023.2.1.122-3259852.deb
 RUN apt-get install -y libglib2.0-0 \
     && dpkg -i NsightSystems-linux-cli-public-2023.2.1.122-3259852.deb
