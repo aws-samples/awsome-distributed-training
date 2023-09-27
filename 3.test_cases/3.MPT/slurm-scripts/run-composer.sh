@@ -46,7 +46,7 @@ nsys profile  --duration 300 --delay 30 --force-overwrite=true -w true -t cuda,n
     --master_port ${MASTER_PORT} \
     --verbose /apps/reference-architectures/3.test_cases/3.MPT/llm-foundry/scripts/train/train.py \
     /llm-foundry/scripts/train/yamls/pretrain/${MODEL}.yaml \
-    data_local=/fsx/my-copy-c4 \
+    data_local=/fsx/c4-dataset \
     train_loader.dataset.split=train_small \
     eval_loader.dataset.split=val_small \
     max_duration=3ba \

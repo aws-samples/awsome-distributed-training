@@ -114,21 +114,20 @@ Before running training jobs you need to retrieve input data and preprocess it b
         └── shard.00002.mds
     ```
 
-## 2. Distributed training
+Preprocessing is done, you will run a training job in the next stage.
+
+## 3. Distributed training of MPT
 
 Now that the data is preprocessed, we will pretrain a MPT model with composer.
 
-
-1. Go to `slurm-scripts` subdirectory.
-2. Run the training script as follows:
+1. Run the training job by submitting the script `2.train-mpt-manual-distributed.sbatch` to Slurm via `sbatch` as shown below.
     ```bash
     sbatch 2.train-mpt-manual-distributed.sbatch
     ```
 
-3. The training starts running and should produce an output similar to below if successful.
+2. The training starts running and should produce an output similar to below if successful.
 
-
-```
+```console
 ...
 0: [batch=1/300000000]:
 0:       Train time/epoch: 0
