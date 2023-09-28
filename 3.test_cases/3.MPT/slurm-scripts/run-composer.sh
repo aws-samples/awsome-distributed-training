@@ -35,7 +35,7 @@ composer \
     --node_rank ${NODE_RANK} \
     --master_addr ${MASTER_ADDR} \
     --master_port ${MASTER_PORT} \
-    --verbose /apps/reference-architectures/3.test_cases/3.MPT/llm-foundry/scripts/train/train.py \
+    --verbose /llm-foundry/scripts/train/train.py \
     /llm-foundry/scripts/train/yamls/pretrain/${MODEL}.yaml \
     data_local=/fsx/c4-dataset \
     train_loader.dataset.split=train_small \
