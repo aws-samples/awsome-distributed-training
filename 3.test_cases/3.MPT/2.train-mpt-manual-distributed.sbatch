@@ -12,7 +12,7 @@
 #SBATCH --wait-all-nodes=1
 set -euxo pipefail
 
-
+MODEL=${1:-mpt-7b}
 # default variables for Enroot
 : "${APPS_PATH:=/apps}"
 : "${IMAGE:=$APPS_PATH/llm-foundry.sqsh}"
@@ -54,9 +54,20 @@ function run_compose() {
     # else
     #     OPTION="exclude"
     # fi
-    srun --nodelist=${NODE} --ntasks=1 -l "${ARGS[@]}" bash \
-    /apps/reference-architectures/3.test_cases/3.MPT/slurm-scripts/run-composer.sh \
-    ${WORLD_SIZE} ${NPROC} ${NODE_RANK} ${MASTER_ADDR} ${MASTER_PORT}
+    srun --nodelist=${NODE} --ntasks=1 -l "${ARGS[@]}" composer \
+        --world_size ${WORLD_SIZE} \
+        --nproc ${NPROC} \
+        --node_rank ${NODE_RANK} \
+        --master_addr ${MASTER_ADDR} \
+        --master_port ${MASTER_PORT} \
+        --verbose /llm-foundry/scripts/train/train.py \
+        /llm-foundry/scripts/train/yamls/pretrain/${MODEL}.yaml \
+        data_local=/fsx/c4-dataset \
+        train_loader.dataset.split=train_small \
+        eval_loader.dataset.split=val_small \
+        max_duration=3ba \
+        eval_interval=0 \
+        save_folder=${MODEL}
 }
 NODE_RANK=1
 for (( NODE_RANK=1; NODE_RANK<${NNODES}; NODE_RANK++ ))
