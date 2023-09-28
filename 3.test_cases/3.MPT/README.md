@@ -99,6 +99,8 @@ You need to retrieve input data and preprocess it before running the training jo
     val_small: 100%|██████████| 10000/10000 [00:19<00:00, 514.19it/s]
     ```
 
+    Please be aware that this job downloads the tokenizer on demand (if it's not available under `./EleutherAI/gpt-neox-20b`), after which the tokenizer will be cached under `$HOME/.cache/huggingface`, and the `$HOME` directory is an NFS filesystem shared by the head node. Please consult the [HuggingFace cache management](https://huggingface.co/docs/datasets/cache) document to learn more about fine-grained control of the HuggingFace cache.
+
 3. After the job completed, check `/fsx/c4-dataset` (default) which will contain a structure similar as below
 
     ```bash
