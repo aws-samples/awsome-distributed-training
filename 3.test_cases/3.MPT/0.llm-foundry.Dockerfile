@@ -1,9 +1,9 @@
 FROM mosaicml/pytorch:2.0.1_cu118-python3.10-ubuntu20.04
 ARG EFA_INSTALLER_VERSION=1.26.1
-ARG AWS_OFI_NCCL_VERSION=1.7.2-aws
+ARG AWS_OFI_NCCL_VERSION=v1.7.2-aws
 ARG NCCL_TESTS_VERSION=master
 ARG NCCL_VERSION=v2.12.7-1
-ARG LLM_FOUNDRY_VERSION=0.2.0
+ARG LLM_FOUNDRY_VERSION=v0.3.0
 ARG OPEN_MPI_PATH=/opt/amazon/openmpi
 
 RUN apt-get update -y
@@ -63,7 +63,6 @@ RUN git clone https://github.com/NVIDIA/nccl /opt/nccl \
 RUN export OPAL_PREFIX="" \
     && git clone https://github.com/aws/aws-ofi-nccl.git /opt/aws-ofi-nccl \
     && cd /opt/aws-ofi-nccl \
-    && env \
     && git checkout ${AWS_OFI_NCCL_VERSION} \
     && ./autogen.sh \
     && ./configure --prefix=/opt/aws-ofi-nccl/install \
