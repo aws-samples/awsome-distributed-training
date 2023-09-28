@@ -124,6 +124,10 @@ Now that the data is preprocessed, we will pretrain a MPT model with composer.
     ```bash
     sbatch 2.train-mpt-manual-distributed.sbatch
     ```
+by default it runs `mpt-7b` model. You can specify model to be trained as:
+    ```bash
+    sbatch 2.train-mpt-manual-distributed.sbatch mpt-30b
+    ```
 
 2. The training starts running and should produce an output similar to below if successful.
 
