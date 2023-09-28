@@ -33,8 +33,6 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -y --allow-unauthenticated \
     cmake \
     apt-utils \
     libhwloc-dev \
-    libpmix-dev \ 
-    libpmix2 \
     aptitude && \
     DEBIAN_FRONTEND=noninteractive apt-get autoremove -y
 
@@ -75,27 +73,11 @@ RUN export OPAL_PREFIX="" \
     --with-mpi=/opt/amazon/openmpi/ \
     && make -j && make install
 
-###################################################
-## Install NCCL-tests
-RUN git clone https://github.com/NVIDIA/nccl-tests.git /opt/nccl-tests \
-    && cd /opt/nccl-tests \
-    && git checkout ${NCCL_TESTS_VERSION} \
-    && make MPI=1 \
-    MPI_HOME=/opt/amazon/openmpi/ \
-    CUDA_HOME=/usr/local/cuda \
-    NCCL_HOME=/opt/nccl/build \
-    NVCC_GENCODE="-gencode=arch=compute_90,code=sm_90 -gencode=arch=compute_86,code=sm_86 -gencode=arch=compute_80,code=sm_80"
-
 RUN rm -rf /var/lib/apt/lists/*
 ENV LD_PRELOAD=/opt/nccl/build/lib/libnccl.so
 
 RUN echo "hwloc_base_binding_policy = none" >> /opt/amazon/openmpi/etc/openmpi-mca-params.conf \
     && echo "rmaps_base_mapping_policy = slot" >> /opt/amazon/openmpi/etc/openmpi-mca-params.conf
-
-RUN mv $OPEN_MPI_PATH/bin/mpirun $OPEN_MPI_PATH/bin/mpirun.real \
-    && echo '#!/bin/bash' > $OPEN_MPI_PATH/bin/mpirun \
-    && echo '/opt/amazon/openmpi/bin/mpirun.real "$@"' >> $OPEN_MPI_PATH/bin/mpirun \
-    && chmod a+x $OPEN_MPI_PATH/bin/mpirun
 
 ######################
 # Transformers dependencies used in the model
