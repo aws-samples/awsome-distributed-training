@@ -1,4 +1,4 @@
-# Mosaic Pretraind Transformers (MPT) Test Case
+# Mosaic Pretraind Transformers (MPT) Test Case <!-- omit in toc -->
 
 MPT are GPT-style models in [llm-foundry](https://github.com/mosaicml/llm-foundry/tree/main) with some special features -- [Flash Attention](https://arxiv.org/abs/2205.14135) for efficiency, [ALiBi](https://arxiv.org/abs/2108.12409) for context length extrapolation, and stability improvements to mitigate loss spikes.
 
@@ -7,15 +7,15 @@ This project contains:
 * AWS optimized [llm-foundry](https://github.com/mosaicml/llm-foundry/tree/main) container image.
 * Slurm scripts for the [c4 dataset](https://huggingface.co/datasets/c4) preparation and multi-node distributed training.
 
-## 0. Preparation
+## 1. Preparation
 
 This guide assumes that you have the following:
 
-- A functional Slurm cluster on AWS.
-- Docker, [Pyxis](https://github.com/NVIDIA/pyxis) and [Enroot](https://github.com/NVIDIA/enroot) installed.
-- An FSx for Lustre filesystem mounted on `/fsx`.
+* A functional Slurm cluster on AWS.
+* Docker, [Pyxis](https://github.com/NVIDIA/pyxis) and [Enroot](https://github.com/NVIDIA/enroot) installed.
+* An FSx for Lustre filesystem mounted on `/fsx`.
 
-It is recommended that you use the templates in the architectures [directory](../../1.architectures). You will need to setup the following environment variables before running the scripts:
+We recommend that you setup a Slurm cluster using the templates in the architectures [directory](../../1.architectures). Before creating the Slurm cluster, you need to setup the following environment variables:
 
 ```bash
 export APPS_PATH=/apps
@@ -26,20 +26,20 @@ export TEST_CASE_PATH=${HOME}/3.MPT  # where you copy the test case or set to yo
 cd $TEST_CASE_PATH
 ```
 
-## 1. Build the container
+then follow the detailed instructions [here](../../1.architectures/2.aws-parallelcluster/README.md).
 
-Before running training jobs you need to retrieve input data and preprocess it. This section of the guide you will retrieve a container then you convert it into a Squash file via [Enroot](https://github.com/NVIDIA/enroot).
+## 2. Build the container
 
-Below are the steps you need to follow:
+Before running training jobs, you need to use an [Enroot](https://github.com/NVIDIA/enroot) container to retrieve and preprocess the input data. Below are the steps you need to follow:
 
 1. Copy the test case files to your cluster. You will need `0.llm-foundry.Dockerfile`,
-2. Build the container image with the command below in this directory.
+2. Build the Docker image with the command below in this directory.
 
    ```bash
    docker build -t llm-foundry -f 0.llm-foundry.Dockerfile .
    ```
 
-3. Once the image is built, you can check if it is present with `docker images`. You should see an output similar to this one:
+3. Once the Docker image is built, you can check if it is present with `docker images`. You should see an output similar to this one:
 
    ```bash
    REPOSITORY         TAG                                  IMAGE ID       CREATED       SIZE
@@ -47,11 +47,12 @@ Below are the steps you need to follow:
    ...
    ```
 
-4. Create the squash file with the command below.
+4. Convert the Docker image to a squash file with the command below.
 
    ```bash
    enroot import -o ${ENROOT_IMAGE} dockerd://llm-foundry:latest
    ```
+
    The file will be stored in the `/apps` directory (default). The output should look as below.
 
     ```bash
@@ -72,20 +73,22 @@ Below are the steps you need to follow:
     ...
     ```
 
-
 It will take around 5 minutes to convert the container image from Docker to the Enroot format. Once done proceed to the next stage.
 
-## 2. Run the processing job
+## 3. Run the processing job
 
-Before running training jobs you need to retrieve input data and preprocess it before running the training job.
+You need to retrieve input data and preprocess it before running the training job.
 
 1. Run a preprocessing job by submitting the script `1.c4-preprocess.sbatch` to Slurm. The command will return the Slurm Job ID. You can use `squeue` to consult the status of your jobs.
+
     ```bash
     sbatch 1.c4-preprocess.sbatch
     ```
+
     It will create the streaming dataset for composer library using C4 dataset in `/fsx/c4-dataset` (default).
 
 2. You see a new file in your current working directory called `c4-preprocess_XY.out` where `XY` corresponds the Slurm job ID. This is your output file and will capture the `STDOUT` and `STDERR` from your job. You can check how it progresses via the command `tail -f c4-preprocess_XY.out` with the correct job ID instead of `XY`. If running successfully, the job will generate an output similar to the except below.
+
     ```console
     Downloading (…)okenizer_config.json: 100%|██████████| 156/156 [00:00<00:00, 1.09MB/s]
     ...
@@ -96,7 +99,10 @@ Before running training jobs you need to retrieve input data and preprocess it b
     val_small: 100%|██████████| 10000/10000 [00:19<00:00, 514.19it/s]
     ```
 
+    Please be aware that this job downloads the tokenizer on demand (if it's not available under `./EleutherAI/gpt-neox-20b`), after which the tokenizer will be cached under `$HOME/.cache/huggingface`, and the `$HOME` directory is an NFS filesystem shared by the head node. Please consult the [HuggingFace cache management](https://huggingface.co/docs/datasets/cache) document to learn more about fine-grained control of the HuggingFace cache.
+
 3. After the job completed, check `/fsx/c4-dataset` (default) which will contain a structure similar as below
+
     ```bash
     /fsx/c4-dataset/
     ├── train_small
@@ -114,13 +120,14 @@ Before running training jobs you need to retrieve input data and preprocess it b
         └── shard.00002.mds
     ```
 
-Preprocessing is done, you will run a training job in the next stage.
+Once preprocessing is done, you will run a training job in the next stage.
 
-## 3. Distributed training of MPT
+## 4. Distributed training of MPT
 
-Now that the data is preprocessed, we will pretrain a MPT model with composer.
+Now that the data is preprocessed, we will pretrain a MPT model with [Mosaic Composer](https://github.com/mosaicml/composer).
 
-1. Run the training job by submitting the script `2.train-mpt-manual-distributed.sbatch` to Slurm via `sbatch` as shown below.
+1. Run a training job by submitting script `2.train-mpt-manual-distributed.sbatch` to Slurm via `sbatch` as shown below.
+
     ```bash
     sbatch 2.train-mpt-manual-distributed.sbatch
     ```
@@ -129,7 +136,7 @@ by default it runs `mpt-7b` model. You can specify model to be trained as:
     sbatch 2.train-mpt-manual-distributed.sbatch mpt-30b
     ```
 
-2. The training starts running and should produce an output similar to below if successful.
+2. When the training job completes successfully, it should produce an output similar to below.
 
 ```console
 ...
@@ -155,8 +162,8 @@ by default it runs `mpt-7b` model. You can specify model to be trained as:
 ...
 ```
 
-## Authors / Reviewers
+## 5. Authors / Reviewers
 
-- [A] Keita Watanabe - mlkeita@
-- [R] Pierre-Yves Aquilanti - pierreya@
-- [R] Verdi March - marcverd@
+* [A] Keita Watanabe - mlkeita@
+* [R] Pierre-Yves Aquilanti - pierreya@
+* [R] Verdi March - marcverd@
