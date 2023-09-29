@@ -1,26 +1,31 @@
 apiVersion: eksctl.io/v1alpha5
 kind: ClusterConfig
 
+# Update cluster name, region, and eks version if needed
 metadata:
   name: eks-g4dn-vpc
   version: "1.27"
   region: us-east-1
 
+# Substitute vpc and subnet ids below
 vpc:
   id: vpc-xxxxxxxxxxxxxxxxx
   subnets:
     public:
-      endpoint-one:
+      public-one:
         id: subnet-xxxxxxxxxxxxxxx11
-      endpoint-two:
+      public-two:
         id: subnet-xxxxxxxxxxxxxxx12
     private:
-      p4de-1a:
+      private-one:
         id: subnet-xxxxxxxxxxxxxxx21
-      p4de-1c:
+      private-two:
         id: subnet-xxxxxxxxxxxxxxx22
 
+# Fully-managed nodegroups
 managedNodeGroups:
+
+  # Nodegroup for system pods
   - name: sys
     instanceType: c5.2xlarge
     desiredCapacity: 1
@@ -28,8 +33,12 @@ managedNodeGroups:
       withAddonPolicies:
         autoScaler: true
         cloudWatch: true
-  - name g4dn
-    instanceType: g4dn.metal
+
+  # GPU nodegroup
+  # Update capacityReservationID below
+  # specify the subnet id corresponding to the capacity reservation
+  - name: g4dn
+    instanceType: g4dn.8xlarge
     instancePrefix: g4dn-vpc
     privateNetworking: true
     efaEnabled: true
