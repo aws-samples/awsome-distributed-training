@@ -13,7 +13,7 @@ packer {
 
 variable "ami_name" {
   type    = string
-  default = "pcluster-gpu-efa"
+  default = "pcluster-efa"
 }
 
 variable "ami_version" {
@@ -92,10 +92,21 @@ data "amazon-ami" "eks-al2" {
   owners      = ["amazon"]
 }
 
-data "amazon-ami" "dlami-al2" {
+data "amazon-ami" "dlami-gpu-al2" {
   filters = {
     virtualization-type = "hvm"
     name = "Deep Learning AMI GPU PyTorch 2.0.1 (Amazon Linux 2) *"
+    architecture= "x86_64"
+    root-device-type = "ebs"
+  }
+  most_recent = true
+  owners      = ["amazon"]
+}
+
+data "amazon-ami" "dlami-neuron-al2" {
+  filters = {
+    virtualization-type = "hvm"
+    name = "Deep Learning AMI Neuron PyTorch 1.13 (Amazon Linux 2) *"
     architecture= "x86_64"
     root-device-type = "ebs"
   }
@@ -166,11 +177,11 @@ source "amazon-ebs" "aws-eks-ami" {
   }
 }
 
-source "amazon-ebs" "aws-dlami-ami" {
+source "amazon-ebs" "aws-dlami-gpu-ami" {
   ami_name      = "${var.ami_name}-dlami-${var.ami_version}-${local.timestamp}"
   instance_type = "${var.instance_type}"
   region        = "${var.aws_region}"
-  source_ami     = data.amazon-ami.dlami-al2.id
+  source_ami     = data.amazon-ami.dlami-gpu-al2.id
   ssh_username  = "ec2-user"
   launch_block_device_mappings {
     device_name           = "/dev/xvda"
@@ -181,9 +192,28 @@ source "amazon-ebs" "aws-dlami-ami" {
     delete_on_termination = true
   }
   run_tags = {
-    "Name" = "packer-builder-dlami-al2"
+    "Name" = "packer-builder-dlami-gpu-al2"
   }
 }
+
+source "amazon-ebs" "aws-dlami-neuron-ami" {
+  ami_name      = "${var.ami_name}-dlami-${var.ami_version}-${local.timestamp}"
+  instance_type = "${var.instance_type}"
+  region        = "${var.aws_region}"
+  source_ami     = data.amazon-ami.dlami-neuron-al2.id
+  ssh_username  = "ec2-user"
+  launch_block_device_mappings {
+    device_name           = "/dev/xvda"
+    volume_size           = 100
+    throughput            = 1000
+    iops                  = 10000
+    volume_type           = "gp3"
+    delete_on_termination = true
+  }
+  run_tags = {
+    "Name" = "packer-builder-dlami-neuron-al2"
+  }
+} 
 
 build {
   name    = "aws-base-gpu"
@@ -235,7 +265,7 @@ build {
 
 build {
   name    = "aws-dlami-gpu"
-  sources = ["source.amazon-ebs.aws-dlami-ami"]
+  sources = ["source.amazon-ebs.aws-dlami-gpu-ami"]
 
   provisioner "ansible" {
     user                = "ec2-user"
@@ -247,7 +277,7 @@ build {
 
 build {
   name    = "aws-dlami-neuron"
-  sources = ["source.amazon-ebs.aws-dlami-ami"]
+  sources = ["source.amazon-ebs.aws-dlami-neuron-ami"]
 
   provisioner "ansible" {
     user                = "ec2-user"
