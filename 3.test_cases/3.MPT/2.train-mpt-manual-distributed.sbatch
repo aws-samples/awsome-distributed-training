@@ -40,13 +40,13 @@ declare -a ARGS=(
 )
 
 NODES=( $( scontrol show hostnames $SLURM_JOB_NODELIST ) )
-NNODES=${#NODES[@]}
 NODES_ARRAY=($NODES)
 HEAD_NODE=${NODES_ARRAY[0]}
-MASTER_ADDR=$(srun --nodes=1 --ntasks=1 -w "$HEAD_NODE" hostname --ip-address)
+MASTER_ADDR=$(hostname --ip-address)
 MASTER_PORT=$RANDOM
-NPROC=8
-WORLD_SIZE=$((NNODES * NPROC))
+NNODES=$SLURM_JOB_NUM_NODES
+NPROC=$SLURM_GPUS_PER_NODE
+WORLD_SIZE=$(( $NNODES * $NPROC ))
 srun -l "${ARGS[@]}" python -c "import streaming; streaming.base.util.clean_stale_shared_memory()"
 function run_compose() {
     # if [ ${NODE_RANK} -eq 0 ]; then
