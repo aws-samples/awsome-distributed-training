@@ -22,7 +22,7 @@
   ansible.builtin.command: /tmp/aws/install
   become: yes
 
-- name: "Install and configure AWS CLI v2"
+- name: "Configure S3 parameters for AWS CLI v2"
   ansible.builtin.command: aws configure set default.s3.max_concurrent_requests 1
     # aws configure set default.s3.max_queue_size 10000
     # aws configure set default.s3.multipart_threshold 64MB
