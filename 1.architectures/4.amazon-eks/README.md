@@ -23,11 +23,10 @@ The EKS cluster has two nodegroups. A `system` nodegroup is used to run pods lik
 The cluster configuration is specified via a yaml manifest file. If a cluster version is not specified in the manifest, then the default EKS API version will be used. For our examples we set the version to 1.27. This setting may be adjusted before creating clusters as needed.
 The following example cluster configurations for distributed training are provided:
 
-* [eks-g4dn-vpc.yaml](./eks-g4dn-vpc.yaml) - a cluster using an existing VPC with a nodegroup of two g4dn.metal instances. This instance type supports Elastic Fabric Adapter (EFA), usually does not require a capacity reservation, and is a good starting point when developing distributed training architectures. To use this manifest, edit the vpc id and subnets, and specify the desired private subnet for the nodes.
-* [eks-g4dn.yaml](./eks-g4dn.yaml) - a cluster with a nodegroup of two g4dn.metal instances, created in a new VPC. This example shows that when a VPC is not specified, one is created for the cluster. The manifest can work without any modifications, however if you wish to change the cluster name, API version, region, avilability zones, etc. you can modify the file before using it to create the cluster. 
-* [eks-p4de-odcr-vpc.yaml](./eks-p4de-odcr-vpc.yaml) - a cluster using an existing VPC with a nodegroup of two p4de.24xlarge instances from an existing on-demand capacity reservation (ODCR). This is the most common configuration for distributed training workloads.Edit the file to specify vpc id, subnets, and capacityReservationID. Please note that the subnet of the nodeGroup should match the one of the capacity reservation.
-* [eks-p4de-odcr.yaml](./eks-p4de-odcr.yaml) - a cluster with two p4de.24xlarge instances from an existing ODCR, that will be created in a new VPC. This cluster configuration is useful for distributed training when no VPC is already available. Note that you would have to match the AZ of your ODCR in the nodegroup section of the manifest. 
-
+* [eks-g4dn-vpc.yaml](./eks-g4dn-vpc.yaml) - a cluster using an existing VPC with a nodegroup of two g4dn.8xlarge instances. This instance type supports Elastic Fabric Adapter (EFA) and is a good starting point when developing distributed training architectures. To use this manifest, edit the vpc id and subnets, and specify the desired private subnet for the nodes.
+* [eks-g4dn.yaml](./eks-g4dn.yaml) - a cluster with a nodegroup of two g4dn.8xlarge instances, created in a new VPC. This example shows that when a VPC is not specified, one is created for the cluster. The manifest can work without any modifications, however if you wish to change the cluster name, API version, region, instance type, avilability zones, etc. you can modify the file before using it to create the cluster. 
+* [eks-p4de-odcr-vpc.yaml](./eks-p4de-odcr-vpc.yaml) - a cluster using an existing VPC with a nodegroup of two p4de.24xlarge instances from an existing on-demand capacity reservation (ODCR). This is the most common configuration for distributed training workloads. Edit the file to specify vpc id, subnets, and capacityReservationID. Please note that the subnet of the nodeGroup should match the one of the capacity reservation. 
+* [eks-p4de-odcr.yaml](./eks-p4de-odcr.yaml) - a cluster with a nodegroup of two p4de.24xlarge instances from an existing ODCR. A new VPC will be created for this cluster. This configuration is useful for distributed training when no VPC is already available. Note that you would have to match the AZ of your ODCR in the nodegroup section of the manifest. Nodegroups in this and previous examples are fully-managed and can be accessed via the EKS console. If you are using an instance type that is not yet supported in managed nodegroups by EKS, you can define a nodegroup in a self-manged nodegroup section as shown at the end of this example. 
 
 ## Cluster creation
 
@@ -65,7 +64,7 @@ You should see a list of three nodes. One would be a system node instance of typ
 
 ## Cleanup
 
-When it is time to decommission your cluster, execute the following command:
+To remove your cluster, execute the following command:
 
 ```
 $ kubectl delete cluster -f ./cluster.yaml
@@ -87,4 +86,4 @@ Related resources for further reading can be found at the links below:
 * [eksctl](https://eksctl.io)
 * [kubectl](https://kubernetes.io/docs/reference/kubectl)
 * [do-framework](https://bit.ly/do-framework)
-
+* [aws-do-eks](https://bit.ly/do-eks)
