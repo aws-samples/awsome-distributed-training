@@ -16,8 +16,10 @@ Assuming that GNU Make, Packer and Ansible installed, you can build AMIs by typi
 Here is an example to build a AMI for training or inference on GPU with AWS ParallelCluster:
 
 ```bash
-AWS_REGION=us-west-2 make ami_pcluster_gpu
+make ami_pcluster_gpu
 ```
+
+> **Note**: If you encounter an error because Packer could not find the source AMI with the error `InvalidAMIID.NotFound` then prepend by `AWS_REGION` with the target region. For example, `AWS_REGION=us-east-2 make ami_pcluster_gpu`.
 
 The list of arguments you can use is shown in the table below with the AMI origin (what are we starting our custom AMI from) and notes regarding their content.
 
