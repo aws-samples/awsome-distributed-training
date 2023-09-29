@@ -269,7 +269,7 @@ build {
 
   provisioner "ansible" {
     user                = "ec2-user"
-    ansible_env_vars    = ["ANSIBLE_SCP_EXTRA_ARGS='-O'"]
+    # ansible_env_vars    = ["ANSIBLE_SCP_EXTRA_ARGS='-O'"]
     playbook_file       = "playbook-dlami-gpu.yml"
     inventory_directory = "${var.inventory_directory}"
   }
