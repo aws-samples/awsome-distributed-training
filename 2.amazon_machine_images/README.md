@@ -16,7 +16,7 @@ Assuming that GNU Make, Packer and Ansible installed, you can build AMIs by typi
 Here is an example to build a AMI for training or inference on GPU with AWS ParallelCluster:
 
 ```bash
-make ami_pcluster_gpu
+AWS_REGION=us-west-2 make ami_pcluster_gpu
 ```
 
 The list of arguments you can use is shown in the table below with the AMI origin (what are we starting our custom AMI from) and notes regarding their content.
@@ -27,7 +27,7 @@ The list of arguments you can use is shown in the table below with the AMI origi
 | `ami_pcluster_gpu` | [ParallelCluster AMI](https://docs.aws.amazon.com/parallelcluster/latest/ug/pcluster.list-official-images-v3.html) | Creates a custom ParallelCluter AMI for GPU based workloads, training or inference |
 | `ami_base`         | [EC2 AL2 AMI](https://aws.amazon.com/amazon-linux-2/) | EC2 AMI with updates, Docker, Lustre, EFA, Pyxis and Enroot (everything)                        |
 | `ami_dlami_gpu`    | [DLAMI](https://docs.aws.amazon.com/dlami/latest/devguide/appendix-ami-release-notes.html) | DL AMI with updated drivers, Pyxis, enroot, Lustre module client and Docker.       |
-| `ami_dlami_neuron` | [DLAMI](https://docs.aws.amazon.com/dlami/latest/devguide/appendix-ami-release-notes.html) | DL AMI for Neuron, same as above without the Nvidia stack                          |
+| `ami_dlami_neuron` | [DLAMI-Neuron](https://docs.aws.amazon.com/dlami/latest/devguide/appendix-ami-release-notes.html) | DL AMI for Neuron, same as above without the Nvidia stack                          |
 | `ami_eks_gpu`      | [EKS AMI](https://docs.aws.amazon.com/eks/latest/userguide/eks-optimized-ami.html#gpu-ami) | EKS GPU AMI with Lustre, EFA                                                       |
 | `ami`              |AMI dependent| Build all the images                                                               |
 
