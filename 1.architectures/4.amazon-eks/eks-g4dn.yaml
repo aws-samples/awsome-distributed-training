@@ -1,16 +1,21 @@
 apiVersion: eksctl.io/v1alpha5
 kind: ClusterConfig
 
+# Update cluster name, region, and eks version if needed
 metadata:
-  name: eks-g4dn-vpc
+  name: eks-g4dn
   version: "1.27"
   region: us-east-1
 
+# List availability zones where cluster subnets will be created
 availabilityZones:
   - us-east-1a
   - us-east-1c
 
+# Fully-managed nodegroups
 managedNodeGroups:
+
+  # Nodegroup for system pods
   - name: sys
     instanceType: c5.2xlarge
     desiredCapacity: 1
@@ -18,9 +23,12 @@ managedNodeGroups:
       withAddonPolicies:
         autoScaler: true
         cloudWatch: true
-  - name g4dn
-    instanceType: g4dn.metal
-    instancePrefix: g4dn-vpc
+
+  # GPU nodegroup
+  # List availability zones where instances in from this nodegroup will be launched
+  - name: g4dn
+    instanceType: g4dn.8xlarge
+    instancePrefix: g4dn
     privateNetworking: true
     efaEnabled: true
     minSize: 0
