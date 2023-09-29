@@ -63,7 +63,7 @@ You should see a list of three nodes. One would be a system node instance of typ
 To remove your cluster, execute the following command:
 
 ```
-$ kubectl delete cluster -f ./cluster.yaml
+kubectl delete cluster -f ./cluster.yaml
 ```
 
 Example output:
