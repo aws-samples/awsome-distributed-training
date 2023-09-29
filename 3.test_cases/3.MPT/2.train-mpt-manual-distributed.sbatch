@@ -48,6 +48,10 @@ NNODES=$SLURM_JOB_NUM_NODES
 NPROC=$SLURM_GPUS_PER_NODE
 WORLD_SIZE=$(( $NNODES * $NPROC ))
 srun -l "${ARGS[@]}" python -c "import streaming; streaming.base.util.clean_stale_shared_memory()"
+
+# [20230929, mlkeita@] Launch composer on each node one-by-one. Unclear why, but
+# when I try torun composer with single command with appropriate worldsize and
+# etc. it fails to establish communication between nodes.
 function run_compose() {
     # if [ ${NODE_RANK} -eq 0 ]; then
     #     OPTION="nodelist"
