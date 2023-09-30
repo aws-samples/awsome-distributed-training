@@ -19,7 +19,7 @@ Here is an example to build a AMI for training or inference on GPU with AWS Para
 make ami_pcluster_gpu
 ```
 
-> **Note**: If you encounter an error because Packer could not find the source AMI with the error `InvalidAMIID.NotFound` then prepend by `AWS_REGION` with the target region. For example, `AWS_REGION=us-east-2 make ami_pcluster_gpu`.
+> **Note**: If you encounter an error because Packer could not find the source AMI with the error `InvalidAMIID.NotFound` then prepend by `AWS_REGION` with the target region. For example, `AWS_REGION=us-east-2 make ami_pcluster_gpu`. By default the script use `us-west-2`.
 
 The list of arguments you can use is shown in the table below with the AMI origin (what are we starting our custom AMI from) and notes regarding their content.
 
@@ -27,6 +27,7 @@ The list of arguments you can use is shown in the table below with the AMI origi
 |--------------------|------------|------------------------------------------------------------------------------------|
 | `ami_pcluster_cpu` | [ParallelCluster AMI](https://docs.aws.amazon.com/parallelcluster/latest/ug/pcluster.list-official-images-v3.html) | Creates a custom ParallelCluter AMI for CPU based workloads                        |
 | `ami_pcluster_gpu` | [ParallelCluster AMI](https://docs.aws.amazon.com/parallelcluster/latest/ug/pcluster.list-official-images-v3.html) | Creates a custom ParallelCluter AMI for GPU based workloads, training or inference |
+| `ami_pcluster_neuron` | [ParallelCluster AMI](https://docs.aws.amazon.com/parallelcluster/latest/ug/pcluster.list-official-images-v3.html) | Creates a custom ParallelCluter AMI for [Neuron](https://awsdocs-neuron.readthedocs-hosted.com/en/latest/) (Trn, Inf) based workloads, training or inference |
 | `ami_base`         | [EC2 AL2 AMI](https://aws.amazon.com/amazon-linux-2/) | EC2 AMI with updates, Docker, Lustre, EFA, Pyxis and Enroot (everything)                        |
 | `ami_dlami_gpu`    | [DLAMI](https://docs.aws.amazon.com/dlami/latest/devguide/appendix-ami-release-notes.html) | DL AMI with updated drivers, Pyxis, enroot, Lustre module client and Docker.       |
 | `ami_dlami_neuron` | [DLAMI-Neuron](https://docs.aws.amazon.com/dlami/latest/devguide/appendix-ami-release-notes.html) | DL AMI for Neuron, same as above without the Nvidia stack                          |
@@ -44,19 +45,19 @@ You will find below the list of images you can build and which roles are deploye
 
 | Ansible Roles         | `ami_pcluster_cpu` | `ami_pcluster_gpu`| `ami_base` | `ami_dlami_gpu` | `ami_dlami_neuron` | `ami_eks_gpu` |
 |-----------------------|--------------------|-------------------|------------|-----------------|--------------------|---------------|
-| `base`                |         ✅         |         ✅       |    ✅      |      ✅         |       ✅          |      ❌       |
-| `packages`            |         ✅         |         ✅       |    ✅      |      ✅         |       ✅          |      ✅       |
-| `aws_cliv2`           |         ✅         |         ✅       |    ✅      |      ✅         |       ✅          |      ✅       |
-| `aws_lustre`          |         ✅         |         ✅       |    ✅      |      ✅         |       ✅          |      ✅       |
-| `nvidia_enroot_pyxis` |         ✅         |         ✅       |    ✅      |      ✅         |       ✅          |      ❌       |
-| `docker`              |         ✅         |         ✅       |    ✅      |      ✅         |       ❌          |      ❌       |
-| `nvidia_docker`       |         ❌         |         ✅       |    ✅      |      ✅         |       ✅          |      ❌       |
-| `nvidia_driver`       |         ❌         |         ✅       |    ✅      |      ❌         |       ❌          |      ✅       |
-| `nvidia_cuda`         |         ❌         |         ✅       |    ✅      |      ❌         |       ❌          |      ❌       |
-| `nvidia_gdrcopy`      |         ❌         |         ✅       |    ✅      |      ❌         |       ❌          |      ❌       |
-| `nvidia_nccl`         |         ❌         |         ✅       |    ✅      |      ❌         |       ❌          |      ❌       |
-| `aws_efa`             |         ❌         |         ✅       |    ✅      |      ❌         |       ❌          |      ❌       |
-| `aws_efa_ofi`         |         ❌         |         ✅       |    ✅      |      ❌         |       ❌          |      ❌       |
+| `base`                |         ✅         |         ✅        |     ✅     |       ✅        |        ✅         |      ❌       |
+| `packages`            |         ✅         |         ✅        |     ✅     |       ✅        |        ✅         |      ✅       |
+| `aws_cliv2`           |         ✅         |         ✅        |     ✅     |       ✅        |        ✅         |      ✅       |
+| `aws_lustre`          |         ✅         |         ✅        |     ✅     |       ✅        |        ✅         |      ✅       |
+| `nvidia_enroot_pyxis` |         ✅         |         ✅        |     ✅     |       ✅        |        ✅         |      ❌       |
+| `docker`              |         ✅         |         ✅        |     ✅     |       ✅        |        ❌         |      ❌       |
+| `nvidia_docker`       |         ❌         |         ✅        |     ✅     |       ✅        |        ✅         |      ❌       |
+| `nvidia_driver`       |         ❌         |         ✅        |     ✅     |       ❌        |        ❌         |      ✅       |
+| `nvidia_cuda`         |         ❌         |         ✅        |     ✅     |       ❌        |        ❌         |      ❌       |
+| `nvidia_gdrcopy`      |         ❌         |         ✅        |     ✅     |       ❌        |        ❌         |      ❌       |
+| `nvidia_nccl`         |         ❌         |         ✅        |     ✅     |       ❌        |        ❌         |      ❌       |
+| `aws_efa`             |         ❌         |         ✅        |     ✅     |       ❌        |        ❌         |      ❌       |
+| `aws_efa_ofi`         |         ❌         |         ✅        |     ✅     |       ❌        |        ❌         |      ❌       |
 
 
 ## Customizing your AMIs

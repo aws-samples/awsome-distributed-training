@@ -252,6 +252,18 @@ build {
 }
 
 build {
+  name    = "aws-pcluster-neuron"
+  sources = ["source.amazon-ebs.aws-pcluster-ami"]
+
+  provisioner "ansible" {
+    user                = "ec2-user"
+    ansible_env_vars    = ["ANSIBLE_SCP_EXTRA_ARGS='-O'"]
+    playbook_file       = "playbook-pcluster-neuron.yml"
+    inventory_directory = "${var.inventory_directory}"
+  }
+}
+
+build {
   name    = "aws-eks-gpu"
   sources = ["source.amazon-ebs.aws-eks-ami"]
 

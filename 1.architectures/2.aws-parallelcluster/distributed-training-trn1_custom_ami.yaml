@@ -1,6 +1,8 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
+# For additional examples please refer to this [Github repository](https://github.com/aws-neuron/aws-neuron-parallelcluster-samples/blob/master/examples/jobs/neuronx-nemo-megatron-llamav2-job.md) from aws-neuron.
+
 Imds:
   ImdsSupport: v2.0
 Image:
@@ -31,8 +33,6 @@ Scheduling:
       Networking:
         SubnetIds:
           - PLACEHOLDER_PRIVATE_SUBNET
-        PlacementGroup:
-          Enabled: true
       ComputeSettings:
         LocalStorage:
           EphemeralVolume:
@@ -43,16 +43,21 @@ Scheduling:
       # with a targeted ODCRs. You can also use a capacity resource group and
       # CapacityReservationResourceGroupArn if you want to regroup
       # multiple reservations
-      CapacityReservationTarget:
-        CapacityReservationId: PLACEHOLDER_CAPACITY_RESERVATION_ID
       ComputeResources:
         - Name: distributed-ml
           InstanceType: trn1.32xlarge
-          MinCount: 4 # if min = max then capacity is maintained and will
-          MaxCount: 4 # not scale down
+          MinCount: PLACEHOLDER_MIN_INSTANCES # if min = max then capacity is maintained and will
+          MaxCount: PLACEHOLDER_MAX_INSTANCES # not scale down
           Efa:
             Enabled: true
-      JobExclusiveAllocation: true   # GenAI training likes to gobble all accelerators in an instance
+          # assumes you are using a capacity reservation.
+          # If not comment or remove the 2 lines below
+          CapacityReservationTarget:
+            CapacityReservationId: PLACEHOLDER_CAPACITY_RESERVATION_ID
+          Networking:
+            PlacementGroup:
+              Enabled: true
+              Id: PLACEHOLDER_PLACEMENT_GROUP
 SharedStorage:
   - MountDir: /fsx
     Name: fsx
