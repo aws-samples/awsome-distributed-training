@@ -1,6 +1,8 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
+# For additional examples please refer to this [Github repository](https://github.com/aws-neuron/aws-neuron-parallelcluster-samples/blob/master/examples/jobs/neuronx-nemo-megatron-llamav2-job.md) from aws-neuron.
+
 Imds:
   ImdsSupport: v2.0
 Image:
@@ -44,10 +46,12 @@ Scheduling:
       ComputeResources:
         - Name: distributed-ml
           InstanceType: trn1.32xlarge
-          MinCount: PLACEHOLDER_NUM_INSTANCES # if min = max then capacity is maintained and will
-          MaxCount: PLACEHOLDER_NUM_INSTANCES # not scale down
+          MinCount: PLACEHOLDER_MIN_INSTANCES # if min = max then capacity is maintained and will
+          MaxCount: PLACEHOLDER_MAX_INSTANCES # not scale down
           Efa:
             Enabled: true
+          # assumes you are using a capacity reservation.
+          # If not comment or remove the 2 lines below
           CapacityReservationTarget:
             CapacityReservationId: PLACEHOLDER_CAPACITY_RESERVATION_ID
           Networking:
