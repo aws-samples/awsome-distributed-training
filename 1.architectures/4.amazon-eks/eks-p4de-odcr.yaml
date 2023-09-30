@@ -1,0 +1,54 @@
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+# Update cluster name, region, and eks version if needed
+metadata:
+  name: eks-p4de-odcr
+  version: "1.28"
+  region: PLACEHOLDER_AWS_REGION
+
+# List availability zones where cluster subnets will be created
+availabilityZones:
+  - PLACEHOLDER_AZ_1
+  - PLACEHOLDER_AZ_2
+
+# Fully-managed nodegroups
+managedNodeGroups:
+
+  # Nodegroup for system pods
+  - name: sys
+    instanceType: c5.2xlarge
+    desiredCapacity: 1
+    iam:
+      withAddonPolicies:
+        autoScaler: true
+        cloudWatch: true
+ 
+  # GPU nodegroup
+  # Update capacityReservationID below
+  # Specify the availability zone matching the capacity reservation
+  - name: p4de-odcr
+    instanceType: p4de.24xlarge
+    instancePrefix: p4de-odcr
+    privateNetworking: true
+    efaEnabled: true
+    minSize: 0
+    desiredCapacity: 2
+    maxSize: 10
+    volumeSize: 500
+    availabilityZones: ["PLACEHOLDER_AZ_2"]
+    capacityReservation:
+      capacityReservationTarget:
+        capacityReservationID: "PLACEHOLDER_CAPACITY_RESERVATION_ID"
+    iam:
+      withAddonPolicies:
+        autoScaler: true
+        cloudWatch: true
+        ebs: true
+        fsx: true
+
+# Self-managed nodegroups 
+#nodeGroups: 
+
+iam:
+  withOIDC: true
