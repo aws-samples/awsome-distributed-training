@@ -2,17 +2,19 @@
 #SBATCH --nodes=2 # number of nodes to use, 24 p4d(e) = 192 A100 GPUs
 #SBATCH --ntasks=2
 #SBATCH --job-name=train-mpt # name of your job
-#SBATCH --output=logs/%x_%j.out
-#SBATCH --error=logs/%x_%j.err
+#SBATCH --output=logs/%x_%j.out # logfile for stdout
+#SBATCH --error=logs/%x_%j.err # logfile for stderr, remove it to merge both outputs
 #SBATCH --ntasks-per-node 1 # Number of GPU per node
 #SBATCH --gpus-per-node=8 # Number of GPU per node
 #SBATCH --gpus-per-task=8 # Number of GPU per node
 #SBATCH --gres=gpu:8 # number of GPU we reserve
 #SBATCH --exclusive
-#SBATCH --wait-all-nodes=1
+
 set -euxo pipefail
 
+# use MTP 7B by default
 MODEL=${1:-mpt-7b}
+
 # default variables for Enroot
 : "${APPS_PATH:=/apps}"
 : "${IMAGE:=$APPS_PATH/llm-foundry.sqsh}"
@@ -20,7 +22,7 @@ MODEL=${1:-mpt-7b}
 : "${FSX_MOUNT:=$DATA_PATH:$DATA_PATH}"
 : "${APPS_MOUNT:=$APPS_PATH:$APPS_PATH}"
 
-## Plenty of EFA level variables
+## EFA settings
 export FI_EFA_USE_DEVICE_RDMA=1 # use for p4d
 export FI_EFA_FORK_SAFE=1
 # export NCCL_ALGO=Ring
@@ -33,7 +35,7 @@ export FI_EFA_ENABLE_SHM_TRANSFER=1
 export NCCL_ASYNC_ERROR_HANDLING=1
 export NCCL_DEBUG=INFO
 
-
+# variables for Enroot
 declare -a ARGS=(
     --container-image $IMAGE
     --container-mounts ${FSX_MOUNT},${APPS_MOUNT}
@@ -73,6 +75,8 @@ function run_compose() {
         eval_interval=0 \
         save_folder=${MODEL}
 }
+
+# run the composer
 NODE_RANK=1
 for (( NODE_RANK=1; NODE_RANK<${NNODES}; NODE_RANK++ ))
 do
@@ -82,6 +86,6 @@ do
 done
 NODE_RANK=0
 NODE=${HEAD_NODE}
-echo "Run master node ${NODE} for rank: ${NODE_RANK}"
+echo "Run main node ${NODE} for rank: ${NODE_RANK}"
 run_compose
 wait
