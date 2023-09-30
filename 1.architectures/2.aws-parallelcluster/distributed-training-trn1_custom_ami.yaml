@@ -31,8 +31,6 @@ Scheduling:
       Networking:
         SubnetIds:
           - PLACEHOLDER_PRIVATE_SUBNET
-        PlacementGroup:
-          Enabled: true
       ComputeSettings:
         LocalStorage:
           EphemeralVolume:
@@ -43,16 +41,19 @@ Scheduling:
       # with a targeted ODCRs. You can also use a capacity resource group and
       # CapacityReservationResourceGroupArn if you want to regroup
       # multiple reservations
-      CapacityReservationTarget:
-        CapacityReservationId: PLACEHOLDER_CAPACITY_RESERVATION_ID
       ComputeResources:
         - Name: distributed-ml
           InstanceType: trn1.32xlarge
-          MinCount: 4 # if min = max then capacity is maintained and will
-          MaxCount: 4 # not scale down
+          MinCount: PLACEHOLDER_NUM_INSTANCES # if min = max then capacity is maintained and will
+          MaxCount: PLACEHOLDER_NUM_INSTANCES # not scale down
           Efa:
             Enabled: true
-      JobExclusiveAllocation: true   # GenAI training likes to gobble all accelerators in an instance
+          CapacityReservationTarget:
+            CapacityReservationId: PLACEHOLDER_CAPACITY_RESERVATION_ID
+          Networking:
+            PlacementGroup:
+              Enabled: true
+              Id: PLACEHOLDER_PLACEMENT_GROUP
 SharedStorage:
   - MountDir: /fsx
     Name: fsx
