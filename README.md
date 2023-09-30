@@ -43,7 +43,7 @@ All test cases are under `3.test_cases/`. You can go in each test case directory
 | `2.nemo-launcher`   | ✅    | ❌  | ❌         |
 | `3.MPT`             | ✅    | ❓  | ❓         |
 | `4.DDP`             | ✅    | ❓  | ❓         |
-| `4.param-benchmark` | ✅    | ❓  | ❓         |
+| `5.param-benchmark` | ✅    | ❓  | ❓         |
 
 
 ## 4. Validation scripts
