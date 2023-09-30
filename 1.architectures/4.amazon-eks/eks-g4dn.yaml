@@ -1,0 +1,47 @@
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+# Update cluster name, region, and eks version if needed
+metadata:
+  name: eks-g4dn
+  version: "1.28"
+  region: PLACEHOLDER_AWS_REGION
+
+# List availability zones where cluster subnets will be created
+availabilityZones:
+  - PLACEHOLDER_AZ_1
+  - PLACEHOLDER_AZ_2
+
+# Fully-managed nodegroups
+managedNodeGroups:
+
+  # Nodegroup for system pods
+  - name: sys
+    instanceType: c5.2xlarge
+    desiredCapacity: 1
+    iam:
+      withAddonPolicies:
+        autoScaler: true
+        cloudWatch: true
+
+  # GPU nodegroup
+  # List availability zones where instances in from this nodegroup will be launched
+  - name: g4dn
+    instanceType: g4dn.8xlarge
+    instancePrefix: g4dn
+    privateNetworking: true
+    efaEnabled: true
+    minSize: 0
+    desiredCapacity: 2
+    maxSize: 10
+    volumeSize: 500
+    availabilityZones: ["PLACEHOLDER_AZ_2"]
+    iam:
+      withAddonPolicies:
+        autoScaler: true
+        cloudWatch: true
+        ebs: true
+        fsx: true
+
+iam:
+  withOIDC: true
