@@ -44,19 +44,19 @@ You will find below the list of images you can build and which roles are deploye
 
 | Ansible Roles         | `ami_pcluster_cpu` | `ami_pcluster_gpu`| `ami_base` | `ami_dlami_gpu` | `ami_dlami_neuron` | `ami_eks_gpu` |
 |-----------------------|--------------------|-------------------|------------|-----------------|--------------------|---------------|
-| `base`                |         ✅         |         ✅       |    ✅      |      ✅         |       ✅          |      ❌       |
-| `packages`            |         ✅         |         ✅       |    ✅      |      ✅         |       ✅          |      ✅       |
-| `aws_cliv2`           |         ✅         |         ✅       |    ✅      |      ✅         |       ✅          |      ✅       |
-| `aws_lustre`          |         ✅         |         ✅       |    ✅      |      ✅         |       ✅          |      ✅       |
-| `nvidia_enroot_pyxis` |         ✅         |         ✅       |    ✅      |      ✅         |       ✅          |      ❌       |
-| `docker`              |         ✅         |         ✅       |    ✅      |      ✅         |       ❌          |      ❌       |
-| `nvidia_docker`       |         ❌         |         ✅       |    ✅      |      ✅         |       ✅          |      ❌       |
-| `nvidia_driver`       |         ❌         |         ✅       |    ✅      |      ❌         |       ❌          |      ✅       |
-| `nvidia_cuda`         |         ❌         |         ✅       |    ✅      |      ❌         |       ❌          |      ❌       |
-| `nvidia_gdrcopy`      |         ❌         |         ✅       |    ✅      |      ❌         |       ❌          |      ❌       |
-| `nvidia_nccl`         |         ❌         |         ✅       |    ✅      |      ❌         |       ❌          |      ❌       |
-| `aws_efa`             |         ❌         |         ✅       |    ✅      |      ❌         |       ❌          |      ❌       |
-| `aws_efa_ofi`         |         ❌         |         ✅       |    ✅      |      ❌         |       ❌          |      ❌       |
+| `base`                |         ✅         |         ✅        |     ✅     |       ✅        |        ✅         |      ❌       |
+| `packages`            |         ✅         |         ✅        |     ✅     |       ✅        |        ✅         |      ✅       |
+| `aws_cliv2`           |         ✅         |         ✅        |     ✅     |       ✅        |        ✅         |      ✅       |
+| `aws_lustre`          |         ✅         |         ✅        |     ✅     |       ✅        |        ✅         |      ✅       |
+| `nvidia_enroot_pyxis` |         ✅         |         ✅        |     ✅     |       ✅        |        ✅         |      ❌       |
+| `docker`              |         ✅         |         ✅        |     ✅     |       ✅        |        ❌         |      ❌       |
+| `nvidia_docker`       |         ❌         |         ✅        |     ✅     |       ✅        |        ✅         |      ❌       |
+| `nvidia_driver`       |         ❌         |         ✅        |     ✅     |       ❌        |        ❌         |      ✅       |
+| `nvidia_cuda`         |         ❌         |         ✅        |     ✅     |       ❌        |        ❌         |      ❌       |
+| `nvidia_gdrcopy`      |         ❌         |         ✅        |     ✅     |       ❌        |        ❌         |      ❌       |
+| `nvidia_nccl`         |         ❌         |         ✅        |     ✅     |       ❌        |        ❌         |      ❌       |
+| `aws_efa`             |         ❌         |         ✅        |     ✅     |       ❌        |        ❌         |      ❌       |
+| `aws_efa_ofi`         |         ❌         |         ✅        |     ✅     |       ❌        |        ❌         |      ❌       |
 
 
 ## Customizing your AMIs

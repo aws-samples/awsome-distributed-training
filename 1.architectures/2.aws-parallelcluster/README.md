@@ -95,6 +95,13 @@ The templates contain placeholder variables that you need to replace before use.
 - `PLACEHOLDER_SSH_KEY`: ID of the SSH key you'd like to use to connect to the head-node, use the name of the key. You can also use AWS Systems Manager Session Manager (SSM).
 - `PLACEHOLDER_CAPACITY_RESERVATION_ID`: if using a capacity reservation put the ID here (`cr-12356790abcd`).
 
+In some of the templates you may need to update these placeholders:
+
+- `PLACEHOLDER_MIN_INSTANCES`: the minimum number of instances you want in your cluster at any point in time.
+- `PLACEHOLDER_MAX_INSTANCES`: the maximum number of instances you anticipate to scale to.
+
+If `MIN` = `MAX` then you keep a fixed amount of instances at any point in time. If `MIN` < `MAX` then the cluster will keep a `MIN` number of instances and scale up to `MAX` if capacity beyond `MIN` is required to run jobs. Update this values by updating your cluster ([documentation](https://docs.aws.amazon.com/parallelcluster/latest/ug/using-pcluster-update-cluster-v3.html))
+
 ## AWS ParallelCluster must know
 
 ### Compute
