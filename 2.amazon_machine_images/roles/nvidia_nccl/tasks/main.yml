@@ -14,7 +14,7 @@
   ansible.builtin.git:
     repo: https://github.com/{{ nccl_repo }}/nccl.git
     dest: /opt/nccl
-    version: '{{ nccl_tag }}'
+    version: "{{ nccl_tag }}"
 
 - name: Build NCCL
   ansible.builtin.shell: |
@@ -29,6 +29,21 @@
     block: |
       export LD_LIBRARY_PATH=/opt/nccl/build/lib:$LD_LIBRARY_PATH
       export NCCL_PROTO=simple
+
+- name: Adding the NCCL preload profile file
+  ansible.builtin.blockinfile:
+    path: /etc/profile.d/nccl.sh
+    create: yes
+    block: |
+      export FI_PROVIDER=efa
+      export NCCL_PROTO=simple
+
+- name: Adding the NCCL preload profile file
+  ansible.builtin.blockinfile:
+    path: /etc/profile.d/nccl.sh
+    create: yes
+    block: |
+      export LD_PRELOAD=/opt/nccl/build/lib/libnccl.so:/opt/aws-ofi-nccl/lib/libnccl-net.so
 
 - name: Clone Nvidia NCCL tests git repository
   when: install_nccl_tests
