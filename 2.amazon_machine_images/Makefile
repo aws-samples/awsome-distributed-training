@@ -1,6 +1,6 @@
 IMAGE=registry.gitlab.aws.dev/smml/benchmarking/tools/preflight
 DEPLOY_IMAGE=deploy
-AWS_REGION=us-west-2
+: "${AWS_REGION:=us-east-1}"
 container_build:
 	docker build -t ${IMAGE} ./preflight
 container_run:
@@ -12,6 +12,8 @@ ami_pcluster_cpu:
 	packer build -only 'aws-pcluster-cpu.*' -var aws_region=${AWS_REGION} -var "ami_version=1" packer-ami.pkr.hcl | tee aws-pcluster-cpu_ami.log
 ami_pcluster_gpu:
 	packer build -only 'aws-pcluster-gpu.*' -var aws_region=${AWS_REGION} -var "ami_version=1" packer-ami.pkr.hcl | tee aws-pcluster-gpu_ami.log
+ami_pcluster_neuron:
+	packer build -only 'aws-pcluster-neuron.*' -var aws_region=${AWS_REGION} -var "ami_version=1" packer-ami.pkr.hcl | tee aws-pcluster-gpu_ami.log
 ami_base:
 	packer build -only 'aws-base-gpu.*' -var aws_region=${AWS_REGION} -var "ami_version=1" packer-ami.pkr.hcl | tee base-gpu_ami.log
 ami_dlami_gpu:
