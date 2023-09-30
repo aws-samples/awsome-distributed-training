@@ -9,6 +9,7 @@ reference-architectures/
 |-- 1.architectures                # CloudFormation templates for reference arch
 |-- 2.amazon_machine_images/       # Scripts to create AMIs
 |-- 3.test_cases/                  # Reference test cases and/or benchmark scripts
+|-- 3.validation_scripts/          # Tools to measure performance or troubleshoot
 `-- ...
 ```
 
@@ -24,6 +25,7 @@ Architectures are located in `1.architectures` and consists of utilities and ser
 | `1.vpc_network`         | Network  | Create a VPC with subnets required resources        |
 | `2.aws-parallelcluster` | Compute  | Cluster templates for GPU & custom silicon training |
 | `3.aws-batch`           | Compute  | AWS Batch template for distributed training         |
+| `4.amazon-eks`          | Compute  | Manifest files to train with Amazon EKS         |
 
 More will come, feel free to add new ones (EKS, Ray?)
 
@@ -35,12 +37,13 @@ Custom machine images can be built using [Packer](www.packer.io) for AWS Paralle
 
 All test cases are under `3.test_cases/`. You can go in each test case directory to learn how to run it.
 
-| Test cases        | Slurm | EKS | AWS Batch  |
-| ----------------- | ----- | --- | ---------- |
-| `1.megatron-lm`   | ✅    | ❓  | ❓         |
-| `2.nemo-launcher` | ✅    | ❌  | ❌         |
-| `3.MPT`           | ❓    | ❓  | ❓         |
-| `4.DDP`           | ❓    | ❓  | ❓         |
+| Test cases          | Slurm | EKS | AWS Batch  |
+| ------------------- | ----- | --- | ---------- |
+| `1.megatron-lm`     | ✅    | ❓  | ❓         |
+| `2.nemo-launcher`   | ✅    | ❌  | ❌         |
+| `3.MPT`             | ✅    | ❓  | ❓         |
+| `4.DDP`             | ✅    | ❓  | ❓         |
+| `4.param-benchmark` | ✅    | ❓  | ❓         |
 
 
 ## 4. Validation scripts
@@ -59,3 +62,5 @@ Thanks to all the contributors for building, reviewing and testing.
 - Alex Iankoulski - iankouls@
 - Tom McDonald - tjm@
 - Sean Smith - seaam@
+- Jianying Lang - langjian@
+- Maxime Hugues - maxhaws@
