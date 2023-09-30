@@ -4,23 +4,23 @@ kind: ClusterConfig
 # Update cluster name, region, and eks version if needed
 metadata:
   name: eks-p4de-odcr-vpc
-  version: "1.27"
-  region: us-east-1
+  version: "1.28"
+  region: PLACEHOLDER_AWS_REGION
 
 # Substitute vpc and subnet ids below
 vpc:
-  id: vpc-xxxxxxxxxxxxxxxxx
+  id: PLACEHOLDER_VPC_ID
   subnets:
     public:
       public-one:
-        id: subnet-xxxxxxxxxxxxxxx11
+        id: PLACEHOLDER_SUBNET_PUBLIC_1
       public-two:
-        id: subnet-xxxxxxxxxxxxxxx12
+        id: PLACEHOLDER_SUBNET_PUBLIC_2
     private:
       private-one:
-        id: subnet-xxxxxxxxxxxxxxx21
+        id: PLACEHOLDER_SUBNET_PRIVATE_1
       private-two:
-        id: subnet-xxxxxxxxxxxxxxx22
+        id: PLACEHOLDER_SUBNET_PRIVATE_2
 
 # Fully-managed nodegroups
 managedNodeGroups:
@@ -47,10 +47,10 @@ managedNodeGroups:
     maxSize: 10
     volumeSize: 500
     subnets:
-    - subnet-xxxxxxxxxxxxxxx22
+    - PLACEHOLDER_SUBNET_PRIVATE_2
     capacityReservation:
       capacityReservationTarget:
-        capacityReservationID: "cr-xxxxxxxxxxxxxxxxx"
+        capacityReservationID: "PLACEHOLDER_CAPACITY_RESERVATION_ID"
     iam:
       withAddonPolicies:
         autoScaler: true
