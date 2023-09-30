@@ -4,13 +4,13 @@ kind: ClusterConfig
 # Update cluster name, region, and eks version if needed
 metadata:
   name: eks-p4de-odcr
-  version: "1.27"
-  region: us-east-1
+  version: "1.28"
+  region: PLACEHOLDER_AWS_REGION
 
 # List availability zones where cluster subnets will be created
 availabilityZones:
-  - us-east-1a
-  - us-east-1c
+  - PLACEHOLDER_AZ_1
+  - PLACEHOLDER_AZ_2
 
 # Fully-managed nodegroups
 managedNodeGroups:
@@ -36,10 +36,10 @@ managedNodeGroups:
     desiredCapacity: 2
     maxSize: 10
     volumeSize: 500
-    availabilityZones: ["us-east-1c"]
+    availabilityZones: ["PLACEHOLDER_AZ_2"]
     capacityReservation:
       capacityReservationTarget:
-        capacityReservationID: "cr-xxxxxxxxxxxxxxxxx"
+        capacityReservationID: "PLACEHOLDER_CAPACITY_RESERVATION_ID"
     iam:
       withAddonPolicies:
         autoScaler: true
