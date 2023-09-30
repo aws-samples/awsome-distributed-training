@@ -103,7 +103,7 @@ You need to retrieve input data and preprocess it before running the training jo
 
 3. After the job completed, check `/fsx/c4-dataset` (default) which will contain a structure similar as below
 
-    ```bash
+    ```console
     /fsx/c4-dataset/
     ├── train_small
     │   ├── index.json
@@ -136,7 +136,7 @@ by default it runs `mpt-7b` model. You can specify model to be trained as:
     sbatch 2.train-mpt-manual-distributed.sbatch mpt-30b
     ```
 
-2. When the training job completes successfully, it should produce an output similar to below.
+2. When the training job completes successfully, it should produce a log output similar to the below in the `logs/` directory of `$TEST_CASE_PATH`.
 
 ```console
 ...
