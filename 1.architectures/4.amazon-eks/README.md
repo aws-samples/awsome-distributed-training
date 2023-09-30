@@ -3,7 +3,7 @@
 
 This project provides several reference architectures to run distributed training on Amazon EKS for different use cases using `p4d.24xlarge` instances (you can replace them by `p5` or `trn1`. These examples use [eksctl](eksctl.io) and a cluster manifest to create your specified Amazon EKS cluster.
 
-## Prerequisites
+## 0. Prerequisites
 
 To deploy the architectures you must install the dependencies below. You are advised to go through the fist two steps of the [Getting started with Amazon EKS](https://docs.aws.amazon.com/eks/latest/userguide/getting-started.html) guide from the AWS Documentation.
 
@@ -11,7 +11,7 @@ To deploy the architectures you must install the dependencies below. You are adv
 2. [eksctl](https://eksctl.io) command line tool to manage EKS clusters.
 3. [kubectl](https://kubernetes.io/docs/tasks/tools/#kubectl) command line for Kubernetes.
 
-## Architecture
+## 1. Architecture
 
 The following digram shows a common architecture that can be used for distributed model training on EKS.
 
@@ -19,7 +19,7 @@ The following digram shows a common architecture that can be used for distribute
 
 The EKS cluster has two nodegroups. A `system` nodegroup is used to run pods like kube-dns, kubeflow training operator, etc. which provide internal cluster-scope services and can run on CPU. A worker nodegroup built with an accelerated instance type is used to run the distributed training workload. 
 
-## Cluster configuration
+## 2. Cluster configuration
 
 The cluster configuration is specified via a yaml manifest file. If a cluster version is not specified in the manifest, then the default EKS API version will be used. For our examples we set the version to 1.27. This setting may be adjusted before creating clusters as needed.
 The following example cluster configurations for distributed training are provided:
@@ -30,14 +30,27 @@ The following example cluster configurations for distributed training are provid
 * [**`eks-p4de-odcr.yaml`**](./eks-p4de-odcr.yaml): Cluster with 2 * `p4de.24xlarge` instances from an existing ODCR. A new VPC will be created for this cluster. This configuration is useful for distributed training when no VPC is already available. Note that you would have to match the AZ of your ODCR in the nodegroup section of the manifest. Nodegroups in this and previous examples are fully-managed and can be accessed via the EKS console. If you are using an instance type that is not yet supported in managed nodegroups by EKS, you can define a nodegroup in a self-manged nodegroup section as shown at the end of this example.
 
 
-## Cluster creation
+## 3. Cluster creation
 
-
-### Edit the cluster configuration
+### 3.1 Edit the cluster configuration
 
 To configure your desired cluster, edit the cluster manifest file that most closely matches your desired configuration or copy the file and customize it, following the [cluster manifest schema](https://eksctl.io/usage/schema/). Any of the values in the manifests can be changed and more node groups can be added to the same cluster. The minimal set of values to specify for each file are described above.
 
-### Create a cluster
+
+You will need to replace the following placeholders to deploy your clusters:
+
+- `PLACEHOLDER_AWS_REGION`: region in which to deploy the cluster, replace by `us-east-1` for example.
+- `PLACEHOLDER_AZ_1`: We use 2 AZs for the cluster, replace by `us-east-1a` for example.
+- `PLACEHOLDER_AZ_2`: This AZ is where your compute capacity is located, replace by `us-east-1c` for example if that's where your capacity is located.
+- `PLACEHOLDER_VPC_ID`: ID of the VPC in which you deploy the cluster, it should take the form `vpc-12356790abcd`.
+- `PLACEHOLDER_SUBNET_PUBLIC_1` and `PLACEHOLDER_SUBNET_PUBLIC_2`: change to the id of a public subnet  (`subnet-12356790abcd`).
+- `PLACEHOLDER_SUBNET_PUBLIC_2`: change to the id of a public subnet to host the compute nodes (`subnet-12356790abcd`).
+- `PLACEHOLDER_SUBNET_PRIVATE_1`: change to the id of a public subnet to host the compute nodes (`subnet-12356790abcd`).
+- `PLACEHOLDER_SUBNET_PRIVATE_2`: change to the id of a public subnet to host the compute nodes (`subnet-12356790abcd`). This subnet holds your compute capacity, ensure it is in the right AZ.
+- `PLACEHOLDER_CAPACITY_RESERVATION_ID`: if using a capacity reservation put the ID here (`cr-12356790abcd`).
+
+
+### 3.2 Create a cluster
 
 1. Let's assume that your desired cluster configuration is stored in file `cluster.yaml`. Then to create the cluster, execute the following command:
     ```bash
@@ -58,7 +71,7 @@ To configure your desired cluster, edit the cluster manifest file that most clos
 
 You should see a list of three nodes. One would be a system node instance of type c5.2xlarge, and the others will belong to the nodegroup of instances with your desired instance type for distributed training.
 
-## Cleanup
+### 3.3 Cleanup
 
 To remove your cluster, execute the following command:
 
@@ -73,7 +86,7 @@ YYYY-MM-DD HH:mm:SS [ℹ] deleting EKS cluster "<cluster_name>"
 YYYY-MM-DD HH:mm:SS [ℹ] waiting for CloudFormation stack "<stack_name>"
 ```
 
-## References
+## 4. References
 
 For further information regarding EKS cluster infrastructure see the [aws-do-eks](https://github.com/aws-samples/aws-do-eks) project. More cluster configurations are available [here](https://github.com/aws-samples/aws-do-eks/tree/main/wd/conf/eksctl/yaml). 
 
