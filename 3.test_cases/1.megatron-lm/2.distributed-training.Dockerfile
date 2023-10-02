@@ -1,11 +1,12 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-FROM nvcr.io/nvidia/pytorch:23.05-py3
+FROM nvcr.io/nvidia/pytorch:23.08-py3
 
 ARG EFA_INSTALLER_VERSION=latest
-ARG AWS_OFI_NCCL_VERSION=v1.6.0
+ARG AWS_OFI_NCCL_VERSION=v1.7.2-aws
 ARG NCCL_TESTS_VERSION=master
+ARG NCCL_VERSION=v2.18.5-1
 ARG OPEN_MPI_PATH=/opt/amazon/openmpi
 
 ######################
@@ -71,7 +72,7 @@ RUN cd $HOME \
 ## Install NCCL
 RUN git clone https://github.com/NVIDIA/nccl /opt/nccl \
     && cd /opt/nccl \
-    && git checkout v2.15.5-1 \
+    && git checkout ${NCCL_VERSION}}  \
     && make -j$(nproc) src.build CUDA_HOME=/usr/local/cuda \
     NVCC_GENCODE="-gencode=arch=compute_86,code=sm_86 -gencode=arch=compute_80,code=sm_80 -gencode=arch=compute_75,code=sm_75 -gencode=arch=compute_70,code=sm_70 -gencode=arch=compute_60,code=sm_60"
 
