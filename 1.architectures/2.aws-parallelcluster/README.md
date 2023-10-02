@@ -29,7 +29,7 @@ pip3 install awscli # install the AWS CLI
 pip3 install aws-parallelcluster # then AWS ParallelCluster
 ```
 
-> **Note**: you can use virtual environments to test different versions of AWS ParallelCluster by setting the version during the installation. For example to use 3.6.1, change the command `pip3 install aws-parallelcluster==3.6.1`.
+> **Note**: you can use virtual environments to test different versions of AWS ParallelCluster by setting the version during the installation. For example to use 3.7.1, change the command `pip3 install aws-parallelcluster==3.7.1`.
 
 
 ### Create your EC2 Keypair (if needed)
@@ -121,16 +121,52 @@ Storage comes in 3 flavors:
 - **High performance filesystem**: An [FSx for Lustre](https://docs.aws.amazon.com/fsx/latest/LustreGuide/what-is.html) filesystem can be access from every cluster node on `/fsx`. This is where users would store their datasets. This file system has been sized to 4.8TiB and provides 1.2GB/s of aggregated throughput. You can modify its size and the throughput per TB provisioned in the config file following the service [documentation](https://docs.aws.amazon.com/fsx/latest/LustreGuide/performance.html).
 
 
-#### Network
+#### Network {#efa}
 
-Applications will make use of [Elastic Fabric Adapter (EFA)](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa.html) for distributed training. In addition, instances will be placed to one another through the use of placement groups or assistance from AWS.
+Applications will make use of [Elastic Fabric Adapter (EFA)](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa.html) for enhanced networking during distributed training. To achieve optimal network latency instances should be placed in a placement groups using either the `PlacementGroup` flag or by specifying a targeted [On-Demand Capacity reservation (ODCR)](#odcr).
 
-Placement groups are only relevant for distributed training, not inference. You may remove the placement groups declaration in the config file if requested. In which case you will need to delete these lines
+When using a targeted ODCR you'll want to disable placement groups in your ODCR. The placement group option creates a specific placement group that may conflict with the placement group assigned in your ODCR leading to instance launch failures.
+
+Placement groups are only relevant for distributed training, not inference.
+
+In both cases just set the following parameter to `false`:
 
 ```yaml
 PlacementGroup:
-  Enabled: true
+  Enabled: false
 ```
+
+#### On-Demand Capacity Reservation (ODCR) {#odrc}
+
+On-Demand Capacity Reservation (ODCR) is a tool for reserving capacity without having to launch and run the instances. For capacity constrained instances like the `p4de.24xlarge`, this is typically **the only way** to launch these instances.
+
+1. AWS ParallelCluster supports specifying the [CapacityReservationId](https://docs.aws.amazon.com/parallelcluster/latest/ug/Scheduling-v3.html#yaml-Scheduling-SlurmQueues-CapacityReservationTarget) in the cluster's config file. If using a capacity reservation put the ID i.e. `cr-12356790abcd` in your config file by substituting the variable `PLACEHOLDER_CAPACITY_RESERVATION_ID`. It should look like the following:
+
+    ```yaml
+    CapacityReservationTarget:
+        CapacityReservationId: cr-12356790abcd
+    ```
+
+If you have multiple ODCR's you can group them together into a [*Capacity Reservation Group*](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/create-cr-group.html), this allows you to launch instances from multiple ODCR's as part of the **same queue** of the cluster.
+
+1. First create a group, this will return a group arn like: `arn:aws:resource-groups:us-east-2:123456789012:group/MyCRGroup`. Save that for later.
+
+    ```bash
+    $ aws resource-groups create-group --name MyCRGroup --configuration '{"Type":"AWS::EC2::CapacityReservationPool"}' '{"Type":"AWS::ResourceGroups::Generic", "Parameters": [{"Name": "allowed-resource-types", "Values": ["AWS::EC2::CapacityReservation"]}]}'
+    ```
+
+2. Next add your capacity reservations to that group:
+
+    ```bash
+    aws resource-groups group-resources --group MyCRGroup --resource-arns arn:aws:ec2:sa-east-1:123456789012:capacity-reservation/cr-1234567890abcdef1 arn:aws:ec2:sa-east-1:123456789012:capacity-reservation/cr-54321abcdef567890
+    ```
+
+3. Then add the group to your cluster's config like so:
+
+    ```yaml
+        CapacityReservationTarget:
+            CapacityReservationResourceGroupArn: arn:aws:resource-groups:us-east-2:123456789012:group/MyCRGroup
+    ```
 
 #### Installing applications & libraries
 
@@ -154,4 +190,4 @@ You can chose to use a custom image or post-install scripts to install your appl
 
 A common issue we see customer face is a problem with the post install scripts or issue to access capacity due to a mis-configuration. This can manifest itself through a `HeadNodeWaitCondition` that'll cause the ParallelCluster to fail a cluster deployment.
 
-To solve that, you can look at the cluster logs in CloudWatch in the cluster loggroup, otherwise use the option `--rollback-on-failure false` to keep resources up upon failure for further troubleshooting.
+To solve that, you can look at the cluster logs in CloudWatch in the cluster log group, otherwise use the option `--rollback-on-failure false` to keep resources up upon failure for further troubleshooting.
