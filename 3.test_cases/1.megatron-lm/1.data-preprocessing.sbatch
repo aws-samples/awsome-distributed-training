@@ -5,7 +5,6 @@
 
 #SBATCH -N 1 # number of nodes we want
 #SBATCH --exclusive # job has exclusive use of the resource, no sharing
-#SBATCH --export=NIL # do not export env vars from the host env
 
 ###########################
 ###### User Variables #####
