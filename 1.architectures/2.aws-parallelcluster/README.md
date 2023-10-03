@@ -50,9 +50,9 @@ aws ec2 create-key-pair --key-name pcluster-workshop-key \
                         --region $AWS_TARGET_REGION \
                         --output text > $KEYPAIR_NAME.pem
 
-# The private part of your key pair is located in the current directory.
+# The above command will also generate a private key in the current directory.
 # We must change the access rights to the current user only, otherwise the ssh
-# client refuses to use this key.
+# client refuses to use this private key to open an ssh connection.
 sudo chmod 600 $KEYPAIR_NAME.pem
 ```
 
