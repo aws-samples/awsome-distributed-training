@@ -25,6 +25,17 @@ Scheduling:
   Scheduler: slurm
   SlurmSettings:
     ScaledownIdletime: 60
+    CustomSlurmSettings:
+      # Simple accounting to text file /home/slurm/slurm-job-completions.txt.
+      #
+      # Must be disabled should you prefer to setup Slurm accounting to database
+      # (https://docs.aws.amazon.com/parallelcluster/latest/ug/slurm-accounting-v3.html).
+      #
+      # NOTE: JobCompType entry will be duplicated, hence will cause a harmless
+      # warning message in `systemctl status --no-pager slurmctld`.
+      - JobCompType: jobcomp/filetxt
+      - JobCompLoc: /home/slurm/slurm-job-completions.txt
+      - JobAcctGatherType: jobacct_gather/linux
   SlurmQueues:
     - Name: compute-gpu
       CapacityType: ONDEMAND
