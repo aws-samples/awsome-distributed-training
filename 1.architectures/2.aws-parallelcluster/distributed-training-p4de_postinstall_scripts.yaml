@@ -25,6 +25,8 @@ HeadNode:
       Sequence:
         - Script: 'https://raw.githubusercontent.com/aws-samples/aws-parallelcluster-post-install-scripts/main/docker/postinstall.sh'
         - Script: 'https://raw.githubusercontent.com/aws-samples/aws-parallelcluster-post-install-scripts/main/pyxis/postinstall.sh'
+          Args:
+            - /fsx # cache enroot images on /fsx
 Scheduling:
   Scheduler: slurm
   SlurmSettings:
@@ -36,7 +38,7 @@ Scheduling:
         SubnetIds:
           - PLACEHOLDER_PRIVATE_SUBNET
         PlacementGroup:
-          Enabled: true
+          Enabled: true  # set this to false if using a targeted ODCR
       ComputeSettings:
         LocalStorage:
           EphemeralVolume:
@@ -62,6 +64,8 @@ Scheduling:
           Sequence:
             - Script: 'https://raw.githubusercontent.com/aws-samples/aws-parallelcluster-post-install-scripts/main/docker/postinstall.sh'
             - Script: 'https://raw.githubusercontent.com/aws-samples/aws-parallelcluster-post-install-scripts/main/pyxis/postinstall.sh'
+              Args:
+                - /fsx # cache enroot images on /fsx
 SharedStorage:
   - MountDir: /fsx
     Name: fsx
