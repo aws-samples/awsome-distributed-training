@@ -1,5 +1,7 @@
 #!/bin/bash
-#
+
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
 
 conda create -n pt-nightlies python=3.10
 
@@ -16,7 +18,3 @@ pip3 install wandb
 
 # We will install Composer from source. First clone the Repo
 git clone https://github.com/mosaicml/composer.git
-
-
-
-
