@@ -1,3 +1,6 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+
 FROM nvcr.io/nvidia/pytorch:23.08-py3
 
 RUN git clone https://github.com/mosaicml/diffusion-benchmark.git /wd
