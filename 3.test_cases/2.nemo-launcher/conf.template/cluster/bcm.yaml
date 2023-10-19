@@ -6,7 +6,6 @@ gpus_per_node: 8
 mem: 0
 job_name_prefix: "nemo-megatron-"
 gres: "gpu:8"
-export: "NIL"
 srun_args:
   - "--no-container-mount-home"
 stderr_to_stdout: True
