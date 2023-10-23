@@ -1,12 +1,10 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-FROM nvcr.io/nvidia/pytorch:23.08-py3
+FROM nvcr.io/nvidia/pytorch:23.09-py3
 
-ARG EFA_INSTALLER_VERSION=1.27.0
+ARG EFA_INSTALLER_VERSION=1.28.0
 ARG AWS_OFI_NCCL_VERSION=v1.7.3-aws
-ARG NCCL_TESTS_VERSION=master
-ARG NCCL_VERSION=v2.18.5-1
 ARG OPEN_MPI_PATH=/opt/amazon/openmpi
 
 ######################
@@ -14,12 +12,11 @@ ARG OPEN_MPI_PATH=/opt/amazon/openmpi
 ######################
 RUN apt-get update -y
 RUN apt-get remove -y --allow-change-held-packages \
-                      libmlx5-1 ibverbs-utils libibverbs-dev libibverbs1 \
-                      libnccl2 libnccl-dev
-RUN rm -rf /opt/hpcx \
+                      libmlx5-1 ibverbs-utils libibverbs-dev libibverbs1
+
+RUN rm -rf /opt/hpcx/ompi \
     && rm -rf /usr/local/mpi \
     && rm -rf /usr/local/ucx \
-    && rm -f /etc/ld.so.conf.d/hpcx.conf \
     && ldconfig
 
 ######################
@@ -39,6 +36,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt install -y --allow-unauthenticated \
     autoconf \
     libtool \
     gdb \
+    libhwloc-dev \
     automake \
     cmake \
     apt-utils && \
@@ -66,15 +64,8 @@ RUN cd $HOME \
     && curl -O https://efa-installer.amazonaws.com/aws-efa-installer-${EFA_INSTALLER_VERSION}.tar.gz \
     && tar -xf $HOME/aws-efa-installer-${EFA_INSTALLER_VERSION}.tar.gz \
     && cd aws-efa-installer \
-    && ./efa_installer.sh -y --skip-kmod
+    && ./efa_installer.sh -y --skip-kmod --no-verify
 
-###################################################
-## Install NCCL
-RUN git clone https://github.com/NVIDIA/nccl /opt/nccl \
-    && cd /opt/nccl \
-    && git checkout ${NCCL_VERSION}}  \
-    && make -j$(nproc) src.build CUDA_HOME=/usr/local/cuda \
-    NVCC_GENCODE="-gencode=arch=compute_86,code=sm_86 -gencode=arch=compute_80,code=sm_80 -gencode=arch=compute_75,code=sm_75 -gencode=arch=compute_70,code=sm_70 -gencode=arch=compute_60,code=sm_60"
 
 ###################################################
 ## Install AWS-OFI-NCCL plugin
@@ -89,11 +80,10 @@ RUN export OPAL_PREFIX="" \
        --with-cuda=/usr/local/cuda \
        --with-mpi=/opt/amazon/openmpi/ \
        --enable-platform-aws \
-    && make && make install
+    && make -j $(nproc) && make install
 
 ###################################################
 RUN rm -rf /var/lib/apt/lists/*
-ENV LD_PRELOAD=/opt/nccl/build/lib/libnccl.so
 
 RUN echo "hwloc_base_binding_policy = none" >> /opt/amazon/openmpi/etc/openmpi-mca-params.conf \
  && echo "rmaps_base_mapping_policy = slot" >> /opt/amazon/openmpi/etc/openmpi-mca-params.conf
