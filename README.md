@@ -50,7 +50,19 @@ All test cases are under `3.test_cases/`. You can go in each test case directory
 
 Utilities scripts and micro-benchmarks examples are set under `4.validation_scripts/`.
 
-## 5. Contributors
+## 5. CI
+
+Integration tests are written in [pytest](https://docs.pytest.org). Just run:
+```
+pytest .
+```
+
+Alternatively you can run tests with out capturing stdout and keeping all docker images an other artifacts.
+```
+pytest -s --keep-artifacts=t
+```
+
+## 6. Contributors
 
 Thanks to all the contributors for building, reviewing and testing.
 
@@ -64,3 +76,4 @@ Thanks to all the contributors for building, reviewing and testing.
 - Sean Smith - seaam@
 - Jianying Lang - langjian@
 - Maxime Hugues - maxhaws@
+- Dmitry Monakhov dmonakhov@
