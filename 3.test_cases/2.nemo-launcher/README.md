@@ -22,9 +22,9 @@ The following pre-requisites are needed to run this example:
 You will need to setup the following environment variables before running the scripts. :
 
 ```bash
-export NEMO_VERSION=23.07
+export NEMO_VERSION=23.08.03
 export REPO=aws-nemo-megatron
-export TAG=$NEMO_VERSION-py3
+export TAG=$NEMO_VERSION
 export TARGET_PATH=/fsx/nemo-launcher-$NEMO_VERSION   # must be a shared filesystem
 export TEST_CASE_PATH=/home/ec2-user/2.nemo-launcher  # where you copy the test case or set to your test case path
 export ENROOT_IMAGE=/apps/${REPO}_${TAG}.sqsh
@@ -73,7 +73,7 @@ cd $TARGET_PATH
 enroot start --mount $TARGET_PATH:/workspace/mount_dir \
              --env NVIDIA_VISIBLE_DEVICES=void \
              $ENROOT_IMAGE \
-             cp -a /opt/NeMo-Megatron-Launcher/launcher_scripts /opt/NeMo-Megatron-Launcher/auto_configurator /opt/FasterTransformer /workspace/mount_dir/
+             cp -a /opt/NeMo-Megatron-Launcher/launcher_scripts /opt/NeMo-Megatron-Launcher/auto_configurator /workspace/mount_dir/
 ```
 
 The `NVIDIA_VISIBLE_DEVICES` variable is set to void to prevent the process to check for the Nvidia driver presence (since we don't need GPUs here).
