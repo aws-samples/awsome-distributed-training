@@ -217,9 +217,28 @@ training.trainer.num_nodes=$NUM_NODES
                 |
                 └── key 'trainer -> num_nodes' in the `.yaml` file.
 ```
+## 8. Pre-Training llama2
 
+This section assumes that you went through the previous sections and 1/ retrieved and built the AWS optimized NemoMegatron container, 2/ setup the NemoMegatron environment, and 3/ download the vocabularies. Actions will be almost the same as for 5/ Pre-training GPT3, let do it.
 
-## 8. References
+1. Download llama2 tokenizer
+```
+mkdir -p $TARGET_PATH/data/llama2
+curl -L https://github.com/microsoft/Llama-2-Onnx/raw/main/tokenizer.model > $TARGET_PATH/data/llama2/tokenizer.model
+
+```
+2. Source the NemoMegatron environment created earlier.
+    ```bash
+    source ${TARGET_PATH}/.venv/bin/activate
+    ```
+3. To pre-train a llama2-7b on two instances with mock dataset, run the commands below to let :
+    ```bash
+    cd $TARGET_PATH
+    $TEST_CASE_PATH/5.bmk-pretrain-llama-7b.sh
+    ```
+4. Next stests are absolutely the same as for 5/ Pre-training GPT3, the only difference is that result directory is `$TARGET_PATH/results/llama2_7b`
+
+## 9. References
 
 - Nvidia NemoMegatron Documentation: https://docs.nvidia.com/deeplearning/nemo/user-guide/docs/en/stable/nlp/megatron.html
 - Train Large Scale NLP with Nemo Megatron from Nvidia: https://docs.nvidia.com/launchpad/ai/base-command-nemo/latest/index.html
