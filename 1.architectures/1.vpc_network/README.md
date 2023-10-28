@@ -6,6 +6,14 @@ You will find here a collection of cloudformation templates to deploy a VPC with
 
 The architectures each deploy a VPC, public and private subnets, gateways and endpoints. You can deploy them through the AWS Console or AWS CLI.
 
+### 1. Quick Create
+
+
+
+[<kbd> <br> 1-Click Deploy 🚀 <br> </kbd>](https://console.aws.amazon.com/cloudformation/home?#/stacks/quickcreate?templateURL=https%3A%2F%2Fawsome-distributed-training.s3.amazonaws.com%2Ftemplates%2F1.vpc-multi-az.yaml&stackName=ML-VPC)
+
+
+
 ### 1. Template VPC Multiple AZs
 
 This template deploys a VPC with private subnets in multiple Availability zones. Public subnets can be optionally created in every AZ (done by default). This template serves most use cases.
