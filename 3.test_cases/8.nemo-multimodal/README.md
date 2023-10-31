@@ -1,8 +1,11 @@
 # Train Stable Diffusion with NeMo-Multimodal
 
+This project provides a guide to run NemoMultimodal on AWS using a container from Nvidia GPU Cloud (NGC). NemoMultimodal supports multiple models including Vision Transformers (ViTs), CLIP, Stable Diffusion, InstructPix2Pix, DreamBooth, ControlNet and Imagen. The test cases can be executed on Slurm and use Nvidia Enroot and Nvidia Pyxis. In this project we will showcase a working example with multi-node training for Stable Diffusion
+
+
 ## Prerequisites
-0. You have access to nemo-multimodal
-1. Have a cluster ready
+0. You have access to nemo-multimodal. You can request access to the open beta [here](https://developer.nvidia.com/nemo-framework)
+1. Have a slurm based parallelcluster ready for use.
 2. Generate API Key: https://ngc.nvidia.com/setup/api-key
 3. Install NGC CLI: https://ngc.nvidia.com/setup/installers/cli
 4. Login
@@ -10,6 +13,9 @@
 docker login nvcr.io
 Username: $oauthtoken
 Password: API_KEY
+
+
+If you have createdyour cluster with DLAMI or your custom AMI, please make sure `libnvidia-container cli` is installed. You can follow the instructions below to install it.   
 ```
 To install libnvidia-container cli:
 https://github.com/NVIDIA/libnvidia-container
@@ -21,10 +27,9 @@ curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dear
     sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
     sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list \
   && \
-    sudo apt-get update
-
-sudo apt-get install libnvidia-container1
-sudo apt-get install libnvidia-container-tools
+    sudo apt-get update \
+  && sudo apt-get install libnvidia-container1 \
+  && sudo apt-get install libnvidia-container-tools
 ```
 
 
@@ -34,10 +39,10 @@ sudo apt-get install libnvidia-container-tools
 docker pull nvcr.io/ea-bignlp/ea-mm-participants/bignlp-mm:23.05-py3
 ```
 
-## Run container
+## Run container on Head Node
 
 ```
- docker run -it --gpus all --ipc=host --ulimit memlock=-1 --ulimit stack=67108864 nvcr.io/ea-bignlp/ea-mm-participants/bignlp-mm:23.05-py3 bash
+ docker run -it --ipc=host --ulimit memlock=-1 --ulimit stack=67108864 nvcr.io/ea-bignlp/ea-mm-participants/bignlp-mm:23.05-py3 bash
 ```
 
 ## Copy launcher scripts to host

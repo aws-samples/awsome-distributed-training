@@ -1,4 +1,4 @@
-partition: awsankur-p5
+partition: <partition-name>
 account: null
 exclusive: True
 gpus_per_task: null
