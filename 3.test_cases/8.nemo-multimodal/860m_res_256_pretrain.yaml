@@ -8,7 +8,7 @@ name: stable-diffusion-train
 
 trainer:
   devices: 8
-  num_nodes: 8
+  num_nodes: 1
   accelerator: gpu
   precision: 16
   logger: False # logger provided by exp_manager
@@ -187,7 +187,7 @@ model:
       num_workers: 16
       train:
           dataset_path:
-            - ${data_dir}/your_dataset/wdinfo.pkl
+            - /fsx/laion-art/wdinfo.pkl
           augmentations:
             resize_smallest_side: 256
             center_crop_h_w: 256, 256
@@ -196,4 +196,4 @@ model:
 
       webdataset:
           infinite_sampler: False
-          local_root_path: ${data_dir}/your_dataset/tarfiles_reorganized/  # each tarfile in wdinfo is relative to this
+          local_root_path: /fsx/laion-art/tarfiles_reorganized/task0001  # each tarfile in wdinfo is relative to this

@@ -28,7 +28,7 @@ env_vars:
   NCCL_DEBUG: INFO # Logging level for NCCL. Set to "INFO" for debug information
   ##NCCL_PROTO: simple # Protocol NCCL will use. Set to "simple" for AWS
   TRANSFORMER_OFFLINE: 1
-  FI_EFA_USE_DEVICE_RDMA: 1
+  #FI_EFA_USE_DEVICE_RDMA: 1
   FI_PROVIDER: efa
   NCCL_LAUNCH_MODE: parallel
   FI_EFA_FORK_SAFE: 1
