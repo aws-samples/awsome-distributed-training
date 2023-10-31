@@ -91,6 +91,7 @@ Below are the steps you need to follow:
     wget https://s3.amazonaws.com/models.huggingface.co/bert/gpt2-vocab.json
     wget https://s3.amazonaws.com/models.huggingface.co/bert/gpt2-merges.txt
     xz -d oscar-1GB.jsonl.xz
+    cd ${TEST_CASE_PATH} # return to original testcase directory
     ```
 
 6. Now you copy the file `1.data-preprocessing.sbatch` or its content on your cluster then submit a preprocessing jobs with the command below:
