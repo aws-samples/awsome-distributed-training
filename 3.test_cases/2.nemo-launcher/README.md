@@ -22,9 +22,9 @@ The following pre-requisites are needed to run this example:
 You will need to setup the following environment variables before running the scripts. :
 
 ```bash
-export NEMO_VERSION=23.07
+export NEMO_VERSION=23.08.03
 export REPO=aws-nemo-megatron
-export TAG=$NEMO_VERSION-py3
+export TAG=$NEMO_VERSION
 export TARGET_PATH=/fsx/nemo-launcher-$NEMO_VERSION   # must be a shared filesystem
 export TEST_CASE_PATH=/home/ec2-user/2.nemo-launcher  # where you copy the test case or set to your test case path
 export ENROOT_IMAGE=/apps/${REPO}_${TAG}.sqsh
@@ -35,7 +35,7 @@ cd $TEST_CASE_PATH
 
 You will retrieve the container image from Nvidia, build an optimized container for EFA and, convert it into an Enroot file so we can run it on our cluster.
 
-1. You have a registered account with Nvidia and can access NGC. Retrieve the NGC API key following [instructions from Nvidia](https://docs.nvidia.com/ngc/gpu-cloud/ngc-user-guide/index.html#generating-api-key).
+1. You have a registered account with Nvidia and can access NGC. Retrieve the NGC API key following [instructions from Nvidia](https://docs.nvidia.com/ngc/gpu-cloud/ngc-user-guide/index.html#generating-api-key) and request access [here](https://developer.nvidia.com/nemo-framework/join) in order to be able to pull NeMo images.
 2. Configure NGC as shown below using the command below, when requested use `$oauthtoken` for the login and the API key from NGC fro the password.
 
 ```bash
@@ -73,7 +73,7 @@ cd $TARGET_PATH
 enroot start --mount $TARGET_PATH:/workspace/mount_dir \
              --env NVIDIA_VISIBLE_DEVICES=void \
              $ENROOT_IMAGE \
-             cp -a /opt/NeMo-Megatron-Launcher/launcher_scripts /opt/NeMo-Megatron-Launcher/auto_configurator /opt/FasterTransformer /workspace/mount_dir/
+             cp -a /opt/NeMo-Megatron-Launcher/launcher_scripts /opt/NeMo-Megatron-Launcher/auto_configurator /workspace/mount_dir/
 ```
 
 The `NVIDIA_VISIBLE_DEVICES` variable is set to void to prevent the process to check for the Nvidia driver presence (since we don't need GPUs here).
@@ -217,9 +217,28 @@ training.trainer.num_nodes=$NUM_NODES
                 |
                 └── key 'trainer -> num_nodes' in the `.yaml` file.
 ```
+## 8. Pre-Training llama2
 
+This section assumes that you went through the previous sections and 1/ retrieved and built the AWS optimized NemoMegatron container, 2/ setup the NemoMegatron environment, and 3/ download the vocabularies. Actions will be almost the same as for 5/ Pre-training GPT3, let do it.
 
-## 8. References
+1. Download llama2 tokenizer
+```
+mkdir -p $TARGET_PATH/data/llama2
+curl -L https://github.com/microsoft/Llama-2-Onnx/raw/main/tokenizer.model > $TARGET_PATH/data/llama2/tokenizer.model
+
+```
+2. Source the NemoMegatron environment created earlier.
+    ```bash
+    source ${TARGET_PATH}/.venv/bin/activate
+    ```
+3. To pre-train a llama2-7b on two instances with mock dataset, run the commands below to let :
+    ```bash
+    cd $TARGET_PATH
+    $TEST_CASE_PATH/5.bmk-pretrain-llama-7b.sh
+    ```
+4. Next stests are absolutely the same as for 5/ Pre-training GPT3, the only difference is that result directory is `$TARGET_PATH/results/llama2_7b`
+
+## 9. References
 
 - Nvidia NemoMegatron Documentation: https://docs.nvidia.com/deeplearning/nemo/user-guide/docs/en/stable/nlp/megatron.html
 - Train Large Scale NLP with Nemo Megatron from Nvidia: https://docs.nvidia.com/launchpad/ai/base-command-nemo/latest/index.html

@@ -1,11 +1,11 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
-FROM nvidia/cuda:12.2.0-devel-ubuntu20.04
+FROM nvidia/cuda:12.2.0-devel-ubuntu22.04
 
-ARG EFA_INSTALLER_VERSION=1.26.0
-ARG AWS_OFI_NCCL_VERSION=v1.7.1-aws
+ARG EFA_INSTALLER_VERSION=1.28.0
+ARG AWS_OFI_NCCL_VERSION=v1.7.3-aws
 ARG NCCL_TESTS_VERSION=master
-ARG NCCL_VERSION=2.18.1
+ARG NCCL_VERSION=2.18.5
 
 RUN apt-get update -y
 RUN apt-get remove -y --allow-change-held-packages \
@@ -72,7 +72,7 @@ RUN cd $HOME \
 ## Install NCCL
 RUN git clone https://github.com/NVIDIA/nccl -b v${NCCL_VERSION}-1 /opt/nccl \
     && cd /opt/nccl \
-    && make -j src.build CUDA_HOME=/usr/local/cuda \
+    && make -j $(nproc) src.build CUDA_HOME=/usr/local/cuda \
     NVCC_GENCODE="-gencode=arch=compute_80,code=sm_80 -gencode=arch=compute_86,code=sm_86 -gencode=arch=compute_90,code=sm_90"
 
 ###################################################
@@ -88,14 +88,15 @@ RUN export OPAL_PREFIX="" \
     --with-cuda=/usr/local/cuda \
     --with-nccl=/opt/nccl/build \
     --with-mpi=/opt/amazon/openmpi/ \
-    && make && make install
+    && make -j $(nproc) && make install
 
 ###################################################
 ## Install NCCL-tests
 RUN git clone https://github.com/NVIDIA/nccl-tests.git /opt/nccl-tests \
     && cd /opt/nccl-tests \
     && git checkout ${NCCL_TESTS_VERSION} \
-    && make MPI=1 \
+    && make -j $(nproc) \
+    MPI=1 \
     MPI_HOME=/opt/amazon/openmpi/ \
     CUDA_HOME=/usr/local/cuda \
     NCCL_HOME=/opt/nccl/build \
