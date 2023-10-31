@@ -39,7 +39,7 @@ reorganize_tar:
   enable: True
   input_dir: ${..download_images.output_dir}
   output_dir: ${..dataset_output_root}/tarfiles_reorganized
-  node_array_size: 2  # increase the number of concurrent jobs to reduce the time for each job
+  node_array_size: 1  # increase the number of concurrent jobs to reduce the time for each job
   tar_chunk_size: 1000  # number of training examples in each output tar file
   file_ext_in_tar: # target extensions in each
     - .jpg
