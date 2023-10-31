@@ -33,6 +33,7 @@ env_vars:
   NCCL_LAUNCH_MODE: parallel
   FI_EFA_FORK_SAFE: 1
   FI_EFA_ENABLE_SHM_TRANSFER: 1
+  FI_EFA_USE_HUGE_PAGE: 0
 
 # GPU Mapping
 numa_mapping:
