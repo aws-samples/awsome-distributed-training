@@ -3,7 +3,7 @@ FROM nvcr.io/ea-bignlp/ea-mm-participants/bignlp-mm:23.05-py3
 ARG EFA_INSTALLER_VERSION=latest
 ARG AWS_OFI_NCCL_VERSION=v1.7.3-aws
 ARG NCCL_TESTS_VERSION=master
-ARG NCCL_VERSION=v2.19.3-1
+ARG NCCL_VERSION=v2.18.5-1
 RUN apt-get update -y
 RUN apt-get remove -y --allow-change-held-packages \
     libmlx5-1 ibverbs-utils libibverbs-dev libibverbs1 libnccl2 libnccl-dev
@@ -90,6 +90,11 @@ RUN git clone https://github.com/NVIDIA/nccl-tests.git /opt/nccl-tests \
     CUDA_HOME=/usr/local/cuda \
     NCCL_HOME=/opt/nccl/build \
     NVCC_GENCODE="-gencode=arch=compute_80,code=sm_80 -gencode=arch=compute_86,code=sm_86 -gencode=arch=compute_90,code=sm_90"
+
+
+
+RUN rm -rf /var/lib/apt/lists/*
+ENV LD_PRELOAD /opt/nccl/build/lib/libnccl.so
 
 
 ##############################################
