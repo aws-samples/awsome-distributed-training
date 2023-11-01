@@ -75,6 +75,8 @@ Before running training jobs, you need to use an [Enroot](https://github.com/NVI
 
 It will take around 5 minutes to convert the container image from Docker to the Enroot format. Once done proceed to the next stage.
 
+For ease of testing we've included a `Makefile` that automatically builds and imports the latest image. To run this, execute `make` or you can individually specify `make build` to build the Docker image, `make clean` to remove the squash file and `make import` to import the Dockerfile into enroot squash file.
+
 ## 3. Run the processing job
 
 You need to retrieve input data and preprocess it before running the training job.
