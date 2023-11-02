@@ -69,7 +69,7 @@ function run_compose() {
         --master_port ${MASTER_PORT} \
         --verbose /llm-foundry/scripts/train/train.py \
         /llm-foundry/scripts/train/yamls/pretrain/${MODEL}.yaml \
-        data_local=/fsx/c4-dataset \
+        data_local=${DATA_PATH}/c4-dataset \
         train_loader.dataset.split=train_small \
         eval_loader.dataset.split=val_small \
         max_duration=3ba \
