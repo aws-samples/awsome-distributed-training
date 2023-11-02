@@ -29,6 +29,7 @@ export FI_EFA_FORK_SAFE=1
 export FI_LOG_LEVEL=1
 export FI_PROVIDER=efa # change to eth if you want to use ENA for comparisons
 export FI_EFA_ENABLE_SHM_TRANSFER=1
+export FI_EFA_USE_HUGE_PAGE=0
 # https://discuss.pytorch.org/t/nccl-network-is-unreachable-connection-refused-when-initializing-ddp/137352
 # https://github.com/pytorch/pytorch/issues/68893
 #export NCCL_SOCKET_IFNAME=ens
