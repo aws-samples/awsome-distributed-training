@@ -1,8 +1,9 @@
 FROM mosaicml/pytorch:2.0.1_cu118-python3.10-ubuntu20.04
-ARG EFA_INSTALLER_VERSION=1.26.1
-ARG AWS_OFI_NCCL_VERSION=v1.7.2-aws
+
+ARG EFA_INSTALLER_VERSION=latest
+ARG AWS_OFI_NCCL_VERSION=v1.7.3-aws
 ARG NCCL_TESTS_VERSION=master
-ARG NCCL_VERSION=v2.12.7-1
+ARG NCCL_VERSION=2.18.5-1
 ARG LLM_FOUNDRY_VERSION=v0.3.0
 ARG OPEN_MPI_PATH=/opt/amazon/openmpi
 
@@ -52,11 +53,20 @@ RUN cd $HOME \
 
 ###################################################
 ## Install NCCL
-RUN git clone https://github.com/NVIDIA/nccl /opt/nccl \
-    && cd /opt/nccl \
-    && git checkout -b ${NCCL_VERSION} \
-    && make -j src.build CUDA_HOME=/usr/local/cuda \
-    NVCC_GENCODE="-gencode=arch=compute_90,code=sm_90 -gencode=arch=compute_86,code=sm_86 -gencode=arch=compute_80,code=sm_80"
+RUN apt-get remove -y libnccl2 libnccl-dev \
+    && cd /tmp \
+    && git clone https://github.com/NVIDIA/nccl.git -b v${NCCL_VERSION} \
+    && cd nccl \
+    && make -j src.build BUILDDIR=/usr/local \
+    # nvcc to target p5 and p4 instances
+    NVCC_GENCODE="-gencode=arch=compute_90,code=sm_90 -gencode=arch=compute_80,code=sm_80" \
+    && rm -rf /tmp/nccl
+
+# NCCL
+RUN echo "/usr/local/lib"      >> /etc/ld.so.conf.d/local.conf && \
+    echo "/opt/amazon/efa/lib" >> /etc/ld.so.conf.d/efa.conf &&  \
+    echo "/opt/amazon/openmpi/lib" >> /etc/ld.so.conf.d/efa.conf && \
+    ldconfig
 
 ###################################################
 ## Install AWS-OFI-NCCL plugin
@@ -68,7 +78,7 @@ RUN export OPAL_PREFIX="" \
     && ./configure --prefix=/opt/aws-ofi-nccl/install \
     --with-libfabric=/opt/amazon/efa/ \
     --with-cuda=/usr/local/cuda \
-    --with-nccl=/opt/nccl/build \
+    --with-nccl=/usr/local/nccl \
     --with-mpi=/opt/amazon/openmpi/ \
     && make -j && make install
 
@@ -87,4 +97,3 @@ RUN git clone https://github.com/mosaicml/llm-foundry.git llm-foundry \
     && git checkout $LLM_FOUNDRY_VERSION \
     && pip install -e ".[gpu]" \
     && pip install xformers nvtx 'flash-attn==v1.0.3.post0'
-
