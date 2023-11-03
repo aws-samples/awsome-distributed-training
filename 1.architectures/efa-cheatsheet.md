@@ -2,6 +2,9 @@
 
 ## 1. Settings via environment variables
 
+For optimized performance, you may need to set additional environment variables depending on the
+versions of your libfabric.
+
 | Setting                        | Explanation                                                                                                                                                                                                                                                                                                                                           |
 | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `FI_EFA_USE_HUGE_PAGE=0`       | Set to 0 when you see `os.fork()` causes `OSError: Cannot allocate memory`. Typically happen by multi-process PyTorch data loader. Disabling huge page causes minor performance hit, but it's needed to prevent fork fails due to the operating system running out of huge pages.                                                                     |
@@ -20,7 +23,8 @@
 
 ## 2. A word on p5.48xlarge instances
 
-Use cuda>=12.0, nccl>=2.18.0 (recommend at least 2.18.5), aws-ofi-nccl>=1.7.2 (recommend at least 1.7.3).
+Use cuda>=12.0, nccl>=2.18.0 (recommend at least 2.18.5), aws-ofi-nccl>=1.7.2 (recommend at least
+1.7.3).
 
 ## 3. Sample Presets
 
