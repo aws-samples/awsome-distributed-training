@@ -9,7 +9,6 @@
 #SBATCH --gres=gpu:8 # number of GPU we reserve
 #SBATCH --exclusive
 #SBATCH --wait-all-nodes=1
-#SBATCH --export=NIL # do not export env vars from the host env
 
 ### Disable hyperthreading by setting the tasks per core to 1
 #SBATCH --ntasks-per-core=1
