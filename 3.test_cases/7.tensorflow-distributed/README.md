@@ -102,3 +102,4 @@ Here, we will conduct simple NN against mnist dataset.
 ## 4. Authors / Reviewers
 
 * [A] Keita Watanabe - mlkeita@
+* [R] Pierre-Yves Aquilanti - pierreya@
