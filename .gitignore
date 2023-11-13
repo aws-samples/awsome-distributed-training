@@ -36,3 +36,6 @@ spark-warehouse
 # slurm outputs
 *.out
 *.err
+
+# Enroot container image
+*.sqsh
