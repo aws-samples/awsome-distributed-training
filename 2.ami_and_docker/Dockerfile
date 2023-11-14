@@ -23,7 +23,8 @@ FROM nvcr.io/nvidia/pytorch:23.10-py3
 ENV DEBIAN_FRONTEND=noninteractive
 
 # The three must-be-built packages.
-ENV EFA_INSTALLER_VERSION=1.28.0
+# Efa-installer>=1.29.0 required for nccl>=2.19.0 to avoid libfabric NCCL error.
+ENV EFA_INSTALLER_VERSION=1.29.0
 ENV AWS_OFI_NCCL_VERSION=1.7.3-aws
 ENV NCCL_TESTS_VERSION=master
 
@@ -76,8 +77,7 @@ ENV PATH=/opt/amazon/efa/bin:/opt/amazon/openmpi/bin:$PATH
 # NCCL EFA plugin (aws-ofi-nccl) depends on mpi, hence we must rebuild openmpi before building the
 # aws-ofi-ccnl.
 ####################################################################################################
-##ENV NCCL_VERSION=2.19.3-1  # libfabric gave NCCL error. Known issue on efa-installer<=1.28.0
-#ENV NCCL_VERSION=2.18.6-1
+#ENV NCCL_VERSION=2.19.3-1
 #RUN cd /opt && \
 #    wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-keyring_1.0-1_all.deb && \
 #    dpkg -i cuda-keyring_1.0-1_all.deb && \
@@ -97,8 +97,7 @@ ENV PATH=/opt/amazon/efa/bin:/opt/amazon/openmpi/bin:$PATH
 # NCCL EFA plugin (aws-ofi-nccl) depends on mpi, hence we must rebuild openmpi before building the
 # aws-ofi-ccnl.
 ####################################################################################################
-#ENV NCCL_VERSION=2.19.3-1  # libfabric gave NCCL error. Known issue on efa-installer<=1.28.0
-ENV NCCL_VERSION=2.18.6-1
+ENV NCCL_VERSION=2.19.3-1
 RUN apt-get remove -y libnccl2 libnccl-dev \
    && cd /tmp \
    && git clone https://github.com/NVIDIA/nccl.git -b v${NCCL_VERSION} \
