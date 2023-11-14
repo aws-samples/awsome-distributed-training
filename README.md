@@ -37,14 +37,15 @@ Custom machine images can be built using [Packer](www.packer.io) for AWS Paralle
 
 All test cases are under `3.test_cases/`. You can go in each test case directory to learn how to run it.
 
-| Test cases          | Slurm | EKS | AWS Batch  |
-| ------------------- | ----- | --- | ---------- |
-| `1.megatron-lm`     | ✅    | ❓  | ❓         |
-| `2.nemo-launcher`   | ✅    | ❌  | ❌         |
-| `3.MPT`             | ✅    | ❓  | ❓         |
-| `4.DDP`             | ✅    | ❓  | ❓         |
-| `5.param-benchmark` | ✅    | ❓  | ❓         |
-
+| Test cases                 | Slurm | Kubernetes | AWS Batch  |
+| -------------------------- | ----- | ---------- | ---------- |
+| `1.megatron-lm`            |  ✅   | ❓          | ❓         |
+| `2.nemo-launcher`          |  ✅   | ❌          | ❌         |
+| `3.MPT`                    |  ✅   | ❓          | ❓         |
+| `4.DDP`                    |  ✅   | ❓          | ❓         |
+| `5.param-benchmark`        |  ✅   | ❓          | ❓         |
+| `6.stable-diffusion`       |  ✅   | ❓          | ❓         |
+| `7.tensorflow-distributed` |  ✅   | ❓          | ❓         |
 
 ## 4. Validation scripts
 
