@@ -178,12 +178,4 @@ Now we can start training
 sbatch 2.train.sbatch
 ```
 
-### 2.1 Multi Node Results
 
-
-## 3. What's Next?
-TODO:
-1. Investigate why single node performance on A100 80 GB instances is sub-par.
-2. Implement distributed training following original implementation of stable diffusion
-3. Explore the impact of MosaicML's Exponential Moving Average implementation on training performance.
-4. Test the impact of xFormers

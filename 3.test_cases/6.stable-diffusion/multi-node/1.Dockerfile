@@ -1,5 +1,7 @@
 FROM nvcr.io/nvidia/pytorch:23.08-py3
 
+ARG MOSAICML_VERSION=0.15.0
+
 ARG EFA_INSTALLER_VERSION=latest
 ARG AWS_OFI_NCCL_VERSION=v1.7.2-aws
 ARG NCCL_TESTS_VERSION=master
@@ -37,8 +39,8 @@ RUN sed -i 's/[ #]\(.*StrictHostKeyChecking \).*/ \1no/g' /etc/ssh/ssh_config &&
 ENV LD_LIBRARY_PATH /usr/local/cuda/extras/CUPTI/lib64:/opt/amazon/openmpi/lib:/opt/nccl/build/lib:/opt/amazon/efa/lib:/opt/aws-ofi-nccl/install/lib:/usr/local/lib:$LD_LIBRARY_PATH
 ENV PATH /opt/amazon/openmpi/bin/:/opt/amazon/efa/bin:/usr/bin:/usr/local/bin:$PATH
 RUN curl https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py \
- && python3 /tmp/get-pip.py \
-    && pip3 install awscli pynvml
+&& python3 /tmp/get-pip.py \
+&& pip3 install awscli pynvml
 
 #################################################
 # Install NVIDIA GDRCopy
@@ -93,7 +95,7 @@ RUN git clone https://github.com/NVIDIA/nccl-tests.git /opt/nccl-tests \
 
 RUN git clone https://github.com/mosaicml/diffusion-benchmark.git
 RUN pip3 install -r diffusion-benchmark/requirements.txt
-RUN pip3 install mosaicml==0.15.0 --force
+RUN pip3 install mosaicml==${MOSAICML_VERSION} --force
 RUN pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu121 --force
 RUN pip3 uninstall transformer-engine -y
 RUN pip3 install protobuf==3.20.3
