@@ -45,11 +45,6 @@ WORLD_SIZE=$((NNODES * NPROC))
 
 srun -l "${ARGS[@]}" python -c "import streaming; streaming.base.util.clean_stale_shared_memory()"
 function run_compose() {
-    # if [ ${NODE_RANK} -eq 0 ]; then
-    #     OPTION="nodelist"
-    # else
-    #     OPTION="exclude"
-    # fi
     srun --nodelist=${NODE} --ntasks=1 -l "${ARGS[@]}" composer \
         --world_size ${WORLD_SIZE} \
         --nproc ${NPROC} \
