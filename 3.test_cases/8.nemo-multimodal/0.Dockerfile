@@ -1,4 +1,6 @@
-FROM nvcr.io/ea-bignlp/ea-mm-participants/bignlp-mm:23.05-py3
+ARG NEMO_MULTIMODAL_VERSION
+
+FROM nvcr.io/ea-bignlp/ea-mm-participants/bignlp-mm:${NEMO_MULTIMODAL_VERSION}-py3
 
 ARG EFA_INSTALLER_VERSION=latest
 ARG AWS_OFI_NCCL_VERSION=v1.7.3-aws
