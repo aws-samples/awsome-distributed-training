@@ -66,7 +66,7 @@ docker cp -a <container-id>:/opt/NeMo-Megatron-Launcher/ ${TARGET_PATH}
 To get optimal performance of Nemo-Multimodal with EFA on P5 and P4de instances, we provide a customized [Dockerfile](https://github.com/aws-samples/awsome-distributed-training/blob/nemo-multimodal/3.test_cases/8.nemo-multimodal/Dockerfile) and we can build a image like below:
 
 ```
-docker build --build-arg NEMO_MULTIMODAL_VERSION=23.05 -t ${DOCKER_IMAGE_NAME}:${TAG} -f 0.Dockerfile
+docker build --build-arg NEMO_MULTIMODAL_VERSION=23.05 -t ${DOCKER_IMAGE_NAME}:${TAG} -f 0.Dockerfile .
 ```
 
 ## Convert image
