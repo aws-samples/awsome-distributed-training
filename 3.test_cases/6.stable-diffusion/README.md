@@ -1,7 +1,5 @@
 # Stable Diffusion Test Case
 
-DISCLAIMER: The scripts presented in this test case serve as a working examples and are not optimized for performances.
-
 We will follow MosaicML's stable diffusion benchmarking scripts provided [here](https://github.com/mosaicml/diffusion-benchmark/tree/main). It uses the `'stabilityai/stable-diffusion-2-base'` model. You can check the number of parameters by executing:
 
 ```bash
@@ -9,10 +7,21 @@ python3 calculate_number_of_parameters.py
 Model has 1289.952427 M parameters and 865.910724 M trainable_params
 ``` 
 
+To simplify testing, we have separate scripts for Single node and Multi node Distributed Training. We will also present a comparison of throughput (images/second) achieved with P4de (A100 80GB) and P5 (H100 80GB) instances.
 
-Just for simplifaction of testing, we have separate scripts for Single node and Multi node Distributed Training. We will also present a comparison of throughput (images/second) achieved with P4de (A100 80GB) and P5 (H100 80GB) instances.
+You can export the following environment variables:
 
-## 0. Conda and Docker
+```
+export CUDA_VERSION=12.1
+export MOSAICML_VERSION=0.15.0
+export PYTORCH_INDEX_URL=https://download.pytorch.org/whl/nightly/cu121
+export PYTORCH_IMAGE=nvcr.io/nvidia/pytorch:23.08-py3
+export DOCKER_IMAGE_NAME=mosaicml-stable-diffusion
+export TAG=$MOSAICML_VERSION
+```
+
+
+## 0. Create Conda Environment
 
 Make sure you are able to create conda environments and docker containers. For example, to install Miniconda, please follow the steps below:
 
@@ -35,6 +44,24 @@ elif [[ "$os" == "ubuntu" ]]; then
 else
   echo "Unknown OS: $os"
 fi
+
+conda create -n pt-nightlies python=3.10
+
+conda activate pt-nightlies
+
+# Install PyTorch Nightly distribution with specified Cuda version
+pip3 install --pre torch torchvision torchaudio --index-url ${PYTORCH_INDEX_URL}
+
+# Install Diffusers and Transformers
+pip3 install diffusers["torch"] transformers
+
+# Install Weights and Biases
+pip3 install wandb
+
+# We will install Composer from source. First clone the Repo
+git clone https://github.com/mosaicml/composer.git
+
+
 ```
 
 ## 1 Single Node Training
@@ -68,15 +95,13 @@ Once this change is done, you can install composer as `pip3 install -e .`
 The `single-node` folder also has the Dockerfile and a Makefile with commands to build the image and run the container.
 
 ```bash
+cd awsome-distributed-training/3.test_cases/6.stable-diffusion/single-node
 # build the image
-docker build -t mosaicml-stable-diffusion .
-# or you can do
-# make build
+docker build --build-arg MOSAICML_VERSION=${MOSAICML_VERSION} PYTORCH_IMAGE=${PYTORCH_IMAGE} PYTORCH_INDEX_URL=${PYTORCH_INDEX_URL} -t ${DOCKER_IMAGE_NAME}:${TAG} -f 0.Dockerfile .
 
-# run it
-docker run --gpus all --ipc=host --ulimit memlock=-1 --ulimit stack=67108864 -it mosaicml-stable-diffusion /bin/bash
-# or you can do
-# make run
+# run container
+docker run --gpus all --ipc=host --ulimit memlock=-1 --ulimit stack=67108864 -it ${DOCKER_IMAGE_NAME} /bin/bash
+
 ```
 
 ### 1.2 Single Node Training
@@ -142,9 +167,9 @@ from diffusers.models.attention_processor import AttnProcessor
 self.unet = UNet2DConditionModel.from_pretrained(''stabilityai/stable-diffusion-2-base'', subfolder='unet')
 self.unet.set_attn_processor(AttnProcessor())
 ```
-AttnProcessor2_0 which is a Processor for implementing scaled dot-product attention is enabled by default if you're using PyTorch 2.0.
+`AttnProcessor2_0` which is a Processor for implementing scaled dot-product attention is enabled by default if you're using PyTorch 2.0.
 
-The older self.unet.set_attn_processor(AttnProcessor()) gives Cuda OOM error with a batch size of 32 while with `AttnProcessor2_0()` is able to run with a batch size of 32 and yield 385 images/sec throughput 
+The older `self.unet.set_attn_processor(AttnProcessor())` gives Cuda OOM error with a batch size of 32 while with `AttnProcessor2_0()` is able to run with a batch size of 32 and yield 385 images/sec throughput 
 
 More details on this can be found here: https://pytorch.org/blog/accelerated-diffusers-pt-20/
 
@@ -166,10 +191,15 @@ git clone https://github.com/aws-samples/awsome-distributed-training.git
 cd awsome-distributed-training/6.stable-diffusion/multi-node
 ```
 
-Next build the docker image and convert it to a enroot sqsh file:
+Next build the docker image:
 
-```bash
-make # this will build the docker image and convert it to enroot
+```
+docker build --build-arg MOSAICML_VERSION=${MOSAICML_VERSION} PYTORCH_IMAGE=${PYTORCH_IMAGE} -t ${DOCKER_IMAGE_NAME}:${TAG} -f 1.Dockerfile .
+```
+Convert the Docker container image to an [Enroot](https://github.com/NVIDIA/enroot) squash file that will be stored in /apps. This step takes a few minutes.
+
+```
+enroot import -o /apps/${DOCKER_IMAGE_NAME}.sqsh dockerd://${DOCKER_IMAGE_NAME}
 ```
 
 Now we can start training
