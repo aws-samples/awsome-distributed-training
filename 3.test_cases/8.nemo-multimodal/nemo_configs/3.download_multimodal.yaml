@@ -5,9 +5,9 @@ run:
   dependency: "singleton"
   bcp_preproc_npernode: 2  # 2 should be safe to use and x2 times faster.
 
-dataset_repo_id: laion/laion-art  # huggingface dataset repo id, in the format of {user_or_company}/{dataset_name}
+dataset_repo_id: ${HUGGINGFACE_DATASET_REPO_ID}  # huggingface dataset repo id, in the format of {user_or_company}/{dataset_name}
 #  See https://huggingface.co/datasets?task_categories=task_categories:text-to-image&sort=downloads
-dataset_output_root: /fsx/laion-art-data
+dataset_output_root: ${DATASET_PATH}
 
 download_parquet:
   enable: True
