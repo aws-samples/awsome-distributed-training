@@ -1,6 +1,6 @@
 run:
   name: stable_diffusion_860m_res_256_pretrain
-  results_dir: /apps/nemo-src/launcher_scripts/results/stable_diffusion_860m_res_256_pretrain
+  results_dir: ${TARGET_PATH}/launcher_scripts/results/stable_diffusion_860m_res_256_pretrain
   time_limit: 2-00:00:00
   dependency: singleton
 name: stable-diffusion-train
@@ -20,7 +20,7 @@ trainer:
   benchmark: false
   enable_model_summary: true
 exp_manager:
-  explicit_log_dir: /apps/nemo-src/launcher_scripts/results/stable_diffusion_860m_res_256_pretrain/results
+  explicit_log_dir: ${TARGET_PATH}/launcher_scripts/results/stable_diffusion_860m_res_256_pretrain/results
   exp_dir: null
   name: nemo_stable_diffusion
   create_wandb_logger: false
@@ -164,7 +164,7 @@ model:
     num_workers: 16
     train:
       dataset_path:
-      - /fsx/laion-art-data/wdinfo.pkl
+      - ${DATASET_PATH}/wdinfo.pkl
       augmentations:
         resize_smallest_side: 256
         center_crop_h_w: 256, 256
@@ -172,4 +172,4 @@ model:
       filterings: null
     webdataset:
       infinite_sampler: false
-      local_root_path: /fsx/laion-art-data/tarfiles_reorganized/task0000/
+      local_root_path: ${DATASET_PATH}/tarfiles_reorganized/task0000/
