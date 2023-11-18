@@ -203,7 +203,7 @@ cd awsome-distributed-training/6.stable-diffusion/multi-node
 #### 2.1.1 Next build the docker image:
 
 ```
-docker build --build-arg MOSAICML_VERSION=${MOSAICML_VERSION} PYTORCH_IMAGE=${PYTORCH_IMAGE} -t ${DOCKER_IMAGE_NAME}:${TAG} -f 1.Dockerfile .
+docker build --build-arg MOSAICML_VERSION=${MOSAICML_VERSION} --build-arg PYTORCH_IMAGE=${PYTORCH_IMAGE} -t ${DOCKER_IMAGE_NAME}:${TAG} -f 1.Dockerfile .
 ```
 
 #### 2.1.2 Convert Docker image to Squash file
