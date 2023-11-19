@@ -5,13 +5,38 @@
 ## 1. Preparation
 
 This guide assumes that you have the following:
-* A functional Slurm cluster on AWS.
-* Neuron SDK and Torch-neuronx installed.
+* A functional Slurm cluster on AWS. We also assume that Ubuntu AMI is used.
+* Neuron SDK is installed on the cluster (see [AWS Neuron SDK documentation](https://awsdocs-neuron.readthedocs-hosted.com/en/latest/general/setup/torch-neuronx.html#setup-torch-neuronx) for the steps).
 * An FSx for Lustre filesystem mounted on `/fsx`.
-* `torch-neuronx` environment set up as virtual environment as `aws_neuron_venv_pytorch`. See [NeuronSDK documentation](https://awsdocs-neuron.readthedocs-hosted.com/en/latest/general/setup/neuron-setup/pytorch/neuronx/ubuntu/torch-neuronx-ubuntu20.html#setup-torch-neuronx-ubuntu20) for the setup.
-* `neuronx-nemo-megatron` cloned on home directory of the slurm headnode (`cd ~ && git clone https://github.com/aws-neuron/neuronx-nemo-megatron.git`).
 
-We recommend that you setup a Slurm cluster using the template in the architectures directory. 
+We recommend that you setup a Slurm cluster using the template in the architectures directory. Before creating the Slurm cluster, you need to setup the following environment variables:
+
+```bash
+export APPS_PATH=/fsx
+export FSX_PATH=/fsx
+export MODEL_PATH=/fsx
+export DATA_PATH=$FSX_PATH/data/books
+export TEST_CASE_PATH=${APPS_PATH}/awsome-distributed-training/3.test_cases/8.neuronx-nemo-megatron  # where you copy the test case or set to your test case path
+```
+
+1. First of all, you need to have a Python virtual environment for `torch-neuronx` under `APPS_PATH`.
+
+```bash
+bash 1.setup-venv.sh ${APPS_PATH} # The argument specifies APPS_PATH
+```
+
+2. `neuronx-nemo-megatron` library need to be installed (and initialized) in the environment.
+
+
+```bash
+bash 2.setup-neuronx-nemo-megatron.sh ${APPS_PATH} #
+```
+You will see the following ERROR line during the script execution. This is safe to ignore.
+
+```console
++ python3 -c 'from nemo.collections.nlp.data.language_modeling.megatron.dataset_utils import compile_helper; compile_helper()'
+2023-Nov-18 09:17:45.728072 175272:175272 ERROR  TDRV:tdrv_get_dev_info                       No neuron device available
+```
 
 ## 1. Prepare Llama2 model
 
@@ -21,7 +46,7 @@ You can submit access request from [here](https://ai.meta.com/resources/models-a
 We will assume that you had placed the model and tokenizer as follows on cluster:
 
 ```
-/fsx/Llama2-meta/
+${MODEL_PATH}/Llama2-meta/
 ├── 7B/
 │   ├── checklist.chk
 │   ├── consolidated.00.pth
@@ -33,13 +58,26 @@ We will assume that you had placed the model and tokenizer as follows on cluster
 To convert the model to the standard Hugging Face format, the following script in transformers can be called with the following (example) command:
 
 ```
-sbatch 1.convert-weight.sbatch
+sbatch 3.convert-weight.sbatch
 ```
 
-Note: For the purposes of this sample we assume you have saved the Llama-2-7b model in a directory called `Llama2-7b-hf` with the following format:
+You can check progress of with `tail` command.
 
 ```
-/fsx/Llama2-7b-hf/
+$ tail -f slurm-3.convert-weight.sbatch-xxx.out 
+```
+
+```console
+Fetching all parameters from the checkpoint at /fsx/Llama2-meta/7B.
+Loading the checkpoint in a Llama model.
+Loading checkpoint shards: 100%|██████████| 33/33 [00:12<00:00,  2.65it/s]
+...
+```
+
+Once the job completed, you will have the Llama-2-7b model weights and tokenizer in a huggingface format under a directory called `Llama2-7b-hf` with the following format:
+
+```console
+${DATAPATH}/Llama2-7b-hf/
 ├── config.json
 ├── generation_config.json
 ├── pytorch_model-00001-of-00002.bin
@@ -54,16 +92,16 @@ Note: For the purposes of this sample we assume you have saved the Llama-2-7b mo
 ## 2. Download and Tokenize dataset
 This tutorial makes use of a [Red pyjama dataset](https://huggingface.co/datasets/togethercomputer/RedPajama-Data-1T). The dataset can be downloaded to your cluster by running the following commands on the head node:
 
-```
-mkdir -p /fsx/data/llama2
-wget https://data.together.xyz/redpajama-data-1T/v1.0.0/book/book.jsonl # Note: Dataset download is 50G and will take approximately 3-4 hours to download.
-or
-wget https://huggingface.co/datasets/togethercomputer/RedPajama-Data-1T-Sample/resolve/main/book_sample.jsonl -O /fsx/data/llama2/book.jsonl 
+```bash
+mkdir -p ${DATA_PATH} 
+wget https://data.together.xyz/redpajama-data-1T/v1.0.0/book/book.jsonl -O ${DATA_PATH}/book.jsonl # Note: Dataset download is 50G and will take approximately 3-4 hours to download. You can also use https://aria2.github.io/ for faster download
+# or
+# wget https://huggingface.co/datasets/togethercomputer/RedPajama-Data-1T-Sample/resolve/main/book_sample.jsonl -O ${DATA_PATH}/book.jsonl # Smaller sample dataset for quick testing
 ```
 
 Once you have the Tokenizer and the dataset. You can tokenize the dataset following the below command: 
-```
-sbatch 2.tokenize.sbatch
+```bash
+sbatch 4.tokenize.sbatch
 ```
 
 Post tokenizing the dataset, you will have a path to the tokenizer and the dataset which will be used for pretraining. 
@@ -94,26 +132,33 @@ An alternative to the JIT flow is to use the included [neuron_parallel_compile](
 
 Before starting the compilation you need to update your path to the dataset and tokenizer in the llama_7b script as below : 
 
-```
-cd ~/neuronx-nemo-megatron/nemo/examples/nlp/language_modeling
-vi llama_7b.sh
-```
-Update the below lines to
-```
-# For tokenizer
-model.tokenizer.type='/fsx/Llama2-7b-hf' \
-
-# For Dataset
-model.data.data_prefix=[1.0,/fsx/data/books/book.jsonl-processed_text_document] \
+```bash
+cd ${APPS_PATH}/neuronx-nemo-megatron/nemo/examples/nlp/language_modeling
+vi test_llama.sh
 ```
 
-Run the following command to launch an AOT pre-compilation job on your ParallelCluster:
+Update the below lines
+
+```bash
+: ${TOKENIZER_PATH=$HOME/llamav2_weights/7b-hf}
+: ${DATASET_PATH=$HOME/examples_datasets/llama_7b/book.jsonl-processed_text_document}
 ```
-bash 3.precompile-model.sh
+
+to
+```bash
+: ${TOKENIZER_PATH=${MODEL_PATH}/Llama2-7b-hf}
+: ${DATASET_PATH=${DATA_PATH}/book-tokenized_text_document}
+```
+
+Then, run the following command to launch an AOT pre-compilation job on your ParallelCluster:
+
+```bash
+bash 5.precompile-model.sh
 ```
 
 Once you have launched the precompilation job, run the `squeue` command to view the SLURM job queue on your cluster. If you have not recently run a job on your cluster, it may take 4-5 minutes for the requested trn1.32xlarge nodes to be launched and initialized. Once the job is running, `squeue` should show output similar to the following:
-```
+
+```console
     JOBID  PARTITION  NAME           USER    ST  TIME  NODES NODELIST(REASON)
     10     compute1   compile.slurm  ubuntu  R   5:11  4     compute1-dy-queue1-i1-[1-4]
 ```
@@ -124,7 +169,8 @@ tail -f slurm-compile.slurm-10.out
 ```
 
 Once the precompilation job is complete, you should see a message similar to the following in the logs:
-```
+
+```console
 2023-06-11 23:04:08.000738: INFO ||PARALLEL_COMPILE||: Total graphs: 22
 2023-06-11 23:04:08.000738: INFO ||PARALLEL_COMPILE||: Total successful compilations: 22
 2023-06-11 23:04:08.000738: INFO ||PARALLEL_COMPILE||: Total failed compilations: 0
@@ -137,18 +183,28 @@ At this point, you can press `CTRL-C` to exit the tail command.
 Submit the training job
 
 ```
-bash 4.pretrain-model.sh
+bash 6.pretrain-model.sh
 ```
 
 
 As outlined above, you can again use the `squeue` command to view the job queue. Once you see that your pretraining job is running, you can view the output of the training job by examining the file named `slurm-run.slurm-ZZ.out` where ZZ represents the JOBID of your job:
-```
+
+```bash
 tail -f slurm-run.slurm-11.out
 ```
 
 Once the model is loaded onto the Trainium accelerators and training has commenced, you will begin to see output indicating the job progress:
-```
+
+```console
 Epoch 0:  22%|██▏       | 4499/20101 [22:26:14<77:48:37, 17.95s/it, loss=2.43, v_num=5563, reduced_train_loss=2.470, gradient_norm=0.121, parameter_norm=1864.0, global_step=4512.0, consumed_samples=1.16e+6, iteration_time=16.40]
 Epoch 0:  22%|██▏       | 4500/20101 [22:26:32<77:48:18, 17.95s/it, loss=2.43, v_num=5563, reduced_train_loss=2.470, gradient_norm=0.121, parameter_norm=1864.0, global_step=4512.0, consumed_samples=1.16e+6, iteration_time=16.40]
 Epoch 0:  22%|██▏       | 4500/20101 [22:26:32<77:48:18, 17.95s/it, loss=2.44, v_num=5563, reduced_train_loss=2.450, gradient_norm=0.120, parameter_norm=1864.0, global_step=4512.0, consumed_samples=1.16e+6, iteration_time=16.50]
 ```
+
+## 5. Authors / Reviewers
+
+* [A] Keita Watanabe - mlkeita@
+* [R] Verdi March - marcverd@
+* [R] Brad Doran 
+* [R] Justin Pirtle 
+* [R] Pierre-Yves Aquilanti - pierreya@
