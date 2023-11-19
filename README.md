@@ -46,6 +46,7 @@ All test cases are under `3.test_cases/`. You can go in each test case directory
 | `5.param-benchmark`        |  ✅   | ❓          | ❓         |
 | `6.stable-diffusion`       |  ✅   | ❓          | ❓         |
 | `7.tensorflow-distributed` |  ✅   | ❓          | ❓         |
+| `8.neuronx-nemo-megatron`  |  ✅   | ❓          | ❓         |
 
 ## 4. Validation scripts
 
