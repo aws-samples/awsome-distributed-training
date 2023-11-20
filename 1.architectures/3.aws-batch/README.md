@@ -18,6 +18,11 @@ This template deploys AWS Batch and EC2 resources. It can be deployed via the co
 
 - **Template file**: [`0.aws-batch-distributed-training.yaml`](./0.aws-batch-distributed-training.yaml)
 
+### Quick Create
+
+[<kbd> <br> 1-Click Deploy 🚀 <br> </kbd>](https://console.aws.amazon.com/cloudformation/home?#/stacks/quickcreate?templateURL=https://awsome-distributed-training.s3.amazonaws.com/templates/0.aws-batch-distributed-training.yaml&stackName=AWS-Batch)
+
+
 ## List of Parameters
 
 The templates takes parameters that are mandatory and optional, see below for more details.
@@ -34,8 +39,7 @@ The templates takes parameters that are mandatory and optional, see below for mo
 
 ## Deploy with the AWS CLI
 
-The command to deploy the template through the CLI is shown below. Please edit the parameters values with your own configuration.
-
+If you'd like to deploy through the AWS CLI instead of the quick create link above, the command to deploy the template is shown below. Please edit the parameters values with your own configuration.
 
 ```bash
 aws cloudformation create-stack --stack-name batch-distributed-training \
