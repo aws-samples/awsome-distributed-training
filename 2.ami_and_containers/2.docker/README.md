@@ -1,16 +1,13 @@
 # Template of PyTorch image optimized for GPU EC2 instances
 
-This directory assumes some level of familiarities with Docker, AWS CLI, AWS EFA, libfabric, AWS OFI
-plugin to NCCL, enroot, and NVidia GPU stack (particularly NCCL).
-
-The sample `Dockerfile` are intended as a reference. It provides optional stanzas (commented or
-active).Instead of building this Dockerfile directly, we strongly recommend you to read through
-this`Dockerfile`, understand what it does, then create your own `Dockerfile` cherry-picking just the
-necessary stanzas for your use cases.
+The directory provides a sample `Dockerfile` intended as a reference. It provides optional stanzas
+(commented or active). Instead of building this Dockerfile directly, we strongly recommend you to
+read through this `Dockerfile`, understand what it does, then create your own `Dockerfile`
+cherry-picking just the necessary stanzas for your use cases.
 
 Before running a command, _make it a habit to always review_ scripts, configurations, or whatever
-files involved. Very frequently, this repo requires you to edit files, or provides explanations,
-tips and tricks in the form of comments within various files.
+files involved. Very frequently, this directory requires you to edit files, or provides
+explanations, tips and tricks in the form of comments within various files.
 
 With that said, feel free to explore the example. Happy coding, and experimenting!
 
@@ -22,7 +19,8 @@ In principle, the reference `Dockerfile` does the following:
   parent image.
 - Remove unneccessary networking packages that might conflict with AWS technologies.
 - Install EFA user-space libraries. It's important to avoid building the kernel drivers during
-  `docker build`, and skip the self-tests, as both of these should've been done on the host.
+  `docker build`, and skip the self-tests, as both of these steps fail are expected to fail when run
+  during container build.
 - **OPTIONAL** -- On rare cases when your MPI application crashes when run under Slurm as `srun
   --mpi=pmix ...`, you might need to rebuild the OpenMPI to match with the PMIX version in the host.
 - **OPTIONAL** -- Install NCCL in case the parent image hasn't caught up with the NCCL version you
@@ -35,15 +33,16 @@ In principle, the reference `Dockerfile` does the following:
   aws-ofi-nccl](https://github.com/aws/aws-ofi-nccl/blob/master/doc/efa-env-var.md)). Hence, the
   provided template `Dockerfile` has (almost) no environment variables for EFA anymore (and this is
   one major simplification for those who've been exposed to older EFA examples elsewhere).
-- Install [nccl-test](https://github.com/NVIDIA/nccl-tests) by default, as a useful diagnostic tool
-  when using this container.
-- **OPTIONAL** -- Additional packages that worth to mention due to special requirements during
-  build, e.g., xformers are known to be notoriously resource hungry during compilation.
+- Install [aws-ofi-nccl](https://github.com/aws/aws-ofi-nccl) to get NCCL to utilize EFA.
+- Install [nccl-test](https://github.com/NVIDIA/nccl-tests) as a built-in diagnostic tool.
+- **OPTIONAL** -- Additional packages that worth to mention due to special build requirements, e.g.,
+  installing [xformers](https://github.com/facebookresearch/xformers#install-troubleshooting) from
+  source may encounter OOM unless special care is taken.
 - And more reference stanzas may be added in future.
 
 ## 2. Frequently-used commands
 
-Build an image:
+Once you've created your own Dockerfile, it's time to build an image out of it:
 
 ```bash
 # Build a Docker image
@@ -61,15 +60,15 @@ rm /fsx/nvidia-pt-od__2310.sqsh ; enroot import -o /fsx/nvidia-pt-od__latest.sqs
 ```
 
 Tips: when building on a compute node (or a build node), you save the built Docker image on a shared
-shared filesystem such as `/fsx`, to allow other nodes (e.g., head node, or other compute nodes) to
-load the image to their local Docker registry.
+filesystem such as `/fsx`, to allow other nodes (e.g., head node, or other compute nodes) to load
+the image to their local Docker registry.
 
 ```bash
 # Build node: save image to file
 docker save nvidia-pt-od:latest > /fsx/nvidia-pt-od__latest.tar
 
 # Load image to local docker registry -> on head node, or new compute/build node
-docker load < /fsx/nvidia-pt-od__2310.tar
+docker load < /fsx/nvidia-pt-od__latest.tar
 
 # Verify the image has been loaded
 docker images
