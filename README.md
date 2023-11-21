@@ -37,13 +37,15 @@ Custom machine images can be built using [Packer](www.packer.io) for AWS Paralle
 
 All test cases are under `3.test_cases/`. You can go in each test case directory to learn how to run it.
 
-| Test cases          | Slurm | EKS | AWS Batch  |
-| ------------------- | ----- | --- | ---------- |
-| `1.megatron-lm`     | ✅    | ❓  | ❓         |
-| `2.nemo-launcher`   | ✅    | ❌  | ❌         |
-| `3.MPT`             | ✅    | ❓  | ❓         |
-| `4.DDP`             | ✅    | ❓  | ❓         |
-| `5.param-benchmark` | ✅    | ❓  | ❓         |
+| Test cases                 | Slurm | Kubernetes | AWS Batch  |
+| -------------------------- | ----- | ---------- | ---------- |
+| `1.megatron-lm`            |  ✅   | ❓          | ❓         |
+| `2.nemo-launcher`          |  ✅   | ❌          | ❌         |
+| `3.MPT`                    |  ✅   | ❓          | ❓         |
+| `4.DDP`                    |  ✅   | ❓          | ❓         |
+| `5.param-benchmark`        |  ✅   | ❓          | ❓         |
+| `6.stable-diffusion`       |  ✅   | ❓          | ❓         |
+| `7.tensorflow-distributed` |  ✅   | ❓          | ❓         |
 
 ## 4. Validation scripts
 
@@ -53,13 +55,13 @@ Utilities scripts and micro-benchmarks examples are set under `4.validation_scri
 
 Integration tests are written in [pytest](https://docs.pytest.org). Just run:
 
-```
+```bash
 pytest .
 ```
 
 Alternatively you can run tests with out capturing stdout and keeping all docker images an other artifacts.
 
-```
+```bash
 pytest -s --keep-artifacts=t
 ```
 
