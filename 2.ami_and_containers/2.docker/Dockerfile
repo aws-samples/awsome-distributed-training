@@ -139,8 +139,8 @@ RUN apt-get update && apt-get install -y libevent-dev \
     && rm -fr /tmp/pmix-${CUSTOM_PMIX_VERSION}/
 # To silence this runtime error message:
 # [p4de-st-p4de-2:110912] PMIX ERROR: ERROR in file gds_ds12_lock_pthread.c at line 168
-export PMIX_GDS_MODULE=^ds12
-export PMIX_MCA_gds=^ds12
+ENV PMIX_GDS_MODULE=^ds12 \
+    PMIX_MCA_gds=^ds12
 
 # Rebuild openmpi with DLC style (which it remarks as "without libfabric"), with the above pmix.
 ENV OMPI_VERSION=4.1.6
