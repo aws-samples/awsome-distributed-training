@@ -84,7 +84,7 @@ Below are the steps you need to follow:
 
     ```bash
     #!/bin/bash
-    mkdir -p cd ${DATA_PATH}/gpt2
+    mkdir -p ${DATA_PATH}/gpt2
     cd ${DATA_PATH}/gpt2
 
     wget https://huggingface.co/bigscience/misc-test-data/resolve/main/stas/oscar-1GB.jsonl.xz
