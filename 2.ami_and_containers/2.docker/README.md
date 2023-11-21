@@ -29,6 +29,12 @@ In principle, the reference `Dockerfile` does the following:
   want to use.
 - Typical environment variables for OpenMPI, EFA, and NCCL. Best practice to enforce these in the
   image, otherwise it can be error prone to manually set these variables when starting containers.
+
+  **NOTE**: recent version of aws-ofi-nccl simplifies a lot of environment variables (see the [the
+  official EFA cheatsheet in
+  aws-ofi-nccl](https://github.com/aws/aws-ofi-nccl/blob/master/doc/efa-env-var.md)). Hence, the
+  provided template `Dockerfile` has (almost) no environment variables for EFA anymore (and this is
+  one major simplification for those who've been exposed to older EFA examples elsewhere).
 - Install [nccl-test](https://github.com/NVIDIA/nccl-tests) by default, as a useful diagnostic tool
   when using this container.
 - **OPTIONAL** -- Additional packages that worth to mention due to special requirements during
