@@ -6,8 +6,8 @@ The major components of this directory are:
 
 ```bash
 reference-architectures/
-|-- 1.architectures                # CloudFormation templates for reference arch
-|-- 2.amazon_machine_images/       # Scripts to create AMIs
+|-- 1.architectures/               # CloudFormation templates for reference arch
+|-- 2.ami_and_containers/          # Scripts to create AMIs and container images
 |-- 3.test_cases/                  # Reference test cases and/or benchmark scripts
 |-- 3.validation_scripts/          # Tools to measure performance or troubleshoot
 `-- ...
@@ -45,7 +45,6 @@ All test cases are under `3.test_cases/`. You can go in each test case directory
 | `4.DDP`             | ✅    | ❓  | ❓         |
 | `5.param-benchmark` | ✅    | ❓  | ❓         |
 
-
 ## 4. Validation scripts
 
 Utilities scripts and micro-benchmarks examples are set under `4.validation_scripts/`.
@@ -53,11 +52,13 @@ Utilities scripts and micro-benchmarks examples are set under `4.validation_scri
 ## 5. CI
 
 Integration tests are written in [pytest](https://docs.pytest.org). Just run:
+
 ```
 pytest .
 ```
 
 Alternatively you can run tests with out capturing stdout and keeping all docker images an other artifacts.
+
 ```
 pytest -s --keep-artifacts=t
 ```
