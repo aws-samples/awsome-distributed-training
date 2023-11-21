@@ -193,8 +193,7 @@ ENV OMPI_MCA_pml=^cm,ucx            \
     # https://github.com/pytorch/pytorch/issues/68893
     NCCL_SOCKET_IFNAME=^docker,lo
 
-ENV FI_PROVIDER=efa \
-    LD_LIBRARY_PATH="/usr/local/lib:/usr/local/cuda/lib64:${LD_LIBRARY_PATH}"
+ENV LD_LIBRARY_PATH="/usr/local/lib:/usr/local/cuda/lib64:${LD_LIBRARY_PATH}"
 
 # NCCL-tests: always good to include this as a diagnostic tool.
 RUN git clone https://github.com/NVIDIA/nccl-tests.git /opt/nccl-tests \
