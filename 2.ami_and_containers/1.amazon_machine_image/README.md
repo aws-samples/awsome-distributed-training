@@ -9,6 +9,11 @@ To build images you will need:
 - **Packer**: it can be downloaded via [Hashicorp](https://www.packer.io/)'s website, you can also use [`brew`](https://formulae.brew.sh/formula/packer#default) on OSX.
 - **Ansible**: get it via your package manager, we recommend via [`brew`](https://formulae.brew.sh/formula/ansible#default) if using OSX.
 
+Initialize Packer (will install plugins):
+```bash
+packer init -upgrade packer-ami.pkr.hcl 
+```
+
 ### Build a custom AMI
 
 Assuming that GNU Make, Packer and Ansible installed, you can build AMIs by typing `make` in your terminal with an argument corresponding to the desired AMI you want to build.
