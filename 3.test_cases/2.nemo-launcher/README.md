@@ -10,6 +10,9 @@ Table of contents:
 - [4. Prepare Input Data](#4-prepare-input-data)
 - [5. Pre-training GPT3](#5-pre-training-gpt3)
 - [6. Customizing Pre-Training](#6-customizing-pre-training)
+- [7. Pre-Training llama2](#7-pre-training-llama2)
+- [8. References](#8-references)
+- [9. Authors / Reviewers](#9-authors--reviewers)
 
 ## 1. Pre-requisites
 
@@ -17,7 +20,7 @@ The following pre-requisites are needed to run this example:
 
 - You are using p4de.24xlarge instances with A100 80GB or newer, with at least 80GB of memory per GPU.
 - You have access to the base image [`nemofw-training`](https://registry.ngc.nvidia.com/orgs/ea-bignlp/containers/bignlp-training) is available through NVIDIA's open-beta [here](https://developer.nvidia.com/nemo-framework-open-beta).
-- Docker, [Enroot](https://github.com/NVIDIA/enroot) and [Pixys](https://github.com/NVIDIA/pyxis) installed on the cluster and available on all nodes. It is assumed you are using a Custom AMI ([example](../../2.amazon_machine_images))
+- Docker, [Enroot](https://github.com/NVIDIA/enroot) and [Pixys](https://github.com/NVIDIA/pyxis) installed on the cluster and available on all nodes. It is assumed you are using a Custom AMI ([example](../../2.ami_and_containers/1.amazon_machine_image))
 
 You will need to setup the following environment variables before running the scripts. :
 
@@ -130,15 +133,20 @@ That's all needed to pre-train with a mock dataset generated on-the-fly.
 This section assumes that you went through the previous sections and 1/ retrieved and built the AWS optimized NemoMegatron container, 2/ setup the NemoMegatron environment, and 3/ download the vocabularies. Here you start a pre-training on a small model of 126M parameters, this serves as a quick sanity check.
 
 1. Source the NemoMegatron environment created earlier.
+
     ```bash
     source ${TARGET_PATH}/.venv/bin/activate
     ```
+
 2. To pre-train a GPT3-126m on two instances with mock dataset, run the commands below to let :
+
     ```bash
     cd $TARGET_PATH
     $TEST_CASE_PATH/1.bmk-pretrain-gpt3-126m.sh
     ```
+
 3. Check the file `$TARGET_PATH/launcher_scripts/main.py`. The `launcher_scripts/main.py` interacts with Slurm on our behalf to generate an `.sbatch` file and submits it to Slurm. Nemo-launcher logs all the invocation commands, output, and error to `$TARGET_PATH/results/<MODEL_SIZE>/` described below.
+
     ```bash
     $TARGET_PATH/results/gpt3_126m
     ├── gpt3_126m_hydra.yaml                        # The fully interpolated pre-training configuration
@@ -155,6 +163,7 @@ This section assumes that you went through the previous sections and 1/ retrieve
         ├── nemo_error_log.txt                      # Stderr of pre-training step
         └── nemo_log_globalrank-*.txt               # Log of each rank
     ```
+
     Please note that except for `log-nemo-megatron-gpt3_126m_<JOB_ID>.out`, the other files will be overridden when you launch another pre-training of that same model size. To completely separate the output among jobs, edit `TEST_CASE_PATH/bmk-pretrain-gpt3-126m.sh` and uncomment the `#export UNIQUE_OUTPUT_DIR=1` line to produce this output dir instead:
 
 4. You can use Slurm command `squeue` to monitor the job status in the queue. The ample output below shows a `nemo-megatron` job with job id `1234` is in running state (`ST` = `R`). A queued job will have state `ST` = `PD` (pending). Please refer to the complete of job states in this [Slurm documentation](https://slurm.schedmd.com/squeue.html#SECTION_JOB-STATE-CODES).
@@ -163,7 +172,9 @@ This section assumes that you went through the previous sections and 1/ retrieve
     JOBID   PARTITION        NAME      USER  ST       TIME  NODES NODELIST(REASON)
      1234   my-cluste   nemo-mega  ec2-user   R   00:19:40      1 p4de-dy-p4de-24xlarge-[1-2]
     ```
+
 5. Once a job finishes, check the `log-nemo-megatron-<MODEL_NAME>_<MODEL_SIZE>_<JOB_ID>.err`, and see it should contains ``Trainer.fit` stopped: `max_steps=40` reached`` (disregard the warnings).
+
     ```console
     $ tail -5 $TARGET_PATH/results/gpt3_126m/log-nemo-megatron-gpt3_126m_72.err
 
@@ -172,7 +183,9 @@ This section assumes that you went through the previous sections and 1/ retrieve
 
     `Trainer.fit` stopped: `max_steps=40` reached.
     ```
+
 6. Review the output file (`log-nemo-megatron-gpt3_126m_<JOB_ID>.out`) which contains the `stdout` output of the job. The end of the file should be similar to the snippet below
+
     ```console
     [NeMo I 2023-09-11 22:31:28 lr_scheduler:910] Scheduler "<nemo.core.optim.lr_scheduler.CosineAnnealing object at 0x7f8ffd427490>"
         will be used during training (effective maximum steps = 40) -
@@ -189,8 +202,7 @@ Congratulations! You've successfully run this test case to completion.
 
 > **Note**: Should you run into an OOM error, you can adjust the minimum batch size by setting the MBS in `bmk` launch scripts. You can tune the NemoMegatron and PyTorch parameters in such way as well.
 
-
-## 7. Customizing Pre-Training
+## 6. Customizing Pre-Training
 
 To pre-train for a different model size on different instance count, open `$TEST_CASE_PATH/1.bmk-pretrain-gpt3-126m.sh` and edit section `000` to choose the right hyperparameters. Be aware that pre-training LLM requires understanding on the hyperparameters such as parallelism and batches. Please refer to the NeMO project ([website](https://developer.nvidia.com/nemo), [GitHub](https://github.com/NVIDIA/NeMo), [NeMo-Megatron-Launcher](https://github.com/NVIDIA/NeMo-Megatron-Launcher)) and the Megatron papers ([Shoeybi20](https://arxiv.org/abs/1909.08053), [Narayanan21](https://arxiv.org/abs/2104.04473)).
 
@@ -217,33 +229,40 @@ training.trainer.num_nodes=$NUM_NODES
                 |
                 └── key 'trainer -> num_nodes' in the `.yaml` file.
 ```
-## 8. Pre-Training llama2
+
+## 7. Pre-Training llama2
 
 This section assumes that you went through the previous sections and 1/ retrieved and built the AWS optimized NemoMegatron container, 2/ setup the NemoMegatron environment, and 3/ download the vocabularies. Actions will be almost the same as for 5/ Pre-training GPT3, let do it.
 
 1. Download llama2 tokenizer
+
 ```
 mkdir -p $TARGET_PATH/data/llama2
 curl -L https://github.com/microsoft/Llama-2-Onnx/raw/main/tokenizer.model > $TARGET_PATH/data/llama2/tokenizer.model
 
 ```
+
 2. Source the NemoMegatron environment created earlier.
+
     ```bash
     source ${TARGET_PATH}/.venv/bin/activate
     ```
+
 3. To pre-train a llama2-7b on two instances with mock dataset, run the commands below to let :
+
     ```bash
     cd $TARGET_PATH
     $TEST_CASE_PATH/5.bmk-pretrain-llama-7b.sh
     ```
+
 4. Next stests are absolutely the same as for 5/ Pre-training GPT3, the only difference is that result directory is `$TARGET_PATH/results/llama2_7b`
 
-## 9. References
+## 8. References
 
-- Nvidia NemoMegatron Documentation: https://docs.nvidia.com/deeplearning/nemo/user-guide/docs/en/stable/nlp/megatron.html
-- Train Large Scale NLP with Nemo Megatron from Nvidia: https://docs.nvidia.com/launchpad/ai/base-command-nemo/latest/index.html
+- Nvidia NemoMegatron Documentation: <https://docs.nvidia.com/deeplearning/nemo/user-guide/docs/en/stable/nlp/megatron.html>
+- Train Large Scale NLP with Nemo Megatron from Nvidia: <https://docs.nvidia.com/launchpad/ai/base-command-nemo/latest/index.html>
 
-## Authors / Reviewers
+## 9. Authors / Reviewers
 
 - [A] Verdi March - marcverd@
 - [R] Pierre-Yves Aquilanti - pierreya@
