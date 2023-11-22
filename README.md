@@ -9,7 +9,7 @@ reference-architectures/
 |-- 1.architectures                # CloudFormation templates for reference arch
 |-- 2.amazon_machine_images/       # Scripts to create AMIs
 |-- 3.test_cases/                  # Reference test cases and/or benchmark scripts
-|-- 3.validation_scripts/          # Tools to measure performance or troubleshoot
+|-- 4.validation_scripts/          # Tools to measure performance or troubleshoot
 `-- ...
 ```
 
@@ -17,17 +17,17 @@ reference-architectures/
 
 ## 1. Architectures
 
-Architectures are located in `1.architectures` and consists of utilities and service related architectures
+Architectures are located in `1.architectures` and consists of utilities and service related architectures.
 
-| Name                    | Category | Usage                                               |
-| ----------------------- | -------- | --------------------------------------------------- |
-| `0.s3`                  | Storage  | Create an S3 bucket                                 |
-| `1.vpc_network`         | Network  | Create a VPC with subnets required resources        |
-| `2.aws-parallelcluster` | Compute  | Cluster templates for GPU & custom silicon training |
-| `3.aws-batch`           | Compute  | AWS Batch template for distributed training         |
-| `4.amazon-eks`          | Compute  | Manifest files to train with Amazon EKS         |
+| Name                                                               | Category | Usage                                               |
+| ------------------------------------------------------------------ | -------- | --------------------------------------------------- |
+| [`0.s3`](./1.architectures/0.s3)                                   | Storage  | Create an S3 bucket                                 |
+| [`1.vpc_network`](./1.architectures/1.vpc_network)                 | Network  | Create a VPC with subnets required resources        |
+| [`2.aws-parallelcluster`](./1.architectures/2.aws-parallelcluster) | Compute  | Cluster templates for GPU & custom silicon training |
+| [`3.aws-batch`](./1.architectures/3.aws-batch)                     | Compute  | AWS Batch template for distributed training         |
+| [`4.amazon-eks`](./1.architectures/4.amazon-eks)                   | Compute  | Manifest files to train with Amazon EKS             |
 
-More will come, feel free to add new ones (EKS, Ray?)
+More will come, feel free to add new ones (EKS, Ray?). You will also find [documentation](./1.architectures/efa-cheatsheet.md) for EFA and the recommended environment variables.
 
 ## 2. Custom Amazon Machine Images
 
@@ -37,15 +37,16 @@ Custom machine images can be built using [Packer](www.packer.io) for AWS Paralle
 
 All test cases are under `3.test_cases/`. You can go in each test case directory to learn how to run it.
 
-| Test cases                 | Slurm | Kubernetes | AWS Batch  |
-| -------------------------- | ----- | ---------- | ---------- |
-| `1.megatron-lm`            |  ✅   | ❓          | ❓         |
-| `2.nemo-launcher`          |  ✅   | ❌          | ❌         |
-| `3.MPT`                    |  ✅   | ❓          | ❓         |
-| `4.DDP`                    |  ✅   | ❓          | ❓         |
-| `5.param-benchmark`        |  ✅   | ❓          | ❓         |
-| `6.stable-diffusion`       |  ✅   | ❓          | ❓         |
-| `7.tensorflow-distributed` |  ✅   | ❓          | ❓         |
+| Test cases                                                            | Slurm | Kubernetes  | AWS Batch  |
+| --------------------------------------------------------------------- | ----- | ----------- | ---------- |
+| [`1.megatron-lm`](./3.test_cases/1.megatron-lm)                       |  ✅   | ❓          | ❓         |
+| [`2.nemo-launcher`](./3.test_cases/2.nemo-launcher)                   |  ✅   | ❌          | ❌         |
+| [`3.MPT`](./3.test_cases/3.MPT)                                       |  ✅   | ❓          | ❓         |
+| [`4.DDP`](./3.test_cases/4.DDP)                                       |  ✅   | ❓          | ❓         |
+| [`5.param-benchmark`](./3.test_cases/5.param-benchmark)               |  ✅   | ❓          | ❓         |
+| [`6.stable-diffusion`](./3.test_cases/6.stable-diffusion)             |  ✅   | ❓          | ❓         |
+| [`7.tensorflow-distributed`](./3.test_cases/7.tensorflow-distributed) |  ✅   | ❓          | ❓         |
+| [`8.neuronx-nemo-megatron`](./3.test_cases/8.neuronx-nemo-megatron)   |  ✅   | ❓          | ❓         |
 
 ## 4. Validation scripts
 
@@ -67,14 +68,4 @@ pytest -s --keep-artifacts=t
 
 Thanks to all the contributors for building, reviewing and testing.
 
-- Pierre-Yves Aquilanti - pierreya@
-- Verdi March - marcverd@
-- Uros Lipovsek - lipovsek@
-- Keita Watanabe - mlkeita@
-- Ankur Srivastava - awsankur@
-- Alex Iankoulski - iankouls@
-- Tom McDonald - tjm@
-- Sean Smith - seaam@
-- Jianying Lang - langjian@
-- Maxime Hugues - maxhaws@
-- Dmitry Monakhov dmonakhov@
+[![Contributors](https://contrib.rocks/image?repo=aws-samples/awsome-distributed-training)](https://github.com/aws-samples/awsome-distributed-training/graphs/contributors)
