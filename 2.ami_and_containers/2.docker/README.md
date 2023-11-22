@@ -33,6 +33,8 @@ In principle, the reference `Dockerfile` does the following:
   aws-ofi-nccl](https://github.com/aws/aws-ofi-nccl/blob/master/doc/efa-env-var.md)). Hence, the
   provided template `Dockerfile` has (almost) no environment variables for EFA anymore (and this is
   one major simplification for those who've been exposed to older EFA examples elsewhere).
+- User-space of gdrcopy -- **NOTE**: no-op (like this example) when already built-in in the parent
+  image.
 - Install [aws-ofi-nccl](https://github.com/aws/aws-ofi-nccl) to get NCCL to utilize EFA.
 - Install [nccl-test](https://github.com/NVIDIA/nccl-tests) as a built-in diagnostic tool.
 - **OPTIONAL** -- Additional packages that worth to mention due to special build requirements, e.g.,
