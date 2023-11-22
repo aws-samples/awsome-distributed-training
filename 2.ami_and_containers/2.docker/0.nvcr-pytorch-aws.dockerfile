@@ -7,7 +7,7 @@
 #
 # Sample build instructions:
 #
-#     docker build --progress=plain -t nvidia-pt-od:2310 .
+#     docker build --progress=plain -t nvidia-pt-od:2310 -f 0.nvcr-pytorch-aws.dockerfile .
 #     rm /fsx/nvidia-pt-od__2310.sqsh ; enroot import -o /fsx/nvidia-pt-od__2310.sqsh dockerd://nvidia-pt-od:2310
 #
 # Compute nodes (aka build nodes) are transient, so we need to keep the docker image on shared fs,
