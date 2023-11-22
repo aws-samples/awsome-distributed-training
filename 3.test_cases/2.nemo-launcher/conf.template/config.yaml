@@ -37,13 +37,9 @@ wandb_api_key_file: null # File where the w&B api key is stored. Key must be on 
 
 env_vars:
   NCCL_DEBUG: null # Logging level for NCCL. Set to "INFO" for debug information
-  NCCL_PROTO: simple # Protocol NCCL will use. Set to "simple" for AWS
   TRANSFORMER_OFFLINE: 1
-  FI_EFA_USE_DEVICE_RDMA: 1
-  FI_PROVIDER: efa
   NCCL_LAUNCH_MODE: parallel
-  FI_EFA_FORK_SAFE: 1
-  FI_EFA_ENABLE_SHM_TRANSFER: 1
+  NCCL_ASYNC_ERROR_HANDLING: 1
 
 # GPU Mapping
 numa_mapping:
