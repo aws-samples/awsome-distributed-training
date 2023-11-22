@@ -48,8 +48,8 @@ Once you've created your own Dockerfile, it's time to build an image out of it:
 # Build a Docker image
 docker build --progress=plain -t nvidia-pt-od:latest .
 
-# If Dockerfile is named differently, e.g., Dockerfile-nvidia.dockerfile
-docker build --progress=plain -t nvidia-pt-od:latest -f Dockerfile-nvidia.dockerfile .
+# If Dockerfile is named differently, e.g., 0.nvcr-pytorch-aws.dockerfile
+docker build --progress=plain -t nvidia-pt-od:latest -f 0.nvcr-pytorch-aws.dockerfile .
 
 # Verify the image has been built
 docker images
