@@ -1,6 +1,6 @@
 # Train Stable Diffusion with NeMo-Multimodal
 
-This project provides a guide to run Nemo-Multimodal on AWS using a container from Nvidia GPU Cloud (NGC). NemoMultimodal 23.05 supports multiple models including Vision Transformers (ViTs), CLIP, Stable Diffusion, InstructPix2Pix, DreamBooth, ControlNet and Imagen. The test cases can be executed on Slurm and use Nvidia Enroot and Nvidia Pyxis. In this project we will showcase a working example with multi-node training for Stable Diffusion
+This project provides a guide to run Nemo-Multimodal on AWS using a container from Nvidia GPU Cloud ([NGC](https://ngc.nvidia.com)). The latest version of NemoMultimodal supports multiple models including [Vision Transformers (ViTs)](https://github.com/google-research/vision_transformer), [CLIP](https://github.com/openai/CLIP/tree/main), [Stable Diffusion](https://stability.ai/stable-diffusion/), [InstructPix2Pix](https://github.com/timothybrooks/instruct-pix2pix), [DreamBooth](https://dreambooth.github.io/), [ControlNet](https://github.com/lllyasviel/ControlNet) and [Imagen](https://imagen.research.google/). The test cases can be executed on Slurm and use [Nvidia Enroot](https://github.com/NVIDIA/enroot) and [Nvidia Pyxis](https://github.com/NVIDIA/pyxis). In this project we will showcase a working example with multi-node training for Stable Diffusion
 
 
 ## 0. Prerequisites
@@ -20,7 +20,7 @@ docker login nvcr.io
 Username: $oauthtoken
 Password: API_KEY
 ```
-Please make note that the Username is exactly "$oauthtoken".
+Please make note that the Username is exactly `"$oauthtoken"`.
 
 ## 2. Install Nvidia Container CLI
 
@@ -81,7 +81,8 @@ docker cp -a <container-id>:/opt/NeMo-Megatron-Launcher/ ${TARGET_PATH}
 To get the `container-id` above you can list the containers like `docker ps -a` which lists all running containers and their ids.
 
 ## 6. Build customized docker image
-To achieve target performance of Nemo-Multimodal with EFA on P5 and P4de instances, we provide a customized [0.Dockerfile](https://github.com/aws-samples/awsome-distributed-training/blob/nemo-multimodal/3.test_cases/8.nemo-multimodal/Dockerfile) and we can build a image like below:
+To achieve target performance of Nemo-Multimodal with EFA on P5 and P4de instances, we provide a customized 
+`nemo-multimodal/3.test_cases/9.nemo-multimodal/0.Dockerfile` and we can build a image like below:
 
 ```
 docker build --build-arg NEMO_MULTIMODAL_VERSION=${NEMO_MULTIMODAL_VERSION} -t ${DOCKER_IMAGE_NAME}:${TAG} -f 0.Dockerfile .
@@ -109,15 +110,14 @@ source activate nemo-multimodal
 pip3 install -r requirements.txt
 
 ```
-All package versions in the above requirements.txt file is recommended from Nvidia. An older version of the package `opencv-python-headless==4.8.0.74` has to be installed to avoid this [error](https://github.com/rom1504/img2dataset/issues/355) with [img2dataset](https://github.com/rom1504/img2dataset) package.
+All package versions in the above `requirements.txt` file is recommended from Nvidia. An older version of the package `opencv-python-headless==4.8.0.74` has to be installed to avoid this [error](https://github.com/rom1504/img2dataset/issues/355) with [img2dataset](https://github.com/rom1504/img2dataset) package.
 
 ## 9. Pull this github repo
 
 ```bash
 cd /apps/
 git clone https://github.com/aws-samples/awsome-distributed-training.git
-cd awsome-distributed-training/3.test_cases/8.nemo-multimodal
-
+cd awsome-distributed-training/3.test_cases/9.nemo-multimodal
 ```
 
 ## 10. Submitting slurm jobs
@@ -126,7 +126,7 @@ Next we will show how to submit slurm jobs for data preparation and training. Th
 1. `nemo_configs/1.config.yaml`: NeMo config with information about different stages and environment variables. Refer to the [EFA cheatsheet](https://github.com/aws-samples/awsome-distributed-training/blob/main/1.architectures/efa-cheatsheet.md) here for more information about the EFA environment variables. 
 2. `nemo_configs/2.bcm.yaml`: Cluster setup config which contains SBATCH variables and [Pyxis](https://github.com/NVIDIA/pyxis) settings to run containers in Slurm.
 3. `nemo_configs/3.download_multimodal.yaml`: Config to download the `laion/laion-art` data from Huggingface and prepare data for training 
-4. `nemo_configs/4.stable_diffusion_860m_res_256_pretrain.yaml`: Config to pre-train stable diffusion model. Currently Nemo Multimodal 23.05 supports the 860M parameter Stable Diffusion model with 256x256 and 512x512 resolution support
+4. `nemo_configs/4.stable_diffusion_860m_res_256_pretrain.yaml`: Config to pre-train stable diffusion model. Currently Nemo Multimodal supports the 860M parameter Stable Diffusion model with 256x256 and 512x512 resolution support
 
 Run the following next to substitute the environment variables in the yaml file and place it in the right location:
 
@@ -142,16 +142,16 @@ You can run one or more stages like below:
 ```
 HYDRA_FULL_ERROR=1 python3 ${TARGET_PATH}/launcher_scripts/main.py
 ``` 
-This will create separate folders for different slurm jobs and create folders with the relevant slurm submission script and config file. For more information on using HYDRA please refer [here]((https://github.com/facebookresearch/hydra)).
+This will create separate folders for different slurm jobs and create folders with the relevant Slurm submission script and config file. For more information on using HYDRA please refer [here]((https://github.com/facebookresearch/hydra)).
 
 ## 11. Download and prepare data
- We will use the popular [laion-art](https://huggingface.co/datasets/laion/laion-art) data for training the stable diffusion model which contains >8M images and their captions. Please review the [download_multimodal](https://github.com/aws-samples/awsome-distributed-training/blob/nemo-multimodal/3.test_cases/8.nemo-multimodal/download_multimodal.yaml) file which contains the following sections:
+ We will use the popular [laion-art](https://huggingface.co/datasets/laion/laion-art) data for training the stable diffusion model which contains >8M images and their captions. Please review the [download_multimodal](https://github.com/aws-samples/awsome-distributed-training/blob/nemo-multimodal/3.test_cases/9.nemo-multimodal/download_multimodal.yaml) file which contains the following sections:
 
 1. `dataset_repo_id`: `laion/laion-art`  Huggingface dataset repo id, in the format of `{user_or_company}/{dataset_name}`
 2. `download_parquet`: Downloads and paritions the parquet files and stores the partioned parquet files in `${DATASET_PATH}/parquet/`
 3. `download_images`: Uses [img2dataset](https://github.com/rom1504/img2dataset/tree/main) to download the images specified in the parquet files and store the raw data in `${DATASET_PATH}/tarfiles_raw`. Each partitioned parquet file will run in an array of slurm jobs sequentially.
 4. `reorganize_tar`: This section will reorganize the tar files and create new tarfiles with `tar_chunk_size` number of images stores in each tar file. Make sure `node_array_size` is set to 1, otherwise additional preprocessing will be needed to merge the tarfiles from the two tasks in one folder. The reorganized tarfiles will be stored in `${DATASET_PATH}/tarfiles_reorganized`.
-5. `reorganize_tar`: This task will generate a pickle file with the necessary paths for the reorganized tarfiles. Make sure you are reading from reorganized tarfiles and not from `precache_encodings` which is included in the original version of NeMo 23.05.
+5. `reorganize_tar`: This task will generate a pickle file with the necessary paths for the reorganized tarfiles. Make sure you are reading from reorganized tarfiles and not from `precache_encodings` which is included in the original version of NeMo.
 
 ## 12. Run Distributed Training
 After downloading the data, you run the training job next. Make sure the trainer inputs such as `num_nodes` and number of gpus per node in `trainer.devices` is set correctly. Also, set `max_epochs` to -1 if training needs to run till max_steps have completed. The model by default will create a tensorboard events log, but weights and biases is not switched on by default. Also make sure the datasets path at the bottom point to the right paths for `wdinfo.pkl` and `tarfiles_reorganized`.
