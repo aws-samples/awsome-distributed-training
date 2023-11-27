@@ -1,0 +1,11 @@
+partition: null
+account: null
+exclusive: True
+gpus_per_task: null
+gpus_per_node: 8
+mem: 0
+job_name_prefix: "nemo-multimodal-"
+gres: "gpu:8"
+srun_args:
+  - "--no-container-mount-home"
+stderr_to_stdout: True
