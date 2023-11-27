@@ -1,10 +1,11 @@
 # NCCL Tests
 
-[NCCL Tests](https://github.com/NVIDIA/nccl-tests) enable you to evaluate the performance of the network using the Nvidia Collective Communication Library. This test case contains a Docker file and a Slurm submission scripts so you can run NCCL tests on Slurm.
+[NCCL Tests](https://github.com/NVIDIA/nccl-tests) enable you to evaluate the performance of the network using the Nvidia Collective Communication Library. This test case contains a Docker file and scripts to submit NCCL tests on Slurm or [Amazon EKS](https://aws.amazon.com/eks/). Please refer to the relevant instructions below, depending on your environment.
 
-## 0. Preparation
+## 0. Prepare the runtime environment
 
-This guide assumes that you have the following:
+### Slurm 
+If you are using Slurm, this guide assumes that you have the following:
 
 - A functional Slurm cluster on AWS.
 - Docker, [Pyxis](https://github.com/NVIDIA/pyxis) and [Enroot](https://github.com/NVIDIA/enroot) installed.
@@ -13,10 +14,35 @@ This guide assumes that you have the following:
 
 It is recommended that you use the templates in the architectures [directory](../../1.architectures)
 
+### Amazon EKS
+If you are using EKS, this guide assumes that you have the following:
 
-## 1. Build the container and the Squash file
+- A functional EKS cluster on AWS. <br/>
+To set up one, please refer to [aws-do-eks](https://bit.ly/do-eks), [Amazon EKS Blueprints for Terraform](https://github.com/aws-ia/terraform-aws-eks-blueprints/tree/main), [Amazon EKS Blueprints for CDK](https://aws-quickstart.github.io/cdk-eks-blueprints/), or others.
+- NVIDIA device plugin deployed to your cluster. <br/>
+If you need to deploy it, please refer to [deployment/nvidia-device-plugin](https://github.com/aws-samples/aws-do-eks/blob/main/Container-Root/eks/deployment/nvidia-device-plugin) or [k8s-device-plugin/deployments](https://github.com/NVIDIA/k8s-device-plugin/tree/main/deployments).
+- EFA devide plugin deployed to your cluster. <br/>
+If you need to deploy it, please refer to [deployment/efa-device-plugin](https://github.com/aws-samples/aws-do-eks/tree/main/Container-Root/eks/deployment/efa-device-plugin) or [aws-efa-eks](https://github.com/aws-samples/aws-efa-eks).
+- Kubeflow MPI operator deployed to your cluster. <br/>
+If you need to deploy it, please refer to [deployment/kubeflow/mpi-operator](https://github.com/aws-samples/aws-do-eks/tree/main/Container-Root/eks/deployment/kubeflow/mpi-operator) or [kubeflow/mpi-operator](https://github.com/kubeflow/mpi-operator). 
+- [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html#cliv2-linux-install)
 
-The NCCL tests are packaged in a container for reproducibility purposes, to run it on Slurm you will need to build your container then convert it into a Squash file using Enroot.
+## 1. Prepare the container image and other artifacts
+
+The NCCL tests are packaged in a container.
+
+> You can set versions and the branch for NCCL and EFA by editing the variables below in the Dockerfile.
+
+> | Variable              | Default     |
+> |-----------------------|-------------|
+> |`EFA_INSTALLER_VERSION`| `latest`    |
+> |`AWS_OFI_NCCL_VERSION` | `aws`       |
+> |`NCCL_TESTS_VERSION`   | `master`    |
+> |`NCCL_VERSION`         | `v2.12.7-1` |
+
+### Slurm
+
+To run the NCCL tests on Slurm, you will need to build the container then convert it into a Squash file using Enroot.
 
 To build the container:
 
@@ -38,19 +64,47 @@ To build the container:
    ```
    The file will be stored in the `/apps` directory.
 
-> You can set versions and the branch for NCCL and EFA by editing the variables below in the Dockerfile.
+### Amazon EKS
 
-> | Variable              | Default     |
-> |-----------------------|-------------|
-> |`EFA_INSTALLER_VERSION`| `latest`    |
-> |`AWS_OFI_NCCL_VERSION` | `aws`       |
-> |`NCCL_TESTS_VERSION`   | `master`    |
-> |`NCCL_VERSION`         | `v2.12.7-1` |
+To run the NCCL tests on EKS, you will need to build the container image, then push it to a container registry, such as the private [ECR](https://aws.amazon.com/ecr/) in your AWS account.
 
+1. Build the container URI:
+   ```bash
+   export AWS_REGION=$(aws ec2 describe-availability-zones --output text --query 'AvailabilityZones[0].[RegionName]')
+   export ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
+   export REGISTRY=${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/
+   export IMAGE=nccl-tests
+   export TAG=:latest
+   ```
+
+2. Build the container image:
+   ```bash
+   docker image build -t ${REGISTRY}${IMAGE}${TAG} -f ./0.nccl-tests.Dockerfile .
+   ```
+
+3. Create the ECR repository if it does not exist
+   ```bash
+   REGISTRY_COUNT=$(aws ecr describe-repositories | grep ${IMAGE} | wc -l)
+   if [ "$REGISTRY_COUNT" == "0" ]; then
+         aws ecr create-repository --repository-name ${IMAGE}
+   fi
+   ```
+
+4. Login to the container registry
+   ```bash
+   aws ecr get-login-password | docker login --username AWS --password-stdin $REGISTRY
+   ```
+
+5. Push the container image to the registry
+   ```bash
+   docker image push ${REGISTRY}${IMAGE}${TAG}
+   ```
 
 ## 2. Running the NCCL Tests
 
-Now you copy the file `1.nccl-tests.sbatch` or its content on your cluster then submit a preprocessing jobs with the command below:
+### Slurm
+
+Copy the file `1.nccl-tests.sbatch` or its content on your cluster then submit a preprocessing jobs with the command below:
 
 ```bash
 sbatch 1.nccl-tests.sbatch
@@ -89,6 +143,66 @@ You can validate your environment for NCCL using the batch file `3.nccl-validate
 ```bash
 sbatch 3.nccl-validate.sbatch
 ```
+
+### Amazon EKS
+
+1. Prepare the MPIJob manifest
+   Edit file `nccl-test-eks.yaml` and adjust the following values:
+
+   - slotsPerWorker: 8 <- set to the number of GPUs per node in your cluster
+   - image: <account>.dkr.ecr.<region>.amazonaws.com/<image>:<tag> <- set to your container image URI. Note: change both locations in the file. You may use `echo ${REGISTRY}${IMAGE}${TAG}` to print the image URI.
+   - -np 16 <- set -np option in mpirun to (number_of_worker_nodes * number_of_gpus_per_node)
+   - other mpirun parameters if needed for your instance type, please refer to [aws-ofi-nccl](https://github.com/aws/aws-ofi-nccl/blob/master/doc/efa-env-var.md)
+   - replicas: 2 <- set to number of worker pods you would like the test to run on. This must be less than or eaqual to the number of nodes in your cluster.
+   - node.kubernetes.io/instance-type: "p5.48xlarge" <- set to the instance type of the nodes in your cluster against which you would like the nccl test to be run
+   - nvidia.com/gpu: 8 <- set to the number of GPUs per node in your cluster, adjust in both the limits and requests section
+   - vpc.amazonaws.com/efa: 32 <- set to the number of EFA adapters per node in your cluster, adjust in both the limits and requests section
+
+   Please note that the current default settings have been specified for instance type p5.48xlarge. Only the image URI is required to be set for running the test on this instance type.
+   The current manifest executes the `all_reduce_perf` test. If you wish to execute other NCCL tests, change the section between lines 59 and 73 in this MPIJob manifest file. 
+
+2. Apply the MPIJob manifest to the cluster
+   ```bash
+   kubectl apply -f ./nccl-test-eks.yaml
+   ```
+
+3. Wait until pods to enter the Running state
+   To monitor the state of the pods, execute the following command:
+   ```bash
+   watch kubectl get pods -o wide
+   ```
+   Once the state of the launcher and worker pods becomes "Running", press `Ctrl-C` to return to the command prompt.
+
+4. View test logs
+   To follow the test logs, execute the following command:
+   ```bash
+   kubectl logs -f $(kubectl get pods | grep launcher | cut -d ' ' -f 1)
+   ```
+
+   The following is an example exerpt from the logs of a NCCL all_reduce_perf test, executed on a cluster with two p5.48xlarge instances (using EFA_INSTALLER_VERSION=1.28.0, AWS_OFI_NCCL_VERSION=v1.7.3-aws, NCCL_TESTS_VERSION=master, ARG NCCL_VERSION=2.18.5):
+
+   ```log
+   [1,0]<stdout>:#                                                              out-of-place                       in-place          
+   [1,0]<stdout>:#       size         count      type   redop    root     time   algbw   busbw #wrong     time   algbw   busbw #wrong
+   [1,0]<stdout>:#        (B)    (elements)                               (us)  (GB/s)  (GB/s)            (us)  (GB/s)  (GB/s)       
+   [1,0]<stdout>:           0             0     float     sum      -1    15.51    0.00    0.00      0    15.52    0.00    0.00      0
+   ...
+   [1,0]<stdout>:    67108864      16777216     float     sum      -1    996.0   67.38  126.33      0   1001.7   66.99  125.62      0
+   [1,0]<stdout>:   134217728      33554432     float     sum      -1   1950.5   68.81  129.02      0   1725.6   77.78  145.83      0
+   [1,0]<stdout>:   268435456      67108864     float     sum      -1   3010.8   89.16  167.17      0   3020.7   88.87  166.62      0
+   [1,0]<stdout>:   536870912     134217728     float     sum      -1   3608.0  148.80  279.00      0   3599.7  149.14  279.64      0
+   [1,0]<stdout>:  1073741824     268435456     float     sum      -1   6426.3  167.09  313.29      0   6426.1  167.09  313.29      0
+   [1,0]<stdout>:  2147483648     536870912     float     sum      -1   9197.5  233.49  437.79      0   9195.2  233.54  437.89      0
+   [1,0]<stdout>:# Out of bounds values : 0 OK
+   [1,0]<stdout>:# Avg bus bandwidth    : 52.9753
+   ```
+   Press `Ctrl-C` to return to the command prompt if you do not wish to wait until the launcher pod enters the "Completed" state.
+
+5. Clean up test run
+   Before running a subsequent test, the current MPIJob needs to be deleted:
+   ```bash
+   kubectl delete -f nccl-test-eks.yaml
+   ```
 
 ## 3. Understanding NCCL Bandwidth
 
