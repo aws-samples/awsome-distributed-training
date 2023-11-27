@@ -82,7 +82,7 @@ To run the NCCL tests on EKS, you will need to build the container image, then p
    docker image build -t ${REGISTRY}${IMAGE}${TAG} -f ./0.nccl-tests.Dockerfile .
    ```
 
-3. Create the ECR repository if it does not exis
+3. Create the ECR repository if it does not exist
    ```bash
    REGISTRY_COUNT=$(aws ecr describe-repositories | grep ${IMAGE} | wc -l)
    if [ "$REGISTRY_COUNT" == "0" ]; then
@@ -179,37 +179,14 @@ sbatch 3.nccl-validate.sbatch
    kubectl logs -f $(kubectl get pods | grep launcher | cut -d ' ' -f 1)
    ```
 
-   The following is an example exerpt from the logs of a NCCL all_reduce_perf test, executed on a cluster with two p5.48xlarge instances:
+   The following is an example exerpt from the logs of a NCCL all_reduce_perf test, executed on a cluster with two p5.48xlarge instances (using EFA_INSTALLER_VERSION=1.28.0, AWS_OFI_NCCL_VERSION=v1.7.3-aws, NCCL_TESTS_VERSION=master, ARG NCCL_VERSION=2.18.5):
+
    ```log
    [1,0]<stdout>:#                                                              out-of-place                       in-place          
    [1,0]<stdout>:#       size         count      type   redop    root     time   algbw   busbw #wrong     time   algbw   busbw #wrong
    [1,0]<stdout>:#        (B)    (elements)                               (us)  (GB/s)  (GB/s)            (us)  (GB/s)  (GB/s)       
    [1,0]<stdout>:           0             0     float     sum      -1    15.51    0.00    0.00      0    15.52    0.00    0.00      0
-   [1,0]<stdout>:           0             0     float     sum      -1    15.51    0.00    0.00      0    15.50    0.00    0.00      0
-   [1,0]<stdout>:           4             1     float     sum      -1    202.2    0.00    0.00      0    179.4    0.00    0.00      0
-   [1,0]<stdout>:           8             2     float     sum      -1    175.5    0.00    0.00      0    178.2    0.00    0.00      0
-   [1,0]<stdout>:          16             4     float     sum      -1    177.6    0.00    0.00      0    176.1    0.00    0.00      0
-   [1,0]<stdout>:          32             8     float     sum      -1    175.8    0.00    0.00      0    173.1    0.00    0.00      0
-   [1,0]<stdout>:          64            16     float     sum      -1    175.7    0.00    0.00      0    172.9    0.00    0.00      0
-   [1,0]<stdout>:         128            32     float     sum      -1    171.8    0.00    0.00      0    174.8    0.00    0.00      0
-   [1,0]<stdout>:         256            64     float     sum      -1    176.7    0.00    0.00      0    172.4    0.00    0.00      0
-   [1,0]<stdout>:         512           128     float     sum      -1    174.4    0.00    0.01      0    176.8    0.00    0.01      0
-   [1,0]<stdout>:        1024           256     float     sum      -1    172.0    0.01    0.01      0    175.1    0.01    0.01      0
-   [1,0]<stdout>:        2048           512     float     sum      -1    175.9    0.01    0.02      0    174.6    0.01    0.02      0
-   [1,0]<stdout>:        4096          1024     float     sum      -1    174.1    0.02    0.04      0    174.7    0.02    0.04      0
-   [1,0]<stdout>:        8192          2048     float     sum      -1    175.7    0.05    0.09      0    176.5    0.05    0.09      0
-   [1,0]<stdout>:       16384          4096     float     sum      -1    224.9    0.07    0.14      0    183.8    0.09    0.17      0
-   [1,0]<stdout>:       32768          8192     float     sum      -1    193.8    0.17    0.32      0    191.2    0.17    0.32      0
-   [1,0]<stdout>:       65536         16384     float     sum      -1    194.9    0.34    0.63      0    194.8    0.34    0.63      0
-   [1,0]<stdout>:      131072         32768     float     sum      -1    203.8    0.64    1.21      0    204.2    0.64    1.20      0
-   [1,0]<stdout>:      262144         65536     float     sum      -1    218.7    1.20    2.25      0    217.7    1.20    2.26      0
-   [1,0]<stdout>:      524288        131072     float     sum      -1    225.7    2.32    4.36      0    225.9    2.32    4.35      0
-   [1,0]<stdout>:     1048576        262144     float     sum      -1    239.3    4.38    8.22      0    245.5    4.27    8.01      0
-   [1,0]<stdout>:     2097152        524288     float     sum      -1    269.9    7.77   14.57      0    306.0    6.85   12.85      0
-   [1,0]<stdout>:     4194304       1048576     float     sum      -1    305.7   13.72   25.72      0    302.2   13.88   26.02      0
-   [1,0]<stdout>:     8388608       2097152     float     sum      -1    336.1   24.96   46.79      0    335.2   25.02   46.92      0
-   [1,0]<stdout>:    16777216       4194304     float     sum      -1    530.9   31.60   59.25      0    564.3   29.73   55.74      0
-   [1,0]<stdout>:    33554432       8388608     float     sum      -1    859.2   39.05   73.23      0    856.8   39.16   73.43      0
+   ...
    [1,0]<stdout>:    67108864      16777216     float     sum      -1    996.0   67.38  126.33      0   1001.7   66.99  125.62      0
    [1,0]<stdout>:   134217728      33554432     float     sum      -1   1950.5   68.81  129.02      0   1725.6   77.78  145.83      0
    [1,0]<stdout>:   268435456      67108864     float     sum      -1   3010.8   89.16  167.17      0   3020.7   88.87  166.62      0
