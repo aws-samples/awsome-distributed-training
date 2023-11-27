@@ -24,9 +24,9 @@ Please make note that the Username is exactly `"$oauthtoken"`.
 
 ## 2. Install Nvidia Container CLI
 
-If you have created your cluster with [DLAMI](https://aws.amazon.com/machine-learning/amis/) or your custom AMI, please make sure `libnvidia-container cli` is installed. You can follow the instructions below to install it.   
+### 2.1 If you have created your cluster with [DLAMI](https://aws.amazon.com/machine-learning/amis/) or your custom AMI, please make sure `libnvidia-container cli` is installed. You can follow the instructions below to install it.   
 
-To install libnvidia-container cli:
+### 2.2 To install libnvidia-container cli:
 https://github.com/NVIDIA/libnvidia-container
 https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html
 
@@ -40,7 +40,7 @@ curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dear
   && sudo apt-get install libnvidia-container1 \
   && sudo apt-get install libnvidia-container-tools
 ```
-You can set the Nemo Multimodal version and others as environment variables:
+### 2.3 You can set the Nemo Multimodal version and others as environment variables:
 
 ```
 export PYTHON_VERSION=3.10
