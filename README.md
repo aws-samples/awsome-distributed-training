@@ -47,6 +47,7 @@ All test cases are under `3.test_cases/`. You can go in each test case directory
 | [`6.stable-diffusion`](./3.test_cases/6.stable-diffusion)             |  ✅   | ❓          | ❓         |
 | [`7.tensorflow-distributed`](./3.test_cases/7.tensorflow-distributed) |  ✅   | ❓          | ❓         |
 | [`8.neuronx-nemo-megatron`](./3.test_cases/8.neuronx-nemo-megatron)   |  ✅   | ❓          | ❓         |
+| [`10.FSDP`](./3.test_cases/10.FSDP)                                   |  ✅   | ❓          | ❓         |
 
 ## 4. Validation scripts
 
