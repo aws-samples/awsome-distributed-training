@@ -13,7 +13,7 @@
 #SBATCH --output jobs/slurm-%j.out
 
 # default variables for Enroot
-: "${APPS_PATH:=/fsx}"
+: "${APPS_PATH:=/apps}"
 : "${DATA_PATH:=/fsx}"
 
 # default variables for Enroot
