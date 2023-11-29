@@ -1,0 +1,5 @@
+export BUCKET="lifecycle-82d7af9cbe"
+export FSX_DNS_NAME="fs-07f690208828a3e9e.fsx.us-west-2.amazonaws.com"
+export FSX_MOUNTNAME="e7uexbev"
+export SUBNET_ID="subnet-05d6ab3130f10bfdd"
+export SECURITY_GROUP="sg-01c8d2e8ce26ff0f0"
