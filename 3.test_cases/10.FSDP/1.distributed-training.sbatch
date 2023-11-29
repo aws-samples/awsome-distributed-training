@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT-0
 
 #SBATCH --nodes=4 # number of nodes to use, 4 p4d(e) = 32 A100 GPUs
 #SBATCH --job-name=FSDP # name of your job
