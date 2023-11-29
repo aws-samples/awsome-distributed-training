@@ -1,11 +1,13 @@
 ARG PYTORCH_IMAGE
 
-FROM PYTORCH_IMAGE
+FROM ${PYTORCH_IMAGE}
 
 ARG MOSAICML_VERSION
 
-ARG EFA_INSTALLER_VERSION=latest
-ARG AWS_OFI_NCCL_VERSION=v1.7.2-aws
+ARG PYTORCH_INDEX_URL
+
+ARG EFA_INSTALLER_VERSION=1.28.0
+ARG AWS_OFI_NCCL_VERSION=v1.7.3-aws
 ARG NCCL_TESTS_VERSION=master
 ARG NCCL_VERSION=v2.18.5-1
 RUN apt-get update -y
@@ -84,21 +86,10 @@ RUN export OPAL_PREFIX="" \
     --with-mpi=/opt/amazon/openmpi/ \
     && make && make install
 
-###################################################
-## Install NCCL-tests
-RUN git clone https://github.com/NVIDIA/nccl-tests.git /opt/nccl-tests \
-    && cd /opt/nccl-tests \
-    && git checkout ${NCCL_TESTS_VERSION} \
-    && make MPI=1 \
-    MPI_HOME=/opt/amazon/openmpi/ \
-    CUDA_HOME=/usr/local/cuda \
-    NCCL_HOME=/opt/nccl/build \
-    NVCC_GENCODE="-gencode=arch=compute_80,code=sm_80 -gencode=arch=compute_86,code=sm_86 -gencode=arch=compute_90,code=sm_90"
-
 RUN git clone https://github.com/mosaicml/diffusion-benchmark.git
 RUN pip3 install -r diffusion-benchmark/requirements.txt
 RUN pip3 install mosaicml==${MOSAICML_VERSION} --force
-RUN pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu121 --force
+RUN pip3 install --pre torch torchvision torchaudio --index-url ${PYTORCH_INDEX_URL} --force
 RUN pip3 uninstall transformer-engine -y
 RUN pip3 install protobuf==3.20.3
 

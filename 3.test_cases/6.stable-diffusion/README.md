@@ -211,7 +211,7 @@ docker build --build-arg MOSAICML_VERSION=${MOSAICML_VERSION} --build-arg PYTORC
 Convert the Docker container image to an [Enroot](https://github.com/NVIDIA/enroot) squash file that will be stored in /apps. This step takes a few minutes.
 
 ```
-enroot import -o /apps/${DOCKER_IMAGE_NAME}.sqsh dockerd://${DOCKER_IMAGE_NAME}
+enroot import -o /apps/${DOCKER_IMAGE_NAME}.sqsh dockerd://${DOCKER_IMAGE_NAME}:${TAG}
 ```
 
 #### 2.1.3 Now we can start training
