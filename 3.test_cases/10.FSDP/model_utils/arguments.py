@@ -1,4 +1,5 @@
-"""FSDP binary script arguments."""
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
 
 import argparse
 import os
@@ -17,7 +18,7 @@ def parse_args():  # pylint: disable=too-many-statements
         "--train_batch_size",
         type=int,
         default=2,
-        help="batch size per dp rank, for tensor parallelism degree 8 with pipeline parallel degree 1 this means 8*this batch size per node",  # pylint: disable=line-too-long
+        help="batch size per dp rank",  # pylint: disable=line-too-long
     )
     opt_grp.add_argument("--val_batch_size", type=int, default=4)
     opt_grp.add_argument("--max_steps", "--max_training_steps", type=int, default=5000)

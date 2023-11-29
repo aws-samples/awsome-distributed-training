@@ -3,7 +3,7 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-#SBATCH --nodes=4 # number of nodes to use, 2 p4d(e) = 16 A100 GPUs
+#SBATCH --nodes=4 # number of nodes to use, 4 p4d(e) = 32 A100 GPUs
 #SBATCH --job-name=FSDP # name of your job
 #SBATCH --exclusive # job has exclusive use of the resource, no sharing
 
