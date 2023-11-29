@@ -1,0 +1,100 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Creates an FSxL filesystem of PERSISENT_2 type plus the Security Group needed for use with SageMaker
+
+### Stack metadata
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Filesystem Options
+        Parameters:
+          - Capacity
+          - PerUnitStorageThroughput
+          - Compression
+          - LustreVersion
+
+Parameters:
+  NetworkStack:
+    Description: Name of the Networking stack
+    Type: String
+    Default: SageMakerVPC
+  Capacity:
+    Description: Storage capacity in GiB (1200 or increments of 2400)
+    Type: Number
+    Default: 1200
+  PerUnitStorageThroughput:
+    Description: Provisioned Read/Write (MB/s/TiB)
+    Type: Number
+    Default: 250
+    AllowedValues:
+      - 125
+      - 250
+      - 500
+      - 1000
+  Compression:
+    Description: Data compression type
+    Type: String
+    AllowedValues:
+      - "LZ4"
+      - "NONE"
+    Default: "LZ4"
+  LustreVersion:
+    Description: Lustre software version
+    Type: String
+    AllowedValues:
+      - "2.15"
+      - "2.12"
+    Default: "2.15"
+
+Resources:
+
+  LambdaExecutionRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - "sts:AssumeRole"
+      Path: /
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess'
+        - 'arn:aws:iam::aws:policy/AmazonS3FullAccess'
+        - 'arn:aws:iam::aws:policy/IAMFullAccess'
+        - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+
+  FSxLFilesystem:
+    Type: AWS::FSx::FileSystem
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      FileSystemType: LUSTRE
+      StorageType: SSD
+      FileSystemTypeVersion: !Ref LustreVersion
+      StorageCapacity: !Ref Capacity
+      SecurityGroupIds:
+        - Fn::ImportValue:
+            !Sub "${NetworkStack}-SecurityGroup"
+      SubnetIds:
+        - Fn::ImportValue:
+            !Sub "${NetworkStack}-PrivateSubnet"
+      LustreConfiguration:
+        DataCompressionType: !Ref Compression
+        DeploymentType: PERSISTENT_2
+        PerUnitStorageThroughput: !Ref PerUnitStorageThroughput
+
+Outputs:
+  FSxLustreFilesystemMountname:
+    Description: The ID of the FSxL filesystem that has been created
+    Value: !GetAtt FSxLFilesystem.LustreMountName
+    Export:
+      Name: !Sub ${AWS::StackName}-FSxLustreFilesystemMountname
+  FSxLustreFilesystemId:
+    Description: The ID of the FSxL filesystem that has been created
+    Value: !Ref FSxLFilesystem
+    Export:
+      Name: !Sub ${AWS::StackName}-FSxLustreFilesystemId

@@ -24,7 +24,7 @@ derby.log
 metastore_db
 spark-warehouse
 
-# pytorch, tensorflow, tensorboard
+# pytorch, tensorflow, tensorboard, jupyter
 *.pt
 *.pt[ch]
 *.ckpt
@@ -32,6 +32,7 @@ spark-warehouse
 *.h5
 *.tfevents.*
 *.venv*
+.ipynb_checkpoints
 
 # slurm outputs
 *.out
