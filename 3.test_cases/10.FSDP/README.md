@@ -60,7 +60,7 @@ To launch your training, run
 sbatch 1.distributed_training.sbatch
 ```
 
-You'll find a new file in the FSDP directory of the form `slurm-[job-number].out`. This will be continuously updated with your training logs. Don't be worried if you see a long stream of NCCL logs (we prefer to use verbose logging). After about a minute, you should see your model training, with an output similar to below.
+You'll find a new file in the FSDP directory of the form `slurm-[job-number].out`. This will be continuously updated with your training logs. Don't be worried if you see a long stream of NCCL logs (we prefer to use `NCCL_DEBUG=INFO` for verbose logging). After about a minute, you should see your model training, with an output similar to below.
 
 ```
 + TORCHRUN=./pt_fsdp/bin/torchrun
