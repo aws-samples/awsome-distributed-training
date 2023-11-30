@@ -26,6 +26,7 @@ Architectures are located in `1.architectures` and consists of utilities and ser
 | [`2.aws-parallelcluster`](./1.architectures/2.aws-parallelcluster) | Compute  | Cluster templates for GPU & custom silicon training |
 | [`3.aws-batch`](./1.architectures/3.aws-batch)                     | Compute  | AWS Batch template for distributed training         |
 | [`4.amazon-eks`](./1.architectures/4.amazon-eks)                   | Compute  | Manifest files to train with Amazon EKS             |
+| [`5.sagemaker-hyperpod`](./1.architectures/5.sagemaker-hyperpod)   | Compute  | SageMaker HyperPod template for distributed training|
 
 More will come, feel free to add new ones (EKS, Ray?). You will also find [documentation](./1.architectures/efa-cheatsheet.md) for EFA and the recommended environment variables.
 
@@ -47,6 +48,7 @@ All test cases are under `3.test_cases/`. You can go in each test case directory
 | [`6.stable-diffusion`](./3.test_cases/6.stable-diffusion)             |  ✅   | ❓          | ❓         |
 | [`7.tensorflow-distributed`](./3.test_cases/7.tensorflow-distributed) |  ✅   | ❓          | ❓         |
 | [`8.neuronx-nemo-megatron`](./3.test_cases/8.neuronx-nemo-megatron)   |  ✅   | ❓          | ❓         |
+| [`10.FSDP`](./3.test_cases/10.FSDP)                                   |  ✅   | ❓          | ❓         |
 
 ## 4. Validation scripts
 
