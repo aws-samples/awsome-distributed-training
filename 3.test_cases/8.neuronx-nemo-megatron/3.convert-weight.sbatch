@@ -1,7 +1,6 @@
 #!/bin/bash
 #SBATCH --exclusive
 #SBATCH --output=slurm-%x-%j.out
-#SBATCH --cpus-per-task 96
 #SBATCH --nodes 1
 
 : "${APPS_PATH:=/fsx}"
