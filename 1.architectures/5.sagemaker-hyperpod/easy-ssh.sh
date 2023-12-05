@@ -40,7 +40,7 @@ parse_args() {
 
 parse_args $@
 cluster_id=$(aws sagemaker describe-cluster --cluster-name $cluster_name | jq '.ClusterArn' | awk -F/ '{gsub(/"/, "", $NF); print $NF}')
-instance_id=$(aws sagemaker list-cluster-nodes --cluster-name $1 --region us-west-2 --instance-group-name-contains ${node_group} | jq '.ClusterNodeSummaries[0].InstanceId' | tr -d '"')
+instance_id=$(aws sagemaker list-cluster-nodes --cluster-name $cluster_name --region us-west-2 --instance-group-name-contains ${node_group} | jq '.ClusterNodeSummaries[0].InstanceId' | tr -d '"')
 
 echo "Cluster id: ${cluster_id}"
 echo "Instance id: ${instance_id}"
