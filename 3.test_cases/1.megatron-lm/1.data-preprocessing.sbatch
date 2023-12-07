@@ -10,11 +10,10 @@
 ###### User Variables #####
 ###########################
 
-: "${IMAGE:=$APPS_PATH/megatron-preprocess.sqsh}"
-: "${FSX_MOUNT:=/fsx/gpt2:/fsx}"
+: "${IMAGE:=$(pwd)/megatron-training.sqsh}"
+: "${FSX_MOUNT:=$(pwd)/gpt2:/fsx}"
 
 # default variables for Enroot
-: "${APPS_PATH:=/apps}"
 : "${DATA_PATH:=/fsx}"
 
 declare -a ARGS=(
