@@ -24,12 +24,13 @@ This guide assumes that you have the following:
 
 It is recommended that you use the templates in the architectures [directory](../../1.architectures)
 
-
 You will also setup the following variables in your terminal environment.
 
 ```bash
 export DATA_PATH=/fsx # FSx for Lustre shared file-system
 ```
+
+Make sure that your current directory is under a shared filesystem such as `/fsx/` or the home directory when using [Parallel Cluster](../../1.architectures/aws-parallelcluster).
 
 ## 1. Data Preprocessing
 
@@ -45,15 +46,19 @@ Below are the steps you need to follow:
    ```
 
 3. Once the image is built, you can check if it is present with `docker images`. You should see an output similar to this one:
+
    ```
    [ec2-user@ip-10-0-10-78 ~]$ docker images
    REPOSITORY               TAG         IMAGE ID       CREATED          SIZE
    megatron-training           latest      a33c9d5bcb6e   9 seconds ago    20.7GB
    ```
+
 4. Create the squash file with the command below.
+
    ```bash
    enroot import -o megatron-training.sqsh  dockerd://megatron-training:latest
    ```
+
    The file will be stored in the current directory (if left as default). The output should look as below.
 
     ```bash
@@ -108,7 +113,6 @@ Below are the steps you need to follow:
 
 Voilà! You have executed the preprocessing job. You will go through the steps to run your training job.
 
-
 ## 2. Distributed training
 
 Now that the data is preprocessed, we will pretrain a GPT3 model MegatronLM.
@@ -120,7 +124,6 @@ Now that the data is preprocessed, we will pretrain a GPT3 model MegatronLM.
     ```
 
 5. The training starts running and should produce an output similar to below if successful.
-
 
 ```
 1:  iteration       25/73242187 | consumed samples:           50 | elapsed time per iteration (ms): 87.0 | learning rate: 1.638E-08 | global batch size:     2 | lm loss: 1.086954E+01 | loss scale: 4294967296.0 | grad norm: 0.000 | number of skipped iterations:   0 | number of nan iterations:   0 |
