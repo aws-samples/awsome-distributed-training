@@ -6,6 +6,7 @@
 declare -a HELP=(
     "[-h|--help]"
     "[-c|--controller-group]"
+    "[-r|--region]"
     "CLUSTER_NAME"
 )
 
@@ -26,6 +27,10 @@ parse_args() {
             node_group="$2"
             shift 2
             ;;
+        -r|--region)
+            region="$2"
+            shift 2
+            ;;
         *)
             [[ "$cluster_name" == "" ]] \
                 && cluster_name="$key" \
@@ -39,13 +44,13 @@ parse_args() {
 }
 
 parse_args $@
-cluster_id=$(aws sagemaker describe-cluster --cluster-name $cluster_name | jq '.ClusterArn' | awk -F/ '{gsub(/"/, "", $NF); print $NF}')
-instance_id=$(aws sagemaker list-cluster-nodes --cluster-name $cluster_name --region us-west-2 --instance-group-name-contains ${node_group} | jq '.ClusterNodeSummaries[0].InstanceId' | tr -d '"')
+cluster_id=$(aws sagemaker describe-cluster --region ${region} --cluster-name $cluster_name | jq '.ClusterArn' | awk -F/ '{gsub(/"/, "", $NF); print $NF}')
+instance_id=$(aws sagemaker list-cluster-nodes --cluster-name $cluster_name --region ${region} --instance-group-name-contains ${node_group} | jq '.ClusterNodeSummaries[0].InstanceId' | tr -d '"')
 
 echo "Cluster id: ${cluster_id}"
 echo "Instance id: ${instance_id}"
 echo "Node Group: ${node_group}"
 
-echo "aws ssm start-session --target sagemaker-cluster:${cluster_id}_${node_group}-${instance_id}"
+echo "aws ssm start-session --region ${region} --target sagemaker-cluster:${cluster_id}_${node_group}-${instance_id}"
 
-aws ssm start-session --target sagemaker-cluster:${cluster_id}_${node_group}-${instance_id}
+aws ssm start-session --region ${region} --target sagemaker-cluster:${cluster_id}_${node_group}-${instance_id}
