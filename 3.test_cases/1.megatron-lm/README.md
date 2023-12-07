@@ -8,7 +8,7 @@
 To run a test case you will go through a series of steps described below:
 
 1. Build the data preprocessing container.
-2. Preprocess the data using a tokenizer and the preprocessing container.
+2. Pre-process the data using a tokenizer and the preprocessing container.
 3. Build the container for distributed training
 4. Train!
 
@@ -29,9 +29,6 @@ You will also setup the following variables in your terminal environment.
 
 ```bash
 export DATA_PATH=/fsx # FSx for Lustre shared file-system
-export APPS_PATH=/apps # this is were the squash file (Enroot file) will be stored
-export TEST_CASE_PATH=${HOME}/1.megatron-lm # it is assumes that this test case is copied in your home directory
-cd ${TEST_CASE_PATH}
 ```
 
 ## 1. Data Preprocessing
@@ -40,29 +37,27 @@ Before running training jobs you need to retrieve input data and preprocess it. 
 
 Below are the steps you need to follow:
 
-1. Copy the file `0.data-preprocessing.Dockerfile` or its content to your head-node.
+1. Copy the file `0.distributed-training.Dockerfile` or its content to your head-node.
 2. Build the container image with the command below
 
    ```bash
-   docker build -t megatron-preprocess -f 0.data-preprocessing.Dockerfile .
+   docker build -t megatron-training -f 0.distributed-training.Dockerfile .
    ```
 
 3. Once the image is built, you can check if it is present with `docker images`. You should see an output similar to this one:
    ```
    [ec2-user@ip-10-0-10-78 ~]$ docker images
    REPOSITORY               TAG         IMAGE ID       CREATED          SIZE
-   megatron-preprocess           latest      a33c9d5bcb6e   9 seconds ago    20.7GB
-   <none>                   <none>      36b0f224fb00   25 minutes ago   20.5GB
-   nvcr.io/nvidia/pytorch   23.01-py3   9eda6061497d   5 months ago     20.5GB
+   megatron-training           latest      a33c9d5bcb6e   9 seconds ago    20.7GB
    ```
 4. Create the squash file with the command below.
    ```bash
-   enroot import -o ${APPS_PATH}/megatron-preprocess.sqsh  dockerd://megatron-preprocess:latest
+   enroot import -o megatron-training.sqsh  dockerd://megatron-training:latest
    ```
-   The file will be stored in the `/apps` directory (if left as default). The output should look as below.
+   The file will be stored in the current directory (if left as default). The output should look as below.
 
     ```bash
-    [ec2-user@ip-10-0-10-78 ~]$ enroot import -o ./megatron-preprocess.sqsh  dockerd://megatron-preprocess:latest
+    [ec2-user@ip-10-0-10-78 ~]$ enroot import -o ./megatron-training.sqsh  dockerd://megatron-training:latest
     [INFO] Fetching image
 
     e19aa13505c1710876982dc440226dc479da5177dc4770452cc79bedc8b5b41d
@@ -71,7 +66,7 @@ Below are the steps you need to follow:
     [INFO] Creating squashfs filesystem...
 
     Parallel mksquashfs: Using 32 processors
-    Creating 4.0 filesystem on /home/ec2-user/megatron-preprocess.sqsh, block size 131072.
+    Creating 4.0 filesystem on /home/ec2-user/megatron-training.sqsh, block size 131072.
     [==========================================================/] 299550/299550 100%
 
     Exportable Squashfs 4.0 filesystem, gzip compressed, data block size 131072
@@ -84,14 +79,13 @@ Below are the steps you need to follow:
 
     ```bash
     #!/bin/bash
-    mkdir -p ${DATA_PATH}/gpt2
-    cd ${DATA_PATH}/gpt2
+    mkdir -p gpt2
+    cd gpt2/
 
     wget https://huggingface.co/bigscience/misc-test-data/resolve/main/stas/oscar-1GB.jsonl.xz
     wget https://s3.amazonaws.com/models.huggingface.co/bert/gpt2-vocab.json
     wget https://s3.amazonaws.com/models.huggingface.co/bert/gpt2-merges.txt
     xz -d oscar-1GB.jsonl.xz
-    cd ${TEST_CASE_PATH} # return to original testcase directory
     ```
 
 6. Now you copy the file `1.data-preprocessing.sbatch` or its content on your cluster then submit a preprocessing jobs with the command below:
@@ -100,7 +94,7 @@ Below are the steps you need to follow:
     sbatch 1.data-preprocessing.sbatch
     ```
 
-7. You will see a new file in your current working directory called `slurm-XY.out` where `XY` is a number. This is your outputfile and will capture the `STDOUT` and `STDERR` from your job. You can check how it progresses via the command `tail -f slurm-XY.out` but with the relevant filename. The file content will be similar to the below:
+7. You will see a new file in your current working directory called `slurm-XY.out` where `XY` is a number. This is your output file and will capture the `STDOUT` and `STDERR` from your job. You can check how it progresses via the command `tail -f slurm-XY.out` but with the relevant filename. The file content will be similar to the below:
 
     ```
     0: Opening /fsx/oscar-1GB.jsonl
@@ -119,21 +113,12 @@ Voilà! You have executed the preprocessing job. You will go through the steps t
 
 Now that the data is preprocessed, we will pretrain a GPT3 model MegatronLM.
 
-
-1. Copy the file `2.training-batch.Dockerfile` or its content to your cluster.
-2. Build the container with the command below. This will build a container with all the required dependencies to train your models with MegatronLM.
-    ```bash
-    docker build -t megatron-training -f ./2.distributed-training.Dockerfile .
-    ```
-3. Convert the docker container to a squash file in `/apps`.
-    ```bash
-    enroot import -o ${APPS_PATH}/megatron-training.sqsh  dockerd://megatron-training:latest
-    ```
-4. You copy the file `3.distributed-training.sbatch`  on your cluster then submit a training jobs with the command below:
+1. Copy the file `2.distributed-training.sbatch` to your cluster then submit a training jobs with the command below:
 
     ```bash
     sbatch 3.distributed-training.sbatch
     ```
+
 5. The training starts running and should produce an output similar to below if successful.
 
 
