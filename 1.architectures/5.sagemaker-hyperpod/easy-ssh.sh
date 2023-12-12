@@ -57,6 +57,17 @@ echo "Cluster id: ${cluster_id}"
 echo "Instance id: ${instance_id}"
 echo "Node Group: ${node_group}"
 
-echo "aws ssm start-session "${aws_cli_args[@]}" --target sagemaker-cluster:${cluster_id}_${node_group}-${instance_id}"
+echo -e "aws ssm start-session "${aws_cli_args[@]}" --target sagemaker-cluster:${cluster_id}_${node_group}-${instance_id}"
+
+echo -e "Add the following to your ~/.ssh/config to easily connect:"
+echo "
+Host ${cluster_name}
+  User ubuntu
+  ProxyCommand sh -c \"aws ssm start-session ${aws_cli_args[@]} --target sagemaker-cluster:${cluster_id}_${node_group}-${instance_id} --document-name AWS-StartSSHSession --parameters 'portNumber=%p'\"
+
+Add your ssh keypair and then you can do:
+
+$ ssh ${cluster_name}
+"
 
 aws ssm start-session "${aws_cli_args[@]}" --target sagemaker-cluster:${cluster_id}_${node_group}-${instance_id}
