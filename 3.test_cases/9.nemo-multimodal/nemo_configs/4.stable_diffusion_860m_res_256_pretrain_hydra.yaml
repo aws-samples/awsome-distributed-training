@@ -1,0 +1,175 @@
+run:
+  name: stable_diffusion_860m_res_256_pretrain
+  results_dir: ${TARGET_PATH}/launcher_scripts/results/stable_diffusion_860m_res_256_pretrain
+  time_limit: 2-00:00:00
+  dependency: singleton
+name: stable-diffusion-train
+trainer:
+  devices: 8
+  num_nodes: 2
+  accelerator: gpu
+  precision: 16
+  logger: false
+  enable_checkpointing: false
+  replace_sampler_ddp: false
+  max_epochs: 5
+  max_steps: 82500
+  log_every_n_steps: 10
+  accumulate_grad_batches: 1
+  gradient_clip_val: 1.0
+  benchmark: false
+  enable_model_summary: true
+exp_manager:
+  explicit_log_dir: ${TARGET_PATH}/launcher_scripts/results/stable_diffusion_860m_res_256_pretrain/results
+  exp_dir: null
+  name: nemo_stable_diffusion
+  create_wandb_logger: false
+  wandb_logger_kwargs:
+    project: stable-diffusion
+    group: nemo-sd
+    name: nemo_stable_diffusion
+    resume: true
+  create_checkpoint_callback: true
+  create_tensorboard_logger: true
+  checkpoint_callback_params:
+    every_n_train_steps: 1000
+    every_n_epochs: 0
+    monitor: reduced_train_loss
+    filename: nemo-stable-diffusion--{reduced_train_loss:.2f}-{step}-{consumed_samples}
+  resume_if_exists: true
+  resume_ignore_no_checkpoint: true
+  ema:
+    enable: true
+    decay: 0.9999
+    validate_original_weights: false
+    every_n_steps: 1
+    cpu_offload: false
+model:
+  precision: 16
+  micro_batch_size: 128
+  global_batch_size: 8192
+  linear_start: 0.00085
+  linear_end: 0.012
+  num_timesteps_cond: 1
+  log_every_t: 200
+  timesteps: 1000
+  first_stage_key: images
+  cond_stage_key: captions
+  image_size: 64
+  channels: 4
+  cond_stage_trainable: false
+  conditioning_key: crossattn
+  monitor: val/loss_simple_ema
+  scale_factor: 0.18215
+  use_ema: false
+  scale_by_std: false
+  ckpt_path: null
+  ignore_keys: []
+  parameterization: eps
+  clip_denoised: true
+  load_only_unet: false
+  cosine_s: 0.008
+  given_betas: null
+  original_elbo_weight: 0
+  v_posterior: 0
+  l_simple_weight: 1
+  use_positional_encodings: false
+  learn_logvar: false
+  logvar_init: 0
+  beta_schedule: linear
+  loss_type: l2
+  concat_mode: true
+  cond_stage_forward: null
+  text_embedding_dropout_rate: 0
+  fused_opt: true
+  inductor: true
+  inductor_cudagraphs: false
+  capture_cudagraph_iters: -1
+  channels_last: true
+  unet_config:
+    _target_: nemo.collections.multimodal.modules.stable_diffusion.diffusionmodules.openaimodel.UNetModel
+    from_pretrained: null
+    from_NeMo: true
+    image_size: 32
+    in_channels: 4
+    out_channels: 4
+    model_channels: 320
+    attention_resolutions:
+    - 4
+    - 2
+    - 1
+    num_res_blocks: 2
+    channel_mult:
+    - 1
+    - 2
+    - 4
+    - 4
+    num_heads: 8
+    use_spatial_transformer: true
+    transformer_depth: 1
+    context_dim: 768
+    use_checkpoint: false
+    legacy: false
+    use_flash_attention: true
+  first_stage_config:
+    _target_: nemo.collections.multimodal.models.stable_diffusion.ldm.autoencoder.AutoencoderKL
+    from_pretrained: null
+    embed_dim: 4
+    monitor: val/rec_loss
+    ddconfig:
+      double_z: true
+      z_channels: 4
+      resolution: 256
+      in_channels: 3
+      out_ch: 3
+      ch: 128
+      ch_mult:
+      - 1
+      - 2
+      - 4
+      - 4
+      num_res_blocks: 2
+      attn_resolutions: []
+      dropout: 0.0
+    lossconfig:
+      target: torch.nn.Identity
+  cond_stage_config:
+    _target_: nemo.collections.multimodal.modules.stable_diffusion.encoders.modules.FrozenCLIPEmbedder
+    version: openai/clip-vit-large-patch14
+    device: cuda
+    max_length: 77
+  seed: 666
+  resume_from_checkpoint: null
+  apex_transformer_log_level: 30
+  gradient_as_bucket_view: true
+  optim:
+    name: fused_adam
+    lr: 8.192e-05
+    weight_decay: 0.0
+    betas:
+    - 0.9
+    - 0.999
+    sched:
+      name: WarmupHoldPolicy
+      warmup_steps: 10000
+      hold_steps: 10000000000000
+  nsys_profile:
+    enabled: false
+    start_step: 10
+    end_step: 10
+    ranks:
+    - 0
+    gen_shape: false
+  data:
+    num_workers: 16
+    train:
+      dataset_path:
+      - ${DATASET_PATH}/wdinfo.pkl
+      augmentations:
+        resize_smallest_side: 256
+        center_crop_h_w: 256, 256
+        horizontal_flip: false
+      filterings: null
+    webdataset:
+      infinite_sampler: false
+      local_root_path: ${DATASET_PATH}/tarfiles_reorganized/task0000/
