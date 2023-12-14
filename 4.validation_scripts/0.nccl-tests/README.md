@@ -51,7 +51,12 @@ To build the container:
    ```bash
    docker build -t nccl-tests -f 0.nccl-tests.Dockerfile .
    ```
-3. Once the image is built, you can check if it is present with `docker images`. You should see an output similar to this one:
+   Alternatively, you can pull the pre-build image from public ECR.
+   ```bash
+   docker pull public.ecr.aws/hpc-cloud/nccl-tests:latest
+   ```
+   
+4. Once the image is built, you can check if it is present with `docker images`. You should see an output similar to this one:
    ```
    REPOSITORY               TAG                        IMAGE ID       CREATED         SIZE
    nccl                     latest                     6e981e5cf6a5   5 hours ago     8.61GB
