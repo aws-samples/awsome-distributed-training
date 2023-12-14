@@ -668,7 +668,7 @@ def main(args):
             model,
             None,
             None,
-            {},
+            {"model_config": model_config},
             None,
             args.model_dir if args.model_dir is not None else args.checkpoint_dir[0],
             "" if args.model_dir is not None else "model",

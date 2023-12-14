@@ -29,6 +29,8 @@ SCRIPT_ARGS+="--model_type gpt_neox --model_size 7b "
 # SCRIPT_ARGS+="--max_steps 10 "
 # SCRIPT_ARGS+="--train_batch_size 1 "
 
-HOSTFILE=hosts_${SLURM_JOB_ID}
+echo $CONDA_ENV_PATH
+
+HOSTFILE=hosts/hosts_${SLURM_JOB_ID}
 scontrol show hostnames | sort > $HOSTFILE
-srun -l -D `pwd` conda run -p $CONDA_ENV_PATH --no-capture-output $SHELL_SCRIPT --hostfile $HOSTFILE $SCRIPT_ARGS
+srun -l -D `pwd` $SHELL_SCRIPT --hostfile $HOSTFILE $SCRIPT_ARGS

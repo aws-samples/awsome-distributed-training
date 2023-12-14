@@ -6,7 +6,7 @@ import statistics
 import time
 import warnings
 from enum import Enum, auto
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 import numpy
 
@@ -78,6 +78,7 @@ def compute_stats_of_metric(metric: float, key: str, group: Optional[Any] = None
 
 def is_action_rank(global_rank):
     from torch.sagemaker import state
+
     return state.ranker.get_rep_rank(global_rank) == 0
 
 
@@ -182,6 +183,7 @@ def _save_sharded(  # pylint: disable=too-many-arguments
 def _save_full(  # pylint: disable=too-many-arguments
     model,
     save_dir: str,
+    user_content: Dict,
 ):
     """Save FSDP checkpoint: Without process groups."""
     if dist.get_rank() == 0:
@@ -198,7 +200,7 @@ def _save_full(  # pylint: disable=too-many-arguments
             os.makedirs(save_dir, exist_ok=True)
             # this name is needed for HF from_pretrained API to work fine
             torch.save(state_dict, os.path.join(save_dir, "pytorch_model.bin"))
-            model.config.save_pretrained(save_dir)
+            user_content["model_config"].save_pretrained(save_dir)
         dist.barrier()
 
 
@@ -249,6 +251,7 @@ def save_checkpoint(  # pylint: disable=too-many-arguments,too-many-locals
 ):
     """Export checkpoint."""
     from torch.sagemaker import state
+
     # seeing a NCCL crash during broadcast in checkpointing sometimes
     # seems like that happens when cached memory usage is at the limit
     # so clearing cache
@@ -271,16 +274,24 @@ def save_checkpoint(  # pylint: disable=too-many-arguments,too-many-locals
     if checkpoint_type == CheckpointingMethod.SHARDED:
         if tensor_parallel_degree > 1:
             save_dir = os.path.join(save_dir, f"tp{tensor_parallel_degree}-{state.tp_rank}")
-        _save_sharded(model, optimizer, scheduler, user_content, save_dir, checkpointing_pg_metadata)
+        _save_sharded(
+             model, optimizer, scheduler, user_content, save_dir, checkpointing_pg_metadata
+         )
     elif checkpoint_type == CheckpointingMethod.LOCAL:
         if tensor_parallel_degree > 1:
             raise NotImplementedError("Local checkpointing unsupported with tensor parallelism")
         _save_local(model, optimizer, scheduler, user_content, save_dir)
     elif checkpoint_type == CheckpointingMethod.FULL:
-        _save_full(model, save_dir)
+        _save_full(model, save_dir, user_content)
     elif checkpoint_type == CheckpointingMethod.USE_PG_WITH_UTIL:
         _save_with_util(
-            model, optimizer, scheduler, user_content, sharding_strategy, save_dir, checkpointing_pg_metadata
+            model,
+            optimizer,
+            scheduler,
+            user_content,
+            sharding_strategy,
+            save_dir,
+            checkpointing_pg_metadata,
         )
     ckpt_time = time.process_time() - ckpt_start
     dist.barrier()
@@ -457,6 +468,7 @@ def load_checkpoint(
 ):
     """Load checkpoint."""
     from torch.sagemaker import state
+
     if dist.get_rank() == 0:
         logger.info("Loading checkpoint from %s ...", checkpoint_dir)
 
@@ -466,12 +478,21 @@ def load_checkpoint(
 
     if checkpoint_type == CheckpointingMethod.USE_PG_WITH_UTIL:
         loaded = _load_with_util(
-            model, optimizer, scheduler, checkpoint_dir, sharding_strategy, checkpointing_pg_metadata
+            model,
+            optimizer,
+            scheduler,
+            checkpoint_dir,
+            sharding_strategy,
+            checkpointing_pg_metadata,
         )
     elif checkpoint_type == CheckpointingMethod.SHARDED:
         if tensor_parallel_degree > 1:
-            checkpoint_dir = os.path.join(checkpoint_dir, f"tp{tensor_parallel_degree}-{state.tp_rank}")
-        loaded = _load_sharded(model, optimizer, scheduler, checkpoint_dir, checkpointing_pg_metadata)
+            checkpoint_dir = os.path.join(
+                 checkpoint_dir, f"tp{tensor_parallel_degree}-{state.tp_rank}"
+             )
+         loaded = _load_sharded(
+             model, optimizer, scheduler, checkpoint_dir, checkpointing_pg_metadata
+         )
     elif checkpoint_type == CheckpointingMethod.LOCAL:
         if tensor_parallel_degree > 1:
             raise NotImplementedError("Local checkpointing unsupported with tensor parallelism")
