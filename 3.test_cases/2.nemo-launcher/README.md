@@ -30,7 +30,7 @@ export REPO=aws-nemo-megatron
 export TAG=$NEMO_VERSION
 export TARGET_PATH=/fsx/nemo-launcher-$NEMO_VERSION   # must be a shared filesystem
 export TEST_CASE_PATH=/home/ec2-user/2.nemo-launcher  # where you copy the test case or set to your test case path
-export ENROOT_IMAGE=/apps/${REPO}_${TAG}.sqsh
+export ENROOT_IMAGE=/fsx/${REPO}_${TAG}.sqsh
 cd $TEST_CASE_PATH
 ```
 
@@ -51,13 +51,13 @@ docker login nvcr.io
 docker build --progress plain -t ${REPO}:${TAG} -f 0.NemoMegatron-aws-optimized.Dockerfile .
 ```
 
-4. Convert the Docker container image to an [Enroot](https://github.com/NVIDIA/enroot) squash file that will be stored in `/apps`. This step takes a few minutes.
+4. Convert the Docker container image to an [Enroot](https://github.com/NVIDIA/enroot) squash file that will be stored in `/fsx`. This step takes a few minutes.
 
 ```bash
 [[ -e $ENROOT_IMAGE ]] && rm $ENROOT_IMAGE ; /usr/bin/time enroot import -o $ENROOT_IMAGE dockerd://${REPO}:${TAG}
 ```
 
-The Enroot squash file will be placed into the `/apps` directory.
+The Enroot squash file will be placed into the `/fsx` directory, backed by FSx Lustre to provide high read throughput by multiple compute nodes upon job starts.
 
 ## 3. Set-up the NemoMegatron environment
 
@@ -76,7 +76,7 @@ cd $TARGET_PATH
 enroot start --mount $TARGET_PATH:/workspace/mount_dir \
              --env NVIDIA_VISIBLE_DEVICES=void \
              $ENROOT_IMAGE \
-             cp -a /opt/NeMo-Megatron-Launcher/launcher_scripts /opt/NeMo-Megatron-Launcher/auto_configurator /workspace/mount_dir/
+             cp -a /opt/NeMo-Megatron-Launcher/launcher_scripts /opt/NeMo-Megatron-Launcher/auto_configurator /opt/nemo-data-curator /opt/nemo-rlhf /workspace/mount_dir/
 ```
 
 The `NVIDIA_VISIBLE_DEVICES` variable is set to void to prevent the process to check for the Nvidia driver presence (since we don't need GPUs here).
@@ -94,7 +94,7 @@ pip3.8 install -r <(curl -fsSL https://raw.githubusercontent.com/NVIDIA/NeMo-Meg
 
 Next, you need to prepare the configuration files as follow:
 
-1. Review and update the partition name in the .yaml config file `conf.template/cluster/bcm.yaml`. Here is a summary of the values.
+1. Review and update the partition name in the .yaml config file `$TEST_CASE_PATH/conf.template/cluster/bcm.yaml`. Here is a summary of the values.
 
 | Value              | Default                       | Definition                                                                                                                                                                  |
 | ------------------ | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -206,7 +206,7 @@ Congratulations! You've successfully run this test case to completion.
 
 To pre-train for a different model size on different instance count, open `$TEST_CASE_PATH/1.bmk-pretrain-gpt3-126m.sh` and edit section `000` to choose the right hyperparameters. Be aware that pre-training LLM requires understanding on the hyperparameters such as parallelism and batches. Please refer to the NeMO project ([website](https://developer.nvidia.com/nemo), [GitHub](https://github.com/NVIDIA/NeMo), [NeMo-Megatron-Launcher](https://github.com/NVIDIA/NeMo-Megatron-Launcher)) and the Megatron papers ([Shoeybi20](https://arxiv.org/abs/1909.08053), [Narayanan21](https://arxiv.org/abs/2104.04473)).
 
-At the very least, you'd want to review and customize one or more YAML files under `$TARGET_PATH/launcher_scripts/conf/`. Nemo-launcher organizes its config files in an opinionated hierarchy. Below is an example of relevant YAML files when launching `$TARGET_PATH/launcher_scripts/main.py` for `training` stage for `gpt3/126m` (see `$TEST_CASE_PATH/1.bmk-pretrain-gpt3.sh`).
+At the very least, you'd want to review and customize one or more YAML files under `$TARGET_PATH/launcher_scripts/conf/`. Nemo-launcher organizes its config files in an opinionated hierarchy. Below is an example of relevant YAML files when launching `$TARGET_PATH/launcher_scripts/main.py` for `training` stage for `gpt3/126m` (see `$TEST_CASE_PATH/1.bmk-pretrain-gpt3-126m.sh`).
 
 ```bash
 $TARGET_PATH/launcher_scripts/conf
@@ -218,7 +218,7 @@ $TARGET_PATH/launcher_scripts/conf
         └── 126m.yaml  # Config for model size "126m"
 ```
 
-You can edit directly the `gpt3/<MODEL_SIZE>.yaml` to customize the number of instances, tensor parallelism, pipeline parallelism, batch sizes (micro and global), experiment tracking, etc. on this file. Alternatively, you can override the settings through the CLI options of `$TARGET_PATH/launcher_scripts/main.py` (refer to `1.bmk-pretrain-gpt3.sh`). For example, this CLI arg `training.trainer.num_nodes=$NUM_NODES` is equivalent to editing file `$TARGET_PATH/launcher_scripts/training_scripts/conf/training/<MODEL_NAME>/<MODEL_SIZE>.yaml` to set key `trainer -> num_nodes` to `$NUM_NODES`.
+You can edit directly the `gpt3/<MODEL_SIZE>.yaml` to customize the number of instances, tensor parallelism, pipeline parallelism, batch sizes (micro and global), experiment tracking, etc. on this file. Alternatively, you can override the settings through the CLI options of `$TARGET_PATH/launcher_scripts/main.py` (refer to `1.bmk-pretrain-gpt3-126m.sh`). For example, this CLI arg `training.trainer.num_nodes=$NUM_NODES` is equivalent to editing file `$TARGET_PATH/launcher_scripts/training_scripts/conf/training/<MODEL_NAME>/<MODEL_SIZE>.yaml` to set key `trainer -> num_nodes` to `$NUM_NODES`.
 
 ```text
     +-- file `training/<MODEL_NAME>/<MODEL_SIZE>.yaml` under `$TARGET_PATH/launcher_scripts/conf`
