@@ -119,8 +119,6 @@ def main(args):
     params = ProvisioningParameters(args.provisioning_parameters)
     resource_config = ResourceConfig(args.resource_config)
 
-    ExecuteBashScript("./add_users.sh").run()
-
     fsx_dns_name, fsx_mountname = params.fsx_settings
     if fsx_dns_name and fsx_mountname:
         print(f"Mount fsx: {fsx_dns_name}. Mount point: {fsx_mountname}")
@@ -154,7 +152,10 @@ def main(args):
         # Note: Uncomment the below lines to install docker and enroot
         ExecuteBashScript("./utils/install_docker.sh").run()
         ExecuteBashScript("./utils/install_enroot_pyxis.sh").run(node_type)
-        
+
+    # We execute this after everything else
+    ExecuteBashScript("./add_users.sh").run()
+
     print("[INFO]: Success: All provisioning scripts completed")
 
 

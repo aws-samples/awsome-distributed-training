@@ -1,4 +1,4 @@
-user1,2001
-user2,2002
-user3,2003
-user4,2004
+user1,2001,/fsx/users/user1
+user2,2002,/fsx/users/user2
+user3,2003,/fsx/users/user3
+user4,2004,/fsx/users/user4
