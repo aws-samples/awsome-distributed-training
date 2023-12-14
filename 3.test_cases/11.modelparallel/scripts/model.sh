@@ -125,7 +125,7 @@ fi
 
 $TORCH_CMD \
     --rdzv_endpoint=$MASTER_ADDR:29400 --rdzv_id=100 --rdzv_backend=c10d \
-    train.py \
+    train_external.py \
     --train_batch_size 2 \
     --max_steps 100 \
     --checkpoint_freq 200 \
