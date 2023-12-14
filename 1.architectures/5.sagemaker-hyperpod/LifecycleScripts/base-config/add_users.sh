@@ -2,10 +2,10 @@
 # Creates users from `shared_users.txt` file
 # each line in the `shared_users.txt` file should be of the format:
 # ```
-# username1,uid1
-# username2,uid2
+# username1,uid1,homepath
+# username2,uid2,homepath
 # ```
-# 
+#
 # The script should be run as root user
 # see `shared_users_sample.txt` for an example
 
@@ -14,15 +14,16 @@ set -x
 
 SHARED_USER_FILE="shared_users.txt"
 
-# takes in username and uid as parameters
+# takes in username, uid and the homepath as parameters
 # if user with username and uid does not exists,
-# creates user with uid and creates a directory for user at /home/$username
+# creates user with uid and creates a directory for user at homepath
 create_user() {
   local username=$1
   local uid=$2
+  local homepath=$3
 
   # check if username already exists
-  if id -u "$username"  >/dev/null 2>&1; then
+  if id -u "$username" >/dev/null 2>&1; then
     echo "User $username already exists. Skipping..."
     return
   fi
@@ -32,12 +33,33 @@ create_user() {
     echo "UID $uid is already in use. Skipping adding user: $username..."
     return
   fi
-  
-  # create user with uid and directory
-  if useradd -m $username --uid $uid -d "/home/$username"; then
-    echo "Created user $username with uid $uid"
+
+  bash_path=$(which bash)
+  useradd -m "$username" --uid "$uid" -d "$homepath" --shell "$bash_path" || (echo "Failed to create user $username with uid $uid" && return)
+
+  usermod -aG sudo "$username"
+
+  if getent group ubuntu >/dev/null; then
+    echo "Group ubuntu exists."
+    usermod -aG ubuntu "$username"
   else
-    echo "Failed to create user $username with uid $uid"
+    echo "Group ubuntu does not exist."
+  fi
+
+  if getent group docker >/dev/null; then
+    echo "Group docker exists."
+    usermod -aG docker "$username"
+  else
+    echo "Group docker does not exist."
+  fi
+
+  if test ! -e "$homepath/.ssh/id_rsa"; then
+    echo "No ssh keygen, creating a new one"
+    mkdir -p "$homepath/.ssh/"
+
+    ssh-keygen -t rsa -q -f "$homepath/.ssh/id_rsa" -N ""
+    cat "$homepath/.ssh/id_rsa.pub" >> "$homepath/.ssh/authorized_keys"
+    chown -R "$username" "$homepath/.ssh"
   fi
 }
 
@@ -52,11 +74,10 @@ main() {
     exit 0
   fi
 
-  while IFS="," read -r username uid; do
-    echo "Requested create user: $username with uid: $uid"
-    create_user "$username" "$uid"
-  done < $SHARED_USER_FILE
+  while IFS="," read -r username uid homepath; do
+    echo "Requested create user: $username with uid '$uid' and '$homepath'"
+    create_user "$username" "$uid" "$homepath"
+  done <$SHARED_USER_FILE
 }
 
 main "$@"
-
