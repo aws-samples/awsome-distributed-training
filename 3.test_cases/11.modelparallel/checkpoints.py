@@ -490,7 +490,7 @@ def load_checkpoint(
             checkpoint_dir = os.path.join(
                  checkpoint_dir, f"tp{tensor_parallel_degree}-{state.tp_rank}"
              )
-         loaded = _load_sharded(
+        loaded = _load_sharded(
              model, optimizer, scheduler, checkpoint_dir, checkpointing_pg_metadata
          )
     elif checkpoint_type == CheckpointingMethod.LOCAL:
