@@ -1,4 +1,4 @@
-## Using SageMaker Model Parallelism with Simple Llama 2 Training Job
+## Using SageMaker Model Parallelism with Simple GPT-Neox Training Job
 The Amazon SageMaker model parallelism library (SMP) is a capability of SageMaker that enables high performance and optimized large scale training on SageMaker accelerate compute instances. Its core features include techniques and optimizations to accelerate and simplify large model training, such as hybrid sharded data parallelism, tensor parallelism, activation checkpointing, and activation offloading. You can use SMP to accelerate the training and fine-tuning of large language models (LLMs), large vision models (LVMs), and foundation models (FMs) with hundreds of billions of parameters.
 
 The latest release of Amazon SageMaker model parallelism (SMP v2) aligns the library’s APIs and methods with open source PyTorch Fully Sharded Data Parallelism (FSDP), allowing users to easily enable SMP’s performance optimizations with minimal code change. Now, you can achieve state-of-the-art large model training performance on SageMaker in minutes by migrating your existing FSDP training scripts to SMP.
