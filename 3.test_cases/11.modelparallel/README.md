@@ -1,4 +1,8 @@
 ## Using SageMaker Model Parallelism with Simple Llama 2 Training Job
+The Amazon SageMaker model parallelism library (SMP) is a capability of SageMaker that enables high performance and optimized large scale training on SageMaker accelerate compute instances. Its core features include techniques and optimizations to accelerate and simplify large model training, such as hybrid sharded data parallelism, tensor parallelism, activation checkpointing, and activation offloading. You can use SMP to accelerate the training and fine-tuning of large language models (LLMs), large vision models (LVMs), and foundation models (FMs) with hundreds of billions of parameters.
+
+The latest release of Amazon SageMaker model parallelism (SMP v2) aligns the library’s APIs and methods with open source PyTorch Fully Sharded Data Parallelism (FSDP), allowing users to easily enable SMP’s performance optimizations with minimal code change. Now, you can achieve state-of-the-art large model training performance on SageMaker in minutes by migrating your existing FSDP training scripts to SMP.
+
 In this directory, we have example scripts for training with SMP Pytorch. We assume you have already setup a Hyperpod instance. Below we first describe the files in this directory, and then go over how to run some jobs.
 
 ### Files
@@ -115,21 +119,21 @@ sbatch -N 16 conda_launch.sh /PATH/TO/CONDA/ENV
 
 4. **Running a convergence job or experiment**
 
-We have put together an example of a convergence script using the above referenced `scripts/model.sh` script. The script sets the model type, size, checkpointing directory, tensorboard directory for metrics, and other hyperparameters. This is a slurm script, used with sbatch similar to above.
+We have put together an example of a convergence script using the above referenced `scripts/model.sh` script. The script sets the model type, size, checkpointing directory, tensorboard directory for metrics, and other hyperparameters. This is a slurm script, used with sbatch similar to above.  Note that you will need to provide your own path to your dataset within the launch script below.
 
 ```
-sbatch -N 64 convergence_jobs/neox_7b/neox_7b_4Mtokens.sh
+sbatch -N 16 convergence_jobs/neox_7b/neox_7b_4Mtokens.sh
 ```
 or
 ```
-sbatch -N 64 --job-name neox_7b_4M_trial1 convergence_jobs/neox_7b/neox_7b_4Mtokens.sh
+sbatch -N 16 --job-name neox_7b_4M_trial1 convergence_jobs/neox_7b/neox_7b_4Mtokens.sh
 ```
 
 5. **Resuming convergence job from a checkpoint**
 
 Modify the `--resume_from_checkpoint` arg with the path of the checkpoint. Then the job is started same as before.
 ```
-sbatch -N 64 convergence_jobs/neox_7b/neox_7b_4Mtokens.sh
+sbatch -N 16 convergence_jobs/neox_7b/neox_7b_4Mtokens.sh
 ```
 
 6. **Running a finetuning job or experiment**
