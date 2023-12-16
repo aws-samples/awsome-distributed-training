@@ -32,10 +32,11 @@ We recommend that you install cuDNN for your desired cuda version using from the
 Once you have the tar file downloaded you can run the following commands to finish the installation:
 
 ### Conda Environment Setup
-All commands below should be run on a compute node. You can run it as a script using ```awsome-distributed-training/3.test_cases/11.modelparallel/conda_env_setup.sh``` or manually run the script as individual commands which are listed below. Also, the cuda version should be decided here between versions 11.8 and 12.1. We recommend using Miniconda and installing it in `/fsx` so that it can be sourced on any node. Instructions here: https://docs.conda.io/projects/conda/en/latest/user-guide/install/linux.html
+All commands below should be run on a compute node. You can run it as a script using ```awsome-distributed-training/3.test_cases/11.modelparallel/conda_env_setup.sh``` or manually run the script as individual commands which are listed below. Also, the cuda version should be decided here between versions 11.8 and 12.1. We recommend using Miniconda or Mamba and installing it in `/fsx` so that it can be sourced on any node. Instructions here: https://docs.conda.io/projects/conda/en/latest/user-guide/install/linux.html
 
 ```
-SMP_CUDA_VER=11.8 or 12.1
+# specify which CUDA version you are using
+SMP_CUDA_VER=11.8 #or 12.1
 
 source /fsx/<path to miniconda>/miniconda3/bin/activate
 
@@ -65,21 +66,23 @@ SMDDP_WHL="smdistributed_dataparallel-2.0.2-cp310-cp310-linux_x86_64.whl" \
   && pip install --force ${SMDDP_WHL} \
   && rm ${SMDDP_WHL}
 
-# cuDNN installation for TransformerEngine installation for cuda11.8
-tar xf cudnn-linux-x86_64-8.9.5.30_cuda11-archive.tar.xz \
-    && rm -rf /usr/local/cuda-$SMP_CUDA_VER/include/cudnn* /usr/local/cuda-$SMP_CUDA_VER/lib/cudnn* \
-    && cp ./cudnn-linux-x86_64-8.9.5.30_cuda11-archive/include/* /usr/local/cuda-$SMP_CUDA_VER/include/ \
-    && cp ./cudnn-linux-x86_64-8.9.5.30_cuda11-archive/lib/* /usr/local/cuda-$SMP_CUDA_VER/lib/ \
-    && rm -rf cudnn-linux-x86_64-8.9.5.30_cuda11-archive.tar.xz \
-    && rm -rf cudnn-linux-x86_64-8.9.5.30_cuda11-archive/
-
-# cuDNN installation for TransformerEngine installation for cuda12.1
-tar xf cudnn-linux-x86_64-8.9.7.29_cuda12-archive.tar.xz \
-    && rm -rf /usr/local/cuda-$SMP_CUDA_VER/include/cudnn* /usr/local/cuda-$SMP_CUDA_VER/lib/cudnn* \
-    && cp ./cudnn-linux-x86_64-8.9.7.29_cuda12-archive/include/* /usr/local/cuda-$SMP_CUDA_VER/include/ \
-    && cp ./cudnn-linux-x86_64-8.9.7.29_cuda12-archive/lib/* /usr/local/cuda-$SMP_CUDA_VER/lib/ \
-    && rm -rf cudnn-linux-x86_64-8.9.7.29_cuda12-archive.tar.xz \
-    && rm -rf cudnn-linux-x86_64-8.9.7.29_cuda12-archive/
+if [ $SMP_CUDA_VER == "11.8" ]; then
+    # cuDNN installation for TransformerEngine installation for cuda11.8
+    tar xf cudnn-linux-x86_64-8.9.5.30_cuda11-archive.tar.xz \
+        && rm -rf /usr/local/cuda-$SMP_CUDA_VER/include/cudnn* /usr/local/cuda-$SMP_CUDA_VER/lib/cudnn* \
+        && cp ./cudnn-linux-x86_64-8.9.5.30_cuda11-archive/include/* /usr/local/cuda-$SMP_CUDA_VER/include/ \
+        && cp ./cudnn-linux-x86_64-8.9.5.30_cuda11-archive/lib/* /usr/local/cuda-$SMP_CUDA_VER/lib/ \
+        && rm -rf cudnn-linux-x86_64-8.9.5.30_cuda11-archive.tar.xz \
+        && rm -rf cudnn-linux-x86_64-8.9.5.30_cuda11-archive/
+else
+    # cuDNN installation for TransformerEngine installation for cuda12.1
+    tar xf cudnn-linux-x86_64-8.9.7.29_cuda12-archive.tar.xz \
+        && rm -rf /usr/local/cuda-$SMP_CUDA_VER/include/cudnn* /usr/local/cuda-$SMP_CUDA_VER/lib/cudnn* \
+        && cp ./cudnn-linux-x86_64-8.9.7.29_cuda12-archive/include/* /usr/local/cuda-$SMP_CUDA_VER/include/ \
+        && cp ./cudnn-linux-x86_64-8.9.7.29_cuda12-archive/lib/* /usr/local/cuda-$SMP_CUDA_VER/lib/ \
+        && rm -rf cudnn-linux-x86_64-8.9.7.29_cuda12-archive.tar.xz \
+        && rm -rf cudnn-linux-x86_64-8.9.7.29_cuda12-archive/
+fi
 
 # TransformerEngine installation
 export CUDA_HOME=/usr/local/cuda-$SMP_CUDA_VER
