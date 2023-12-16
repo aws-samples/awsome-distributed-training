@@ -1,4 +1,4 @@
-## Using Model Parallelism with Simple Llama 2 Training Job
+## Using SageMaker Model Parallelism with Simple Llama 2 Training Job
 In this directory, we have example scripts for training with SMP Pytorch. We assume you have already setup a Hyperpod instance. Below we first describe the files in this directory, and then go over how to run some jobs.
 
 ### Files
@@ -17,8 +17,18 @@ In this directory, we have example scripts for training with SMP Pytorch. We ass
 These scripts need to be put on a directory that can be accessed on all nodes, such as FSX.
 We also recommend setting all paths (for input data and checkpoints) as shared directories using FSX.
 
+### cuDNN Download for cuda11.8 and cuda12.1
+We recommend that you install cuDNN for your desired cuda version using from the NVIDIA Developer page: https://developer.nvidia.com/cudnn. Once you visit the link you will need to:
+1. Make a developer account.
+2. Click on "Download cuDNN Library".
+3. Agree to the terms.
+4. Download the Local Installer for Linux x86_64 (Tar) for cuda11 or cuda12 (we recommend version 8.9.5 and will use that version in the example going forward).
+4. Sync it with your cluster to the root directory. 
+
+Once you have the tar file downloaded you can run the following commands to finish the installation:
+
 ### Conda Environment Setup
-All commands should be run on a compute node. Also the cuda version should be decided here between versions 11.8 and 12.1. We recommend using Miniconda and installing it in `/fsx` so that it can be sourced on any node. Instructions here: https://docs.conda.io/projects/conda/en/latest/user-guide/install/linux.html
+All commands below should be run on a compute node. You can run it as a script using ```awsome-distributed-training/3.test_cases/11.modelparallel/conda_env_setup.sh``` or manually run the script as individual commands which are listed below. Also, the cuda version should be decided here between versions 11.8 and 12.1. We recommend using Miniconda and installing it in `/fsx` so that it can be sourced on any node. Instructions here: https://docs.conda.io/projects/conda/en/latest/user-guide/install/linux.html
 
 ```
 SMP_CUDA_VER=11.8 or 12.1
@@ -50,16 +60,7 @@ SMDDP_WHL="smdistributed_dataparallel-2.0.2-cp310-cp310-linux_x86_64.whl" \
   && wget -q https://smdataparallel.s3.amazonaws.com/binary/pytorch/2.0.1/cu118/2023-12-07/${SMDDP_WHL} \
   && pip install --force ${SMDDP_WHL} \
   && rm ${SMDDP_WHL}
-```
-### cuDNN Installation for cuda11.8 and cuda12.1
-We recommend that you install cuDNN for your desired cuda version using from the NVIDIA Developer page: https://developer.nvidia.com/cudnn. Once you visit the link you will need to:
-1. Make a developer account.
-2. Click on "Download cuDNN Library".
-3. Agree to the terms.
-4. Download the Local Installer for Linux x86_64 (Tar) for cuda11 or cuda12 (we recommend version 8.9.5 and will use that version in the example going forward).
 
-Once you have the tar file downloaded you can run the following commands to finish the installation:
-```
 # cuDNN installation for TransformerEngine installation for cuda11.8
 tar xf cudnn-linux-x86_64-8.9.5.30_cuda11-archive.tar.xz \
     && rm -rf /usr/local/cuda-$SMP_CUDA_VER/include/cudnn* /usr/local/cuda-$SMP_CUDA_VER/lib/cudnn* \
@@ -75,9 +76,7 @@ tar xf cudnn-linux-x86_64-8.9.7.29_cuda12-archive.tar.xz \
     && cp ./cudnn-linux-x86_64-8.9.7.29_cuda12-archive/lib/* /usr/local/cuda-$SMP_CUDA_VER/lib/ \
     && rm -rf cudnn-linux-x86_64-8.9.7.29_cuda12-archive.tar.xz \
     && rm -rf cudnn-linux-x86_64-8.9.7.29_cuda12-archive/
-```
-### TransformerEngine installation
-```    
+
 # TransformerEngine installation
 export CUDA_HOME=/usr/local/cuda-$SMP_CUDA_VER
 export CUDNN_PATH=/usr/local/cuda-$SMP_CUDA_VER/lib
