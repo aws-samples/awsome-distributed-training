@@ -1,38 +1,47 @@
 ## Using SageMaker Model Parallelism with Simple GPT-Neox Training Job
-The Amazon SageMaker model parallelism library (SMP) is a capability of SageMaker that enables high performance and optimized large scale training on SageMaker accelerate compute instances. Its core features include techniques and optimizations to accelerate and simplify large model training, such as hybrid sharded data parallelism, tensor parallelism, activation checkpointing, and activation offloading. You can use SMP to accelerate the training and fine-tuning of large language models (LLMs), large vision models (LVMs), and foundation models (FMs) with hundreds of billions of parameters.
+The Amazon SageMaker model parallelism library (SMP) is a capability of SageMaker that enables high performance and optimized large scale training on SageMaker accelerated compute instances. Its core features are hybrid sharded data parallelism, tensor parallelism, activation checkpointing, and activation offloading. You can use SMP to accelerate the training and fine-tuning of large language models (LLMs), large vision models (LVMs), and foundation models (FMs) with hundreds of billions of parameters such as [Llama2](https://huggingface.co/docs/transformers/model_doc/llama2) and [GPT-NeoX](https://huggingface.co/docs/transformers/model_doc/gpt_neox).
 
-The latest release of Amazon SageMaker model parallelism (SMP v2) aligns the library’s APIs and methods with open source PyTorch Fully Sharded Data Parallelism (FSDP), allowing users to easily enable SMP’s performance optimizations with minimal code change. Now, you can achieve state-of-the-art large model training performance on SageMaker in minutes by migrating your existing FSDP training scripts to SMP.
+The latest release of Amazon SageMaker model parallelism (SMP v2) aligns the library’s APIs and methods with open source PyTorch Fully Sharded Data Parallelism ([FSDP](https://pytorch.org/docs/stable/fsdp.html)), allowing users to easily enable SMP’s performance optimizations with minimal code change. Now, you can achieve state-of-the-art large model training performance on SageMaker in minutes by migrating your existing FSDP training scripts to SMP.
 
 In this directory, we have example scripts for training with SMP Pytorch. We assume you have already setup a Hyperpod instance. Below we first describe the files in this directory, and then go over how to run some jobs.
 
 ### Files
+**Training Scripts**
 - `train_lib.py` : Main training script
-- `train.py` : Entrypoint to launch `train_lib.py`
-- `scripts/model.sh` : Main script which passes the config and launches `train.py`. This is used by `conda_launch.sh` and scripts in convergence_jobs folder. If you want to define your own model configuration you might want to modify this.
-- `arguments.py` : Parses arguments for the job. Please refer to this file for all the options the script supports.
-- `checkpoints.py` : Handles saving and loading of checkpoints
-- `data/pipelines/data_pipeline.py`: Creates dataloaders for the job. Modify this file to load your own dataset.
--  `data/utils.py`, `fsdp_utils.py`, `learning_rates.py`, `logging_utils.py`, `memory_tracker.py`, `train_utils.py` have utilities used by the main script.
+- `train_utils.py`: Implements several key functions in the central training script for model initialization, activation checkpointing, and more.
 
-#### Launch scripts
-- `conda_launch.sh` : This is a slurm script which launches a job using the activated conda environment. It expects to be run on the head node of the Slurm cluster. See below section for instructions. By default it runs with synthetic data to make it easy to test the scripts.
+#### Launch Scripts
+- `conda_launch.sh`: Slurm sbatch script which launches a job using the activated conda environment. It should be run on head-node, and it uses synthetic data by default allowing training to be tested easily.
+-  `scripts/model.sh`: Main script which passes the config and launches training. This is used by `conda_launch.sh` and scripts in `convergence_jobs` folder. If you want to define your own model configuration you might want to modify this.
+
+**Dataset and Dataloading Scripts**
+- `data/pipelines/data_pipeline.py`: Creates dataloaders for the job. Modify this file to load your own dataset.
+- `data/utils.py`: Utility file to facilitate using datasets stored in AWS S3.
+
+**Miscellaneous Utility Scripts**
+- `arguments.py`: Parses arguments for the job. Please refer to this file for all the options the script supports.
+- `checkpoints.py`: Handles saving and loading of checkpoints
+-  `learning_rates.py`: Utility file for implementing learning rate annealing during training
+-  `logging_utils.py`: Implements several helper functions for logging key information during training such as loss, training throughput speeds, and environment variables
+-  `memory_tracker.py`: Implements functions for monitoring CPU and GPU memory usage
+
 
 ## Note on paths
-These scripts need to be put on a directory that can be accessed on all nodes, such as FSX.
-We also recommend setting all paths (for input data and checkpoints) as shared directories using FSX.
+These scripts need to be put in a shared file system that can be accessed by all nodes, such as [FSx for Lustre](https://docs.aws.amazon.com/fsx/latest/LustreGuide/what-is.html).
+We also recommend setting all paths for input data and checkpoints as shared directories using FSx for Lustre.
 
 ### cuDNN Download for cuda11.8 and cuda12.1
-We recommend that you install cuDNN for your desired cuda version using from the NVIDIA Developer page: https://developer.nvidia.com/cudnn. Once you visit the link you will need to:
+We recommend that you install cuDNN for your desired cuda version using from the [NVIDIA Developer page](https://developer.nvidia.com/cudnn).  Click on the link and:
 1. Make a developer account.
 2. Click on "Download cuDNN Library".
 3. Agree to the terms.
-4. Download the Local Installer for Linux x86_64 (Tar) for cuda11 or cuda12 (we recommend version 8.9.5 and will use that version in the example going forward).
-4. Sync it with your cluster to the root directory. 
+4. Download the Local Installer for Linux x86_64 (Tar) for cuda11 or cuda12 (we will use version 8.9.5 in the example going forward).
+4. Move the tar file from your local machine to your cluster root directory. 
 
-Once you have the tar file downloaded you can run the following commands to finish the installation:
+The next section will walk through how to finish the cuDNN installation.
 
 ### Conda Environment Setup
-All commands below should be run on a compute node. You can run it as a script using ```awsome-distributed-training/3.test_cases/11.modelparallel/conda_env_setup.sh``` or manually run the script as individual commands which are listed below. Also, the cuda version should be decided here between versions 11.8 and 12.1. We recommend using Miniconda or Mamba and installing it in `/fsx` so that it can be sourced on any node. Instructions here: https://docs.conda.io/projects/conda/en/latest/user-guide/install/linux.html
+All commands below should be run on a compute node as some of the setup steps are compute intensive.  You can run it as a script using `conda_env_setup.sh` or manually run the script as individual commands which are listed below.  Also, the CUDA version should be decided here between versions 11.8 and 12.1. We recommend using Miniconda or Mamba and installing it on the shared file system, which in our example is FSx for Lustre   mounted at `/fsx`. Instructions for conda installation can be found [here](https://docs.conda.io/projects/conda/en/latest/user-guide/install/linux.html) 
 
 ```
 # specify which CUDA version you are using
