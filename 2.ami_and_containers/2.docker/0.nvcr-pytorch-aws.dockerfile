@@ -19,13 +19,13 @@
 #     # Load image to local docker registry -> on head node, or new compute/build node.
 #     docker load < /fsx/nvidia-pt-od__2310.tar
 ####################################################################################################
-FROM nvcr.io/nvidia/pytorch:23.10-py3
+FROM nvcr.io/nvidia/pytorch:23.12-py3
 ENV DEBIAN_FRONTEND=noninteractive
 
 # The three must-be-built packages.
 # Efa-installer>=1.29.0 required for nccl>=2.19.0 to avoid libfabric NCCL error.
-ENV EFA_INSTALLER_VERSION=1.29.0
-ENV AWS_OFI_NCCL_VERSION=1.7.3-aws
+ENV EFA_INSTALLER_VERSION=1.30.0
+ENV AWS_OFI_NCCL_VERSION=1.7.4-aws
 ENV NCCL_TESTS_VERSION=master
 
 RUN apt-get update -y
@@ -63,7 +63,13 @@ RUN apt-get update && \
     curl -O https://efa-installer.amazonaws.com/aws-efa-installer-${EFA_INSTALLER_VERSION}.tar.gz  && \
     tar -xf aws-efa-installer-${EFA_INSTALLER_VERSION}.tar.gz && \
     cd aws-efa-installer && \
-    ./efa_installer.sh -y -g -d --skip-kmod --skip-limit-conf --no-verify && \
+    # Anything from --skip-kmod onwards are used ONLY for container image. Do not use these
+    # flags on the host, unless you want to fine-grained control the installation process.
+    #
+    # NOTE: --skip-kmod and --no-verify in Dockerfile causes docker build to hard fail. The
+    # skip-limit-conf can be retained in Dockerfile, but it's redundant as the host already has
+    # these limits set by efa_installer.
+    ./efa_installer.sh -y -g -d --skip-kmod --no-verify --skip-limit-conf && \
     ldconfig && \
     rm -rf /tmp/aws-efa-installer /var/lib/apt/lists/*
 ENV LD_LIBRARY_PATH=/opt/amazon/efa/lib:$LD_LIBRARY_PATH
