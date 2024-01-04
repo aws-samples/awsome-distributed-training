@@ -7,17 +7,17 @@
 #
 # Sample build instructions:
 #
-#     docker build --progress=plain -t nvidia-pt-od:2310 -f 0.nvcr-pytorch-aws.dockerfile .
-#     rm /fsx/nvidia-pt-od__2310.sqsh ; enroot import -o /fsx/nvidia-pt-od__2310.sqsh dockerd://nvidia-pt-od:2310
+#     docker build --progress=plain -t nvidia-pt-od:latest -f 0.nvcr-pytorch-aws.dockerfile .
+#     rm /fsx/nvidia-pt-od__latest.sqsh ; enroot import -o /fsx/nvidia-pt-od__latest.sqsh dockerd://nvidia-pt-od:latest
 #
 # Compute nodes (aka build nodes) are transient, so we need to keep the docker image on shared fs,
 # which head node can load into its local registry.
 #
 #     # Build node: save image to file
-#     docker save nvidia-pt-od:2310 > /fsx/nvidia-pt-od__2310.tar
+#     docker save nvidia-pt-od:latest > /fsx/nvidia-pt-od__latest.tar
 #
 #     # Load image to local docker registry -> on head node, or new compute/build node.
-#     docker load < /fsx/nvidia-pt-od__2310.tar
+#     docker load < /fsx/nvidia-pt-od__latest.tar
 ####################################################################################################
 FROM nvcr.io/nvidia/pytorch:23.12-py3
 ENV DEBIAN_FRONTEND=noninteractive
