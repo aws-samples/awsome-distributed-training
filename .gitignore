@@ -1,4 +1,5 @@
 .env.unversioned
+
 *.out
 *.err
 *.log
@@ -9,6 +10,14 @@ inventory/packer-provisioner-ansible*
 .vscode/*
 !.vscode/launch.json
 
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
 # MS-Office temporary files
 ~$*
 
@@ -18,6 +27,106 @@ inventory/packer-provisioner-ansible*
 # VIM temporary files
 .*.sw[po]
 *.sw[po]
+
+# Python distribution / packaging
+MANIFEST
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
+#  Usually these files are written by a python script from a template
+#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+
+# Flask stuffs
+instance/
+.webassets-cache
+
+# Scrappy stuffs
+.scrapy
+
+# pyenv
+.python-version
+
+# celery beat schedule file
+celerybeat-schedule
+
+# SageMath parsed files
+*.sage.py
+
+# Sphinx documentation
+docs/_build/
+
+# mkdocs documentation
+/site
+
+# Database
+*.db
+*.rdb
+
+# PyBuilder
+target/
+
+# Mypy cache
+.mypy_cache/
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.c9/
+.idea/
+.spyproject
+.spyderproject
+.ropeproject
+.vscode
 
 # pyspark
 derby.log
@@ -34,9 +143,13 @@ spark-warehouse
 *.venv*
 .ipynb_checkpoints
 
-# slurm outputs
-*.out
-*.err
+# Neuron-SDK >= 2.14
+log-neuron-cc.txt
+all_metrics.csv
+neuronxcc-*/
+
+# WanDb temp files or offline artifacts
+wandb/
 
 # Enroot container image
 *.sqsh
