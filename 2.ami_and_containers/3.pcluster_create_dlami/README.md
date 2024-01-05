@@ -59,10 +59,10 @@ with Ubuntu-20.04 flavor. You're strongly recommended to review the `.yaml` file
 export AWS_REGION=us-west-2
 
 # Customize DLAMI Base
-pcluster build-image -r $AWS_REGION -c 01.config-dlami-ub2004-base-gpu.yaml -i pc-dlami-base
+pcluster build-image -r $AWS_REGION -c 01.dlami-ub2004-base-gpu.yaml -i pc-dlami-base
 
 # Customize DLAMI PyTorch
-pcluster build-image -r $AWS_REGION -c 02.config-dlami-ub2004-pytorch-gpu.yaml -i pc-dlami-pytorch
+pcluster build-image -r $AWS_REGION -c 02.dlami-ub2004-pytorch-gpu.yaml -i pc-dlami-pytorch
 ```
 
 Each `pcluster build-image` command displays the results in JSON, e.g.,
@@ -89,10 +89,10 @@ Each `pcluster build-image` command displays the results in JSON, e.g.,
   export AWS_REGION=us-west-2
 
   # Customize DLAMI Base
-  pcluster build-image -r $AWS_REGION -c 01.config-dlami-ub2004-base-gpu.yaml -i pc-dlami-ubuntu-base-gpu | jq .
+  pcluster build-image -r $AWS_REGION -c 01.dlami-ub2004-base-gpu.yaml -i pc-dlami-ubuntu-base-gpu | jq .
 
   # Customize DLAMI PyTorch
-  pcluster build-image -r $AWS_REGION -c 02.config-dlami-ub2004-pytorch-gpu.yaml -i pc-dlami-ubuntu-base-pytorch | jq .
+  pcluster build-image -r $AWS_REGION -c 02.dlami-ub2004-pytorch-gpu.yaml -i pc-dlami-ubuntu-base-pytorch | jq .
   ```
 
 </details>
