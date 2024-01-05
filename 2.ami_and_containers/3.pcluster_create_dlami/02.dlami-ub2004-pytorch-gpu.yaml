@@ -1,0 +1,30 @@
+Build:
+  # Estimated build time: ~1h
+  InstanceType: g4dn.4xlarge
+
+  # Deep Learning OSS Nvidia Driver AMI GPU PyTorch 2.1.0 (Ubuntu 20.04) 20240102 / us-west-2
+  ParentImage: ami-042f0ea5a85c8407a
+
+  ## If below enabled, see [README.md => 3. Appendix: advance usage](README.md#3-appendix-advance-usage)
+  #UpdateOsPackages:
+  #  Enabled: true
+Image:
+  RootVolume:
+    Encrypted: false
+
+    # https://docs.aws.amazon.com/parallelcluster/latest/ug/build-Image-v3.html#yaml-build-image-Image-RootVolume-Size
+    # Size (Optional, Integer)
+    #   Specifies the size of the root volume for the image, in GiB. The default size is the size of
+    #   the ParentImage plus 27 GiB.
+    #
+    # Below value matches the parent AMI's.
+    Size: 45
+
+  # Optional tags for convenience when viewing on AWS console.
+  Tags:
+    - Key: Name
+      Value: marcverd
+    - Key: base_ami_id
+      Value: ami-042f0ea5a85c8407a
+    - Key: base_ami_name
+      Value: "Deep Learning OSS Nvidia Driver AMI GPU PyTorch 2.1.0 (Ubuntu 20.04) 20240102"
