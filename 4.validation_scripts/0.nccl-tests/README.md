@@ -51,6 +51,11 @@ To build the container:
    ```bash
    docker build -t nccl-tests -f 0.nccl-tests.Dockerfile .
    ```
+   Alternatively, you can pull the pre-build image from public ECR.
+   ```bash
+   docker pull public.ecr.aws/hpc-cloud/nccl-tests:latest
+   ```
+   
 3. Once the image is built, you can check if it is present with `docker images`. You should see an output similar to this one:
    ```
    REPOSITORY               TAG                        IMAGE ID       CREATED         SIZE
@@ -58,7 +63,7 @@ To build the container:
    ...
    nvidia/cuda              12.2.0-devel-ubuntu20.04   a86c511c87e1   2 weeks ago     6.56GB
    ```
-3. Convert the container image to a squash file via Enroot
+4. Convert the container image to a squash file via Enroot
    ```bash
    enroot import -o /apps/nccl.sqsh  dockerd://nccl-tests:latest
    ```
