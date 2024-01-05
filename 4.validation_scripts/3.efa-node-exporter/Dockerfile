@@ -1,13 +1,14 @@
 FROM ubuntu:20.04
 
-ARG EFA_INSTALLER_VERSION=latest
+ARG EFA_INSTALLER_VERSION=1.30.0
 ARG NODE_EXPORTER_VERSION=v1.6.1
 ARG PROCFS_EXPORTER_VERSION=v0.12.0
+ARG GOLANG_VERSION=1.21.5
 
 # install go
 RUN apt update && apt install curl git build-essential -y
-RUN curl -OL https://go.dev/dl/go1.21.1.linux-amd64.tar.gz && \
-    tar -C /usr/local -xvf go1.21.1.linux-amd64.tar.gz
+RUN curl -OL https://go.dev/dl/go${GOLANG_VERSION}.linux-amd64.tar.gz && \
+    tar -C /usr/local -xvf go${GOLANG_VERSION}.linux-amd64.tar.gz
 ENV PATH=$PATH:/usr/local/go/bin
 
 # Install EFA
