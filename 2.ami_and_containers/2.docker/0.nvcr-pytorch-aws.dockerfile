@@ -63,7 +63,7 @@ RUN apt-get update && \
     curl -O https://efa-installer.amazonaws.com/aws-efa-installer-${EFA_INSTALLER_VERSION}.tar.gz  && \
     tar -xf aws-efa-installer-${EFA_INSTALLER_VERSION}.tar.gz && \
     cd aws-efa-installer && \
-    # Anything from --skip-kmod onwards are used ONLY for container image. Do not use these
+    # ONLY add `--skip-kmod`, `--skip-limit-conf` and `--no-verify` flags to container image.
     # flags on the host, unless you want to fine-grained control the installation process.
     #
     # NOTE: --skip-kmod and --no-verify in Dockerfile causes docker build to hard fail. The
