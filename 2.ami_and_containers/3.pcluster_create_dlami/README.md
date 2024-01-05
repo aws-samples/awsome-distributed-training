@@ -81,7 +81,7 @@ Each `pcluster build-image` command displays the results in JSON, e.g.,
 ```
 
 <details>
-  <summary><b>Pro-tips</b>: syntax-colored <code>pcluster</code> output</b></summary>
+  <summary><b>Pro-tips</b>: syntax-colored <code>pcluster</code> output</summary>
 
   To syntax-color the `pcluster`'s JSON output, pipe the command to `jq`. Examples below.
 
@@ -108,18 +108,18 @@ the first example above are `/aws/imagebuilder/ParallelClusterImage-pc-dlami-ubu
 and `3.8.0/1`.
 
 <details>
-  <summary><b>Pro-tips: fetch build logs using community cli <code>awslogs</code></b></summary>
+  <summary><b>Pro-tips</b>: fetch build logs using community cli <code>awslogs</code></summary>
 
   Below are examples to use the community cli `awslogs` to fetch from CloudWatch the build log. To
   install `awslogs`, please follow its [installation
   instructions](https://github.com/jorgebastida/awslogs#installation).
 
-  The examples assume ami named `pc-dlami-base` and `pcluster` version 3.8.0. Please update the log
-  group and stream names accordingly. When in doubt, check the log group and stream names from the
-  CloudWatch console.
+  Below example assumes ami named `pc-dlami-base` and `pcluster` version 3.8.0. Please update the
+  log group and stream names accordingly. When in doubt, check the log group and stream names from
+  the CloudWatch console.
 
   ```bash
-  # Watch the create-image process of ami name `pc-dlami-base`.
+  # Watch the build-image process of ami name `pc-dlami-base`.
   awslogs get -GS --aws-region=us-west-2 \
       /aws/imagebuilder/ParallelClusterImage-pc-dlami-base 3.8.0/1 --watch -i 30 -s10min
 
@@ -128,33 +128,32 @@ and `3.8.0/1`.
   # -s4d instructs the cli tool to fetch logs from the last 4d. Without this flags, it fecthes only
   # a few entries, or even none at all.
   awslogs get -GS --aws-region=us-west-2 \
-      /aws/imagebuilder/ParallelClusterImage-pc-dlami-base 3.8.0/1 -s4d &> create-image-01-success.log
+      /aws/imagebuilder/ParallelClusterImage-pc-dlami-base 3.8.0/1 -s4d &> build-image-01-success.log
   ```
 
 </details>
 
 ## 3. Appendix: advance usage
 
-Should you really need to enable `update` in the build .yaml spec, please apply the following
-changes otherwise the build will fail.
+Should you really need to enable `UpdateOsPackages` in the `.yaml` build spec, please apply the
+following changes otherwise the build will fail.
 
 Edit the `pcluster/resources/imagebuilder/update_and_reboot.yaml`, e.g.,
 
 ```bash
-vi pyenv/versions/pc361-p312/lib/python3.12/site-packages/pcluster/resources/imagebuilder/update_and_reboot.yaml
+vi pyenv/versions/pc380-p312/lib/python3.12/site-packages/pcluster/resources/imagebuilder/update_and_reboot.yaml
 ```
 
 then, apply the following changes:
 
 ```bash
-# Locate this line, and change it...
+# Locate this line, ...
 apt-get -y install linux-aws linux-headers-aws linux-image-aws
 
-# ...to this.
+# ...and change that line to this.
 apt-get -y install --allow-change-held-packages linux-aws linux-headers-aws linux-image-aws`
 ```
 
-**Known issue**: when enabling `update`, resulted AMI may not have Lustre work properly. This will
-happen when the Lustre client for the new kernel is unavailable at AMI build time. The only known
-workaround is to either 1/ disable update, or 2/ wait until AWS releases the newer Lustre client
-module.
+**Known issue**: the resulted AMI may not have Lustre work properly. This could happen when the
+Lustre client for the new kernel is unavailable *at AMI build time*. The only known workaround is to
+either 1/ disable update, or 2/ wait until AWS releases the newer Lustre client module.
