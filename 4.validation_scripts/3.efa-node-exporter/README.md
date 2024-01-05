@@ -2,7 +2,7 @@
 
 Scripted fork of the [Prometheus Node Exporter](https://github.com/prometheus/node_exporter) and [ProcFS](https://github.com/prometheus/procfs) repositories to export Amazon EFA metrics counters on compatible instances including c5n, hpc6ad, P5, P4.
 
-# How to run the collector
+# 1. How to run the collector
 
 To create the docker image run:
 
@@ -71,3 +71,9 @@ node_amazonefa_tx_pkts{device="rdmap99s0",port="1"} 1.664925e+06
 node_scrape_collector_duration_seconds{collector="amazonefa"} 0.084817395
 node_scrape_collector_success{collector="amazonefa"} 1
 ```
+
+## 2. Authors / Reviewers
+
+* [A] Pierre-Yves Aquilanti - pierreya@
+* [A] Sean Smith - seaam@
+* [R] Maxime Hugues - maxhaws@
