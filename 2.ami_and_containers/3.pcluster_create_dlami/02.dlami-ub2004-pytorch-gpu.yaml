@@ -3,6 +3,8 @@ Build:
   InstanceType: g4dn.4xlarge
 
   # Deep Learning OSS Nvidia Driver AMI GPU PyTorch 2.1.0 (Ubuntu 20.04) 20240102 / us-west-2
+  #
+  # See also: https://docs.aws.amazon.com/dlami/latest/devguide/appendix-ami-release-notes.html
   ParentImage: ami-042f0ea5a85c8407a
 
   ## If below enabled, see [README.md => 3. Appendix: advance usage](README.md#3-appendix-advance-usage)
@@ -22,8 +24,8 @@ Image:
 
   # Optional tags for convenience when viewing on AWS console.
   Tags:
-    - Key: Name
-      Value: marcverd
+    #- Key: Name
+    #  Value: "Value to show in Name column, AMI list, EC2 console"
     - Key: base_ami_id
       Value: ami-042f0ea5a85c8407a
     - Key: base_ami_name

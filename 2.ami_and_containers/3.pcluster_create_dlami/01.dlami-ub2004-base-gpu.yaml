@@ -3,6 +3,8 @@ Build:
   InstanceType: g4dn.4xlarge
 
   # Deep Learning Base OSS Nvidia Driver GPU AMI (Ubuntu 20.04) 20240101 / us-west-2
+  #
+  # See also: https://docs.aws.amazon.com/dlami/latest/devguide/appendix-ami-release-notes.html
   ParentImage: ami-0a8dada81f29ad054
 
   ## If below enabled, see [README.md => 3. Appendix: advance usage](README.md#3-appendix-advance-usage)
@@ -22,8 +24,8 @@ Image:
 
   # Optional tags for convenience when viewing on AWS console.
   Tags:
-    - Key: Name
-      Value: marcverd
+    #- Key: Name
+    #  Value: "Value to show in Name column, AMI list, EC2 console"
     - Key: base_ami_id
       Value: ami-0a8dada81f29ad054
     - Key: base_ami_name
