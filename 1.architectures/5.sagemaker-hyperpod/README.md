@@ -43,7 +43,7 @@ Next, we'll need an S3 bucket. This bucket will be used to store the lifecycle s
 
 ```
 # generate a unique name for the bucket
-BUCKET="lifecycle-$(python3 -S -c 'import uuid; print(str(uuid.uuid4().hex)[:10])')"
+BUCKET="sagemaker-lifecycle-$(python3 -S -c 'import uuid; print(str(uuid.uuid4().hex)[:10])')"
 
 # create the bucket
 aws s3 mb s3://${BUCKET}
