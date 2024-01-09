@@ -7,25 +7,25 @@
 #
 # Sample build instructions:
 #
-#     docker build --progress=plain -t nvidia-pt-od:2310 -f 0.nvcr-pytorch-aws.dockerfile .
-#     rm /fsx/nvidia-pt-od__2310.sqsh ; enroot import -o /fsx/nvidia-pt-od__2310.sqsh dockerd://nvidia-pt-od:2310
+#     docker build --progress=plain -t nvidia-pt-od:latest -f 0.nvcr-pytorch-aws.dockerfile .
+#     rm /fsx/nvidia-pt-od__latest.sqsh ; enroot import -o /fsx/nvidia-pt-od__latest.sqsh dockerd://nvidia-pt-od:latest
 #
 # Compute nodes (aka build nodes) are transient, so we need to keep the docker image on shared fs,
 # which head node can load into its local registry.
 #
 #     # Build node: save image to file
-#     docker save nvidia-pt-od:2310 > /fsx/nvidia-pt-od__2310.tar
+#     docker save nvidia-pt-od:latest > /fsx/nvidia-pt-od__latest.tar
 #
 #     # Load image to local docker registry -> on head node, or new compute/build node.
-#     docker load < /fsx/nvidia-pt-od__2310.tar
+#     docker load < /fsx/nvidia-pt-od__latest.tar
 ####################################################################################################
-FROM nvcr.io/nvidia/pytorch:23.10-py3
+FROM nvcr.io/nvidia/pytorch:23.12-py3
 ENV DEBIAN_FRONTEND=noninteractive
 
 # The three must-be-built packages.
 # Efa-installer>=1.29.0 required for nccl>=2.19.0 to avoid libfabric NCCL error.
-ENV EFA_INSTALLER_VERSION=1.29.0
-ENV AWS_OFI_NCCL_VERSION=1.7.3-aws
+ENV EFA_INSTALLER_VERSION=1.30.0
+ENV AWS_OFI_NCCL_VERSION=1.7.4-aws
 ENV NCCL_TESTS_VERSION=master
 
 RUN apt-get update -y
@@ -63,7 +63,16 @@ RUN apt-get update && \
     curl -O https://efa-installer.amazonaws.com/aws-efa-installer-${EFA_INSTALLER_VERSION}.tar.gz  && \
     tar -xf aws-efa-installer-${EFA_INSTALLER_VERSION}.tar.gz && \
     cd aws-efa-installer && \
-    ./efa_installer.sh -y -g -d --skip-kmod --skip-limit-conf --no-verify && \
+    # ONLY add `--skip-kmod`, `--no-verify` and `--skip-limit-conf` flags to container image.
+    # Those three flags must NOT be used on the host.
+    #
+    # Explanations:
+    # - to build EFA in the Dockerfile, we added --skip-kmod and --no-verify. Without these flags,
+    #   the Dockerfile will fail to build. If installing EFA on the host and not in a container,
+    #   please remove these flags.
+    # - The --skip-limit-conf can be retained in Dockerfile, but it's redundant as the host already
+    #   has these limits set by efa_installer.
+    ./efa_installer.sh -y -g -d --skip-kmod --no-verify --skip-limit-conf && \
     ldconfig && \
     rm -rf /tmp/aws-efa-installer /var/lib/apt/lists/*
 ENV LD_LIBRARY_PATH=/opt/amazon/efa/lib:$LD_LIBRARY_PATH
