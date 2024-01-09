@@ -51,10 +51,10 @@
     - name: Clone Nvidia NCCL tests repository
       ansible.builtin.git:
         repo: https://github.com/NVIDIA/nccl-tests.git
-        dest: /tmp/nccl-tests
+        dest: /opt/nccl-tests
 
     - name: Build NCCL tests
       ansible.builtin.shell: |
         make MPI=1 CUDA_HOME=/usr/local/cuda MPI_HOME=/opt/amazon/openmpi NCCL_HOME=/opt/nccl/build
       args:
-        chdir: /tmp/nccl-tests
+        chdir: /opt/nccl-tests

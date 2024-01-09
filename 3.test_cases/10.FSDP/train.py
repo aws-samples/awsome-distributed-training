@@ -45,7 +45,7 @@ def create_streaming_dataloaders(dataset,
                       val_batch_size=1, 
                       max_context_width=4096,
                       workers=4):
-    tokenizer = AutoTokenizer.from_pretrained("EleutherAI/gpt-neox-20b")
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer)
     data = load_dataset(dataset, 'en', streaming=True).shuffle(42+global_rank)
     train_concat_dataset = ConcatTokensDataset(data['train'], tokenizer, max_context_width, True)
     val_concat_dataset = ConcatTokensDataset(data['validation'], tokenizer, max_context_width, True)
@@ -252,7 +252,7 @@ def main(args):
                                                           global_rank=global_rank, 
                                                           train_batch_size=args.train_batch_size, 
                                                           val_batch_size=args.val_batch_size, 
-                                                          max_context_width=4096,
+                                                          max_context_width=args.max_context_width,
                                                           workers=4)
     
     train(model, 
