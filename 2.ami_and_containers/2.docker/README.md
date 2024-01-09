@@ -58,7 +58,7 @@ docker images
 
 # Convert to enroot format. Attempt to remove an existing .sqsh, otherwise enroot refuses to
 # run when the output .sqsh file already exists.
-rm /fsx/nvidia-pt-od__2310.sqsh ; enroot import -o /fsx/nvidia-pt-od__latest.sqsh dockerd://nvidia-pt-od:latest
+rm /fsx/nvidia-pt-od__latest.sqsh ; enroot import -o /fsx/nvidia-pt-od__latest.sqsh dockerd://nvidia-pt-od:latest
 ```
 
 Tips: when building on a compute node (or a build node), you save the built Docker image on a shared
