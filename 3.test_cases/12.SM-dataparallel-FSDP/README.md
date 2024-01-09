@@ -1,10 +1,10 @@
 # How to Use SageMaker Distributed Data Parallel Library (SMDDP) with PyTorch FSDP
 
 ## What is SMDDP?
-The SMDDP library provides fast GPU collective communication algorithms on P4d/P4de instance types and serves as a drop-in replacement for the Nvidia Collective Communications Library (NCCL).  Specifically, SMDDP implements an optimized AllGather communication routine, which is the main source of GPU communication overhead in sharded data parallel training jobs.  With just two lines of code change, you can enable the SMDDP Library's optimized AllGather algorithm in your PyTorch FSDP training jobs and speed up training by up to 20% compared to NCCL!  This examples shows how you can use SMDDP when training the Falcon model with FSDP.  
+The [SMDDP](https://docs.aws.amazon.com/sagemaker/latest/dg/data-parallel.html) library provides fast GPU collective communication algorithms on P4d/P4de instance types and serves as a drop-in replacement for the Nvidia Collective Communications Library ([NCCL](https://developer.nvidia.com/nccl)).  Specifically, SMDDP implements an optimized AllGather communication routine, which is the main source of GPU communication overhead in sharded data parallel training jobs.  With just two lines of code change, you can enable the SMDDP Library's optimized AllGather algorithm in your [PyTorch FSDP](https://pytorch.org/tutorials/intermediate/FSDP_tutorial.html) training jobs and speed up training by up to 20% compared to NCCL!  This examples shows how you can use SMDDP when training the [Falcon](https://falconllm.tii.ae/falcon-models.html) model with FSDP.  
 
 ## 0. Prerequisites
-You will need a slurm cluster with an FSx for Lustre file system.  See the sagemaker-hyperpod section in the [1.architectures](https://github.com/ruhanprasad/awsome-distributed-training/tree/main/1.architectures) folder for setup instructions. 
+You will need a slurm cluster with a shared parallel filesystem such as [Amazon FSx for Lustre](https://docs.aws.amazon.com/fsx/latest/LustreGuide/getting-started.html).  See the sagemaker-hyperpod section in the [1.architectures/5.sagemaker-hyperpod](https://github.com/aws-samples/awsome-distributed-training/tree/main/1.architectures/5.sagemaker-hyperpod) folder for setup instructions. 
 
 ### Required Dependencies of SMDDP Library
 * Python==3.10
