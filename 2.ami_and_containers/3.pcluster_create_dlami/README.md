@@ -133,7 +133,9 @@ and `3.8.0/1`.
 
 </details>
 
-## 3. Appendix: advance usage
+## 3. Appendix: advance topics
+
+### 3.1. Update OS packages
 
 Should you really need to enable `UpdateOsPackages` in the `.yaml` build spec, please apply the
 following changes otherwise the build will fail.
@@ -157,3 +159,20 @@ apt-get -y install --allow-change-held-packages linux-aws linux-headers-aws linu
 **Known issue**: the resulted AMI may not have Lustre work properly. This could happen when the
 Lustre client for the new kernel is unavailable *at AMI build time*. The only known workaround is to
 either 1/ disable update, or 2/ wait until AWS releases the newer Lustre client module.
+
+### 3.2. Build-image cookbook
+
+`pcluster build-image` preserves the pre-built packages in the parent DLAMI.
+
+1. NVIDIA driver and CUDA are [never re-installed][pcbi-skip-nvidia]. You have to enable them with a
+   [dev setting][pcbi-dev-setting].
+
+2. EFA stack [won't be re-installed][pcbi-skip-efa] if already installed.
+
+<!-- Below are permalinks to `develop` branch -->
+[pcbi-skip-nvidia]:
+    <https://github.com/aws/aws-parallelcluster-cookbook/blob/79458c1926ab71bb54d676d93fe975041cf46f75/cookbooks/aws-parallelcluster-platform/resources/nvidia_driver/partial/_nvidia_driver_common.rb#L23>
+[pcbi-dev-setting]:
+    <https://github.com/aws/aws-parallelcluster-cookbook/blob/79458c1926ab71bb54d676d93fe975041cf46f75/cookbooks/aws-parallelcluster-platform/libraries/nvidia.rb#L2>
+[pcbi-skip-efa]:
+    <https://github.com/aws/aws-parallelcluster-cookbook/blob/79458c1926ab71bb54d676d93fe975041cf46f75/cookbooks/aws-parallelcluster-environment/resources/efa/partial/_common.rb#L24>
