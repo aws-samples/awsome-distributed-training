@@ -19,8 +19,8 @@ Table of contents:
 The following pre-requisites are needed to run this example:
 
 - You are using p4de.24xlarge instances with A100 80GB or newer, with at least 80GB of memory per GPU.
-- You have access to the base image [NeMo Framework Training](https://registry.ngc.nvidia.com/orgs/ea-bignlp/teams/ga-participants/containers/nemofw-training). To gain access to this image, go to [Get Access to NeMo Framework](https://developer.nvidia.com/nemo-framework) to enroll to organization/team `ea-bignlp/ga-participant`.
-- Docker, [Enroot](https://github.com/NVIDIA/enroot) and [Pixys](https://github.com/NVIDIA/pyxis) installed on the cluster and available on all nodes. It is assumed you are using a Custom AMI ([example](../../2.amazon_machine_images))
+- You have access to the base image [`nemofw-training`](https://registry.ngc.nvidia.com/orgs/ea-bignlp/containers/bignlp-training) is available through NVIDIA's open-beta [here](https://developer.nvidia.com/nemo-framework-open-beta).
+- Docker, [Enroot](https://github.com/NVIDIA/enroot) and [Pixys](https://github.com/NVIDIA/pyxis) installed on the cluster and available on all nodes. It is assumed you are using a Custom AMI ([example](../../2.ami_and_containers/1.amazon_machine_image))
 
 You will need to setup the following environment variables before running the scripts. :
 
@@ -204,7 +204,7 @@ Congratulations! You've successfully run this test case to completion.
 
 ## 6. Customizing Pre-Training
 
-To pre-train for a different model size on a different instance count, open `$TEST_CASE_PATH/1.bmk-pretrain-gpt3-126m.sh` and edit section `000` to choose the right hyperparameters. Be aware that pre-training LLM requires understanding on the hyperparameters such as parallelism and batches. Please refer to the NeMO project ([website](https://developer.nvidia.com/nemo), [GitHub](https://github.com/NVIDIA/NeMo), [NeMo-Megatron-Launcher](https://github.com/NVIDIA/NeMo-Megatron-Launcher)) and the Megatron papers ([Shoeybi20](https://arxiv.org/abs/1909.08053), [Narayanan21](https://arxiv.org/abs/2104.04473)).
+To pre-train for a different model size on different instance count, open `$TEST_CASE_PATH/1.bmk-pretrain-gpt3-126m.sh` and edit section `000` to choose the right hyperparameters. Be aware that pre-training LLM requires understanding on the hyperparameters such as parallelism and batches. Please refer to the NeMO project ([website](https://developer.nvidia.com/nemo), [GitHub](https://github.com/NVIDIA/NeMo), [NeMo-Megatron-Launcher](https://github.com/NVIDIA/NeMo-Megatron-Launcher)) and the Megatron papers ([Shoeybi20](https://arxiv.org/abs/1909.08053), [Narayanan21](https://arxiv.org/abs/2104.04473)).
 
 At the very least, you'd want to review and customize one or more YAML files under `$TARGET_PATH/launcher_scripts/conf/`. Nemo-launcher organizes its config files in an opinionated hierarchy. Below is an example of relevant YAML files when launching `$TARGET_PATH/launcher_scripts/main.py` for `training` stage for `gpt3/126m` (see `$TEST_CASE_PATH/1.bmk-pretrain-gpt3-126m.sh`).
 
