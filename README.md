@@ -6,10 +6,10 @@ The major components of this directory are:
 
 ```bash
 reference-architectures/
-|-- 1.architectures                # CloudFormation templates for reference arch
-|-- 2.amazon_machine_images/       # Scripts to create AMIs
+|-- 1.architectures/               # CloudFormation templates for reference arch
+|-- 2.ami_and_containers/          # Scripts to create AMIs and container images
 |-- 3.test_cases/                  # Reference test cases and/or benchmark scripts
-|-- 4.validation_scripts/          # Tools to measure performance or troubleshoot
+|-- 4.validation_observability/    # Tools to measure performance or troubleshoot
 `-- ...
 ```
 
@@ -58,13 +58,13 @@ Utilities scripts and micro-benchmarks examples are set under `4.validation_scri
 
 Integration tests are written in [pytest](https://docs.pytest.org). Just run:
 
-```
+```bash
 pytest .
 ```
 
 Alternatively you can run tests with out capturing stdout and keeping all docker images an other artifacts.
 
-```
+```bash
 pytest -s --keep-artifacts=t
 ```
 
