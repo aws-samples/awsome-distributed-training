@@ -1,5 +1,5 @@
 transformers==4.33.0
-datasets
+datasets==1.16.0
 accelerate>=0.21
 bitsandbytes
 einops
