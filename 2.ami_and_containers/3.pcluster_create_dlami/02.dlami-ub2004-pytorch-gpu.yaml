@@ -1,5 +1,5 @@
 Build:
-  # Estimated build time: ~1h
+  # Estimated build time: ~50min
   InstanceType: g4dn.4xlarge
 
   # Deep Learning OSS Nvidia Driver AMI GPU PyTorch 2.1.0 (Ubuntu 20.04) 20240102 / us-west-2
@@ -7,9 +7,6 @@ Build:
   # See also: https://docs.aws.amazon.com/dlami/latest/devguide/appendix-ami-release-notes.html
   ParentImage: ami-042f0ea5a85c8407a
 
-  ## If below enabled, see [README.md => 3. Appendix: advance usage](README.md#3-appendix-advance-usage)
-  #UpdateOsPackages:
-  #  Enabled: true
 Image:
   RootVolume:
     Encrypted: false

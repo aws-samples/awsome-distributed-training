@@ -137,28 +137,8 @@ and `3.8.0/1`.
 
 ### 3.1. Update OS packages
 
-Should you really need to enable `UpdateOsPackages` in the `.yaml` build spec, please apply the
-following changes otherwise the build will fail.
-
-Edit the `pcluster/resources/imagebuilder/update_and_reboot.yaml`, e.g.,
-
-```bash
-vi pyenv/versions/pc380-p312/lib/python3.12/site-packages/pcluster/resources/imagebuilder/update_and_reboot.yaml
-```
-
-then, apply the following changes:
-
-```bash
-# Locate this line, ...
-apt-get -y install linux-aws linux-headers-aws linux-image-aws
-
-# ...and change that line to this.
-apt-get -y install --allow-change-held-packages linux-aws linux-headers-aws linux-image-aws`
-```
-
-**Known issue**: the resulted AMI may not have Lustre work properly. This could happen when the
-Lustre client for the new kernel is unavailable *at AMI build time*. The only known workaround is to
-either 1/ disable update, or 2/ wait until AWS releases the newer Lustre client module.
+Not recommended for DLAMI. Occasionally the build may fail. This happens when the Lustre client for
+the new kernel is not yet released *at AMI build time*. 
 
 ### 3.2. Build-image cookbook
 
@@ -176,3 +156,4 @@ either 1/ disable update, or 2/ wait until AWS releases the newer Lustre client 
     <https://github.com/aws/aws-parallelcluster-cookbook/blob/79458c1926ab71bb54d676d93fe975041cf46f75/cookbooks/aws-parallelcluster-platform/libraries/nvidia.rb#L2>
 [pcbi-skip-efa]:
     <https://github.com/aws/aws-parallelcluster-cookbook/blob/79458c1926ab71bb54d676d93fe975041cf46f75/cookbooks/aws-parallelcluster-environment/resources/efa/partial/_common.rb#L24>
+
