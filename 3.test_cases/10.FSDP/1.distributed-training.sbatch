@@ -18,6 +18,7 @@ set -ex;
 ###########################
 
 ## Plenty of EFA level variables
+## Comment out for non-efa instances (G5, G4d, P3)
 export FI_EFA_USE_DEVICE_RDMA=1 # use for p4d
 export FI_EFA_FORK_SAFE=1
 export FI_LOG_LEVEL=1
@@ -33,7 +34,7 @@ declare -a TORCHRUN_ARGS=(
     --nnodes=$SLURM_JOB_NUM_NODES \
     --rdzv_id=$SLURM_JOB_ID \
     --rdzv_backend=c10d \
-    --rdzv_endpoint=$(hostname):0 \
+    --rdzv_endpoint=$(hostname):29500 \
 )
 
 export TORCHRUN=./pt_fsdp/bin/torchrun
