@@ -36,7 +36,23 @@ If you'd like to instead use your own dataset, you can do so by [formatting it a
 
 ## 3. Launch Training
 
-The script to launch a Slurm batch training job can be found in `1.distributed_training.sbatch`. You can adjust the number of training nodes by modifying `#SBATCH --nodes=4`. You can also adjust the training parameters in `TRAINING_ARGS`. Additional parameters can be found in `model/arguments.py`. Note that we use the same directory for both `--checkpoint_dir` and `--resume_from_checkpoint`. If there are multiple checkpoints, `--resume_from_checkpoint` will automatically select the most recent one. This way if our training is interupted for any reason, it will automatically pick up the most recent checkpoint.
+The script to launch a Slurm batch training job can be found in `1.distributed_training.sbatch`. You can adjust the number of training nodes by modifying `#SBATCH --nodes=4`. 
+
+If you are using a non-EFA enable instance, such as G5, comment out lines 21-25.
+
+```
+## Plenty of EFA level variables
+## Comment out for non-efa instances (G5, G4d, P3)
+# export FI_EFA_USE_DEVICE_RDMA=1 # use for p4d
+# export FI_EFA_FORK_SAFE=1
+# export FI_LOG_LEVEL=1
+# export FI_PROVIDER=efa
+# export NCCL_DEBUG=INFO
+```
+
+Also, make sure `--nproc_per_node` to match the number of GPUs on your instance type (8 for P4d/P5, 4 for G5.12xlarge, 1 for G5.xlarge).
+
+You can also adjust the training parameters in `TRAINING_ARGS` (for example, to train Llama 2 70b). Additional parameters can be found in `model/arguments.py`. Note that we use the same directory for both `--checkpoint_dir` and `--resume_from_checkpoint`. If there are multiple checkpoints, `--resume_from_checkpoint` will automatically select the most recent one. This way if our training is interupted for any reason, it will automatically pick up the most recent checkpoint.
 
 ```
 declare -a TRAINING_ARGS=(
