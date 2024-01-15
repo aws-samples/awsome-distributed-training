@@ -18,16 +18,12 @@ export MODEL_SIZE=40b
 export NUM_NODES=2
 export RUNTIME=4h
 export MAX_STEPS=5
-export MBS=1 # setting for A100 80GB (p4de, p5), reduce to 1 for A100 40GB (p4d)
+export MBS=1   # Down from the default value (=4) to run on 2x p4de (16x A100-80GB GPUs)
 declare -a MODEL_ARGS=(
     training.model.micro_batch_size=${MBS}
 
-    # Activation checkpointing
-    training.model.activations_checkpoint_granularity='full'
-    training.model.activations_checkpoint_method='block'
-    training.model.activations_checkpoint_num_layers=1
-
-    # Not applicable for A100
+    # TE is not applicable for A100 (p4d or p4de).
+    # On p5 instances, comment or remove below stanza.
     training.model.transformer_engine=False
     training.model.ub_tp_comm_overlap=False
 )

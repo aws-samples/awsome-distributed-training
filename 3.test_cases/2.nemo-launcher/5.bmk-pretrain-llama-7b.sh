@@ -18,19 +18,8 @@ export MODEL_SIZE=llama2_7b
 export NUM_NODES=2
 export RUNTIME=4h
 export MAX_STEPS=30
-export MBS=2 # setting for A100 80GB (p4de, p5), reduce to 1 for A100 40GB (p4d)
 declare -a MODEL_ARGS=(
-    training.model.micro_batch_size=${MBS}
-
     training.model.tokenizer.model=${TARGET_PATH}/data/llama2/tokenizer.model
-    # When node_count < 8, needs full activations checkpointing. These're settings found on
-    # Nemo repo's Jenkin script.
-    #
-    # Below settings is similar to 22.09, except that 22.09 funnily didn't OOM with
-    # activations_checkpoint_num_layers=0.
-    training.model.activations_checkpoint_granularity='full'
-    training.model.activations_checkpoint_method='block'
-    training.model.activations_checkpoint_num_layers=1
 )
 
 
