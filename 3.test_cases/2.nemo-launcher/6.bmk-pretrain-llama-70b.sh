@@ -18,7 +18,6 @@ export MODEL_SIZE=llama2_70b
 export NUM_NODES=16
 export TIME_LIMIT="7-00:00:00"
 export MAX_STEPS=100
-export MBS=1
 
 declare -a MODEL_ARGS=(
     training.model.micro_batch_size=${MBS}
@@ -31,11 +30,6 @@ declare -a MODEL_ARGS=(
 
     training.model.tokenizer.model=${TARGET_PATH}/data/llama2/tokenizer.model
 
-    ## Activation checkpointing
-    #training.model.activations_checkpoint_granularity='full'
-    #training.model.activations_checkpoint_method='block'
-    #training.model.activations_checkpoint_num_layers=1
-    #
     ## Not applicable for A100
     #training.model.transformer_engine=False
     #training.model.ub_tp_comm_overlap=False
