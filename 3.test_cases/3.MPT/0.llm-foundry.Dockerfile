@@ -1,10 +1,10 @@
-FROM mosaicml/pytorch:2.0.1_cu118-python3.10-ubuntu20.04
+FROM mosaicml/llm-foundry:2.1.0_cu121_flash2_aws-latest
 
 ARG EFA_INSTALLER_VERSION=latest
 ARG AWS_OFI_NCCL_VERSION=v1.7.3-aws
 ARG NCCL_TESTS_VERSION=master
 ARG NCCL_VERSION=2.18.5-1
-ARG LLM_FOUNDRY_VERSION=v0.3.0
+ARG LLM_FOUNDRY_VERSION=v0.4.0
 ARG OPEN_MPI_PATH=/opt/amazon/openmpi
 
 RUN apt-get update -y
@@ -71,6 +71,7 @@ RUN echo "/usr/local/lib"      >> /etc/ld.so.conf.d/local.conf && \
 ###################################################
 ## Install AWS-OFI-NCCL plugin
 RUN export OPAL_PREFIX="" \
+    && rm -rf /opt/aws-ofi-nccl \
     && git clone https://github.com/aws/aws-ofi-nccl.git /opt/aws-ofi-nccl \
     && cd /opt/aws-ofi-nccl \
     && git checkout ${AWS_OFI_NCCL_VERSION} \
@@ -83,7 +84,6 @@ RUN export OPAL_PREFIX="" \
     && make -j && make install
 
 RUN rm -rf /var/lib/apt/lists/*
-ENV LD_PRELOAD=/opt/nccl/build/lib/libnccl.so
 
 RUN echo "hwloc_base_binding_policy = none" >> /opt/amazon/openmpi/etc/openmpi-mca-params.conf \
     && echo "rmaps_base_mapping_policy = slot" >> /opt/amazon/openmpi/etc/openmpi-mca-params.conf
@@ -96,4 +96,5 @@ RUN git clone https://github.com/mosaicml/llm-foundry.git llm-foundry \
     && cd llm-foundry \
     && git checkout $LLM_FOUNDRY_VERSION \
     && pip install -e ".[gpu]" \
-    && pip install xformers nvtx 'flash-attn==v1.0.3.post0'
+    && pip install flash-attn==1.0.7 --no-build-isolation \
+    && pip install git+https://github.com/NVIDIA/TransformerEngine.git@v0.10
