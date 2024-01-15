@@ -12,7 +12,7 @@ set -exo pipefail
 # 000: Modify this section to define pre-training configuration: model size,
 # number of nodes, max. pre-training steps, job's max. runtime.
 ################################################################################
-## Pre-train gpt3-126m on 2 nodes for 40 steps.
+## Pre-train gpt3-126m on 2 nodes for 100 steps.
 export MODEL_SIZE=126m
 export NUM_NODES=2
 export RUNTIME=30m

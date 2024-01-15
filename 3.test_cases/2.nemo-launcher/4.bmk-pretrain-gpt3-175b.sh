@@ -19,12 +19,9 @@ export NUM_NODES=16
 export RUNTIME=4h
 export MAX_STEPS=5
 declare -a MODEL_ARGS=(
-    training.model.micro_batch_size=${MBS}
-
-    # TE is not applicable for A100 (p4d or p4de).
-    # On p5 instances, comment or remove below stanza.
-    training.model.transformer_engine=False
-    training.model.ub_tp_comm_overlap=False
+    ## Uncomment below to enable fp8 training (Transformers Engine) on p5 instances (H100 GPUs)
+    #training.model.transformer_engine=True
+    #training.model.fp8=True
 )
 
 
