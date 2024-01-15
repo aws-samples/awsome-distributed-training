@@ -12,27 +12,20 @@ set -exo pipefail
 # 000: Modify this section to define pre-training configuration: model size,
 # number of nodes, max. pre-training steps, job's max. runtime.
 ################################################################################
-## Pre-train llama2-7b on 2 nodes for 5 steps
+## Pre-train llama2-7b on 16 nodes for 5 steps
 export MODEL=llama
 export MODEL_SIZE=llama2_70b
 export NUM_NODES=16
 export TIME_LIMIT="7-00:00:00"
-export MAX_STEPS=100
+export MAX_STEPS=5
 
 declare -a MODEL_ARGS=(
-    training.model.micro_batch_size=${MBS}
-    training.model.tensor_model_parallel_size=4
-    training.model.pipeline_model_parallel_size=4
-    training.model.virtual_pipeline_model_parallel_size=20
-    training.model.overlap_p2p_comm=True
-    training.model.batch_p2p_comm=False
+    training.model.tokenizer.model=${TARGET_PATH}/data/llama2/tokenizer.model
     training.model.gc_interval=0
 
-    training.model.tokenizer.model=${TARGET_PATH}/data/llama2/tokenizer.model
-
-    ## Not applicable for A100
-    #training.model.transformer_engine=False
-    #training.model.ub_tp_comm_overlap=False
+    ## Uncomment below to enable fp8 training (Transformers Engine) on p5 instances (H100 GPUs)
+    #training.model.transformer_engine=True
+    #training.model.fp8=True
 )
 
 

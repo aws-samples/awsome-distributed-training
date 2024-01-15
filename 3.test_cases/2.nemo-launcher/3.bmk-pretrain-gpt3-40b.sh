@@ -22,10 +22,9 @@ export MBS=1   # Down from the default value (=4) to run on 2x p4de (16x A100-80
 declare -a MODEL_ARGS=(
     training.model.micro_batch_size=${MBS}
 
-    # TE is not applicable for A100 (p4d or p4de).
-    # On p5 instances, comment or remove below stanza.
-    training.model.transformer_engine=False
-    training.model.ub_tp_comm_overlap=False
+    ## Uncomment below to enable fp8 training (Transformers Engine) on p5 instances (H100 GPUs)
+    #training.model.transformer_engine=True
+    #training.model.fp8=True
 )
 
 
