@@ -18,16 +18,11 @@ export MODEL_SIZE=175b
 export NUM_NODES=16
 export RUNTIME=4h
 export MAX_STEPS=5
-export MBS=2
 declare -a MODEL_ARGS=(
     training.model.micro_batch_size=${MBS}
 
-    # Activation checkpointing
-    training.model.activations_checkpoint_granularity='full'
-    training.model.activations_checkpoint_method='block'
-    training.model.activations_checkpoint_num_layers=1
-
-    # Not applicable for A100
+    # TE is not applicable for A100 (p4d or p4de).
+    # On p5 instances, comment or remove below stanza.
     training.model.transformer_engine=False
     training.model.ub_tp_comm_overlap=False
 )
