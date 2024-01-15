@@ -12,7 +12,7 @@ set -exo pipefail
 # 000: Modify this section to define pre-training configuration: model size,
 # number of nodes, max. pre-training steps, job's max. runtime.
 ################################################################################
-## Pre-train llama2-7b on 2 nodes for 5 steps
+## Pre-train llama2-7b on 2 nodes for 30 steps
 export MODEL=llama
 export MODEL_SIZE=llama2_7b
 export NUM_NODES=2
@@ -20,6 +20,10 @@ export RUNTIME=4h
 export MAX_STEPS=30
 declare -a MODEL_ARGS=(
     training.model.tokenizer.model=${TARGET_PATH}/data/llama2/tokenizer.model
+
+    ## Uncomment below to enable fp8 training (Transformers Engine) on p5 instances (H100 GPUs)
+    #training.model.transformer_engine=True
+    #training.model.fp8=True
 )
 
 

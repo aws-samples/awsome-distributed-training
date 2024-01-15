@@ -12,7 +12,7 @@ set -exo pipefail
 # 000: Modify this section to define pre-training configuration: model size,
 # number of nodes, max. pre-training steps, job's max. runtime.
 ################################################################################
-## Pre-train gpt3-5b on 2 nodes for 5 steps
+## Pre-train gpt3-5b on 2 nodes for 30 steps
 export MODEL=gpt3
 export MODEL_SIZE=5b
 export NUM_NODES=2
@@ -21,6 +21,10 @@ export MAX_STEPS=30
 export MBS=2 # setting for A100 80GB (p4de, p5), reduce to 1 for A100 40GB (p4d)
 declare -a MODEL_ARGS=(
     training.model.micro_batch_size=${MBS}
+
+    ## Uncomment below to enable fp8 training (Transformers Engine) on p5 instances (H100 GPUs)
+    #training.model.transformer_engine=True
+    #training.model.fp8=True
 )
 
 
