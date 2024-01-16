@@ -26,6 +26,7 @@ declare -a MODEL_ARGS=(
     ## Uncomment below to enable fp8 training (Transformers Engine) on p5 instances (H100 GPUs)
     #training.model.transformer_engine=True
     #training.model.fp8=True
+    #training.model.fp8_hybrid=True
 )
 
 
