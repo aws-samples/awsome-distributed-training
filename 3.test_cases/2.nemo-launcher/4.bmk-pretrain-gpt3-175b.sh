@@ -50,13 +50,16 @@ CONT_RESULT_DIR=${WORKSPACE_CONT}/results
 CONT_TOKENIZER_DIR=${WORKSPACE_CONT}/data/bpe
 
 # Dev/test feature (off by default) to force each pre-training run outputs to a separate directory.
-: "${UNIQUE_OUTPUT_DIR:=0}"
-if [[ ${UNIQUE_OUTPUT_DIR} -eq 1 ]]; then
+: "${BMK_MODE:=0}"
+if [[ ${BMK_MODE} -eq 1 ]]; then
     # For debugging: each run has its own output dir.
     TIMESTAMP=$(date +'%Y%m%d-%H%M%Sutc-%N')-$((RANDOM))
     CONT_RESULT_DIR=${CONT_RESULT_DIR}-${TIMESTAMP}
 
-    BMK_ARGS+=(base_results_dir=${CONT_RESULT_DIR})
+    BMK_ARGS+=(
+        base_results_dir=${CONT_RESULT_DIR}
+        training.run.dependency=null
+    )
 
     echo "
     ####################
