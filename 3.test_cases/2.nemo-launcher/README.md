@@ -164,7 +164,7 @@ This section assumes that you went through the previous sections and 1/ retrieve
         └── nemo_log_globalrank-*.txt               # Log of each rank
     ```
 
-    Please note that except for `log-nemo-megatron-gpt3_126m_<JOB_ID>.out`, the other files will be overridden when you launch another pre-training of that same model size. To completely separate the output among jobs, edit `TEST_CASE_PATH/bmk-pretrain-gpt3-126m.sh` and uncomment the `#export UNIQUE_OUTPUT_DIR=1` line to produce this output dir instead:
+    Please note that except for `log-nemo-megatron-gpt3_126m_<JOB_ID>.out`, the other files will be overridden when you launch another pre-training of that same model size. To completely separate the output among jobs, run the script in benchmark mode: `BMK_MODE=1 $TEST_CASE_PATH/bmk-pretrain-gpt3-126m.sh` which produces output dir `$TARGET_PATH/results-<YYYYMMDD>-<HHMMSS>utc-<RANDOM_STR>/gpt3_126m/`.
 
 4. You can use Slurm command `squeue` to monitor the job status in the queue. The ample output below shows a `nemo-megatron` job with job id `1234` is in running state (`ST` = `R`). A queued job will have state `ST` = `PD` (pending). Please refer to the complete of job states in this [Slurm documentation](https://slurm.schedmd.com/squeue.html#SECTION_JOB-STATE-CODES).
 
