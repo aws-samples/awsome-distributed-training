@@ -22,7 +22,6 @@ declare -a MODEL_ARGS=(
     training.model.tokenizer.model=${TARGET_PATH}/data/llama2/tokenizer.model
 
     ## Uncomment below to enable fp8 training (Transformers Engine) on p5 instances (H100 GPUs)
-    #training.model.transformer_engine=True
     #training.model.fp8=True
     #training.model.fp8_hybrid=True
 )
