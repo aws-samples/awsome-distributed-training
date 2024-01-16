@@ -36,6 +36,7 @@ RUN apt-get remove -y --allow-change-held-packages \
 # complains about missing libuc?.so.
 RUN rm -rf /opt/hpcx/ompi \
     && rm -rf /usr/local/mpi \
+    && rm -rf /opt/hpcx/nccl_rdma_sharp_plugin \
     && ldconfig
 ENV OPAL_PREFIX=
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y --allow-unauthenticated \
