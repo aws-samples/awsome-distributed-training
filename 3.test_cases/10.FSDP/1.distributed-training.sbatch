@@ -33,7 +33,7 @@ declare -a TORCHRUN_ARGS=(
     --nnodes=$SLURM_JOB_NUM_NODES \
     --rdzv_id=$SLURM_JOB_ID \
     --rdzv_backend=c10d \
-    --rdzv_endpoint=$(hostname):0 \
+    --rdzv_endpoint=$(hostname) \
 )
 
 export TORCHRUN=./pt_fsdp/bin/torchrun

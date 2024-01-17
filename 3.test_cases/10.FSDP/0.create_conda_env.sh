@@ -15,7 +15,7 @@ conda create -y -p ./pt_fsdp python=3.10
 source activate ./pt_fsdp/
 
 # Install PyTorch
-pip install torch==2.0.1 torchvision torchaudio transformers datasets 
+pip install torch torchvision torchaudio transformers datasets 
 
 # Create checkpoint dir
 mkdir checkpoints
