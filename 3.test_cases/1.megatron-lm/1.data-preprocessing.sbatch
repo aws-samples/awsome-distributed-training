@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT-0
 
 #SBATCH -N 1 # number of nodes we want
 #SBATCH --exclusive # job has exclusive use of the resource, no sharing

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT-0
 
 # Fetch software versions related to EFA.
 # Currently only tested on Ubuntu 20.04
