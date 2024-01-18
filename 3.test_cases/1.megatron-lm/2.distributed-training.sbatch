@@ -101,9 +101,9 @@ srun -l "${ARGS[@]}" python -m torch.distributed.run "${TORCHRUN_ARGS[@]}" /work
         --log-interval 1 \
         --eval-iters 40 \
         --eval-interval 1000 \
-        --data-path "${DATA_PATH}/my-gpt2_text_document" \
-        --vocab-file "${DATA_PATH}/gpt2-vocab.json" \
-        --merge-file "${DATA_PATH}/gpt2-merges.txt" \
+        --data-path "$(pwd)/gpt2/my-gpt2_text_document" \
+        --vocab-file "$(pwd)/gpt2/gpt2-vocab.json" \
+        --merge-file "$(pwd)/gpt2/gpt2-merges.txt" \
         --split 98,2,0 \
         --clip-grad 1.0 \
         --weight-decay 0.1 \
