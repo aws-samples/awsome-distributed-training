@@ -21,6 +21,7 @@ from utils import create_dataloaders,save_model
 import time
 from tqdm import tqdm
 
+import functools
 from torch.distributed.fsdp import (
     FullyShardedDataParallel as FSDP,
     MixedPrecision,
@@ -37,7 +38,9 @@ from torch.distributed.algorithms._checkpoint.checkpoint_wrapper import (
 from torch.distributed.fsdp.wrap import (
     transformer_auto_wrap_policy,
 )
-import functools
+
+
+# This is the only change needed to enable SMDDP in an FSDP script
 try:
     backend = "smddp"
     import smdistributed.dataparallel.torch.torch_smddp
@@ -121,7 +124,6 @@ def parse_arge():
     parser.add_argument("--limit_all_gathers", type=bool, default=False)
     parser.add_argument("--forward_prefetch", type=bool, default=False)
     parser.add_argument("--weight_decay", type=float, default=0.0, help="Weight decay to use.")
-    parser.add_argument("--model_dir",type=str,default="/opt/ml/model")
     parser.add_argument("--cache_dir",type=str,default=None)
 
     args = parser.parse_known_args()
@@ -279,7 +281,6 @@ def training_function(args):
         if args.max_steps is not None and total_steps > args.max_steps:
             break
 
-    #save_model(model,tokenizer,args.model_dir,args.rank)
     if args.rank == 0:
         print("Training done!")
     dist.barrier()
