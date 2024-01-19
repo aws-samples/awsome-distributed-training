@@ -1,21 +1,24 @@
-# How to Use SageMaker Distributed Data Parallel Library (SMDDP) with DeepSpeed ZeRO
+# How to use SageMaker Distributed Data Parallel Library (SMDDP) with DeepSpeed ZeRO
 
 ## What is SMDDP?
-The [SMDDP](https://docs.aws.amazon.com/sagemaker/latest/dg/data-parallel.html) library provides fast GPU collective communication algorithms on P4d/P4de instance types and serves as a drop-in replacement for the Nvidia Collective Communications Library ([NCCL](https://developer.nvidia.com/nccl)).  Specifically, SMDDP implements an optimized AllGather communication routine, which is the main source of GPU communication overhead in sharded data parallel training jobs.  With just two lines of code change, you can enable the SMDDP Library's optimized AllGather algorithm in your [DeepSpeed](https://github.com/microsoft/DeepSpeed) training jobs and speed up training by up to 20% compared to NCCL!  This examples shows how you can use SMDDP when training the [Llama2](https://ai.meta.com/llama/) model with DeepSpeed.  
+The [SMDDP](https://docs.aws.amazon.com/sagemaker/latest/dg/data-parallel.html) library provides fast GPU collective communication algorithms on [p4d.24xlarge](https://aws.amazon.com/ec2/instance-types/p4/)/p4de.24xlarge instance types and serves as a drop-in replacement for the Nvidia Collective Communications Library ([NCCL](https://developer.nvidia.com/nccl)).  Specifically, SMDDP implements an optimized AllGather communication routine, which is the main source of GPU communication overhead in sharded data parallel training jobs.  With just two lines of code change, you can enable the SMDDP Library's optimized AllGather algorithm in your [DeepSpeed](https://github.com/microsoft/DeepSpeed) training jobs and speed up training by up to 20% compared to NCCL!  This examples shows how you can use SMDDP when training the [Llama2](https://ai.meta.com/llama/) model with DeepSpeed.  
+
+Enabling SMDDP in your DeepSpeed script is seamless.  The only required changes are the following two lines:
+1. Importing SMDDP: `import smdistributed.dataparallel.torch.torch_smddp`
+2. Initializing process group with SMDDP backend: `deepspeed.init_distributed(dist_backend="smddp")`
 
 ## 0. Prerequisites
-You will need a slurm cluster with a shared parallel file-system such as Amazon [FSx for Lustre](https://docs.aws.amazon.com/fsx/latest/LustreGuide/getting-started.html) file system.  See the sagemaker-hyperpod section in the [1.architectures/5.sagemaker-hyperpod](https://github.com/aws-samples/awsome-distributed-training/tree/main/1.architectures/5.sagemaker-hyperpod) folder for setup instructions. 
+You will need a Slurm cluster with a shared parallel file-system such as Amazon [FSx for Lustre](https://docs.aws.amazon.com/fsx/latest/LustreGuide/getting-started.html) file system.  See the [Sagemaker Hyperpod](https://github.com/aws-samples/awsome-distributed-training/tree/main/1.architectures/5.sagemaker-hyperpod) folder for setup instructions. The required dependencies to use SMDDP in this example are listed below.  Note that CUDA is already provided on HyperPod.
 
 ### Required Dependencies of SMDDP Library
 * Python==3.10
 * CUDA==11.8
 * PyTorch==2.0.1
 
-Additionally, SMDDP must be used on AWS P4d or P4de instances.  This example also uses mamba as a package manager.  Mamba is a drop-in replacement for conda and it is recommended over Miniconda or Anaconda with SMDDP (see Known Issues section for more details)
+Additionally, SMDDP must be used on AWS P4d or P4de instances.  This example also uses [mamba](https://github.com/mamba-org/mamba) as a package manager.  Mamba is a drop-in replacement for [conda](https://conda.io/projects/conda/en/latest/index.html) and it is recommended over [Miniconda](https://docs.conda.io/projects/miniconda/en/latest/) or [Anaconda](https://www.anaconda.com/) with SMDDP (see [Known Issues](#4-known-issues) section for more details)
 
 ## 1. Create Environment 
-1. On your cluster head node, navigate to your shared FSx filesystem, which should be located at `/fsx`
-2. Clone this repo 
+On your cluster head node, navigate to your shared FSx filesystem, which should be located at `/fsx`, and clone this repo
 ```
 cd /fsx
 git clone https://github.com/aws-samples/awsome-distributed-training/
@@ -26,7 +29,7 @@ cd awsome-distributed-training/3.test_cases/13.SM-dataparallel-deepspeed
 ## 2. Launch Training
 No dataset preparation is needed as this example uses synthetic data for simplicity.  To launch the distributed training job, run `sbatch 1.run_training.sbatch`.  By default the number of nodes in the job is 2, but this can be changed in the `#SBATCH --nodes=...` argument in the sbatch script.  
 
-Launching the job will create a log file in the current directory (`slurm-<job_id>`)  which you can tail to monitor the progress of the training job.  You can also see the underlying launch script in `exec_torchrun.sh` and the training script in `code/train.py`
+Launching the job will create a log file in the current directory (`slurm-<job_id>`)  which you can tail (via `tail -f slurm-<job_id>`)to monitor the progress of the training job.  You can also see the underlying launch script in `exec_torchrun.sh` and the training script in `code/train.py`
 
 This example only runs training for one iteration and exits immediately.  You should see output similar to below
 ```
@@ -39,7 +42,6 @@ Performing validation on training batch 1
 Training done!
 ```
 ## 4. Known Issues
-When using SMDDP in your own conda environment, you may encounter the following error after importing SMDDP in your training script: ``version `GLIBCXX_3.4.30' not found``
+Ensure that you are installing PyTorch via conda before pip installing SMDDP (i.e. install PyTorch through `conda install` before installing SMDDP in your environment).  Additionally, we suggest to use [Mamba](https://github.com/mamba-org/mamba) as your package manager rather than Miniconda or Anaconda.  Mamba is a drop-in replacement for conda with improvements in dependency resolution.
 
-If this occurs, firstly ensure that you are installing PyTorch via conda before pip installing SMDDP (i.e. install PyTorch through `conda install` before installing SMDDP in your environment).  If this still does not resolve the error, please use [Mamba](https://github.com/mamba-org/mamba) as your package manager rather than Miniconda or Anaconda.  Mamba is a drop-in replacement for conda with improvements in dependency resolution, and creating an environment with Mamba is known to resolve this issue.
-
+Not following these suggestions may result in the following error after importing SMDDP in your training script: ``version `GLIBCXX_3.4.30' not found``

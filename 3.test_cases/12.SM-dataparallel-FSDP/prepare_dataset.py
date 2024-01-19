@@ -7,6 +7,8 @@ dataset_config = "sst2"
 
 from datasets import load_dataset
 from transformers import AutoTokenizer
+from itertools import chain
+from functools import partial
 
 # Load Tokenizer
 
@@ -28,9 +30,6 @@ if "validation" not in dataset.keys():
         dataset_name,
         split="train[5%:]"
     )
-
-from itertools import chain
-from functools import partial
 
 def group_texts(examples,block_size = 2048):
         # Concatenate all texts.
@@ -61,7 +60,7 @@ lm_dataset = dataset.map(
     batched=True,
 )
 
-training_input_path = f'processed/data/'
+training_input_path = f"processed/data/"
 lm_dataset.save_to_disk(training_input_path)
 print(f"Saved data to: {training_input_path}")
 
