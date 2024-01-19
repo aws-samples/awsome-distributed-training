@@ -11,6 +11,8 @@ import torch.distributed as dist
 from utils import create_dataloaders, StubDataset
 import functools
 import deepspeed
+
+# This is the only change needed to enable SMDDP in an DeepSpeed script
 try:
     backend = "smddp"
     import smdistributed.dataparallel.torch.torch_smddp
@@ -84,7 +86,6 @@ def parse_args():
   )
 
   parser.add_argument("--weight_decay", type=float, default=0.0, help="Weight decay to use.")
-  parser.add_argument("--model_dir",type=str,default="/opt/ml/model")
   parser.add_argument("--cache_dir",type=str,default=None)
   args = parser.parse_known_args()
   return args
