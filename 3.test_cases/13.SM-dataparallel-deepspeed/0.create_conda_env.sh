@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: MIT-0
 
 set -ex
+# Mamba installed in shared FSx directory 
 MAMBA_VERSION=23.1.0-1
 
 curl -L -o ./mambaforge.sh https://github.com/conda-forge/miniforge/releases/download/${MAMBA_VERSION}/Mambaforge-${MAMBA_VERSION}-Linux-x86_64.sh

@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: MIT-0
 
 export OMP_NUM_THREADS=1
-export GPUS_PER_NODE=8
+export GPUS_PER_NODE=8 # p4d/p4de instances have 8 GPUs per node
 MASTER_NODE=$(scontrol show hostname | head -n 1)
 export MASTER_ADDR=$(scontrol show node=$MASTER_NODE | awk -F= '/NodeAddr=/{print $2}' | awk '{print $1}')
 export NNODES=$SLURM_NTASKS
