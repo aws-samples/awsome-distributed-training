@@ -30,7 +30,7 @@ cd awsome-distributed-training/3.test_cases/12.SM-dataparallel-FSDP
 To run this example, we will use part of the [glue/sst2 dataset](https://huggingface.co/datasets/glue) from HuggingFace.  To download and prepare a subset of this dataset for our example, run `python prepare_dataset.py` 
 
 ## 3. Launch Training
-To launch the distributed training job, run `sbatch 1.run_training.sbatch`.   By default the number of nodes in the job is 2, but this can be changed in the `#SBATCH --nodes=...` argument in the sbatch script.  
+To launch the distributed training job, run `sbatch 1.run_training.sbatch`.  By default the number of nodes in the job is 2, but this can be changed either by (i) editing the sbatch script to change the `#SBATCH --nodes=...` argument, or (ii) run `sbatch --nodes=... 1.run_training.sbatch` to override the number of nodes in the sbatch script.
 
 Launching the job will create a log file in the current directory (`slurm-<job_id>`)  which you can tail (via `tail -f slurm-<job_id>`) to monitor the progress of the training job.    You can also see the underlying launch script in `exec_torchrun.sh` and the training script in `scripts/train.py`
 
