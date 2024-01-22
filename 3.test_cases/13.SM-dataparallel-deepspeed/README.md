@@ -27,7 +27,7 @@ cd awsome-distributed-training/3.test_cases/13.SM-dataparallel-deepspeed
 3. Run the `0.create_conda_env.sh` script.  This will install [Mamba](https://github.com/mamba-org/mamba) and create an environment called `smdataparallel`.   Since the environment is created on the shared FSx filesystem, all compute nodes will have access to it.  Activate this environment via `conda activate smdataparallel`.
 
 ## 2. Launch Training
-No dataset preparation is needed as this example uses synthetic data for simplicity.  To launch the distributed training job, run `sbatch 1.run_training.sbatch`.  By default the number of nodes in the job is 2, but this can be changed in the `#SBATCH --nodes=...` argument in the sbatch script.  
+No dataset preparation is needed as this example uses synthetic data for simplicity. To launch the distributed training job, run `sbatch 1.run_training.sbatch`. By default the number of nodes in the job is 2, but this can be changed either by (i) editing the sbatch script to change the `#SBATCH --nodes=...` argument, or (ii) run `sbatch --nodes=... 1.run_training.sbatch` to override the number of nodes in the sbatch script.
 
 Launching the job will create a log file in the current directory (`slurm-<job_id>`)  which you can tail (via `tail -f slurm-<job_id>`)to monitor the progress of the training job.  You can also see the underlying launch script in `exec_torchrun.sh` and the training script in `code/train.py`
 
