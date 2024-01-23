@@ -136,7 +136,9 @@ Add both to your `provisioning_parameters.json` file. For example,
 }
 ```
 
-And copy the updated `provisioning_parameters.json` to S3.
+Make sure the `instance_group_name` matches the instance group name `InstanceGroupName` in your cluster config which we create next.
+
+Copy the updated `provisioning_parameters.json` to S3:
 
 ```
 aws s3 cp LifeCycleScripts/base-config/provisioning_parameters.json s3://${BUCKET}/LifeCycleScripts/base-config/
