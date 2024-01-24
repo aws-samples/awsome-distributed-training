@@ -40,25 +40,32 @@ def validate_sg(ec2_client, cluster_config):
 
         ingress = response.get('SecurityGroups')[0].get('IpPermissions')
         egress = response.get('SecurityGroups')[0].get('IpPermissionsEgress')
-
         
         for rule in ingress:
             if rule.get('IpProtocol') == '-1':
-                user_id_group_pairs = rule.get('UserIdGroupPairs')[0]
-                if not ('GroupId' in user_id_group_pairs or security_group == user_id_group_pairs.get('GroupId')):
+                user_id_group_pairs = rule.get('UserIdGroupPairs')
+                if not user_id_group_pairs:
                     print(f"❌ No EFA egress rule found in security group {security_group} ...")
                     return False
                 else:
-                    print(f"✔️  Validated security group {security_group} ingress rules ...")
+                    if not ('GroupId' in user_id_group_pairs[0] or security_group == user_id_group_pairs[0].get('GroupId')):
+                        print(f"❌ No EFA egress rule found in security group {security_group} ...")
+                        return False
+                    else:
+                        print(f"✔️  Validated security group {security_group} ingress rules ...")
 
         for rule in egress:
             if rule.get('IpProtocol') == '-1':
-                user_id_group_pairs = rule.get('UserIdGroupPairs')[0]
-                if not ('GroupId' in user_id_group_pairs or security_group == user_id_group_pairs.get('GroupId')):
+                user_id_group_pairs = rule.get('UserIdGroupPairs')
+                if not user_id_group_pairs:
                     print(f"❌ No EFA egress rule found in security group {security_group} ...")
                     return False
                 else:
-                    print(f"✔️  Validated security group {security_group} egress rules ...")
+                    if not ('GroupId' in user_id_group_pairs[0] or security_group == user_id_group_pairs[0].get('GroupId')):
+                        print(f"❌ No EFA egress rule found in security group {security_group} ...")
+                        return False
+                    else:
+                        print(f"✔️  Validated security group {security_group} egress rules ...")
     else:
         print("⭕️ No security group found in cluster_config.json ... skipping check.")
     
