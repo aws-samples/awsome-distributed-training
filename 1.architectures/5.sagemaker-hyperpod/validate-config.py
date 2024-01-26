@@ -9,7 +9,7 @@ import boto3
 def validate_instance_groups(cluster_config, provisioning_parameters):
     for group in provisioning_parameters.get('worker_groups'):
         instance_group_name = group.get('instance_group_name')
-        if not [instance_group for instance_group in cluster_config.get('InstanceGroups') if instance_group.get('InstanceGroupName') == instance_group_name]:
+        if not [instance_group for instance_group in cluster_config if instance_group.get('InstanceGroupName') == instance_group_name]:
             print(f"❌ Invalid instance group name in file provisioning_parameters.json: {instance_group_name}")
             return False
         else:
@@ -17,9 +17,9 @@ def validate_instance_groups(cluster_config, provisioning_parameters):
     return True
 
 # Check if Subnet is private
-def validate_subnet(ec2_client, cluster_config):
-    if cluster_config.get('VpcConfig'):
-        subnet_id = cluster_config.get('VpcConfig').get('Subnets')[0]
+def validate_subnet(ec2_client, vpc_config):
+    if vpc_config:
+        subnet_id = vpc_config.get('Subnets')[0]
         response = ec2_client.describe_subnets(SubnetIds=[subnet_id])
         if 'Subnets' in response and response.get('Subnets')[0].get('MapPublicIpOnLaunch'):
             print(f"❌ Subnet {subnet_id} is public which will fail cluster creation ...")
@@ -27,21 +27,20 @@ def validate_subnet(ec2_client, cluster_config):
         else:
             print(f"✔️  Validated subnet {subnet_id} ...")
     else:
-        print("⭕️ No subnet found in cluster_config.json ... skipping check")
+        print("⭕️ No subnet found in vpc_config.json ... skipping check")
     return True
 
 # Check if Security Group supports EFA.
 # See https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa-start.html#efa-start-security
-def validate_sg(ec2_client, cluster_config):
-    if cluster_config.get('VpcConfig'):
-        security_group = cluster_config.get('VpcConfig').get('SecurityGroupIds')[0]
+def validate_sg(ec2_client, vpc_config):
+    if vpc_config:
+        security_group = vpc_config.get('SecurityGroupIds')[0]
         ec2_client = boto3.client('ec2')
         response = ec2_client.describe_security_groups(GroupIds=[security_group])
 
         ingress = response.get('SecurityGroups')[0].get('IpPermissions')
         egress = response.get('SecurityGroups')[0].get('IpPermissionsEgress')
 
-        
         for rule in ingress:
             if rule.get('IpProtocol') == '-1':
                 user_id_group_pairs = rule.get('UserIdGroupPairs')[0]
@@ -61,7 +60,7 @@ def validate_sg(ec2_client, cluster_config):
                     print(f"✔️  Validated security group {security_group} egress rules ...")
     else:
         print("⭕️ No security group found in cluster_config.json ... skipping check.")
-    
+
     return True
 
 
@@ -69,6 +68,7 @@ def main():
     parser = argparse.ArgumentParser(description="Validate cluster config.")
     parser.add_argument("--cluster-config", help="Path to the cluster config JSON file")
     parser.add_argument("--provisioning-parameters", help="Path to the provisioning parameters JSON file")
+    parser.add_argument("--vpc-config", default=None, help="Path to the VPC config JSON file (optional)")
     args = parser.parse_args()
 
     with open(args.cluster_config, "r") as cluster_config_file:
@@ -82,11 +82,16 @@ def main():
     # check instance group name
     valid = validate_instance_groups(cluster_config, provisioning_parameters)
 
+    vpc_config = None
+    if args.vpc_config:
+        with open(args.vpc_config, "r") as vpc_config_file:
+            vpc_config = json.load(vpc_config_file)
+
     # Validate Subnet
-    valid = validate_subnet(ec2_client, cluster_config) and valid
+    valid = validate_subnet(ec2_client, vpc_config) and valid
 
     # Validate Security Group
-    valid = validate_sg(ec2_client, cluster_config) and valid
+    valid = validate_sg(ec2_client, vpc_config) and valid
 
     if valid:
         # All good!
