@@ -89,7 +89,7 @@ RUN export OPAL_PREFIX="" \
 RUN git clone https://github.com/mosaicml/diffusion-benchmark.git
 RUN pip3 install -r diffusion-benchmark/requirements.txt
 RUN pip3 install mosaicml==${MOSAICML_VERSION} --force
-RUN pip3 install --pre torch torchvision torchaudio --index-url ${PYTORCH_INDEX_URL} --force
+RUN pip3 install torch==2.1.1 torchvision==0.16.1 torchaudio==2.1.1 --index-url https://download.pytorch.org/whl/cu121
 RUN pip3 uninstall transformer-engine -y
 RUN pip3 install protobuf==3.20.3
 
