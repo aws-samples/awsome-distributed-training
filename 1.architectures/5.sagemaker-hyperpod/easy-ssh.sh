@@ -8,12 +8,14 @@ declare -a HELP=(
     "[-c|--controller-group]"
     "[-r|--region]"
     "[-p|--profile]"
+    "[-d|--dry-run]"
     "CLUSTER_NAME"
 )
 
 cluster_name=""
 node_group="controller-machine"
 declare -a aws_cli_args=()
+DRY_RUN=0
 
 parse_args() {
     local key
@@ -36,6 +38,10 @@ parse_args() {
         -p|--profile)
             aws_cli_args+=(--profile "$2")
             shift 2
+            ;;
+        -d|--dry-run)
+            DRY_RUN=1
+            shift
             ;;
         *)
             [[ "$cluster_name" == "" ]] \
@@ -71,5 +77,7 @@ Add your ssh keypair and then you can do:
 
 $ ssh ${cluster_name}
 "
+
+[[ DRY_RUN -eq 1 ]] && exit 0
 
 aws ssm start-session "${aws_cli_args[@]}" --target sagemaker-cluster:${cluster_id}_${node_group}-${instance_id}
