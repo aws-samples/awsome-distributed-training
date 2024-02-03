@@ -12,33 +12,20 @@ set -exo pipefail
 # 000: Modify this section to define pre-training configuration: model size,
 # number of nodes, max. pre-training steps, job's max. runtime.
 ################################################################################
-## Pre-train llama2-7b on 2 nodes for 5 steps
+## Pre-train llama2-7b on 16 nodes for 5 steps
 export MODEL=llama
 export MODEL_SIZE=llama2_70b
 export NUM_NODES=16
 export TIME_LIMIT="7-00:00:00"
-export MAX_STEPS=100
-export MBS=1
+export MAX_STEPS=5
 
 declare -a MODEL_ARGS=(
-    training.model.micro_batch_size=${MBS}
-    training.model.tensor_model_parallel_size=4
-    training.model.pipeline_model_parallel_size=4
-    training.model.virtual_pipeline_model_parallel_size=20
-    training.model.overlap_p2p_comm=True
-    training.model.batch_p2p_comm=False
+    training.model.tokenizer.model=${TARGET_PATH}/data/llama2/tokenizer.model
     training.model.gc_interval=0
 
-    training.model.tokenizer.model=${TARGET_PATH}/data/llama2/tokenizer.model
-
-    ## Activation checkpointing
-    #training.model.activations_checkpoint_granularity='full'
-    #training.model.activations_checkpoint_method='block'
-    #training.model.activations_checkpoint_num_layers=1
-    #
-    ## Not applicable for A100
-    #training.model.transformer_engine=False
-    #training.model.ub_tp_comm_overlap=False
+    ## Uncomment below to enable fp8 training (Transformers Engine) on p5 instances (H100 GPUs)
+    #training.model.fp8=True
+    #training.model.fp8_hybrid=True
 )
 
 
@@ -56,8 +43,6 @@ declare -a BMK_ARGS=(
     training.exp_manager.create_checkpoint_callback=False
     training.exp_manager.resume_if_exists=False
 
-    ################################
-
     # https://github.com/NVIDIA/NeMo/pull/6181/files
     training.model.data.data_impl=mock
     training.model.data.data_prefix=[]
@@ -72,13 +57,16 @@ CONT_RESULT_DIR=${WORKSPACE_CONT}/results-v2
 CONT_TOKENIZER_DIR=${WORKSPACE_CONT}/data/bpe
 
 # Dev/test feature (off by default) to force each pre-training run outputs to a separate directory.
-: "${UNIQUE_OUTPUT_DIR:=0}"
-if [[ ${UNIQUE_OUTPUT_DIR} -eq 1 ]]; then
+: "${BMK_MODE:=0}"
+if [[ ${BMK_MODE} -eq 1 ]]; then
     # For debugging: each run has its own output dir.
     TIMESTAMP=$(date +'%Y%m%d-%H%M%Sutc-%N')-$((RANDOM))
     CONT_RESULT_DIR=${CONT_RESULT_DIR}-${TIMESTAMP}
 
-    BMK_ARGS+=(base_results_dir=${CONT_RESULT_DIR})
+    BMK_ARGS+=(
+        base_results_dir=${CONT_RESULT_DIR}
+        training.run.dependency=null
+    )
 
     echo "
     ####################
