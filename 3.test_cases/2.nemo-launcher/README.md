@@ -19,13 +19,13 @@ Table of contents:
 The following pre-requisites are needed to run this example:
 
 - You are using p4de.24xlarge instances with A100 80GB or newer, with at least 80GB of memory per GPU.
-- You have access to the base image [`nemofw-training`](https://registry.ngc.nvidia.com/orgs/ea-bignlp/containers/bignlp-training) is available through NVIDIA's open-beta [here](https://developer.nvidia.com/nemo-framework-open-beta).
+- You have access to the base image [NeMo Framework Training](https://registry.ngc.nvidia.com/orgs/ea-bignlp/teams/ga-participants/containers/nemofw-training). To gain access to this image, go to [Get Access to NeMo Framework](https://developer.nvidia.com/nemo-framework) to enroll to organization/team `ea-bignlp/ga-participant`.
 - Docker, [Enroot](https://github.com/NVIDIA/enroot) and [Pixys](https://github.com/NVIDIA/pyxis) installed on the cluster and available on all nodes. It is assumed you are using a Custom AMI ([example](../../2.ami_and_containers/1.amazon_machine_image))
 
 You will need to setup the following environment variables before running the scripts. :
 
 ```bash
-export NEMO_VERSION=23.08.03
+export NEMO_VERSION=23.11
 export REPO=aws-nemo-megatron
 export TAG=$NEMO_VERSION
 export TARGET_PATH=/fsx/nemo-launcher-$NEMO_VERSION   # must be a shared filesystem
@@ -76,10 +76,10 @@ cd $TARGET_PATH
 enroot start --mount $TARGET_PATH:/workspace/mount_dir \
              --env NVIDIA_VISIBLE_DEVICES=void \
              $ENROOT_IMAGE \
-             cp -a /opt/NeMo-Megatron-Launcher/launcher_scripts /opt/NeMo-Megatron-Launcher/auto_configurator /opt/nemo-data-curator /opt/nemo-rlhf /workspace/mount_dir/
+             cp -a /opt/NeMo-Megatron-Launcher/launcher_scripts /opt/NeMo-Megatron-Launcher/auto_configurator /opt/nemo-data-curator /workspace/mount_dir/
 ```
 
-The `NVIDIA_VISIBLE_DEVICES` variable is set to void to prevent the process to check for the Nvidia driver presence (since we don't need GPUs here).
+The `NVIDIA_VISIBLE_DEVICES` variable is set to `void` to prevent the process to check for the Nvidia driver presence (since we don't need GPUs here).
 
 3. Install the NemoMegatron requirements in a Python VirtualEnv by running the set of commands below.
 
@@ -164,7 +164,7 @@ This section assumes that you went through the previous sections and 1/ retrieve
         └── nemo_log_globalrank-*.txt               # Log of each rank
     ```
 
-    Please note that except for `log-nemo-megatron-gpt3_126m_<JOB_ID>.out`, the other files will be overridden when you launch another pre-training of that same model size. To completely separate the output among jobs, edit `TEST_CASE_PATH/bmk-pretrain-gpt3-126m.sh` and uncomment the `#export UNIQUE_OUTPUT_DIR=1` line to produce this output dir instead:
+    Please note that except for `log-nemo-megatron-gpt3_126m_<JOB_ID>.out`, the other files will be overridden when you launch another pre-training of that same model size. To completely separate the output among jobs, run the script in benchmark mode: `BMK_MODE=1 $TEST_CASE_PATH/bmk-pretrain-gpt3-126m.sh` which produces output dir `$TARGET_PATH/results-<YYYYMMDD>-<HHMMSS>utc-<RANDOM_STR>/gpt3_126m/`.
 
 4. You can use Slurm command `squeue` to monitor the job status in the queue. The ample output below shows a `nemo-megatron` job with job id `1234` is in running state (`ST` = `R`). A queued job will have state `ST` = `PD` (pending). Please refer to the complete of job states in this [Slurm documentation](https://slurm.schedmd.com/squeue.html#SECTION_JOB-STATE-CODES).
 
