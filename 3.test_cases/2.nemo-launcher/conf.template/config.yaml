@@ -40,6 +40,9 @@ env_vars:
   TRANSFORMER_OFFLINE: 1
   NCCL_LAUNCH_MODE: parallel
   NCCL_ASYNC_ERROR_HANDLING: 1
+  NCCL_NVLS_ENABLE: 0
+  NCCL_AVOID_RECORD_STREAMS: 1        # torch<2.2
+  TORCH_NCCL_AVOID_RECORD_STREAMS: 1  # torch>=2.2
 
 # GPU Mapping
 numa_mapping:
@@ -61,3 +64,5 @@ ia3_learning_config: ${hydra:runtime.choices.ia3_learning}
 evaluation_config: ${hydra:runtime.choices.evaluation}
 conversion_config: ${hydra:runtime.choices.conversion}
 export_config: ${hydra:runtime.choices.export}
+rlhf_rm_config: ${hydra:runtime.choices.rlhf_rm}
+rlhf_ppo_config: ${hydra:runtime.choices.rlhf_ppo}
