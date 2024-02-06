@@ -18,6 +18,7 @@ set -ex;
 ###########################
 
 ## Plenty of EFA level variables
+## Comment out for non-efa instances (G5, G4d, P3)
 export FI_EFA_USE_DEVICE_RDMA=1 # use for p4d
 export FI_EFA_FORK_SAFE=1
 export FI_LOG_LEVEL=1
