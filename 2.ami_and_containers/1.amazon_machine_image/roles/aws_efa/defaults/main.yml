@@ -1,5 +1,5 @@
 ---
-aws_efa_version: "1.26.0"
+aws_efa_version: "1.30.0"
 aws_efa_archive: "aws-efa-installer-{{ aws_efa_version }}.tar.gz"
 aws_efa_url: "https://efa-installer.amazonaws.com/{{ aws_efa_archive }}"
 aws_efa_work_dir: "/tmp"
