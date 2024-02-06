@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT-0
 
 set -exo pipefail
 [[ -z "${TARGET_PATH}" ]] \
@@ -18,18 +18,13 @@ export MODEL_SIZE=40b
 export NUM_NODES=2
 export RUNTIME=4h
 export MAX_STEPS=5
-export MBS=1 # setting for A100 80GB (p4de, p5), reduce to 1 for A100 40GB (p4d)
+export MBS=1   # Down from the default value (=4) to run on 2x p4de (16x A100-80GB GPUs)
 declare -a MODEL_ARGS=(
     training.model.micro_batch_size=${MBS}
 
-    # Activation checkpointing
-    training.model.activations_checkpoint_granularity='full'
-    training.model.activations_checkpoint_method='block'
-    training.model.activations_checkpoint_num_layers=1
-
-    # Not applicable for A100
-    training.model.transformer_engine=False
-    training.model.ub_tp_comm_overlap=False
+    ## Uncomment below to enable fp8 training (Transformers Engine) on p5 instances (H100 GPUs)
+    #training.model.transformer_engine=True
+    #training.model.fp8=True
 )
 
 
@@ -58,13 +53,16 @@ CONT_RESULT_DIR=${WORKSPACE_CONT}/results
 CONT_TOKENIZER_DIR=${WORKSPACE_CONT}/data/bpe
 
 # Dev/test feature (off by default) to force each pre-training run outputs to a separate directory.
-: "${UNIQUE_OUTPUT_DIR:=0}"
-if [[ ${UNIQUE_OUTPUT_DIR} -eq 1 ]]; then
+: "${BMK_MODE:=0}"
+if [[ ${BMK_MODE} -eq 1 ]]; then
     # For debugging: each run has its own output dir.
     TIMESTAMP=$(date +'%Y%m%d-%H%M%Sutc-%N')-$((RANDOM))
     CONT_RESULT_DIR=${CONT_RESULT_DIR}-${TIMESTAMP}
 
-    BMK_ARGS+=(base_results_dir=${CONT_RESULT_DIR})
+    BMK_ARGS+=(
+        base_results_dir=${CONT_RESULT_DIR}
+        training.run.dependency=null
+    )
 
     echo "
     ####################

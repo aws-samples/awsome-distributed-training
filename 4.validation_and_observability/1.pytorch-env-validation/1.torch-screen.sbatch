@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT-0
 
 #SBATCH -N 2 # number of nodes to run the scrip on, use 2 here
 #SBATCH --job-name=megatron_gpt # name of your job

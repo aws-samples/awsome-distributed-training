@@ -1,5 +1,5 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT-0
 
 ####################################################################################################
 # This is a sample Dockerfile, with optional stanzas. Please read through this Dockerfile,
@@ -36,6 +36,7 @@ RUN apt-get remove -y --allow-change-held-packages \
 # complains about missing libuc?.so.
 RUN rm -rf /opt/hpcx/ompi \
     && rm -rf /usr/local/mpi \
+    && rm -rf /opt/hpcx/nccl_rdma_sharp_plugin \
     && ldconfig
 ENV OPAL_PREFIX=
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y --allow-unauthenticated \

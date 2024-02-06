@@ -1,6 +1,6 @@
 # ML Training Reference Architectures & Tests <!-- omit from toc -->
 
-This repository contains reference architectures and test cases for distributed model training with [AWS ParallelCluster](https://docs.aws.amazon.com/parallelcluster/latest/ug/what-is-aws-parallelcluster.html), [AWS Batch](https://docs.aws.amazon.com/batch/latest/userguide/what-is-batch.html), and [Amazon EKS](https://docs.aws.amazon.com/eks/latest/userguide/getting-started-console.html). The test cases cover different types and sizes of models as well as different frameworks and parallel optimizations (Pytorch DDP/FSDP, MegatronLM, NemoMegatron...).
+This repository contains reference architectures and test cases for distributed model training with [Amazon SageMaker Hyperpod](https://docs.aws.amazon.com/sagemaker/latest/dg/sagemaker-hyperpod.html), [AWS ParallelCluster](https://docs.aws.amazon.com/parallelcluster/latest/ug/what-is-aws-parallelcluster.html), [AWS Batch](https://docs.aws.amazon.com/batch/latest/userguide/what-is-batch.html), and [Amazon EKS](https://docs.aws.amazon.com/eks/latest/userguide/getting-started-console.html). The test cases cover different types and sizes of models as well as different frameworks and parallel optimizations (Pytorch DDP/FSDP, MegatronLM, NemoMegatron...).
 
 The major components of this directory are:
 
@@ -38,21 +38,24 @@ Custom machine images can be built using [Packer](www.packer.io) for AWS Paralle
 
 All test cases are under `3.test_cases/`. You can go in each test case directory to learn how to run it.
 
-| Test cases                                                            | Slurm | Kubernetes  | AWS Batch  |
-| --------------------------------------------------------------------- | ----- | ----------- | ---------- |
-| [`1.megatron-lm`](./3.test_cases/1.megatron-lm)                       |  ✅   | ❓          | ❓         |
-| [`2.nemo-launcher`](./3.test_cases/2.nemo-launcher)                   |  ✅   | ❌          | ❌         |
-| [`3.MPT`](./3.test_cases/3.MPT)                                       |  ✅   | ❓          | ❓         |
-| [`4.DDP`](./3.test_cases/4.DDP)                                       |  ✅   | ❓          | ❓         |
-| [`5.param-benchmark`](./3.test_cases/5.param-benchmark)               |  ✅   | ❓          | ❓         |
-| [`6.stable-diffusion`](./3.test_cases/6.stable-diffusion)             |  ✅   | ❓          | ❓         |
-| [`7.tensorflow-distributed`](./3.test_cases/7.tensorflow-distributed) |  ✅   | ❓          | ❓         |
-| [`8.neuronx-nemo-megatron`](./3.test_cases/8.neuronx-nemo-megatron)   |  ✅   | ❓          | ❓         |
-| [`10.FSDP`](./3.test_cases/10.FSDP)                                   |  ✅   | ❓          | ❓         |
+| Test cases                                                                    | Slurm | Kubernetes  | AWS Batch  |
+| ----------------------------------------------------------------------------- | ----- | ----------- | ---------- |
+| [`1.megatron-lm`](./3.test_cases/1.megatron-lm)                               |  ✅   | ❓          | ❓         |
+| [`2.nemo-launcher`](./3.test_cases/2.nemo-launcher)                           |  ✅   | ❌          | ❌         |
+| [`3.MPT`](./3.test_cases/3.MPT)                                               |  ✅   | ❓          | ❓         |
+| [`4.DDP`](./3.test_cases/4.DDP)                                               |  ✅   | ❓          | ❓         |
+| [`5.param-benchmark`](./3.test_cases/5.param-benchmark)                       |  ✅   | ❓          | ❓         |
+| [`6.stable-diffusion`](./3.test_cases/6.stable-diffusion)                     |  ✅   | ❓          | ❓         |
+| [`7.tensorflow-distributed`](./3.test_cases/7.tensorflow-distributed)         |  ✅   | ❓          | ❓         |
+| [`8.neuronx-nemo-megatron`](./3.test_cases/8.neuronx-nemo-megatron)           |  ✅   | ❓          | ❓         |
+| [`10.FSDP`](./3.test_cases/10.FSDP)                                           |  ✅   | ❓          | ❓         |
+| [`11.modelparallel`](./3.test_cases/11.modelparallel)                         |  ✅   | ❓          | ❓         |
+| [`12.SM-dataparallel-FSDP`](./3.test_cases/12.SM-dataparallel-FSDP)           |  ✅   | ❓          | ❓         |
+| [`13.SM-dataparallel-deepspeed`](./3.test_cases/13.SM-dataparallel-deepspeed) |  ✅   | ❓          | ❓         |
 
 ## 4. Validation scripts
 
-Utilities scripts and micro-benchmarks examples are set under `4.validation_scripts/`.
+Utilities scripts and micro-benchmarks examples are set under `4.validation_scripts/`. The EFA Prometheus exporter can be found in this [directory](./4.validation_and_observability/3.efa-node-exporter) 
 
 ## 5. CI
 
