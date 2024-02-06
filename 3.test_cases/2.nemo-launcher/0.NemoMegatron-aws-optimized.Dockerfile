@@ -1,13 +1,13 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT-0
 
 # DOCKER_BUILDKIT=1 docker build --progress plain -t aws-nemo-megatron:latest .
 
-FROM nvcr.io/ea-bignlp/ga-participants/nemofw-training:23.08.03
+FROM nvcr.io/ea-bignlp/ga-participants/nemofw-training:23.11
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV EFA_INSTALLER_VERSION=latest
-ENV AWS_OFI_NCCL_VERSION=1.7.3-aws
+ENV AWS_OFI_NCCL_VERSION=1.7.4-aws
 ENV NCCL_TESTS_VERSION=master
 
 RUN apt-get update -y
@@ -40,15 +40,15 @@ RUN apt-get install -y --allow-unauthenticated \
 
 # Uncomment below stanza to install the latest NCCL
 # Require efa-installer>=1.29.0 for nccl-2.19.0 to avoid libfabric gave NCCL error.
-#ENV NCCL_VERSION=2.19.3-1
-#RUN apt-get remove -y libnccl2 libnccl-dev \
-#    && cd /tmp \
-#    && git clone https://github.com/NVIDIA/nccl.git -b v${NCCL_VERSION} \
-#    && cd nccl \
-#    && make -j src.build BUILDDIR=/usr/local \
-#    # nvcc to target p5 and p4 instances
-#    NVCC_GENCODE="-gencode=arch=compute_90,code=sm_90 -gencode=arch=compute_80,code=sm_80" \
-#    && rm -rf /tmp/nccl
+ENV NCCL_VERSION=2.19.4-1
+RUN apt-get remove -y libnccl2 libnccl-dev \
+   && cd /tmp \
+   && git clone https://github.com/NVIDIA/nccl.git -b v${NCCL_VERSION} \
+   && cd nccl \
+   && make -j src.build BUILDDIR=/usr/local \
+   # nvcc to target p5 and p4 instances
+   NVCC_GENCODE="-gencode=arch=compute_90,code=sm_90 -gencode=arch=compute_80,code=sm_80" \
+   && rm -rf /tmp/nccl
 
 # EFA
 RUN apt-get update && \
@@ -87,8 +87,7 @@ ENV OMPI_MCA_pml=^cm,ucx            \
     OMPI_MCA_btl=tcp,self           \
     OMPI_MCA_btl_tcp_if_exclude=lo,docker0 \
     OPAL_PREFIX=/opt/amazon/openmpi \
-    NCCL_SOCKET_IFNAME=^docker,lo   \
-    FI_EFA_USE_HUGE_PAGE=0
+    NCCL_SOCKET_IFNAME=^docker,lo
 
 # NCCL-tests
 RUN git clone https://github.com/NVIDIA/nccl-tests.git /opt/nccl-tests \

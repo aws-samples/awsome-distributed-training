@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT-0
 
 set -exo pipefail
 [[ -z "${TARGET_PATH}" ]] \
@@ -12,7 +12,7 @@ set -exo pipefail
 # 000: Modify this section to define pre-training configuration: model size,
 # number of nodes, max. pre-training steps, job's max. runtime.
 ################################################################################
-## Pre-train gpt3-5b on 2 nodes for 5 steps
+## Pre-train gpt3-5b on 2 nodes for 30 steps
 export MODEL=gpt3
 export MODEL_SIZE=5b
 export NUM_NODES=2
@@ -22,14 +22,9 @@ export MBS=2 # setting for A100 80GB (p4de, p5), reduce to 1 for A100 40GB (p4d)
 declare -a MODEL_ARGS=(
     training.model.micro_batch_size=${MBS}
 
-    # When node_count < 8, needs full activations checkpointing. These're settings found on
-    # Nemo repo's Jenkin script.
-    #
-    # Below settings is similar to 22.09, except that 22.09 funnily didn't OOM with
-    # activations_checkpoint_num_layers=0.
-    training.model.activations_checkpoint_granularity='full'
-    training.model.activations_checkpoint_method='block'
-    training.model.activations_checkpoint_num_layers=1
+    ## Uncomment below to enable fp8 training (Transformers Engine) on p5 instances (H100 GPUs)
+    #training.model.transformer_engine=True
+    #training.model.fp8=True
 )
 
 
@@ -58,13 +53,16 @@ CONT_RESULT_DIR=${WORKSPACE_CONT}/results
 CONT_TOKENIZER_DIR=${WORKSPACE_CONT}/data/bpe
 
 # Dev/test feature (off by default) to force each pre-training run outputs to a separate directory.
-: "${UNIQUE_OUTPUT_DIR:=0}"
-if [[ ${UNIQUE_OUTPUT_DIR} -eq 1 ]]; then
+: "${BMK_MODE:=0}"
+if [[ ${BMK_MODE} -eq 1 ]]; then
     # For debugging: each run has its own output dir.
     TIMESTAMP=$(date +'%Y%m%d-%H%M%Sutc-%N')-$((RANDOM))
     CONT_RESULT_DIR=${CONT_RESULT_DIR}-${TIMESTAMP}
 
-    BMK_ARGS+=(base_results_dir=${CONT_RESULT_DIR})
+    BMK_ARGS+=(
+        base_results_dir=${CONT_RESULT_DIR}
+        training.run.dependency=null
+    )
 
     echo "
     ####################
