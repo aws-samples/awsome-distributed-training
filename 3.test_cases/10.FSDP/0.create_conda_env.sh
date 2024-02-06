@@ -14,8 +14,8 @@ conda create -y -p ./pt_fsdp python=3.10
 
 source activate ./pt_fsdp/
 
-# Install PyTorch
-pip install torch==2.0.1 torchvision torchaudio transformers datasets 
+# Install AWS Pytorch, see https://aws-pytorch-doc.com/
+conda install -y pytorch=2.0.1 pytorch-cuda=12.2 torchvision torchaudio transformers datasets fsspec=2023.9.2 --strict-channel-priority --override-channels -c https://aws-ml-conda.s3.us-west-2.amazonaws.com -c nvidia -c conda-forge
 
 # Create checkpoint dir
 mkdir checkpoints

@@ -1,0 +1,6 @@
+transformers==4.36.0
+datasets==1.16.0
+accelerate>=0.21
+bitsandbytes
+einops
+scipy
