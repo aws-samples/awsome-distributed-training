@@ -64,9 +64,6 @@ Scheduling:
           MaxCount: 4 # not scale down
           Efa:
             Enabled: true
-          CustomSlurmSettings:
-            Sockets: 2           # p4, p5
-            CoresPerSocket: 24   # p4=24, p5=48
 SharedStorage:
   - MountDir: /fsx
     Name: fsx
