@@ -26,9 +26,6 @@ versions of your libfabric.
 Use cuda>=12.0, nccl>=2.18.0 (recommend at least 2.18.5), aws-ofi-nccl>=1.7.2 (recommend at least
 1.7.3).
 
-The dcgm command to validate the NVLinks is `sudo dcgmi diag -r 2 -p pcie.gpu_nvlinks_expected_up=18` where the 18 is H100 specific. 
-`nvidia-smi nvlink -s`  is the command to get the status for all NVLinks for each of the GPUs. for H100 there are 18
-
 The table below shows number of NVLinks for `p4de.24xlarge` and `p5.48xlarge` instances:
 
 |   Instance  |    GPU     | # NVLinks | Generation |
@@ -54,7 +51,7 @@ GPU 0: NVIDIA A100-SXM4-80GB (UUID: GPU-370ec676-e407-3115-836a-8ebcb3c4f62a)
 	 Link 10: 25 GB/s
 	 Link 11: 25 GB/s
 ```
-The dcgm command to validate the NVLinks is `sudo dcgmi diag -r 2 -p pcie.gpu_nvlinks_expected_up=<# NVLinks>`. For `p4de.24xlarge` instance, this diagnostic looks like:
+The [dcgm](https://github.com/NVIDIA/DCGM?tab=readme-ov-file) command to validate the NVLinks is `sudo dcgmi diag -r 2 -p pcie.gpu_nvlinks_expected_up=<# NVLinks>`. For `p4de.24xlarge` instance, this diagnostic looks like:
 
 ```bash
 ubuntu@ip-172-31-35-99:~$ dcgmi diag -r 2 -p pcie.gpu_nvlinks_expected_up=12
