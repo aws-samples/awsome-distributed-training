@@ -26,6 +26,62 @@ versions of your libfabric.
 Use cuda>=12.0, nccl>=2.18.0 (recommend at least 2.18.5), aws-ofi-nccl>=1.7.2 (recommend at least
 1.7.3).
 
+The table below shows number of NVLinks for `p4de.24xlarge` and `p5.48xlarge` instances:
+
+|   Instance  |    GPU     | # NVLinks | Generation |
+|:-----------:|:----------:|:---------:| :---------:| 
+|p4de.24xlarge|  A100 80GB |     12    |     3rd    |  
+| p5.48xlarge |     H100   |     18    |     4th    |
+
+`nvidia-smi nvlink -s`  is the command to get the status for all NVLinks for each of the GPUs. Below we see this data for GPU 0 of a `p4de.24xlarge` instance
+
+```bash
+ubuntu@ip-172-31-35-99:~$ nvidia-smi nvlink -s
+GPU 0: NVIDIA A100-SXM4-80GB (UUID: GPU-370ec676-e407-3115-836a-8ebcb3c4f62a)
+	 Link 0: 25 GB/s
+	 Link 1: 25 GB/s
+	 Link 2: 25 GB/s
+	 Link 3: 25 GB/s
+	 Link 4: 25 GB/s
+	 Link 5: 25 GB/s
+	 Link 6: 25 GB/s
+	 Link 7: 25 GB/s
+	 Link 8: 25 GB/s
+	 Link 9: 25 GB/s
+	 Link 10: 25 GB/s
+	 Link 11: 25 GB/s
+```
+The [dcgm](https://github.com/NVIDIA/DCGM?tab=readme-ov-file) command to validate the NVLinks is `sudo dcgmi diag -r 2 -p pcie.gpu_nvlinks_expected_up=<# NVLinks>`. For `p4de.24xlarge` instance, this diagnostic looks like:
+
+```bash
+ubuntu@ip-172-31-35-99:~$ dcgmi diag -r 2 -p pcie.gpu_nvlinks_expected_up=12
+Successfully ran diagnostic for group.
++---------------------------+------------------------------------------------+
+| Diagnostic                | Result                                         |
++===========================+================================================+
+|-----  Metadata  ----------+------------------------------------------------|
+| DCGM Version              | 3.3.3                                          |
+| Driver Version Detected   | 535.104.12                                     |
+| GPU Device IDs Detected   | 20b2,20b2,20b2,20b2,20b2,20b2,20b2,20b2        |
+|-----  Deployment  --------+------------------------------------------------|
+| Denylist                  | Pass                                           |
+| NVML Library              | Pass                                           |
+| CUDA Main Library         | Pass                                           |
+| Permissions and OS Blocks | Pass                                           |
+| Persistence Mode          | Pass                                           |
+| Environment Variables     | Pass                                           |
+| Page Retirement/Row Remap | Pass                                           |
+| Graphics Processes        | Pass                                           |
+| Inforom                   | Pass                                           |
++-----  Integration  -------+------------------------------------------------+
+| PCIe                      | Pass - All                                     |
++-----  Hardware  ----------+------------------------------------------------+
+| GPU Memory                | Pass - All                                     |
++-----  Stress  ------------+------------------------------------------------+
++---------------------------+------------------------------------------------+
+```  
+  
+
 ## 3. Sample Presets
 
 ### 3.1. libfabric>=1.18.0 and aws-ofi-nccl>=1.7.0
