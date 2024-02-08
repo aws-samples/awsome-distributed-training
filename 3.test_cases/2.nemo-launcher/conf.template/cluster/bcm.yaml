@@ -1,4 +1,4 @@
-partition: null
+partition: us-east-1e
 account: null
 exclusive: True
 gpus_per_task: null
