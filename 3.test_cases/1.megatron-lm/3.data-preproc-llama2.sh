@@ -6,6 +6,8 @@
 #SBATCH -N 1 # number of nodes we want
 #SBATCH --exclusive # job has exclusive use of the resource, no sharing
 
+set -exuo pipefail
+
 ###########################
 ###### User Variables #####
 ###########################
@@ -22,6 +24,7 @@ declare -a ARGS=(
     --container-mounts $FSX_MOUNT
 )
 
+[[ -f ${IMAGE} ]] || { echo "Could not find enroot image: $IMAGE" ; exit -1 ; }
 # runs in
 srun -l "${ARGS[@]}"  python3 /workspace/Megatron-LM/tools/preprocess_data.py \
         --input ${DATA_PATH}/llama2/oscar-1GB.jsonl \
