@@ -15,8 +15,8 @@ set -ex;
 ###########################
 
 # Parallelism decomposition variables
-: "${TENSOR_PARALLEL:=8}"
-: "${PIPELINE_PARALLEL:=4}"
+: "${TENSOR_PARALLEL:=4}"
+: "${PIPELINE_PARALLEL:=2}"
 
 # Model parameters, defaults to 39B model
 # Refer to page 8 of this paper on how to tune models parameters
@@ -24,6 +24,7 @@ set -ex;
 : "${NUM_LAYERS:=36}"
 : "${HIDDEN_SIZE:=4096}"
 : "${NUM_ATTENTION_HEADS:=32}"
+
 : "${SEQ_LENGTH:=2048}"
 : "${MAX_POSITION_EMBEDDINGS:=2048}"
 : "${MICRO_BATCH_SIZE:=1}"
@@ -40,13 +41,6 @@ set -ex;
 ## Environment Variables ##
 ###########################
 
-## Plenty of EFA level variables
-export FI_EFA_USE_DEVICE_RDMA=1 # use for p4d
-export FI_EFA_FORK_SAFE=1
-# export NCCL_ALGO=Ring
-export FI_LOG_LEVEL=1
-export FI_PROVIDER=efa # change to eth if you want to use ENA for comparisons
-export FI_EFA_ENABLE_SHM_TRANSFER=1
 # https://discuss.pytorch.org/t/nccl-network-is-unreachable-connection-refused-when-initializing-ddp/137352
 # https://github.com/pytorch/pytorch/issues/68893
 #export NCCL_SOCKET_IFNAME=ens
@@ -101,9 +95,9 @@ srun -l "${ARGS[@]}" python -m torch.distributed.run "${TORCHRUN_ARGS[@]}" /work
         --log-interval 1 \
         --eval-iters 40 \
         --eval-interval 1000 \
-        --data-path "$(pwd)/gpt2/my-gpt2_text_document" \
-        --vocab-file "$(pwd)/gpt2/gpt2-vocab.json" \
-        --merge-file "$(pwd)/gpt2/gpt2-merges.txt" \
+        --data-path "${DATA_PATH}/gpt2/my-gpt2_text_document" \
+        --vocab-file "${DATA_PATH}/gpt2/gpt2-vocab.json" \
+        --merge-file "${DATA_PATH}/gpt2/gpt2-merges.txt" \
         --split 98,2,0 \
         --clip-grad 1.0 \
         --weight-decay 0.1 \
@@ -112,4 +106,3 @@ srun -l "${ARGS[@]}" python -m torch.distributed.run "${TORCHRUN_ARGS[@]}" /work
         --init-method-std 0.006 \
         --fp16 \
         --recompute-activations
-
