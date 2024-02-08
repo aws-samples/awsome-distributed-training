@@ -142,6 +142,7 @@ MEGATRON_ARGS+=(
     --split 100,0,0
 )
 
+[[ -f ${IMAGE} ]] || { echo "Could not find enroot image: $IMAGE" ; exit -1 ; }
 srun -l "${ARGS[@]}" python -m torch.distributed.run "${TORCHRUN_ARGS[@]}" /workspace/Megatron-LM/pretrain_gpt.py \
         "${MEGATRON_ARGS[@]}" \
         --use-mcore-models \
