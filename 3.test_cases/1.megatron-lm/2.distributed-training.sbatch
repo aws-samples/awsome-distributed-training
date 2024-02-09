@@ -31,11 +31,9 @@ set -ex;
 : "${GLOBAL_BATCH_SIZE:=288}"
 
 # default variables for Enroot
-: "${DATA_PATH:=/fsx}"
-
-# default variables for Enroot
 : "${IMAGE:=$(pwd)/megatron-training.sqsh}"
-: "${FSX_MOUNT:=$DATA_PATH:$DATA_PATH}"
+: "${DATA_PATH:=/fsx}"
+: "${FSX_MOUNT:=$(pwd):$DATA_PATH}"
 
 ###########################
 ## Environment Variables ##

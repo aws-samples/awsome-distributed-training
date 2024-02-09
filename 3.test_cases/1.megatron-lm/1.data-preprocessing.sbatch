@@ -10,11 +10,10 @@
 ###### User Variables #####
 ###########################
 
-: "${IMAGE:=$(pwd)/megatron-training.sqsh}"
-: "${FSX_MOUNT:=$(pwd)/gpt2:/fsx}"
-
 # default variables for Enroot
+: "${IMAGE:=$(pwd)/megatron-training.sqsh}"
 : "${DATA_PATH:=/fsx}"
+: "${FSX_MOUNT:=$(pwd)/gpt2:$DATA_PATH}"
 
 declare -a ARGS=(
     --container-image $IMAGE
