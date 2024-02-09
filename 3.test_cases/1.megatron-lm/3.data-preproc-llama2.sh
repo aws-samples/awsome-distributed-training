@@ -12,11 +12,10 @@ set -exuo pipefail
 ###### User Variables #####
 ###########################
 
-: "${IMAGE:=$(pwd)/megatron-training.sqsh}"
-: "${FSX_MOUNT:=/fsx:/fsx}"
-
 # default variables for Enroot
+: "${IMAGE:=$(pwd)/megatron-training.sqsh}"
 : "${DATA_PATH:=/fsx}"
+: "${FSX_MOUNT:=$(pwd):$DATA_PATH}"
 
 declare -a ARGS=(
     --container-image $IMAGE
