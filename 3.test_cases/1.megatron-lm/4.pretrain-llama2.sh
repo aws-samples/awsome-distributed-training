@@ -87,11 +87,9 @@ MEGATRON_ARGS+=(
 : "${GLOBAL_BATCH_SIZE:=2048}"
 
 # default variables for Enroot
-: "${DATA_PATH:=/fsx}"
-
-# default variables for Enroot
 : "${IMAGE:=$(pwd)/megatron-training.sqsh}"
-: "${FSX_MOUNT:=$DATA_PATH:$DATA_PATH}"
+: "${DATA_PATH:=/fsx}"
+: "${FSX_MOUNT:=$(pwd):$DATA_PATH}"
 
 
 ###########################
