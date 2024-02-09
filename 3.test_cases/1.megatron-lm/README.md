@@ -170,9 +170,6 @@ sbatch 3.data-preproc-llama2.sbatch
 
 Edit `4.pre-train-llama2.sh` to choose the model size you want to train. Do this by commenting and uncommenting the related stanzas. Feel free to experiment with the hyperparameters such as parallelism, batches, etc. (for more details, please refer to the [Megatron-LM project](https://github.com/NVIDIA/Megatron-LM/) and the Megatron papers ([Shoeybi20](https://arxiv.org/abs/1909.08053), [Narayanan21](https://arxiv.org/abs/2104.04473)).
 
-
-, or any other flag. Please refer to Megatron-LM for more details.
-
 ```bash
 sbatch 2.distributed-training.sbatch
 ```
