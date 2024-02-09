@@ -184,7 +184,7 @@ More details on this can be found here: https://pytorch.org/blog/accelerated-dif
 
 ## 2. Multi Node Tests
 
-### 2.1 Multi-Node Training
+### 2.1 Multi-Node Training with Slurm
 
 For the multi-node training we've created a [Dockerfile](https://github.com/aws-samples/awsome-distributed-training/blob/multi-node/3.test_cases/6.stable-diffusion/multi-node/1.Dockerfile), and Slurm submit script to submit the training job. To get started please follow the guide [AWS ParallelCluster Distributed Training](../../1.architectures/2.aws-parallelcluster). Before starting this section make sure you have the following setup:
 
@@ -237,4 +237,149 @@ rank_zero_seed: 3179589898
 rain          Epoch   0:  100%|█████████████████████████| 48/48 [09:57<00:00, 12.45s/ba, loss/train/total=0.1521]
                       
 ```
+
+### 2.2 Multi-Node Training with Amazon EKS
+
+Next we will show how to train stable diffusion with Mosaic ML's [composer](https://github.com/mosaicml/composer/tree/dev) on [Amazon EKS](https://aws.amazon.com/eks/). To start we have created an EKS cluster following the steps [here](https://github.com/aws-samples/awsome-distributed-training/tree/main/1.architectures/4.amazon-eks). You can follow these steps to add a nodegroup of `p5.48xlarge` instances. First export these environment variables. 
+
+```bash
+export AWS_REGION=us-west-2
+export ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
+
+## Docker Image
+export REGISTRY=${ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com/
+export DOCKER_IMAGE_NAME=mosaicml-stable-diffusion
+export MOSAICML_VERSION=0.15.0
+export TAG=$MOSAICML_VERSION
+export PYTORCH_IMAGE=nvcr.io/nvidia/pytorch:23.08-py3
+
+## Job parameters
+export NUM_NODES=64
+export NUM_GPUS_PER_NODE=8
+export WORLD_SIZE=$((NUM_NODES*NUM_GPUS_PER_NODE))
+
+```
+
+#### 2.2.1
+
+First we need to run the `do-eks` container which has all the necessary kubectl tools installed. Just run:
+
+```bash
+git clone https://github.com/aws-samples/aws-do-eks.git
+cd ./aws-do-eks
+
+# Build the do-eks Docker image
+./build.sh
+
+# Run container
+./run.sh
+
+# Execute in the container
+./exec.sh
+
+cd /eks/impl/aws
+
+# Next we will edit the nodegroup.conf config file
+```
+
+#### 2.2.2 
+
+To add a managed P5 nodegroup, we will follow the steps listed in the [aws-do-eks](https://github.com/aws-samples/aws-do-eks/tree/main/Container-Root/eks/impl/aws) project.
+
+1. First we need to create a P5 launch template and to do that we need to fill out the nodegroup.conf config
+
+```bash
+CLUSTER=<Your-EKS-Cluster-Name>
+REGION=${AWS_REGION}
+LAUNCH_TEMPLATE_NAME=lt-p5-odcr-eks-1-27
+LAUNCH_TEMPLATE_ID=
+LAUNCH_TEMPLATE_VERSION=1
+NODEGROUP_NAME=p5-48xlarge
+NODE_ROLE_ARN=<Copy Node IAM Role ARN from `sys` node in EKS console>
+SUBNETS=<Private subnet id from the AZ your P5 nodes are in>
+MIN_SIZE=0
+DESIRED_SIZE=64
+MAX_SIZE=64
+
+EFA_VERSION=1.29.1
+AMI=<eks-optimized-ami-id>
+SSH_KEY_NAME=<ssh-key-name>
+CAPACITY_RESERVATION_ID=<capacity reservation id of the P5 nodes>
+PLACEMENT_GROUP_NAME=<Create a Placement Group from EC2 console>
+
+```
+
+You can get the EKS optimized id for EKS version 1.27 and Amazon Linux 2 as:
+```bash
+aws ssm get-parameter --name /aws/service/eks/optimized-ami/1.27/amazon-linux-2-gpu/recommended/image_id --region $AWS_REGION --query 'Parameter.Value' --output text
+
+```
+
+Next you can follow the steps given [here](https://github.com/aws-samples/aws-do-eks/tree/main/Container-Root/eks/impl/aws) to create a P5 nodegroup. 
+
+
+#### 2.2.3
+
+Once the nodes are created, you can use `nv` to list the available nodes. `nv` is an alias to `eks-node-viewer` . You can see other aliases by typing `alias`. Below is a sample output with a cluster with 2 `c5.4xlarge` nodes. The status of `Ready` means that the node has joined the cluster. If a node is in a `Not Ready` state, you might need to manually terminate the node from EC2 console and EKS will restart it and the node will join the cluster again.
+
+```bash
+2 nodes (700m/31780m) 2.2% cpu █░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ $1.360/hour | $992.800/month
+13 pods (0 pending 13 running 13 bound)
+
+ip-192-168-70-41.us-west-2.compute.internal  cpu █░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   2% (7 pods) c5.4xlarge/$0.6800 On-Demand - Ready
+ip-192-168-120-65.us-west-2.compute.internal cpu █░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   2% (6 pods) c5.4xlarge/$0.6800 On-Demand - Ready
+•
+←/→ page • q: quit
+
+```
+
+You can see additional details about the node as below. 
+
+```bash
+kubectl describe node <node-ip-address-from-node-viewer>
+```
+The following is the `Allocatable` section of a P5 node which shows that there are 8 GPUs available and 32 EFA devices available as well.
+
+```bash
+
+Allocatable:
+  cpu:                    191450m
+  ephemeral-storage:      27356033509547
+  hugepages-1Gi:          0
+  hugepages-2Mi:          42242Mi
+  memory:                 2052371068Ki
+  nvidia.com/gpu:         8
+  pods:                   100
+  vpc.amazonaws.com/efa:  32
+```
+
+#### 2.2.4
+
+Next we need to build the Docker Image and push it to [ECR](https://aws.amazon.com/ecr/):
+
+```bash
+docker build --build-arg MOSAICML_VERSION=${MOSAICML_VERSION} --build-arg PYTORCH_IMAGE=${PYTORCH_IMAGE} -t ${REGISTRY}${DOCKER_IMAGE_NAME}${TAG} -f 1.Dockerfile .
+```
+
+Before pushing the image you might need to login to ECR as:
+
+```bash
+aws ecr get-login-password | docker login --username AWS --password-stdin $REGISTRY
+```
+
+And the push the image as:
+```bash
+# Create registry if it does not exist
+REGISTRY_COUNT=$(aws ecr describe-repositories | grep ${DOCKER_IMAGE_NAME} | wc -l)
+if [ "$REGISTRY_COUNT" == "0" ]; then
+        echo ""
+        echo "Creating repository ${DOCKER_IMAGE_NAME} ..."
+        aws ecr create-repository --repository-name ${DOCKER_IMAGE_NAME}
+fi
+
+echo "Pushing image ${REGISTRY}${DOCKER_IMAGE_NAME}:${TAG}"
+docker image push ${REGISTRY}${DOCKER_IMAGE_NAME}:${TAG}
+
+```
+
 
