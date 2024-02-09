@@ -254,13 +254,14 @@ export TAG=$MOSAICML_VERSION
 export PYTORCH_IMAGE=nvcr.io/nvidia/pytorch:23.08-py3
 
 ## Job parameters
+export MASTER_PORT=80
 export NUM_NODES=64
 export NUM_GPUS_PER_NODE=8
 export WORLD_SIZE=$((NUM_NODES*NUM_GPUS_PER_NODE))
 
 ```
 
-#### 2.2.1
+#### 2.2.1 Set up `do-eks` container
 
 First we need to run the `do-eks` container which has all the necessary kubectl tools installed. Just run:
 
@@ -282,7 +283,7 @@ cd /eks/impl/aws
 # Next we will edit the nodegroup.conf config file
 ```
 
-#### 2.2.2 
+#### 2.2.2 Add a Managed P5 Nodegroup
 
 To add a managed P5 nodegroup, we will follow the steps listed in the [aws-do-eks](https://github.com/aws-samples/aws-do-eks/tree/main/Container-Root/eks/impl/aws) project.
 
@@ -318,7 +319,7 @@ aws ssm get-parameter --name /aws/service/eks/optimized-ami/1.27/amazon-linux-2-
 Next you can follow the steps given [here](https://github.com/aws-samples/aws-do-eks/tree/main/Container-Root/eks/impl/aws) to create a P5 nodegroup. 
 
 
-#### 2.2.3
+#### 2.2.3 View your nodes
 
 Once the nodes are created, you can use `nv` to list the available nodes. `nv` is an alias to `eks-node-viewer` . You can see other aliases by typing `alias`. Below is a sample output with a cluster with 2 `c5.4xlarge` nodes. The status of `Ready` means that the node has joined the cluster. If a node is in a `Not Ready` state, you might need to manually terminate the node from EC2 console and EKS will restart it and the node will join the cluster again.
 
@@ -353,9 +354,7 @@ Allocatable:
   vpc.amazonaws.com/efa:  32
 ```
 
-#### 2.2.4
-
-Next we need to build the Docker Image and push it to [ECR](https://aws.amazon.com/ecr/):
+#### 2.2.4 Next we need to build the Docker Image and push it to [ECR](https://aws.amazon.com/ecr/):
 
 ```bash
 docker build --build-arg MOSAICML_VERSION=${MOSAICML_VERSION} --build-arg PYTORCH_IMAGE=${PYTORCH_IMAGE} -t ${REGISTRY}${DOCKER_IMAGE_NAME}${TAG} -f 1.Dockerfile .
@@ -381,5 +380,7 @@ echo "Pushing image ${REGISTRY}${DOCKER_IMAGE_NAME}:${TAG}"
 docker image push ${REGISTRY}${DOCKER_IMAGE_NAME}:${TAG}
 
 ```
+#### 2.2.5 Now we can start training
 
+We provide a template YAML file for 
 
