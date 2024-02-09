@@ -14,7 +14,7 @@ To run a test case you will go through a series of steps described below:
 
 We describe the steps below for Slurm users. EKS users may follow the sequence but details will vary.
 
-## 0. Preparation
+## 1. Preparation
 
 This guide assumes that you have the following:
 
@@ -32,7 +32,7 @@ export DATA_PATH=/fsx # FSx for Lustre shared file-system
 
 Make sure that your current directory is under a shared filesystem such as `/fsx/` or the home directory when using [Parallel Cluster](../../1.architectures/aws-parallelcluster).
 
-## 1. Data Preprocessing
+## 2. Data Preprocessing
 
 Before running training jobs you need to retrieve input data and preprocess it. This section of the guide you will retrieve a container then you convert it into a Squash file via [Enroot](https://github.com/NVIDIA/enroot), you will then retrieve input data ans tokenize it using the GPT2 vocabulary.
 
@@ -113,7 +113,7 @@ Below are the steps you need to follow:
 
 Voilà! You have executed the preprocessing job. You will go through the steps to run your training job.
 
-## 2. Distributed training
+## 3. Distributed training
 
 Now that the data is preprocessed, we will pretrain a GPT3 model MegatronLM.
 
@@ -131,7 +131,7 @@ Now that the data is preprocessed, we will pretrain a GPT3 model MegatronLM.
 1:  iteration       27/73242187 | consumed samples:           54 | elapsed time per iteration (ms): 88.4 | learning rate: 1.769E-08 | global batch size:     2 | lm loss: 1.087129E+01 | loss scale: 4294967296.0 | grad norm: 0.000 | number of skipped iterations:   0 | number of nan iterations:   0 |
 ```
 
-## 3. What's next?
+## 4. What's next?
 
 The example is based on the GPT3 example from MegatronLM's [repository](https://github.com/NVIDIA/Megatron-LM/blob/main/examples/pretrain_gpt.sh). You can modify `NUM_ATTENTION_HEADS`, `NUM_LAYERS`, and `HIDDEN_SIZE`  based on the Table 1 (Page 8) of the document [Efficient Large-Scale Language Model Training on GPU Clusters Using Megatron-LM](https://arxiv.org/abs/2104.04473) to change the model size. You can also run the following commands to launch training for different model sizes before submitting a job as follows: `NUM_LAYERS=64 HIDDEN_SIZE=8192 NUM_ATTENTION_HEADS=48 sbatch  3.distributed-training.sbatch`
 
@@ -145,3 +145,33 @@ The example is based on the GPT3 example from MegatronLM's [repository](https://
 | 76.1B      | `NUM_ATTENTION_HEADS=80 HIDDEN_SIZE=10240 NUM_LAYERS=60`  |
 | 145.6B     | `NUM_ATTENTION_HEADS=96 HIDDEN_SIZE=12288 NUM_LAYERS=80`  |
 | 310.1B     | `NUM_ATTENTION_HEADS=128 HIDDEN_SIZE=16384 NUM_LAYERS=96` |
+
+## 5. Appendix: Llama2
+
+To pretrain Llama2, you must visit <https://huggingface.co/meta-llama/Llama-2-7b-hf> to download the tokenizers files (i.e., `tokenizer.json` and `tokenizer.model`). Registration required. Alternatively, you may train your own tokenizer but this is beyond the scope for this document. Either way, once you have the tokenizer files, you need to upload them to the FSx Lustre that your Slurm cluster mounts.
+
+The remaining steps are similar to the GPT3 example. For more information, please refer to the official Megatron-LM documentation on Llama2 [here](https://github.com/NVIDIA/Megatron-LM/blob/main/docs/llama2.md).
+
+### 5.1. Download and prepocess data
+
+```bash
+mkdir -p /fsx/llama2
+cd /fsx/llama2/
+# Then, place `tokenizer.json` and `tokenizer.model` to this directory.
+
+# Download sample dataset
+wget https://huggingface.co/bigscience/misc-test-data/resolve/main/stas/oscar-1GB.jsonl.xz
+xz -d oscar-1GB.jsonl.xz
+
+sbatch 3.data-preproc-llama2.sbatch
+```
+
+### 5.2. Run pretraining job
+
+Edit `4.pre-train-llama2.sh` to choose the model size you want to train. Do this by commenting and uncommenting the related stanzas. Feel free to experiment with the hyperparameters such as parallelism, batches, etc. (for more details, please refer to the [Megatron-LM project](https://github.com/NVIDIA/Megatron-LM/) and the Megatron papers ([Shoeybi20](https://arxiv.org/abs/1909.08053), [Narayanan21](https://arxiv.org/abs/2104.04473)).
+
+```bash
+sbatch 2.distributed-training.sbatch
+```
+
+Tips: the Llama2 example prints the estimated FLOPS/GPU (enabled via `--log-throughput` in the pretrain `.sbatch` file). You might want to look at [PR-682](https://github.com/NVIDIA/Megatron-LM/pull/682) and decide whether to patch your Megatron-LM to adjust the way FLOPS/GPU is calculated.
