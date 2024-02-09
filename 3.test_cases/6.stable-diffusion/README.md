@@ -417,7 +417,7 @@ kubectl delete -f mosaicml-sd-eks.yaml
 
 We were able to do a scaling test till 64 P5 nodes. The following charts show performance improvemnt and raw throughput numbers as we scale to 64 nodes:
 
-<img src="multi-node/ p5-model-scaling-stable-diff-throughput.png" width="80%"/> <img src="multi-node/p5-model-scaling-stable-diff-throughput.png" width="80%"/>
+<img src="multi-node/p5-model-scaling-stable-diff.png" width="80%"/> <img src="multi-node/p5-model-scaling-stable-diff-throughput.png" width="80%"/>
 
 
 
