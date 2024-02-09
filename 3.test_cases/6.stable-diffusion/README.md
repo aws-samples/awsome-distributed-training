@@ -382,5 +382,42 @@ docker image push ${REGISTRY}${DOCKER_IMAGE_NAME}:${TAG}
 ```
 #### 2.2.5 Now we can start training
 
-We provide a template YAML file for 
+We provide a template YAML file for submitting the stable diffusion distributed training job in [3.stable-diffusion-eks.yaml-template](https://github.com/aws-samples/awsome-distributed-training/blob/stable-diffusion-eks/3.test_cases/6.stable-diffusion/multi-node/3.stable-diffusion-eks.yaml-template). You can substitute the environment variables in the template manifest as:
+
+```bash
+cat 3.mosaicml-sd-eks.yaml-template | envsubst > mosaicml-sd-eks.yaml
+
+```
+
+To submit the training job, you need to deploy the `etcd` manifest first and then the training manifest.
+
+```bash
+kubectl apply -f ./etcd.yaml
+kubectl apply -f ./mosaicml-sd-eks.yaml
+```
+
+Once the pods are created, you can use the following to monitor the job:
+
+```bash
+# To view all the pods
+kubectl get pods -A
+
+# To view logs from a pod
+kubectl logs -f stable-diffusion-worker-0
+
+```
+
+To kill the training job:
+
+```bash
+kubectl delete -f mosaicml-sd-eks.yaml
+```
+
+#### 2.2.6 P5 scaling
+
+We were able to do a scaling test till 64 P5 nodes. The following charts show performance improvemnt and raw throughput numbers as we scale to 64 nodes:
+
+<img src="multi-node/p5-model-scaling-eks.png" width="80%"/> <img src="multi-node/p5-model-scaling-stable-diff-throughput.png" width="80%"/>
+
+
 
