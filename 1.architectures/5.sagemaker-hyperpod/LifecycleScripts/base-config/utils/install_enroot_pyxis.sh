@@ -87,3 +87,6 @@ if [[ $(mount | grep /fsx) ]]; then
     mkdir -p /fsx/enroot
     chmod 1777 /fsx/enroot
 fi
+
+systemctl is-active --quiet slurmctld && systemctl restart slurmctld || echo "This instance does not run slurmctld"
+systemctl is-active --quiet slurmd    && systemctl restart slurmd    || echo "This instance does not run slurmd"
