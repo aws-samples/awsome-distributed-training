@@ -35,12 +35,11 @@ def validate_subnet(ec2_client, cluster_config):
 def validate_sg(ec2_client, cluster_config):
     if cluster_config.get('VpcConfig'):
         security_group = cluster_config.get('VpcConfig').get('SecurityGroupIds')[0]
-        ec2_client = boto3.client('ec2')
         response = ec2_client.describe_security_groups(GroupIds=[security_group])
 
         ingress = response.get('SecurityGroups')[0].get('IpPermissions')
         egress = response.get('SecurityGroups')[0].get('IpPermissionsEgress')
-        
+
         for rule in ingress:
             if rule.get('IpProtocol') == '-1':
                 user_id_group_pairs = rule.get('UserIdGroupPairs')
@@ -68,7 +67,35 @@ def validate_sg(ec2_client, cluster_config):
                         print(f"✔️  Validated security group {security_group} egress rules ...")
     else:
         print("⭕️ No security group found in cluster_config.json ... skipping check.")
-    
+
+    return True
+
+def validate_fsx_lustre(fsx_client, cluster_config, provisioning_parameters):
+    fsx_dns_name = provisioning_parameters.get('fsx_dns_name')
+    if fsx_dns_name:
+        try:
+            response = fsx_client.describe_file_systems(FileSystemIds=[fsx_dns_name.split('.', 1)[0]])
+            returned_fsx_mount = response['FileSystems'][0]['LustreConfiguration']['MountName']
+            returned_fsx_dns_name = response['FileSystems'][0]['DNSName']
+
+            if returned_fsx_dns_name != fsx_dns_name:
+                print(f"❌ Incorrect FSx DNS name: {fsx_dns_name}. Did you mean {returned_fsx_dns_name}?")
+                return False
+
+            fsx_mountname = provisioning_parameters.get('fsx_mountname')
+            if returned_fsx_mount != fsx_mountname:
+                print(f"❌ Mismatch FSx mount name: {fsx_mountname}. Did you mean {returned_fsx_mount}?")
+                return False
+
+            print(f"✔️  Validated FSx Lustre DNS name {fsx_dns_name} ...")
+            print(f"✔️  Validated FSx Lustre mount name {fsx_mountname} ...")
+
+        except fsx_client.exceptions.FileSystemNotFound:
+            print(f"❌ File system {fsx_dns_name} does not exist.")
+            return False
+    else:
+        print("⭕️ No FSx Lustre found in provisioning_parameters.json ... skipping check.")
+
     return True
 
 
@@ -94,6 +121,9 @@ def main():
 
     # Validate Security Group
     valid = validate_sg(ec2_client, cluster_config) and valid
+
+    # Validate FSx Lustre
+    valid = validate_fsx_lustre(boto3.client('fsx'), cluster_config, provisioning_parameters) and valid
 
     if valid:
         # All good!
