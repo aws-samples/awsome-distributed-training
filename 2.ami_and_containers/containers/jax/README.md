@@ -38,17 +38,11 @@ Convert container to enroot format
 rm /fsx/paxml_jax-0.4.18-1.2.0.sqsh ; enroot import -o /fsx/paxml_jax-0.4.18-1.2.0.sqsh dockerd://paxml:jax-0.4.18-1.2.0
 ```
 
-Tips: when building on a compute node (or a build node), you save the built Docker image on a shared
-filesystem such as `/fsx`, to allow other nodes (e.g., head node, or other compute nodes) to load
-the image to their local Docker registry.
+## Run
+
+Once the container converted to the enroot format, you can run on a **Slurm** cluster the lm_clouds example of Pax.
+The following command submit a job to the **Slurm** cluster to train a 2B parameters transformer based SPMD language model on synthetic data.
 
 ```bash
-# Build node: save image to file
-docker save paxml:jax-0.4.18-1.2.0 > /fsx/paxml_jax-0.4.18-1.2.0.sqsh.tar
-
-# Load image to local docker registry -> on head node, or new compute/build node
-docker load < /fsx/paxml_jax-0.4.18-1.2.0.tar
-
-# Verify the image has been loaded
-docker images
+sbatch jax.sbatch
 ```
