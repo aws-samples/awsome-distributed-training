@@ -79,7 +79,7 @@ export DATASET_PATH=/fsx/
 ```bash
 cd /apps/
 git clone https://github.com/aws-samples/awsome-distributed-training.git
-cd awsome-distributed-training/3.test_cases/15.bionemo
+cd awsome-distributed-training/3.test_cases/14.bionemo
 ```
 
 ## 3. Pull Image
@@ -159,11 +159,10 @@ sbatch 2.esm1nv_pretrain.slurm
 Before kicking off training, first train, validation and test datasets are indexed and dataloaders are created and then you should see an example output like below:
 
 ```bash
-Epoch 0:   0%|          | 5393/1100000 [56:21<190:37:22,  1.60it/s, loss=2.64, v_num=, reduced_train_loss=2.640, global_step=4942.0, consumed_samples=4.
-Epoch 0:   0%|          | 5394/1100000 [56:21<190:37:00,  1.60it/s, loss=2.64, v_num=, reduced_train_loss=2.640, global_step=4942.0, consumed_samples=4.
-Epoch 0:   0%|          | 5394/1100000 [56:21<190:37:00,  1.60it/s, loss=2.64, v_num=, reduced_train_loss=2.640, global_step=4943.0, consumed_samples=4.
-Epoch 0:   0%|          | 5395/1100000 [56:22<190:36:32,  1.60it/s, loss=2.64, v_num=, reduced_train_loss=2.640, global_step=4943.0, consumed_samples=4.
-Epoch 0:   0%|          | 5395/1100000 [56:22<190:36:32,  1.60it/s, loss=2.64, v_num=, reduced_train_loss=2.650, global_step=4944.0, consumed_samples=4.
+Epoch 0:   3%|▎         | 34103/1100000 [5:28:58<171:22:21,  1.73it/s, loss=2.52, v_num=, reduced_train_loss=2.510, global_step=3.1e+4, consumed_samples=2.54e+8, val_loss=2.510]
+Epoch 0:   3%|▎         | 34106/1100000 [5:29:00<171:22:19,  1.73it/s, loss=2.52, v_num=, reduced_train_loss=2.520, global_step=3.1e+4, consumed_samples=2.54e+8, val_loss=2.510]
+Epoch 0:   3%|▎         | 34109/1100000 [5:29:02<171:22:09,  1.73it/s, loss=2.52, v_num=, reduced_train_loss=2.520, global_step=3.1e+4, consumed_samples=2.54e+8, val_loss=2.510]
+Epoch 0:   3%|▎         | 34112/1100000 [5:29:03<171:22:00,  1.73it/s, loss=2.52, v_num=, reduced_train_loss=2.520, global_step=3.1e+4, consumed_samples=2.54e+8, val_loss=2.510]
 ```
 
 
