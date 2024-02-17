@@ -77,4 +77,4 @@ srun -l "${ARGS[@]}"  python3 /workspace/bionemo/examples/protein/esm1nv/pretrai
     model.data.dataset.val=${VAL_FILES} \
     model.data.dataset.test=${TEST_FILES} \
     model.data.index_mapping_dir=${DATA_PATH} \
-    ++model.dwnstr_task_validation.dataset.dataset_path=/workspace/bionemo/examples/tests/test_data/protein/downstream
+    ++model.dwnstr_task_validation.enabled=False
