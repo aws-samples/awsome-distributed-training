@@ -162,7 +162,8 @@ Before kicking off training, first train, validation and test datasets are index
 Epoch 0:   0%|          | 5393/1100000 [56:21<190:37:22,  1.60it/s, loss=2.64, v_num=, reduced_train_loss=2.640, global_step=4942.0, consumed_samples=4.
 Epoch 0:   0%|          | 5394/1100000 [56:21<190:37:00,  1.60it/s, loss=2.64, v_num=, reduced_train_loss=2.640, global_step=4942.0, consumed_samples=4.
 Epoch 0:   0%|          | 5394/1100000 [56:21<190:37:00,  1.60it/s, loss=2.64, v_num=, reduced_train_loss=2.640, global_step=4943.0, consumed_samples=4.
-Epoch 0:   0%|          | 5395/1100000 [56:22<190:36:32,  1.60it/s, loss=2.64, v_num=, reduced_train_loss=2.640, global_step=4943.0, consumed_samples=4.Epoch 0:   0%|          | 5395/1100000 [56:22<190:36:32,  1.60it/s, loss=2.64, v_num=, reduced_train_loss=2.650, global_step=4944.0, consumed_samples=4.
+Epoch 0:   0%|          | 5395/1100000 [56:22<190:36:32,  1.60it/s, loss=2.64, v_num=, reduced_train_loss=2.640, global_step=4943.0, consumed_samples=4.
+Epoch 0:   0%|          | 5395/1100000 [56:22<190:36:32,  1.60it/s, loss=2.64, v_num=, reduced_train_loss=2.650, global_step=4944.0, consumed_samples=4.
 ```
 
 
