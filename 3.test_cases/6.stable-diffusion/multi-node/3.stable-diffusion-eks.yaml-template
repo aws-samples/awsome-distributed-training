@@ -10,13 +10,6 @@ spec:
     minReplicas: 1
     maxReplicas: 96
     maxRestarts: 100
-    #metrics:
-    #  - type: Resource
-    #    resource:
-    #      name: cpu
-    #      target:
-    #        type: Utilization
-    #        averageUtilization: 80
   pytorchReplicaSpecs:
     Worker:
       replicas: ${NUM_NODES}
@@ -28,8 +21,6 @@ spec:
         spec:
           volumes:
             - name: shmem
-              #emptyDir:
-              #  medium: Memory
               hostPath:
                 path: /dev/shm
           #nodeSelector:
@@ -49,22 +40,10 @@ spec:
               # for P5 FI_* should be commented out
               - name: LOGLEVEL
                 value: "DEBUG"
-              #- name: FI_PROVIDER
-              #  value: efa
-              #- name: FI_EFA_USE_DEVICE_RDMA
-              #  value: "1"
-              #- name: FI_EFA_FORK_SAFE
-              #  value: "1"
-              #- name: FI_LOG_LEVEL
-              #  value: "1"
-              #- name: FI_EFA_ENABLE_SHM_TRANSFER
-              #  value: "1"
               - name: NCCL_DEBUG
                 value: "INFO"
               - name: NCCL_ASYNC_ERROR_HANDLING
                 value: "1"
-              #- name: NCCL_IGNORE_DISABLED_P2P
-              #  value: "1"
               - name: WANDB_MODE
                 value: "offline"
               command:
