@@ -420,4 +420,10 @@ We were able to do a scaling test till 64 P5 nodes. The following charts show pe
 <img src="multi-node/p5-model-scaling-stable-diff.png" width="80%"/> <img src="multi-node/p5-model-scaling-stable-diff-throughput.png" width="80%"/>
 
 
+#### 2.2.7 Delete P5 nodegroup
 
+You can delete the P5 nodegroup either from the EKS console or from the CLI like below:
+
+```bash
+aws eks delete-nodegroup --cluster-name <Your-EKS-Cluster-Name> --nodegroup-name p5-48xlarge --output text
+```
