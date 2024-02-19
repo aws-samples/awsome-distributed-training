@@ -155,23 +155,22 @@ The remaining steps are similar to the GPT3 example. For more information, pleas
 ### 5.1. Download and prepocess data
 
 ```bash
-mkdir -p /fsx/llama2
-cd /fsx/llama2/
-# Then, place `tokenizer.json` and `tokenizer.model` to this directory.
+mkdir -p llama2
+# Then, place `tokenizer.json` and `tokenizer.model` to this `llama2/` directory.
 
 # Download sample dataset
-wget https://huggingface.co/bigscience/misc-test-data/resolve/main/stas/oscar-1GB.jsonl.xz
-xz -d oscar-1GB.jsonl.xz
+wget -P llama2 https://huggingface.co/bigscience/misc-test-data/resolve/main/stas/oscar-1GB.jsonl.xz
+xz -d llama2/oscar-1GB.jsonl.xz
 
 sbatch 3.data-preproc-llama2.sbatch
 ```
 
 ### 5.2. Run pretraining job
 
-Edit `4.pre-train-llama2.sh` to choose the model size you want to train. Do this by commenting and uncommenting the related stanzas. Feel free to experiment with the hyperparameters such as parallelism, batches, etc. (for more details, please refer to the [Megatron-LM project](https://github.com/NVIDIA/Megatron-LM/) and the Megatron papers ([Shoeybi20](https://arxiv.org/abs/1909.08053), [Narayanan21](https://arxiv.org/abs/2104.04473)).
+Edit `4.pre-train-llama2.sbatch` to choose the model size you want to train. Do this by commenting and uncommenting the related stanzas. Feel free to experiment with the hyperparameters such as parallelism, batches, etc. (for more details, please refer to the [Megatron-LM project](https://github.com/NVIDIA/Megatron-LM/) and the Megatron papers ([Shoeybi20](https://arxiv.org/abs/1909.08053), [Narayanan21](https://arxiv.org/abs/2104.04473)).
 
 ```bash
-sbatch 2.distributed-training.sbatch
+sbatch 4.pre-train-llama2.sbatch
 ```
 
 Tips: the Llama2 example prints the estimated FLOPS/GPU (enabled via `--log-throughput` in the pretrain `.sbatch` file). You might want to look at [PR-682](https://github.com/NVIDIA/Megatron-LM/pull/682) and decide whether to patch your Megatron-LM to adjust the way FLOPS/GPU is calculated.
