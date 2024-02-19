@@ -311,12 +311,29 @@ dev*         up   infinite      4   idle ip-10-1-4-190,ip-10-1-5-138,ip-10-1-18-
 
 You'll also find your FSx for Lustre volume mounted at `/fsx`.
 
-### 3.5 Deleting your Cluster 
+### 3.5 Patching your Cluster
+
+You can run `update-cluster-software` to update existing clusters with software and security patches provided by the SageMaker HyperPod service. More details can be found at [here](https://docs.aws.amazon.com/sagemaker/latest/dg/sagemaker-hyperpod-operate.html#sagemaker-hyperpod-operate-cli-command-update-cluster-software).
+
+```
+aws sagemaker update-cluster-software --cluster-name ml-cluster --region us-west-2
+```
+
+Note that this API will replace the instances' root volume and clean up data in it. You should back up your work before running it.
+We've included a script `patching-backup.sh` that can backup/restore the data via S3 bucket.
+```
+# to backup data to a S3 bucket, used before patching
+sudo bash backup.sh --create <s3-buckup-bucket-path>
+# to restore data from a S3 bucket, used after patching
+sudo bash backup.sh --restore <s3-buckup-bucket-path>
+```
+
+### 3.6 Deleting your Cluster
 
 When you're done with your cluster, you can delete it down with
 
 ```
-aws sagemaker delete-cluster --cluster-name ml-cluster --region us-west-2 
+aws sagemaker delete-cluster --cluster-name ml-cluster --region us-west-2
 ```
 
 Your FSx for Lustre volume will retain anything saved to it, and can be reattached to a future cluster.
