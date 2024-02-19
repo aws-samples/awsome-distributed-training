@@ -73,11 +73,11 @@ if [[ $(mount | grep /opt/dlami/nvme) ]]; then
     chmod 1777 /opt/dlami/nvme/tmp
     chmod 1777 /opt/dlami/nvme/tmp/enroot/
 
-    #mkdir -p /opt/dlami/nvme/tmp/enroot/data/
-    #chmod 1777 /opt/dlami/nvme/tmp/enroot/data/
+    mkdir -p /opt/dlami/nvme/tmp/enroot/data/
+    chmod 1777 /opt/dlami/nvme/tmp/enroot/data/
 
-    # mkdir -p /opt/dlami/nvme/enroot
-    # chmod 1777 /opt/dlami/nvme/enroot
+     mkdir -p /opt/dlami/nvme/enroot
+     chmod 1777 /opt/dlami/nvme/enroot
 
 fi
 
