@@ -261,15 +261,15 @@ export WORLD_SIZE=$((NUM_NODES*NUM_GPUS_PER_NODE))
 
 ```
 
-#### 2.2.1 Set up `do-eks` container
+#### 2.2.1 Set up `aws-do-eks` container
 
-First we need to run the `do-eks` container which has all the necessary kubectl tools installed. Just run:
+First we need to run the `aws-do-eks` container which has all the necessary kubectl tools installed. Just run:
 
 ```bash
 git clone https://github.com/aws-samples/aws-do-eks.git
 cd ./aws-do-eks
 
-# Build the do-eks Docker image
+# Build the aws-do-eks Docker image
 ./build.sh
 
 # Run container
@@ -285,7 +285,7 @@ cd /eks/impl/aws
 
 #### 2.2.2 Add a Managed P5 Nodegroup
 
-To add a managed P5 nodegroup, we will follow the steps listed in the [aws-do-eks](https://github.com/aws-samples/aws-do-eks/tree/main/Container-Root/eks/impl/aws) project.
+To add a managed P5 nodegroup, we will follow the steps listed in the [`aws-do-eks`](https://github.com/aws-samples/aws-do-eks/tree/main/Container-Root/eks/impl/aws) project.
 
 1. First we need to create a P5 launch template and to do that we need to fill out the nodegroup.conf config
 
@@ -380,7 +380,16 @@ echo "Pushing image ${REGISTRY}${DOCKER_IMAGE_NAME}:${TAG}"
 docker image push ${REGISTRY}${DOCKER_IMAGE_NAME}:${TAG}
 
 ```
-#### 2.2.5 Now we can start training
+#### 2.2.5 Deploy Kubeflow training operator
+
+[Kubeflow Training Operator](https://github.com/kubeflow/training-operator/) is a Kubernetes-native project for fine-tuning and scalable distributed training allows you to use Kubernetes workloads to effectively train your large models via [Kubernetes Custom Resources APIs](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/) or using Training Operator Python SDK. You can do that with ease from within the `aws-do-eks` container and execute the following:
+
+```bash
+cd /eks/deployment/kubeflow/training-operator
+./deploy.sh
+```
+
+#### 2.2.6 Now we can start training
 
 We provide a template YAML file for submitting the stable diffusion distributed training job in [3.stable-diffusion-eks.yaml-template](https://github.com/aws-samples/awsome-distributed-training/blob/stable-diffusion-eks/3.test_cases/6.stable-diffusion/multi-node/3.stable-diffusion-eks.yaml-template). You can substitute the environment variables in the template manifest as:
 
@@ -413,14 +422,14 @@ To kill the training job:
 kubectl delete -f mosaicml-sd-eks.yaml
 ```
 
-#### 2.2.6 P5 scaling
+#### 2.2.7 P5 scaling
 
 We were able to do a scaling test till 64 P5 nodes. The following charts show performance improvemnt and raw throughput numbers as we scale to 64 nodes:
 
 <img src="multi-node/p5-model-scaling-stable-diff.png" width="80%"/> <img src="multi-node/p5-model-scaling-stable-diff-throughput.png" width="80%"/>
 
 
-#### 2.2.7 Delete P5 nodegroup
+#### 2.2.8 Delete P5 nodegroup
 
 You can delete the P5 nodegroup either from the EKS console or from the CLI like below:
 
