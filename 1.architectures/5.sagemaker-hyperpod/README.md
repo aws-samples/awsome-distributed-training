@@ -6,11 +6,11 @@ SageMaker HyperPod clusters provide the ability to create customized clusters, t
 
 The example that follows describes the process of setting up a SageMaker HyperPod cluster with an attached FSX for Lustre volume.
 
-## 2. Pre-requisites
+## 2. Prerequisites
 
 Before creating a cluster, we need to install the latest [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html), and setup the appropriate IAM role, VPC, FSx for Lustre volume, and S3 bucket.
 
-### 2.1. Create IAM Role
+### 2.1. Create an IAM role
 
 First, we need to create a role with SageMaker and related resources as trusted entities.
 
@@ -37,7 +37,7 @@ aws iam attach-role-policy \
     --policy-arn $POLICY
 ```
 
-### 2.2. Create S3 Bucket
+### 2.2. Create an S3 bucket
 
 Next, we'll need an S3 bucket. This bucket will be used to store the lifecycle scripts used to setup and configure our cluster.
 
@@ -51,7 +51,7 @@ aws s3 mb s3://${BUCKET}
 
 ### 2.3. Create VPC (Optional)
 
-Now we can create a VPC. This is only necessary if you want to attach your cluster to VPC specific resources. For example, to attach a shared FSx for Lustre volume to your cluster.
+Now we can create a VPC. This is only necessary if you want to attach your HyperPod cluster to VPC specific resources. For example, to attach a shared FSx for Lustre volume to your HyperPod cluster.
 
 You can create a VPC using the configuration in [2.SageMakerVPC.yaml](./2.SageMakerVPC.yaml). Which is also available via [<kbd> <br> 1-Click Deploy 🚀 <br> </kbd>](https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/quickcreate?templateURL=https://awsome-distributed-training.s3.amazonaws.com/templates/Vpc.yaml&stackName=SageMakerVPC)
 
@@ -63,7 +63,7 @@ Wait for this CloudFormation script to complete before continuing to the next st
 
 ### 2.3. Create FSx for Lustre (Optional)
 
-FSx for Lustre provides a shared high performance file system that's accessible across all nodes in your cluster.
+FSx for Lustre provides a shared high performance file system that's accessible across all nodes in your HyperPod cluster.
 
 Similar to the VPC we just created, you can create an FSx for Lustre volume using [3.FSxLustre.yaml](./3.FSxLustre.yaml), or by using [<kbd> <br> 1-Click Deploy 🚀 <br> </kbd>](https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/quickcreate?templateURL=https://awsome-distributed-training.s3.amazonaws.com/templates/FSxLustre.yaml&stackName=FSxLustre)
 
@@ -73,13 +73,13 @@ Change the name, capacity, throughput, and compression configurations as you wis
 
 Your FSx for Lustre volume will take about 10 minutes to deploy. In the meantime, we can setup our lifecycle scripts.
 
-## 3. Cluster Setup
+## 3. Cluster setup
 
 Now that we have all our infrastructure in place, we can create a cluster.
 
-### 3.1 Lifecycle Scripts
+### 3.1 Lifecycle scripts
 
-Lifecycle scripts tell SageMaker HyperPod how to setup your cluster. HyperPod clusters can be launched as plain EC2 clusters with nothing installed, or can be created with configurations and users customized to fit a particular machine learning development workflow. We provide a [base configuration](./LifecycleScripts/base-config) to get started, which creates a basic Slurm cluster. Below is a brief description of what each script is doing.
+Lifecycle scripts tell SageMaker HyperPod how to setup your HyperPod cluster. HyperPod clusters can be launched as plain EC2 clusters with nothing installed, or can be created with configurations and users customized to fit a particular machine learning development workflow. We provide a [base configuration](./LifecycleScripts/base-config) to get started, which creates a basic Slurm cluster. Below is a brief description of what each script is doing.
 
 | Script      | Description |
 | ----------- | ----------- |
@@ -136,7 +136,7 @@ Add both to your `provisioning_parameters.json` file. For example,
 }
 ```
 
-Make sure the `instance_group_name` matches the instance group name `InstanceGroupName` in your cluster config which we create next.
+Make sure the `instance_group_name` matches the instance group name `InstanceGroupName` in your HyperPod cluster config which we create next.
 
 Copy the updated `provisioning_parameters.json` to S3:
 
@@ -146,7 +146,7 @@ aws s3 cp LifeCycleScripts/base-config/provisioning_parameters.json s3://${BUCKE
 
 Lifecycle scripts can be reused across multiple cluster. This can be handy particularly if you want to move the work saved on your FSx for Lustre volume to a new cluster.
 
-### 3.2 Cluster Configuration
+### 3.2 Cluster configuration
 
 Next we can configure our actual cluster.
 
@@ -182,7 +182,7 @@ cat > cluster-config.json << EOL
 EOL
 ```
 
-And finally, if you created a VPC and FSx for Lustre volume, we need to create a configuration to make sure your cluster is created in the correct VPC. 
+And finally, if you created a VPC and FSx for Lustre volume, we need to create a configuration to make sure your HyperPod cluster is created in the correct VPC. 
 
 ```
 cat > vpc-config.json << EOL
@@ -219,7 +219,7 @@ aws ec2 describe-security-groups \
               'Name=vpc-id,Values=vpc-0123456789012345a'
 ```
 
-### 3.3 Launch Cluster
+### 3.3 Launch a new cluster
 
 Now that everything is in place, we can launch our cluster with the command from the `5.sagemaker-hyperpod` directory.
 
@@ -237,21 +237,21 @@ You can see the current state of the cluster with
 aws sagemaker describe-cluster --cluster-name ml-cluster --region us-west-2 
 ```
 
-Or list all your cluster with
+Or list all your HyperPod cluster with
 
 ```
 aws sagemaker list-clusters
 ```
 
-You can see information on all your cluster nodes with 
+You can see information on all your HyperPod cluster nodes with 
 
 ```
 aws sagemaker list-cluster-nodes --cluster-name ml-cluster --region us-west-2 
 ```
 
-### 3.4 SSH Into Your Cluster
+### 3.4 SSH into your HyperPod cluster
 
-To log into your cluster, you need the cluster id from the cluster arn, instance ID of your controller node, and instance group name of your controller group. You can your cluster ID with
+To log into your HyperPod cluster, you need the cluster id from the cluster arn, instance ID of your controller node, and instance group name of your controller group. You can your HyperPod cluster ID with
 
 ```
 aws sagemaker describe-cluster --cluster-name ml-cluster --region us-west-2
@@ -293,7 +293,7 @@ TARGET_ID=sagemaker-cluster:${CLUSTER_ID}_${CONTROLLER_GROUP}-${INSTANCE_ID}
 aws ssm start-session --target $TARGET_ID
 ```
 
-To make this process easier, we've included an `easy-ssh.sh` script that takes your cluster name and logs you in.
+To make this process easier, we've included an `easy-ssh.sh` script that takes your HyperPod cluster name and logs you in.
 
 ```
 ./easy-ssh.sh ml-cluster
@@ -311,26 +311,26 @@ dev*         up   infinite      4   idle ip-10-1-4-190,ip-10-1-5-138,ip-10-1-18-
 
 You'll also find your FSx for Lustre volume mounted at `/fsx`.
 
-### 3.5 Patching your Cluster
+### 3.5 Patching your HyperPod cluster
 
-You can run `update-cluster-software` to update existing clusters with software and security patches provided by the SageMaker HyperPod service. More details can be found at [here](https://docs.aws.amazon.com/sagemaker/latest/dg/sagemaker-hyperpod-operate.html#sagemaker-hyperpod-operate-cli-command-update-cluster-software).
+Run `update-cluster-software` to update existing HyperPod clusters with software and security patches provided by the SageMaker HyperPod service. For more details, see [Update the SageMaker HyperPod platform software of a cluster](https://docs.aws.amazon.com/sagemaker/latest/dg/sagemaker-hyperpod-operate.html#sagemaker-hyperpod-operate-cli-command-update-cluster-software) in the *Amazon SageMaker Developer Guide*.
 
 ```
 aws sagemaker update-cluster-software --cluster-name ml-cluster --region us-west-2
 ```
 
-Note that this API will replace the instances' root volume and clean up data in it. You should back up your work before running it.
-We've included a script `patching-backup.sh` that can backup/restore the data via S3 bucket.
+Note that this API replaces the instance root volume and cleans up data in it. You should back up your work before running it.
+We've included a script `patching-backup.sh` that can backup and restore the data via Amazon S3.
 ```
-# to backup data to a S3 bucket, used before patching
-sudo bash backup.sh --create <s3-buckup-bucket-path>
-# to restore data from a S3 bucket, used after patching
-sudo bash backup.sh --restore <s3-buckup-bucket-path>
+# to backup data to an S3 bucket before patching
+sudo bash patching-backup.sh --create <s3-buckup-bucket-path>
+# to restore data from an S3 bucket after patching
+sudo bash patching-backup.sh --restore <s3-buckup-bucket-path>
 ```
 
-### 3.6 Deleting your Cluster
+### 3.6 Deleting your HyperPod cluster
 
-When you're done with your cluster, you can delete it down with
+When you're done with your HyperPod cluster, you can delete it down with
 
 ```
 aws sagemaker delete-cluster --cluster-name ml-cluster --region us-west-2
