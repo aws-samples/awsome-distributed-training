@@ -23,21 +23,18 @@ spec:
             - name: shmem
               hostPath:
                 path: /dev/shm
-          #nodeSelector:
-          #  node.kubernetes.io/instance-type: "p5.48xlarge"
           containers:
             - name: pytorch
               image: ${REGISTRY}${DOCKER_IMAGE_NAME}:{TAG}
               imagePullPolicy: Always
               resources:
                 requests:
-                  nvidia.com/gpu:
+                  nvidia.com/gpu: 8
                   vpc.amazonaws.com/efa: 32
                 limits:
                   nvidia.com/gpu:
                   vpc.amazonaws.com/efa: 32
               env:
-              # for P5 FI_* should be commented out
               - name: LOGLEVEL
                 value: "DEBUG"
               - name: NCCL_DEBUG
