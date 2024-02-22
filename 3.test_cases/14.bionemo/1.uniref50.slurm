@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --nodes=1                    # number of nodes
 #SBATCH --ntasks-per-node=1          # n tasks per machine (one task per gpu) <required>
-#SBATCH --gpus-per-node=8
+#SBATCH --cpus-per-task=16
 #SBATCH --exclusive                   # exclusive node access
 #SBATCH --output slurm-uniref-%j.out
 
@@ -11,7 +11,7 @@
 ###########################
 
 # default variables for Enroot
-: "${IMAGE:=$(pwd)/bionemo.sqsh}"
+: "${IMAGE:=$(pwd)/${ENROOT_IMAGE}}"
 : "${DATA_PATH:=/fsx}"
 : "${FSX_MOUNT:=$DATA_PATH:$DATA_PATH}"
 
