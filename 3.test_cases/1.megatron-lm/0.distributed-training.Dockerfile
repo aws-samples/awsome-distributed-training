@@ -1,7 +1,7 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 
-FROM nvcr.io/nvidia/pytorch:24.01-py3
+FROM nvcr.io/nvidia/pytorch:23.09-py3
 
 ARG EFA_INSTALLER_VERSION=1.30.0
 ARG AWS_OFI_NCCL_VERSION=v1.7.4-aws
@@ -16,7 +16,7 @@ RUN apt-get remove -y --allow-change-held-packages \
 
 RUN rm -rf /opt/hpcx/ompi \
     && rm -rf /usr/local/mpi \
-    && rm -rf /opt/hpcx/nccl_rdma_sharp_plugin \
+    && rm -rf /usr/local/ucx \
     && ldconfig
 
 RUN DEBIAN_FRONTEND=noninteractive apt install -y --allow-unauthenticated \
