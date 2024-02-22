@@ -11,7 +11,7 @@
 ###########################
 
 # default variables for Enroot
-: "${IMAGE:=$(pwd)/bionemo.sqsh}"
+: "${IMAGE:=$(pwd)/${ENROOT_IMAGE}}"
 : "${DATA_PATH:=/fsx}"
 : "${FSX_MOUNT:=$DATA_PATH:$DATA_PATH}"
 
