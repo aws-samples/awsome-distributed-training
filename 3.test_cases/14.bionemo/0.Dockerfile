@@ -1,9 +1,9 @@
 FROM nvcr.io/nvidia/clara/bionemo-framework:latest
 
-ARG EFA_INSTALLER_VERSION=latest
-ARG AWS_OFI_NCCL_VERSION=v1.7.3-aws
+ARG EFA_INSTALLER_VERSION=1.30.0
+ARG AWS_OFI_NCCL_VERSION=v1.7.4-aws
 ARG NCCL_TESTS_VERSION=master
-ARG NCCL_VERSION=v2.18.5-1
+ARG NCCL_VERSION=v2.18.6-1
 RUN apt-get update -y
 RUN apt-get remove -y --allow-change-held-packages \
     libmlx5-1 ibverbs-utils libibverbs-dev libibverbs1 libnccl2 libnccl-dev
@@ -47,6 +47,7 @@ RUN git clone https://github.com/NVIDIA/gdrcopy.git /opt/gdrcopy \
     && make lib_install install \
     && cd /opt/gdrcopy/tests \
     && make \
+    && make install \
     && mv gdrcopy_copylat gdrcopy_copybw gdrcopy_sanity gdrcopy_apiperf /usr/bin/
 
 #################################################
@@ -59,13 +60,6 @@ RUN cd $HOME \
     && rm -rf $HOME/aws-efa-installer
 
 ###################################################
-## Install NCCL
-RUN git clone https://github.com/NVIDIA/nccl -b ${NCCL_VERSION} /opt/nccl \
-    && cd /opt/nccl \
-    && make -j src.build CUDA_HOME=/usr/local/cuda \
-    NVCC_GENCODE="-gencode=arch=compute_80,code=sm_80 -gencode=arch=compute_86,code=sm_86 -gencode=arch=compute_90,code=sm_90"
-
-###################################################
 ## Install AWS-OFI-NCCL plugin
 RUN apt-get install libtool autoconf cmake nasm unzip pigz parallel nfs-common build-essential hwloc libhwloc-dev libjemalloc2 libnuma-dev numactl libjemalloc-dev preload htop iftop liblapack-dev libgfortran5 ipcalc wget curl devscripts debhelper check libsubunit-dev fakeroot pkg-config dkms -y
 RUN export OPAL_PREFIX="" \
@@ -73,11 +67,12 @@ RUN export OPAL_PREFIX="" \
     && cd /opt/aws-ofi-nccl \
     && git checkout ${AWS_OFI_NCCL_VERSION} \
     && ./autogen.sh \
-    && ./configure --prefix=/opt/aws-ofi-nccl/install \
-    --with-libfabric=/opt/amazon/efa/ \
+    && ./configure --prefix=/opt/aws-ofi-nccl \
+    --with-libfabric=/opt/amazon/efa \
     --with-cuda=/usr/local/cuda \
     --with-nccl=/opt/nccl/build \
-    --with-mpi=/opt/amazon/openmpi/ \
+    --with-mpi=/opt/amazon/openmpi \
+    --enable-platform-aws
     && make && make install
 
 ###################################################
