@@ -37,22 +37,6 @@ create_user() {
   bash_path=$(which bash)
   useradd -m "$username" --uid "$uid" -d "$homepath" --shell "$bash_path" || (echo "Failed to create user $username with uid $uid" && return)
 
-  usermod -aG sudo "$username"
-
-  if getent group ubuntu >/dev/null; then
-    echo "Group ubuntu exists."
-    usermod -aG ubuntu "$username"
-  else
-    echo "Group ubuntu does not exist."
-  fi
-
-  if getent group docker >/dev/null; then
-    echo "Group docker exists."
-    usermod -aG docker "$username"
-  else
-    echo "Group docker does not exist."
-  fi
-
   if test ! -e "$homepath/.ssh/id_rsa"; then
     echo "No ssh keygen, creating a new one"
     mkdir -p "$homepath/.ssh/"
