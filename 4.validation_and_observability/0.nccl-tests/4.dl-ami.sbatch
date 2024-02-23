@@ -1,6 +1,4 @@
 #!/bin/bash
-#SBATCH -o nccl_all_reduce_perf.out
-#SBATCH -e nccl_all_reduce_perf.err
 #SBATCH -N 2
 #SBATCH --exclusive
 
