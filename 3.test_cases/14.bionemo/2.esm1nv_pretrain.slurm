@@ -5,6 +5,8 @@
 #SBATCH --exclusive                   # exclusive node access
 #SBATCH --output slurm-esm1nv-train-%j.out
 
+export FI_EFA_USE_HUGE_PAGE=0
+
 
 ###########################
 ###### User Variables #####
