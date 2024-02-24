@@ -21,5 +21,5 @@ mpirun -n $((8 * SLURM_JOB_NUM_NODES)) -N 8 \
 	-x NCCL_DEBUG=INFO \
 	--mca pml ^cm \
 	--mca btl tcp,self \
-	--mca btl_tcp_if_exclude lo,docker0 \
+	--mca btl_tcp_if_exclude lo,docker0,veth_def_agent \
 	--bind-to none /usr/local/cuda-12.2/efa/test-cuda-12.2/all_reduce_perf -b 8 -e 2G -f 2 -g 1 -c 1 -n 100
