@@ -149,6 +149,8 @@ def main(args):
         if node_type == SlurmNodeType.HEAD_NODE:
             ExecuteBashScript("./setup_mariadb_accounting.sh").run()
 
+        ExecuteBashScript("./utils/motd.sh").run(node_type)
+
         ExecuteBashScript("./start_slurm.sh").run(node_type, ",".join(controllers))
 
         ## Note: Uncomment the below lines to install docker and enroot.
