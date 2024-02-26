@@ -2,8 +2,8 @@
 # Creates users from `shared_users.txt` file
 # each line in the `shared_users.txt` file should be of the format:
 # ```
-# username1,uid1
-# username2,uid2
+# username1,uid1,/fsx/username1
+# username2,uid2,/fsx/username2
 # ```
 # 
 # The script should be run as root user
@@ -20,6 +20,7 @@ SHARED_USER_FILE="shared_users.txt"
 create_user() {
   local username=$1
   local uid=$2
+  local home=$3
 
   # check if username already exists
   if id -u "$username"  >/dev/null 2>&1; then
@@ -33,9 +34,9 @@ create_user() {
     return
   fi
   
-  # create user with uid and directory
-  if useradd -m $username --uid $uid -d "/home/$username"; then
-    echo "Created user $username with uid $uid"
+  # create user with uid and home directory
+  if useradd -m $username --uid $uid -d "${home}"; then
+    echo "Created user $username with uid $uid and home $home."
   else
     echo "Failed to create user $username with uid $uid"
   fi
