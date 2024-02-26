@@ -95,6 +95,6 @@ RUN echo "hwloc_base_binding_policy = none" >> /opt/amazon/openmpi/etc/openmpi-m
 RUN git clone https://github.com/mosaicml/llm-foundry.git llm-foundry \
     && cd llm-foundry \
     && git checkout $LLM_FOUNDRY_VERSION \
-    && pip install -e ".[gpu]" \
+    && pip install -e ".[gpu-flash2]" \
     && pip install flash-attn==1.0.7 --no-build-isolation \
     && pip install git+https://github.com/NVIDIA/TransformerEngine.git@v0.10
