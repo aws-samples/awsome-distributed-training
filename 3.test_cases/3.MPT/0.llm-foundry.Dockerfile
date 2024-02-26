@@ -1,9 +1,9 @@
-FROM mosaicml/llm-foundry:2.1.0_cu121_flash2_aws-latest
+FROM mosaicml/llm-foundry:2.2.0_cu121_flash2_aws-latest
 
-ARG EFA_INSTALLER_VERSION=latest
-ARG AWS_OFI_NCCL_VERSION=v1.7.3-aws
+ARG EFA_INSTALLER_VERSION=1.30.0
+ARG AWS_OFI_NCCL_VERSION=v1.7.4-aws
 ARG NCCL_TESTS_VERSION=master
-ARG NCCL_VERSION=2.18.5-1
+ARG NCCL_VERSION=v2.18.6-1
 ARG LLM_FOUNDRY_VERSION=v0.4.0
 ARG OPEN_MPI_PATH=/opt/amazon/openmpi
 
