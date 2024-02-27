@@ -119,12 +119,12 @@ def main(args):
     params = ProvisioningParameters(args.provisioning_parameters)
     resource_config = ResourceConfig(args.resource_config)
 
-    ExecuteBashScript("./add_users.sh").run()
-
     fsx_dns_name, fsx_mountname = params.fsx_settings
     if fsx_dns_name and fsx_mountname:
         print(f"Mount fsx: {fsx_dns_name}. Mount point: {fsx_mountname}")
         ExecuteBashScript("./mount_fsx.sh").run(fsx_dns_name, fsx_mountname)
+
+    ExecuteBashScript("./add_users.sh").run()
 
     if params.workload_manager == "slurm":
         # Wait until slurm will be configured
