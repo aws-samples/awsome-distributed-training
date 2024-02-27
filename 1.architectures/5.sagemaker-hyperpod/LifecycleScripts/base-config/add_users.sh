@@ -35,7 +35,7 @@ create_user() {
   fi
   
   # create user with uid and directory
-  if useradd -m $username --uid $uid -d $home; then
+  if useradd -m $username --uid $uid -d $home --shell /bin/bash; then
     echo "Created user $username with uid $uid and home $home."
   else
     echo "Failed to create user $username with uid $uid"
