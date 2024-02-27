@@ -151,6 +151,8 @@ def main(args):
 
         ExecuteBashScript("./utils/motd.sh").run(node_type)
 
+        ExecuteBashScript("./utils/fsx_ubuntu.sh").run()
+
         ExecuteBashScript("./start_slurm.sh").run(node_type, ",".join(controllers))
 
         ## Note: Uncomment the below lines to install docker and enroot.
