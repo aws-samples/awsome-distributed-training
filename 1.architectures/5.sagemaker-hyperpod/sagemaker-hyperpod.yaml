@@ -7,8 +7,7 @@ Description: >
   these include VPC and two Subnets, a security group, a FSx Lustre Filesystem, S3 Bucket and IAM Role.
   A public subnet and a private subnet are created in an Availability Zone that you provide as a parameter.
   As part of the template you'll deploy an Internet Gateway and NAT Gateway in
-  the public subnet. In addition you can deploy endpoints for Amazon S3 and
-  Amazon DynamoDB. The VPC contains 2 CIDR blocks with 10.0.0.0/16 and 10.1.0.0/16
+  the public subnet. In addition you deploy endpoints for Amazon S3. The VPC contains 2 CIDR blocks with 10.0.0.0/16 and 10.1.0.0/16
   The first CIDR is used for the public subnet, the second is used for the private.
   The template creates an fsx lustre volume in the specified AZ with a default of
   1.2 TB storage which can be overridden by parameter. A role is also created which
