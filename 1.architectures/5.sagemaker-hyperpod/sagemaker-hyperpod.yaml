@@ -426,7 +426,7 @@ Resources:
     Properties:
       BucketName: 
        !Sub
-          - !Ref S3Bucket'-${RandomGUID}'
+          - '${S3Bucket}-${RandomGUID}'
           - { RandomGUID: !Select [0, !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId ]]]] }
 
     
