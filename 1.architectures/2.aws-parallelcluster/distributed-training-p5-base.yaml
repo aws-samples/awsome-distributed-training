@@ -1,0 +1,111 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+Imds:
+  ImdsSupport: v2.0
+Image:
+  Os: alinux2
+HeadNode:
+  InstanceType: m5.4xlarge
+  Networking:
+    SubnetId: PLACEHOLDER_PUBLIC_SUBNET
+  Ssh:
+    KeyName: PLACEHOLDER_SSH_KEY
+  LocalStorage:
+    RootVolume:
+      Size: 500
+      DeleteOnTermination: true # that's your root and /home volume for users
+  Iam:
+    AdditionalIamPolicies: # grant ECR, SSM and S3 read access
+      - Policy: arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      - Policy: arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
+      - Policy: arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+  CustomActions:
+    OnNodeConfigured:
+      Sequence:
+        - Script: https://raw.githubusercontent.com/aws-samples/aws-parallelcluster-post-install-scripts/authentication-credentials/pyxis/postinstall.sh
+          Args:
+            - /apps
+        - Script: https://raw.githubusercontent.com/aws-samples/aws-parallelcluster-post-install-scripts/main/docker/postinstall.sh
+LoginNodes:
+  Pools:
+    - Name: login-nodes
+      Count: 1
+      InstanceType: c5.xlarge
+      Networking:
+        SubnetIds:
+          - PLACEHOLDER_PUBLIC_SUBNET
+      Iam:
+        AdditionalIamPolicies: 
+          - Policy: arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+          - Policy: arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
+          - Policy: arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+
+Scheduling:
+  Scheduler: slurm
+  SlurmSettings:
+    QueueUpdateStrategy: DRAIN
+    ScaledownIdletime: 120
+    CustomSlurmSettings:
+      # Simple accounting to text file /home/slurm/slurm-job-completions.txt.
+      #
+      # Must be disabled should you prefer to setup Slurm accounting to database
+      # (https://docs.aws.amazon.com/parallelcluster/latest/ug/slurm-accounting-v3.html).
+      #
+      # NOTE: JobCompType entry will be duplicated, hence will cause a harmless
+      # warning message in `systemctl status --no-pager slurmctld`.
+      - JobCompType: jobcomp/filetxt
+      - JobCompLoc: /home/slurm/slurm-job-completions.txt
+      - JobAcctGatherType: jobacct_gather/linux
+  SlurmQueues:
+    - Name: compute-gpu
+      CapacityType: ONDEMAND
+      Networking:
+        SubnetIds:
+          - PLACEHOLDER_PRIVATE_SUBNET
+        PlacementGroup:
+            Enabled: false
+      ComputeSettings:
+        LocalStorage:
+          EphemeralVolume:
+            MountDir: /local_scratch # each instance has a local scratch on NVMe
+          RootVolume:
+            Size: 200
+      # The capacity reservation section is recommended if you use instances
+      # with a targeted ODCRs. You can also use a capacity resource group and
+      # CapacityReservationResourceGroupArn if you want to regroup
+      # multiple reservations
+      # CapacityReservationTarget:
+      #  CapacityReservationId:
+      ComputeResources:
+        - Name: p5
+          InstanceType: p5.48xlarge
+          MinCount: 0 # if min = max then capacity is maintained and will
+          MaxCount: 4 # not scale down
+          Efa:
+            Enabled: true
+      CustomActions:
+        OnNodeConfigured:
+          Sequence:
+            - Script: https://raw.githubusercontent.com/aws-samples/aws-parallelcluster-post-install-scripts/authentication-credentials/pyxis/postinstall.sh
+              Args:
+                - /apps
+            - Script: https://raw.githubusercontent.com/aws-samples/aws-parallelcluster-post-install-scripts/main/docker/postinstall.sh
+      JobExclusiveAllocation: true   # GenAI training likes to gobble all GPUs in an instance
+SharedStorage:
+  - Name: SharedEBS
+    StorageType: Ebs
+    MountDir: /apps # Store your shared apps & scripts here
+    EbsSettings:
+      VolumeType: gp3
+      Size: 400
+      Throughput: 125
+      Iops: 3000
+Monitoring:
+  DetailedMonitoring: true
+  Logs:
+    CloudWatch:
+      Enabled: true # good for debug
+  Dashboards:
+    CloudWatch:
+      Enabled: true # provide basic dashboards
