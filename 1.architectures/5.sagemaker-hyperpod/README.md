@@ -81,17 +81,17 @@ Now that we have all our infrastructure in place, we can create a cluster.
 
 Lifecycle scripts tell SageMaker HyperPod how to setup your HyperPod cluster. HyperPod clusters can be launched as plain EC2 clusters with nothing installed, or can be created with configurations and users customized to fit a particular machine learning development workflow. We provide a [base configuration](./LifecycleScripts/base-config) to get started, which creates a basic Slurm cluster. Below is a brief description of what each script is doing.
 
-| Script      | Description |
-| ----------- | ----------- |
-| add_users.sh      | [Optional] creates posix users specified in a file shared_users.txt       |
-| lifecycle_script.py | This is the main entrypoint, sets everything else up. |
-| mount_fsx.sh | Mounts an FSx for Lustre filesystem. |
-| on_create.sh | Entrypoint for clusters. This script calls lifecycle_script.py |
+| Script                       | Description                                                                                                                                    |
+|------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------|
+| add_users.sh                 | [Optional] creates posix users specified in a file shared_users.txt                                                                            |
+| lifecycle_script.py          | This is the main entrypoint, sets everything else up.                                                                                          |
+| mount_fsx.sh                 | Mounts an FSx for Lustre filesystem.                                                                                                           |
+| on_create.sh                 | Entrypoint for clusters. This script calls lifecycle_script.py                                                                                 |
 | provisioning_parameters.json | Defines scheduler type Slurm and sets the partitions up also specifies FSx for Lustre Filesystem to attach. We'll modify this in a later step. |
-| setup_mariadb_accounting.sh | Sets up Slurm Accounting  with a local mariadb server running on the HeadNode. |
-| setup_rds_accounting.sh | Sets up Slurm Accounting  with a RDS endpoint. |
-| shared_users_sample.txt | Sample of how to specify users for the add_users.sh script. |
-| start_slurm.sh | Starts the Slurm scheduler daemon. |
+| setup_mariadb_accounting.sh  | Sets up Slurm Accounting  with a local mariadb server running on the HeadNode.                                                                 |
+| setup_rds_accounting.sh      | Sets up Slurm Accounting  with a RDS endpoint.                                                                                                 |
+| shared_users_sample.txt      | Sample of how to specify users for the add_users.sh script.                                                                                    |
+| start_slurm.sh               | Starts the Slurm scheduler daemon.                                                                                                             |
 
 
 Also note that there are two scripts in `utils` to install [Docker](https://www.docker.com/), [Enroot](https://github.com/NVIDIA/enroot), and [Pyxis](https://github.com/NVIDIA/pyxis). These scripts can be enabled by uncommenting these lines in `lifecycle_script.py`:
