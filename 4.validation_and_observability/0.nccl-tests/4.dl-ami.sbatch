@@ -10,7 +10,7 @@
 set -ex
 
 # Get Hostname to Instance ID mapping
-mpirun -N 1 bash -c 'echo $(hostname) -> $(cat /sys/devices/virtual/dmi/id/board_asset_tag | tr -d " ")'
+mpirun -N 1 bash -c 'echo $(hostname) ➡️ $(cat /sys/devices/virtual/dmi/id/board_asset_tag | tr -d " ")'
 
 # run all_reduce test
 mpirun -n $((8 * SLURM_JOB_NUM_NODES)) -N 8 \
