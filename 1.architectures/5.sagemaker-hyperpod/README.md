@@ -320,7 +320,7 @@ In order to run the script on multiple nodes at once use `srun`
 
 ```bash
 # this runs on 8 nodes
-srun -N 8 python3 hyperpod-precheck.py`
+srun -N 8 python3 hyperpod-precheck.py
 ```
 
 Follow the mitigations listed in this table if one of the checks fails:
