@@ -26,6 +26,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Efa-installer>=1.29.0 required for nccl>=2.19.0 to avoid libfabric NCCL error.
 ENV EFA_INSTALLER_VERSION=1.30.0
 ENV AWS_OFI_NCCL_VERSION=1.7.4-aws
+ENV NCCL_VERSION=2.19.3-1
 ENV NCCL_TESTS_VERSION=master
 
 RUN apt-get update -y
@@ -107,7 +108,6 @@ ENV PATH=/opt/amazon/efa/bin:/opt/amazon/openmpi/bin:$PATH
 # NCCL EFA plugin (aws-ofi-nccl) depends on mpi, hence we must rebuild openmpi before building the
 # aws-ofi-ccnl.
 ####################################################################################################
-ENV NCCL_VERSION=2.19.3-1
 RUN apt-get remove -y libnccl2 libnccl-dev \
    && cd /tmp \
    && git clone https://github.com/NVIDIA/nccl.git -b v${NCCL_VERSION} \
@@ -235,3 +235,13 @@ RUN export TORCH_CUDA_ARCH_LIST="8.0;9.0+PTX" && \
     export MAX_JOBS=32 && \
     export NVCC_PREPEND_FLAGS="-t 32" && \
     pip install -v -U git+https://github.com/facebookresearch/xformers.git@main#egg=xformers
+
+
+# Install GPT-NeoX  and its dependencies
+RUN git clone https://github.com/EleutherAI/gpt-neox.git \
+    && cd gpt-neox \
+    && pip install -r requirements/requirements.txt \
+    && pip install -r requirements/requirements-wandb.txt # optional, if logging using WandB \ 
+    && pip install -r requirements/requirements-tensorboard.txt # optional, if logging via tensorboard \
+    && pip install -r requirements/requirements-flashattention.txt # optional, if using Flash Attention \
+    && python ./megatron/fused_kernels/setup.py install # optional, if using fused kernels 
