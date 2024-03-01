@@ -68,12 +68,14 @@ create_slurmdbd_config() {
 # Append the accounting settings to accounting.conf, this file is empty by default and included into
 # slurm.conf. This is required for Slurm to enable accounting.
 add_accounting_to_slurm_config() {
-  cat >> $SLURM_ACCOUNTING_CONFIG_FILE << EOL
+    # `hostname -i` gave us "hostname: Name or service not known". So let's parse slurm.conf.
+    DBD_HOST=$(awk -F'[=(]' '/^SlurmctldHost=/ { print $NF }' /opt/slurm/etc/slurm.conf | tr -d ')')
+    cat >> $SLURM_ACCOUNTING_CONFIG_FILE << EOL
 # ACCOUNTING
 JobAcctGatherType=jobacct_gather/linux
 JobAcctGatherFrequency=30
 AccountingStorageType=accounting_storage/slurmdbd
-AccountingStorageHost=localhost
+AccountingStorageHost=$DBD_HOST
 AccountingStoragePort=6819
 EOL
 }

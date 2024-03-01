@@ -2,8 +2,8 @@
 # Creates users from `shared_users.txt` file
 # each line in the `shared_users.txt` file should be of the format:
 # ```
-# username1,uid1
-# username2,uid2
+# username1,uid1,/fsx/username1
+# username2,uid2,/fsx/username2
 # ```
 # 
 # The script should be run as root user
@@ -14,12 +14,13 @@ set -x
 
 SHARED_USER_FILE="shared_users.txt"
 
-# takes in username and uid as parameters
+# takes in username, uid and home directory as parameters
 # if user with username and uid does not exists,
-# creates user with uid and creates a directory for user at /home/$username
+# creates user with uid and creates a home directory for user
 create_user() {
   local username=$1
   local uid=$2
+  local home=$3
 
   # check if username already exists
   if id -u "$username"  >/dev/null 2>&1; then
@@ -34,8 +35,8 @@ create_user() {
   fi
   
   # create user with uid and directory
-  if useradd -m $username --uid $uid -d "/home/$username"; then
-    echo "Created user $username with uid $uid"
+  if useradd -m $username --uid $uid -d $home --shell /bin/bash; then
+    echo "Created user $username with uid $uid and home $home."
   else
     echo "Failed to create user $username with uid $uid"
   fi
@@ -52,9 +53,9 @@ main() {
     exit 0
   fi
 
-  while IFS="," read -r username uid; do
-    echo "Requested create user: $username with uid: $uid"
-    create_user "$username" "$uid"
+  while IFS="," read -r username uid home; do
+    echo "Requested create user: $username with uid: $uid and home directory: $home"
+    create_user "$username" "$uid" "$home"
   done < $SHARED_USER_FILE
 }
 
