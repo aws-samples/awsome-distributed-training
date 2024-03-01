@@ -314,7 +314,7 @@ You'll also find your FSx for Lustre volume mounted at `/fsx`.
 
 ### 3.5 Runtime validation before running workloads
 
-We've included a runtime validation script`hyperpod-precheck.py` which lets you check the runtime before running any production workloads.
+We've included a runtime validation script `hyperpod-precheck.py` which lets you check the runtime before running any production workloads.
 
 In order to run the script on multiple nodes at once use `srun`
 
@@ -337,10 +337,11 @@ Follow the mitigations listed in this table if one of the checks fails:
 | nvidia_cli_installed           | Nvidia Container CLI is installed via docker life cycle scripts. It's unlikely this will be an issue.                       | Go to [this page](https://catalog.workshops.aws/sagemaker-hyperpod/en-US/03-megatron-lm/01-pre-process) and look for the command that runs the nvidia-container-cli installation.<br /> Create a script from those steps and either use sbatch or srun to execute across all compute nodes<br>You can also use this same script to check for unsupported operations in your training launch script |
 
 
-You can also run validation on the scripts you wish to run. This ensures you’re not using unsupported operations in the script
+You can also run validation on the scripts you wish to run. This ensures you’re not using unsupported operations in the script.
 
 ```
-python3 hyperpod-precheck.py -f awsome-distributed-training/3.test_cases/1.megatron-lm/2.distributed-training.sbatch
+# Run a check on a specific sbatch script that launches training
+python3 hyperpod-precheck.py -f ../../3.test_cases/1.megatron-lm/2.distributed-training.sbatch
 ```
 
 
