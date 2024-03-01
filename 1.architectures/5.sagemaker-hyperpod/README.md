@@ -93,6 +93,7 @@ Lifecycle scripts tell SageMaker HyperPod how to setup your HyperPod cluster. Hy
 | shared_users_sample.txt | Sample of how to specify users for the add_users.sh script. |
 | start_slurm.sh | Starts the Slurm scheduler daemon. |
 
+
 Also note that there are two scripts in `utils` to install [Docker](https://www.docker.com/), [Enroot](https://github.com/NVIDIA/enroot), and [Pyxis](https://github.com/NVIDIA/pyxis). These scripts can be enabled by uncommenting these lines in `lifecycle_script.py`:
 
 ```
@@ -182,18 +183,18 @@ cat > cluster-config.json << EOL
 EOL
 ```
 
-And finally, if you created a VPC and FSx for Lustre volume, we need to create a configuration to make sure your HyperPod cluster is created in the correct VPC. 
+And finally, if you created a VPC and FSx for Lustre volume, we need to create a configuration to make sure your HyperPod cluster is created in the correct VPC.
 
 ```
 cat > vpc-config.json << EOL
-{ 
+{
   "SecurityGroupIds": ["$SECURITY_GROUP"],
-  "Subnets":["$SUBNET_ID"] 
+  "Subnets":["$SUBNET_ID"]
 }
 EOL
 ```
 
-Your `SUBNET_ID` can be found using 
+Your `SUBNET_ID` can be found using
 
 ```
 aws fsx describe-file-systems
@@ -234,7 +235,7 @@ aws sagemaker create-cluster \
 You can see the current state of the cluster with
 
 ```
-aws sagemaker describe-cluster --cluster-name ml-cluster --region us-west-2 
+aws sagemaker describe-cluster --cluster-name ml-cluster --region us-west-2
 ```
 
 Or list all your HyperPod cluster with
@@ -243,10 +244,10 @@ Or list all your HyperPod cluster with
 aws sagemaker list-clusters
 ```
 
-You can see information on all your HyperPod cluster nodes with 
+You can see information on all your HyperPod cluster nodes with
 
 ```
-aws sagemaker list-cluster-nodes --cluster-name ml-cluster --region us-west-2 
+aws sagemaker list-cluster-nodes --cluster-name ml-cluster --region us-west-2
 ```
 
 ### 3.4 SSH into your HyperPod cluster
@@ -266,7 +267,7 @@ In this case, the cluster ID is `2hd31rmi9mde`
 Get your controller machine instance ID with
 
 ```
-aws sagemaker list-cluster-nodes --cluster-name ml-cluster --region us-west-2 
+aws sagemaker list-cluster-nodes --cluster-name ml-cluster --region us-west-2
 
 {
     "NextToken": "",
@@ -283,7 +284,7 @@ aws sagemaker list-cluster-nodes --cluster-name ml-cluster --region us-west-2
         },
 ```
 
-And login with 
+And login with
 
 ```
 CLUSTER_ID=2hd31rmi9mde
@@ -311,7 +312,39 @@ dev*         up   infinite      4   idle ip-10-1-4-190,ip-10-1-5-138,ip-10-1-18-
 
 You'll also find your FSx for Lustre volume mounted at `/fsx`.
 
-### 3.5 Patching your HyperPod cluster
+### 3.5 Runtime validation before running workloads
+
+We've included a runtime validation script`hyperpod-precheck.py` which lets you check the runtime before running any production workloads.
+
+In order to run the script on multiple nodes at once use `srun`
+
+```bash
+# this runs on 8 nodes
+srun -N 8 python3 hyperpod-precheck.py`
+```
+
+Follow the mitigations listed in this table if one of the checks fails:
+
+| Test                           | 	Description	                                                                                                                                  | Failure  mitigation                                                                                                                                                                                                                                                                                                                                                                                |
+|--------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| check_if_docker_installed	     | Steps 4 & 5 ensure we're installing docker on all nodes through life-cycle scripts<br/>This checks if docker is available on all compute nodes | Run life-cycle scripts manually<br/>`cd /tmp/sagemaker-lifecycle-* && cd src/utils/ && srun -N <no of nodes> bash install_docker.sh`                                                                                                                                                                                                                                                               |
+| check_enroot_runtime_path      | Make sure the `ENROOT_RUNTIME_PATH` is pointed to the right directory                                                                          | Follow [these steps](https://catalog.workshops.aws/sagemaker-hyperpod/en-US/01-cluster/08-docker-setup#enroot) in the workshop (Cluster Setup > Docker Setup > Enroot)                                                                                                                                                                                                                             |
+| check_docker_data_root         | Docker data root should be at `/opt/dlami/nvme/data-root`                                                                                      | Run life-cycle scripts manually```cd /tmp/sagemaker-lifecycle-* && cd src/utils/ && srun -N <no of nodes> bash install_docker.sh```                                                                                                                                                                                                                                                                |
+| check_if_fsx_mounted           | `df -h` should show /fsx as mounted                                                                                                            | Speak to AWS; We have ensured provisioning parameters include this. So if it's not mounted, we need to investigate this issue.                                                                                                                                                                                                                                                                     |
+| check_if_pyxis_installed       | Pyxis is a container plugin for Slurm. It should be installed following steps 4 & 5                                                            | Run life-cycle scripts manually ```cd /tmp/sagemaker-lifecycle-* && cd src/utils/ && srun -N <no of nodes> bash install_enroot_pyxis.sh```                                                                                                                                                                                                                                                         |
+| check_slurmd_service_status    | Check if slrumd is running across all instances                                                                                                | Sometimes slurm can fail due to an underyling error. If this check fails, ssh into the specific host and run `sudo systemctl status slurmd` and find the reason. Then restart it using `sudo systemctl start slurmd`. If it fails again check `sudo journalctl -xe` to see what has gone wrong                                                                                                     |
+| check_if_user_directory_on_fsx | This checks if users are sharing /fsx file system mount                                                                                        | Multi user setup will create /fsx/<user> mounts. Follow [those steps here](https://catalog.workshops.aws/sagemaker-hyperpod/en-US/04-advanced/01-multi-user)<br />If the user directory doesn't exist for nodes that have been replaced<br />Run a variant of this command for your nodes<br>`srun -N 2 usermod -d /fsx/ubuntu ubuntu`<br>(Replace ubuntu with username)                           |
+| nvidia_cli_installed           | Nvidia Container CLI is installed via docker life cycle scripts. It's unlikely this will be an issue.                                          | Go to [this page](https://catalog.workshops.aws/sagemaker-hyperpod/en-US/03-megatron-lm/01-pre-process) and look for the command that runs the nvidia-conatiner-cli installation.<br /> Create a script from those steps and either use sbatch or srun to execute across all compute nodes<br>You can also use this same script to check for unsupported operations in your training launch script |
+
+
+You can also run validation on the scripts you wish to run. This ensures you’re not using unsupported operations in the script
+
+```
+python3 hyperpod-precheck.py -f awsome-distributed-training/3.test_cases/1.megatron-lm/2.distributed-training.sbatch
+```
+
+
+### 3.6 Patching your HyperPod cluster
 
 Run `update-cluster-software` to update existing HyperPod clusters with software and security patches provided by the SageMaker HyperPod service. For more details, see [Update the SageMaker HyperPod platform software of a cluster](https://docs.aws.amazon.com/sagemaker/latest/dg/sagemaker-hyperpod-operate.html#sagemaker-hyperpod-operate-cli-command-update-cluster-software) in the *Amazon SageMaker Developer Guide*.
 
@@ -328,7 +361,7 @@ sudo bash patching-backup.sh --create <s3-buckup-bucket-path>
 sudo bash patching-backup.sh --restore <s3-buckup-bucket-path>
 ```
 
-### 3.6 Deleting your HyperPod cluster
+### 3.7 Deleting your HyperPod cluster
 
 When you're done with your HyperPod cluster, you can delete it down with
 
