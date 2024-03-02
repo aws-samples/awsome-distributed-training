@@ -4,7 +4,8 @@
     "load": "/fsx/gpt-neox/models/pythia/1-4B_checkpoints",
     "data_path": "/fsx/pile_subset/enwik8/enwik8_text_document",
     "pipe_parallel_size": 1,
-    "model_parallel_size": 1,
+    "model_parallel_size": 2,
+    "world_size": 16,
     "num_layers": 24,
     "hidden_size": 2048,
     "num_attention_heads": 16,
@@ -49,7 +50,9 @@
         "contiguous_gradients": true,
         "cpu_offload": false
     },
-    "train_micro_batch_size_per_gpu": 16,
+    "train_batch_size": 32,
+    "train_micro_batch_size_per_gpu": 4,
+    "gradient_accumulation_steps": 2,
     "data_impl": "mmap",
     "num_workers": 1,
     "checkpoint_activations": true,
@@ -94,7 +97,4 @@
     "steps_per_print": 10,
     "wall_clock_breakdown": true,
     "tokenizer_type": "HFTokenizer",
-    "launcher": "slurm",
-    "deepspeed_slurm": true,
-    "no_ssh_check": true
 }
