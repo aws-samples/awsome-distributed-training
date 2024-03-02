@@ -94,5 +94,7 @@
     "steps_per_print": 10,
     "wall_clock_breakdown": true,
     "tokenizer_type": "HFTokenizer",
+    "launcher": "slurm",
+    "deepspeed_slurm": true,
     "no_ssh_check": true
 }
