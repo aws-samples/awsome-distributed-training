@@ -1,17 +1,15 @@
 {
     "vocab_file": "/fsx/gpt-neox/tokenizers/20B_tokenizer.json",
-    "save": "/fsx/gpt-neox/models/pythia/12B_checkpoints",
-    "load": "/fsx/gpt-neox/models/pythia/12B_checkpoints",
+    "save": "/fsx/gpt-neox/models/pythia/2-8B_checkpoints",
+    "load": "/fsx/gpt-neox/models/pythia/2-8B_checkpoints",
     "data_path": "/fsx/pile_subset/enwik8/enwik8_text_document",
     "pipe_parallel_size": 1,
-    "model_parallel_size": 4,
-    "world_size": 16,
-    "num_layers": 36,
-    "hidden_size": 5120,
-    "num_attention_heads": 40,
+    "model_parallel_size": 1,
+    "num_layers": 32,
+    "hidden_size": 2560,
+    "num_attention_heads": 32,
     "seq_length": 2048,
     "max_position_embeddings": 2048,
-    "norm": "layernorm",
     "pos_emb": "rotary",
     "rotary_pct": 0.25,
     "no_weight_tying": true,
@@ -22,15 +20,17 @@
             [
                 "flash"
             ],
-            36
+            32
         ]
     ],
     "scaled_upper_triang_masked_softmax_fusion": true,
     "bias_gelu_fusion": true,
+    "init_method": "small_init",
+    "output_layer_init_method": "wang_init",
     "optimizer": {
         "type": "Adam",
         "params": {
-            "lr": 0.00012,
+            "lr": 0.00016,
             "betas": [
                 0.9,
                 0.95
@@ -38,20 +38,21 @@
             "eps": 1.0e-8
         }
     },
-    "min_lr": 0.000012,
+    "min_lr": 0.000016,
     "zero_optimization": {
         "stage": 1,
         "allgather_partitions": true,
-        "allgather_bucket_size": 1260000000,
+        "allgather_bucket_size": 500000000,
         "overlap_comm": true,
         "reduce_scatter": true,
-        "reduce_bucket_size": 1260000000,
+        "reduce_bucket_size": 500000000,
         "contiguous_gradients": true,
         "cpu_offload": false
     },
     "train_micro_batch_size_per_gpu": 8,
     "gradient_accumulation_steps": 2,
     "data_impl": "mmap",
+    "num_workers": 1,
     "checkpoint_activations": true,
     "checkpoint_num_layers": 1,
     "partition_activations": true,
@@ -88,11 +89,11 @@
         256,
         512
     ],
-    "eval_interval": 143000,
+    "eval_interval": 40000,
     "eval_iters": 10,
+    "log_grad_norm": true,
     "log_interval": 10,
     "steps_per_print": 10,
     "wall_clock_breakdown": true,
-    "log_grad_norm": true,
     "tokenizer_type": "HFTokenizer"
 }
