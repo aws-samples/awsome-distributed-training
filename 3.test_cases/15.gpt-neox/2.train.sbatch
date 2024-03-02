@@ -11,8 +11,10 @@ set -uxo pipefail
 : "${APPS_PATH:=/fsx/apps}"
 : "${IMAGE:=$APPS_PATH/gpt-neox.sqsh}"
 : "${FSX_PATH:=/fsx}"
-: "${CONTAINER_MOUNT:=$FSX_PATH:$FSX_PATH}"
-
+: "${CONTAINER_MOUNT:=$FSX_PATH:$FSX_PATH,/opt/slurm/bin:/opt/slurm/bin}"
+# SLurmRunner need `sinfo`
+# https://github.com/microsoft/DeepSpeed/blob/bcc617a0009dd27b4e144de59979bd7770eaf57c/deepspeed/launcher/multinode_runner.py#L327
+export PATH=${PATH}:/opt/slurm/bin
 ## EFA settings
 export FI_EFA_USE_DEVICE_RDMA=1 # use for p4d
 export FI_EFA_FORK_SAFE=1
@@ -28,13 +30,20 @@ export NCCL_ASYNC_ERROR_HANDLING=1
 export NCCL_DEBUG=INFO
 
 MODEL_CONFIG=${PWD}/configs/pythia/1-4B.json
-
+#MODEL_CONFIG=${PWD}/configs/gpt2/350M.json
 # Some potentially useful distributed environment variables
 export HOSTNAMES=`scontrol show hostnames "$SLURM_JOB_NODELIST"`
 export MASTER_ADDR=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
-export MASTER_PORT=$RANDOM
+export MASTER_PORT=12802
 export COUNT_NODE=`scontrol show hostnames "$SLURM_JOB_NODELIST" | wc -l`
-export NNODES=$SLURM_JOB_NUM_NODES
+NODES=( $( scontrol show hostnames $SLURM_JOB_NODELIST ) )
+NODES_ARRAY=($NODES)
+HEAD_NODE=${NODES_ARRAY[0]}
+MASTER_ADDR=$(hostname --ip-address)
+MASTER_PORT=$RANDOM
+NNODES=$SLURM_JOB_NUM_NODES
+NPROC=$SLURM_GPUS_PER_NODE
+WORLD_SIZE=$(( $NNODES * $NPROC ))
 
 mkdir -p ${FSX_PATH}/tmp/hostfiles
 # need to add the current slurm jobid to hostfile name so that we don't add to previous hostfile
@@ -53,8 +62,10 @@ function makehostfile() {
     @nodes = split /\n/, qx[scontrol show hostnames $ENV{"SLURM_JOB_NODELIST"}];
     print map { "$b$_ slots=$slots\n" } @nodes'
 }
-makehostfile > HOSTFILE
+makehostfile > $HOSTFILE
 echo "hostfile" $HOSTFILE
+cat $HOSTFILE
+
 # Tell DeepSpeed where to find our generated hostfile via DLTS_HOSTFILE
 export DLTS_HOSTFILE=${HOSTFILE}
 
@@ -63,8 +74,20 @@ declare -a ARGS=(
     --container-mounts $CONTAINER_MOUNT
 )
 
-DISTRIBUTED_ARGS="--nproc_per_node $SLURM_GPUS_PER_NODE --nnodes $NNODES --master_addr $MASTER_ADDR --master_port $MASTER_PORT"
-# Launch training
-# srun -l "${ARGS[@]}" python deepy.py train.py ${MODEL_CONFIG} 
-srun -l "${ARGS[@]}" python -m  torch.distributed.launch ${DISTRIBUTED_ARGS} \
-     train.py ${MODEL_CONFIG} 
+function run_deepspeed() {
+    srun --nodelist=${NODE} --ntasks=1 -l "${ARGS[@]}" python3 deepy.py train.py ${MODEL_CONFIG} 
+}
+
+NODE_RANK=1
+for (( NODE_RANK=1; NODE_RANK<${NNODES}; NODE_RANK++ ))
+do
+    NODE=${NODES[$NODE_RANK]}
+    echo "Run compute node ${NODE} for rank: ${NODE_RANK}"
+    run_deepspeed &
+done
+NODE_RANK=0
+NODE=${HEAD_NODE}
+echo "Run main node ${NODE} for rank: ${NODE_RANK}"
+run_deepspeed
+wait
+
