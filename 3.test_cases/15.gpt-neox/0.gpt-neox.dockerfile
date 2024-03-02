@@ -245,3 +245,5 @@ RUN git clone https://github.com/EleutherAI/gpt-neox.git \
     && pip install -r requirements/requirements-tensorboard.txt # optional, if logging via tensorboard \
     && pip install -r requirements/requirements-flashattention.txt # optional, if using Flash Attention \
     && python ./megatron/fused_kernels/setup.py install # optional, if using fused kernels 
+
+WORKDIR /workspace/gpt-neox
