@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name="neox"
-#SBATCH --nodes=1
+#SBATCH --nodes=2
 #SBATCH --ntasks-per-node=8
 #SBATCH --gpus-per-node=8 # Number of GPU per node
 #SBATCH --gres=gpu:8
@@ -11,10 +11,9 @@ set -uxo pipefail
 : "${APPS_PATH:=/fsx/apps}"
 : "${IMAGE:=$APPS_PATH/gpt-neox.sqsh}"
 : "${FSX_PATH:=/fsx}"
-: "${CONTAINER_MOUNT:=$FSX_PATH:$FSX_PATH,/opt/slurm/bin:/opt/slurm/bin}"
+: "${CONTAINER_MOUNT:=$FSX_PATH:$FSX_PATH,/opt/slurm:/opt/slurm}"
 # SLurmRunner need `sinfo`
 # https://github.com/microsoft/DeepSpeed/blob/bcc617a0009dd27b4e144de59979bd7770eaf57c/deepspeed/launcher/multinode_runner.py#L327
-export PATH=${PATH}:/opt/slurm/bin
 ## EFA settings
 export FI_EFA_USE_DEVICE_RDMA=1 # use for p4d
 export FI_EFA_FORK_SAFE=1
@@ -27,7 +26,7 @@ export FI_EFA_USE_HUGE_PAGE=0
 # https://github.com/pytorch/pytorch/issues/68893
 #export NCCL_SOCKET_IFNAME=ens
 export NCCL_ASYNC_ERROR_HANDLING=1
-export NCCL_DEBUG=INFO
+#export NCCL_DEBUG=INFO
 
 MODEL_CONFIG=${PWD}/configs/pythia/1-4B.json
 #MODEL_CONFIG=${PWD}/configs/gpt2/350M.json
@@ -74,20 +73,33 @@ declare -a ARGS=(
     --container-mounts $CONTAINER_MOUNT
 )
 
-function run_deepspeed() {
-    srun --nodelist=${NODE} --ntasks=1 -l "${ARGS[@]}" python3 deepy.py train.py ${MODEL_CONFIG} 
-}
+declare -a TORCHRUN_ARGS=(
+    # change this to match the number of gpus per node:
+    --nproc_per_node=8 \
+    --nnodes=$SLURM_JOB_NUM_NODES \
+    --rdzv_id=$SLURM_JOB_ID \
+    --rdzv_backend=c10d \
+    --rdzv_endpoint=$(hostname) \
+)
 
-NODE_RANK=1
-for (( NODE_RANK=1; NODE_RANK<${NNODES}; NODE_RANK++ ))
-do
-    NODE=${NODES[$NODE_RANK]}
-    echo "Run compute node ${NODE} for rank: ${NODE_RANK}"
-    run_deepspeed &
-done
-NODE_RANK=0
-NODE=${HEAD_NODE}
-echo "Run main node ${NODE} for rank: ${NODE_RANK}"
-run_deepspeed
-wait
+srun -l "${ARGS[@]}" torchrun "${TORCHRUN_ARGS[@]}" train.py ${MODEL_CONFIG} 
+
+# function run_deepspeed() {
+#     # srun --nodelist=${NODE} --ntasks=1 -l "${ARGS[@]}" python3 -c "import os; print(os.environ['PATH'])"
+#     srun --nodelist=${NODE} --ntasks=1 -l "${ARGS[@]}" python3 deepy.py train.py ${MODEL_CONFIG} 
+#     #srun --nodelist=${NODE} --ntasks=1 -l "${ARGS[@]}" ls /opt/slurm/bin && which sinfo
+# }
+# 
+# NODE_RANK=1
+# for (( NODE_RANK=1; NODE_RANK<${NNODES}; NODE_RANK++ ))
+# do
+#     NODE=${NODES[$NODE_RANK]}
+#     echo "Run compute node ${NODE} for rank: ${NODE_RANK}"
+#     run_deepspeed &
+# done
+# NODE_RANK=0
+# NODE=${HEAD_NODE}
+# echo "Run main node ${NODE} for rank: ${NODE_RANK}"
+# run_deepspeed
+# wait
 
