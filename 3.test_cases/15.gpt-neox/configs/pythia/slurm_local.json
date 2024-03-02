@@ -1,8 +1,0 @@
-{
-    "vocab_file": "./20B_checkpoints/20B_tokenizer.json",
-    "save": "./20B_checkpoints",
-    "load": "./20B_checkpoints",
-    "data_path": "/fsx/pile_subset/enwik8/enwik8_text_document",
-    "launcher": "slurm",
-    "deepspeed_slurm": true
-}
