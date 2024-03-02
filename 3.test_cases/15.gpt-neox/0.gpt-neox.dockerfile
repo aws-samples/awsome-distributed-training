@@ -243,7 +243,7 @@ RUN git clone https://github.com/EleutherAI/gpt-neox.git \
     && pip install -r requirements/requirements.txt \
     && pip install -r requirements/requirements-wandb.txt # optional, if logging using WandB \ 
     && pip install -r requirements/requirements-tensorboard.txt # optional, if logging via tensorboard \
-    && pip install -r requirements/requirements-flashattention.txt # optional, if using Flash Attention \
+    && pip install flash-attn==2.5.5 --upgrade # optional, if using Flash Attention \
     && python ./megatron/fused_kernels/setup.py install # optional, if using fused kernels 
 
 WORKDIR /workspace/gpt-neox
