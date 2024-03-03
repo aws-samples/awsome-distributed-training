@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+
 #SBATCH -N 1 # number of nodes to use
 #SBATCH --job-name=pile-dataprep # name of your job
 #SBATCH --output=logs/%x_%j.out # logfile for stdout
