@@ -40,16 +40,16 @@ def parse_args():  # pylint: disable=too-many-statements
         help="enable gradient checkpointing to reduce memory consumption",
     )
     opt_grp.add_argument(
-        "--llama_intermediate_size",
+        "--intermediate_size",
         type=int,
         default=11008,
-        help="intermediate_size for Llama v2, a dimension associated with MLP",
+        help="intermediate_size, a dimension associated with MLP",
     )
     opt_grp.add_argument(
         "--num_key_value_heads",
         type=int,
         default=None,
-        help="num_key_value_heads for Llama v2",
+        help="num_key_value_heads for GQA",
     )
     parser.add_argument(
         "--logging_freq", type=int, default=1, help="number of iterations between logging"
@@ -79,6 +79,13 @@ def parse_args():  # pylint: disable=too-many-statements
     fsdp_grp.add_argument("--offload_activations", type=int, default=0)
     fsdp_grp.add_argument("--activation_loading_horizon", type=int, default=2)
     fsdp_grp.add_argument("--limit_all_gathers", default=1, type=int)
+    fsdp_grp.add_argument(
+        "--sharding_strategy", 
+        type=str, 
+        default="full",
+        choices=["full", "hybrid"],
+        help="FSDP sharding strategy https://pytorch.org/docs/stable/fsdp.html",
+    )
     
     # learning rate
     lr_grp = parser.add_argument_group(
@@ -118,7 +125,8 @@ def parse_args():  # pylint: disable=too-many-statements
         help="Percentage of total iterations to keep at max if using plateau lr",
     )
     io_grp = parser.add_argument_group(title="io", description="location for input and output")
-    io_grp.add_argument("--dataset_path", type=str, default="c4")
+    io_grp.add_argument("--dataset", type=str, default="c4")
+    io_grp.add_argument("--dataset_config_name", type=str, default=None)
     io_grp.add_argument("--tokenizer", type=str, default="EleutherAI/gpt-neox-20b")
     io_grp.add_argument(
         "--resume_from_checkpoint",
