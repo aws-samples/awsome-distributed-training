@@ -49,12 +49,6 @@ mkdir -p ${FSX_PATH}/tmp/hostfiles
 HOSTFILE=${FSX_PATH}/tmp/hostfiles/hosts_$SLURM_JOBID
 # be extra sure we aren't appending to a previous hostfile
 rm $HOSTFILE &> /dev/null
-# loop over the node names
-# for i in `scontrol show hostnames $SLURM_NODELIST`
-# do
-#     # add a line to the hostfile
-#     echo $i slots=$SLURM_GPUS_PER_NODE >>$HOSTFILE
-# done
 function makehostfile() {
     perl -e '$slots=split /,/, $ENV{"SLURM_STEP_GPUS"};
     $slots=8 if $slots==0; # workaround 8 gpu machines
@@ -83,23 +77,3 @@ declare -a TORCHRUN_ARGS=(
 )
 
 srun -l "${ARGS[@]}" torchrun "${TORCHRUN_ARGS[@]}" train.py ${MODEL_CONFIG} 
-
-# function run_deepspeed() {
-#     # srun --nodelist=${NODE} --ntasks=1 -l "${ARGS[@]}" python3 -c "import os; print(os.environ['PATH'])"
-#     srun --nodelist=${NODE} --ntasks=1 -l "${ARGS[@]}" python3 deepy.py train.py ${MODEL_CONFIG} 
-#     #srun --nodelist=${NODE} --ntasks=1 -l "${ARGS[@]}" ls /opt/slurm/bin && which sinfo
-# }
-# 
-# NODE_RANK=1
-# for (( NODE_RANK=1; NODE_RANK<${NNODES}; NODE_RANK++ ))
-# do
-#     NODE=${NODES[$NODE_RANK]}
-#     echo "Run compute node ${NODE} for rank: ${NODE_RANK}"
-#     run_deepspeed &
-# done
-# NODE_RANK=0
-# NODE=${HEAD_NODE}
-# echo "Run main node ${NODE} for rank: ${NODE_RANK}"
-# run_deepspeed
-# wait
-
