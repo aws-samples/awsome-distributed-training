@@ -35,10 +35,10 @@
     "min_lr": 0.00003,
     "zero_optimization": {
         "stage": 1,
-        "allgather_partitions": True,
+        "allgather_partitions": true,
         "allgather_bucket_size": 500000000,
-        "overlap_comm": True,
-        "reduce_scatter": True,
+        "overlap_comm": true,
+        "reduce_scatter": true,
         "reduce_bucket_size": 500000000,
         "contiguous_gradients": True,
     },
