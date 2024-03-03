@@ -1,6 +1,6 @@
-# GPT-NeoX Test Case <!-- omit in toc -->
+# Pythia GPT-NeoX Test Case <!-- omit in toc -->
 
-GPT-NeoX is an EleutherAI's library for training large-scale language models on GPUs. This framework is based on NVIDIA's Megatron Language Model and has been augemented with techniques from DeepSpeed as well as some novel optimizations. 
+GPT-NeoX is an [EleutherAI](https://www.eleuther.ai)'s library for training large-scale language models on GPUs. This framework is based on NVIDIA's Megatron Language Model](https://github.com/NVIDIA/Megatron-LM) and has been augmented with techniques from [DeepSpeed](https://www.deepspeed.ai as well as some novel optimizations. This test case illustrates how to train [Pythia](https://arxiv.org/abs/2304.01373) model using GPT-Neox. 
 
 ## 1. Preparation
 
@@ -10,7 +10,7 @@ This guide assumes that you have the following:
 * Docker, [Pyxis](https://github.com/NVIDIA/pyxis) and [Enroot](https://github.com/NVIDIA/enroot) installed.
 * An FSx for Lustre filesystem mounted on `/fsx`.
 
-We recommend that you setup a Slurm cluster using the templates in the architectures [directory](../../1.architectures). You need to setup the following environment variables to run this test case:
+We recommend that you set up a Slurm cluster using the templates in the architectures [directory](../../1.architectures). You need to set the following environment variables to run this test case:
 
 ```bash
 export APPS_PATH=/fsx/apps
@@ -26,7 +26,8 @@ cd $TEST_CASE_PATH                         # Note that we assume that you are he
 
 ## 2. Build the container
 
-Before running training jobs, you need to use an [Enroot](https://github.com/NVIDIA/enroot) container to retrieve and preprocess the input data. Below are the steps you need to follow:
+Before running training jobs, you need to use a build docker container image. [Enroot](https://github.com/NVIDIA/enroot) will be used to turn the image into unprivileged sandbox for Slurm. 
+Below are the steps you need to follow:
 
 
 1. Build the Docker image with the command below in this directory.
@@ -43,10 +44,10 @@ Before running training jobs, you need to use an [Enroot](https://github.com/NVI
    ...
    ```
 
-3. TODO: fix Convert the Docker image to a squash file with the command below.
+3. Convert the Docker image to a squash file with the command below.
 
    ```bash
-   enroot import -o ${ENROOT_IMAGE} dockerd://llm-foundry:latest
+   enroot import -o ${ENROOT_IMAGE} dockerd://get-neox:latest
    ```
 
    The file will be stored in the `/apps` directory (default). The output should look as below.
@@ -60,7 +61,7 @@ Before running training jobs, you need to use an [Enroot](https://github.com/NVI
     [INFO] Creating squashfs filesystem...
 
     Parallel mksquashfs: Using 32 processors
-    Creating 4.0 filesystem on /apps/llm-foundry.sqsh, block size 131072.
+    Creating 4.0 filesystem on /apps/gpt-neox.sqsh, block size 131072.
     [========================================================================================================================================================================================================================-] 291068/291068 100%
 
     Exportable Squashfs 4.0 filesystem, gzip compressed, data block size 131072
@@ -69,19 +70,8 @@ Before running training jobs, you need to use an [Enroot](https://github.com/NVI
     ...
     ```
 
-It will take around 5 minutes to convert the container image from Docker to the Enroot format. Once done proceed to the next stage.
+Once done proceed to the next stage.
 
-
-## 3. Create local environment
-
-This test case relies on `deepy.py`, a wrapper around the deepspeed launcher. You create a virtual environment, so that we can call the script from the head node.
-
-```bash
-cd $TEST_CASE_PATH
-python3.8 -m venv .venv
-source .venv/bin/activate
-pip install -r https://raw.githubusercontent.com/EleutherAI/gpt-neox/f36aed7ffd93fcb5d674236e476a5c80c0e31163/requirements/requirements.txt
-```
 
 ## 4. Dataset preparation
 
@@ -94,7 +84,7 @@ mkdir -p ${MODEL_PATH}/tokenizers
 wget https://the-eye.eu/public/AI/models/GPT-NeoX-20B/slim_weights/20B_tokenizer.json -O ${MODEL_PATH}/tokenizers/20B_tokenizer.json
 ```
 
-To retireve and tokenize the Pile dataset, we use `prepare_data.py` of NeoX through container using `1.prepare-data.sbatch`.
+To retrieve and tokenize the Pile dataset, we use `prepare_data.py` of NeoX through container. The exact steps are described in `1.prepare-data.sbatch`.
 
 ```bash
 sbatch 1.prepare-data.sbatch
@@ -107,14 +97,19 @@ $ ls ${DATA_PATH}/enwik8/
 enwik8.zip  enwik8_text_document.bin  enwik8_text_document.idx
 ```
 
+By default, this test case only downloads a subset of the Pile. If you wish to work with a full dataset, modify the `1.prepare-data.sbatch` script accordingly.
+
 ## 5. Model training
 
 GPT-NeoX parameters are defined in a YAML configuration file which is passed to the `deepy.py` launcher.
-Parameters originate from either the [DeepSpeed runner CLI (DSL)](https://github.com/microsoft/DeepSpeed/blob/master/deepspeed/launcher/runner.py#L33), [DeepSpeed configuration file (DSC)](https://www.deepspeed.ai/docs/config-json/), [Megatron-LM CLI (Meg)](https://github.com/NVIDIA/Megatron-LM/blob/main/megatron/arguments.py#L224) or are GPT-NeoX (NeoX) modifications. See [the configuration README](https://github.com/EleutherAI/gpt-neox/blob/main/configs/README.md) of NeoX repository. You need to make few changes to the config files to make it work on a Slurm cluster. Firstly, you need to tell that launcher is slurm by setting the following in our config:
+Parameters originate from either the [DeepSpeed runner CLI (DSL)](https://github.com/microsoft/DeepSpeed/blob/master/deepspeed/launcher/runner.py#L33), [DeepSpeed configuration file (DSC)](https://www.deepspeed.ai/docs/config-json/), [Megatron-LM CLI (Meg)](https://github.com/NVIDIA/Megatron-LM/blob/main/megatron/arguments.py#L224) or are GPT-NeoX (NeoX) modifications. See [the configuration README](https://github.com/EleutherAI/gpt-neox/blob/main/configs/README.md) of NeoX repository. You need to make few changes to the config files to make it work on a Slurm cluster. Firstly, you need to tell where to retrieve training data and model checkpoints.
 
-```yaml
-    "launcher": "slurm",
-    "deepspeed_slurm": true
+```json
+    "vocab_file": "/fsx/gpt-neox/tokenizers/20B_tokenizer.json",
+    "save": "/fsx/gpt-neox/models/pythia/1-4B_checkpoints",
+    "load": "/fsx/gpt-neox/models/pythia/1-4B_checkpoints",
+    "data_path": "/fsx/pile_subset/enwik8/enwik8_text_document",
+    "pipe_parallel_size": 1,
 ```
 
 Additionally, you need to modify all of your configs to conform to the JSON. When launching a GPT-NeoX job you can specify multiple YAML config files. Internally, all of these files are merged into one config and then passed as a single long command line argument to DeepSpeed. When using SLURM and its internal command srun, python fails to parse this long command line argument unless it is in the more restrictive JSON format. This test case prepares sample JSON configs in `configs/pythia` directory. See https://github.com/EleutherAI/gpt-neox/blob/main/configs/README.md#slurm-settings for details.
