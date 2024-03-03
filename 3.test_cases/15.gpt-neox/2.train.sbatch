@@ -1,9 +1,14 @@
 #!/bin/bash
+
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+
 #SBATCH --job-name="neox"
 #SBATCH --nodes=2
 #SBATCH --ntasks-per-node=8
 #SBATCH --gpus-per-node=8 # Number of GPU per node
 #SBATCH --gres=gpu:8
+
 
 set -uxo pipefail
 
