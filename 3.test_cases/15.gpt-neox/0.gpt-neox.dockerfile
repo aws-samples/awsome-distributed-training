@@ -246,8 +246,4 @@ RUN git clone https://github.com/EleutherAI/gpt-neox.git \
     && python ./megatron/fused_kernels/setup.py install # optional, if using fused kernels 
 # Rebuild newer flash-attn
 RUN FLASH_ATTENTION_FORCE_BUILD=TRUE pip install flash-attn==2.5.5 --upgrade
-# Installe newer DeepSpeed
-RUN pip install --upgrade git+https://github.com/EleutherAI/DeeperSpeed.git@a1af9e77fb690655aa4da35078c9a551e0aa2ba5#egg=deepspeed
-ENV PATH ${PATH}:/opt/slurm/bin
-COPY train.py train.py
 WORKDIR /workspace/gpt-neox
