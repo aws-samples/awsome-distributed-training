@@ -11,9 +11,7 @@ set -uxo pipefail
 : "${APPS_PATH:=/fsx/apps}"
 : "${IMAGE:=$APPS_PATH/gpt-neox.sqsh}"
 : "${FSX_PATH:=/fsx}"
-: "${CONTAINER_MOUNT:=$FSX_PATH:$FSX_PATH,/opt/slurm:/opt/slurm}"
-# SLurmRunner need `sinfo`
-# https://github.com/microsoft/DeepSpeed/blob/bcc617a0009dd27b4e144de59979bd7770eaf57c/deepspeed/launcher/multinode_runner.py#L327
+: "${CONTAINER_MOUNT:=$FSX_PATH:$FSX_PATH}"
 ## EFA settings
 export FI_EFA_USE_DEVICE_RDMA=1 # use for p4d
 export FI_EFA_FORK_SAFE=1
