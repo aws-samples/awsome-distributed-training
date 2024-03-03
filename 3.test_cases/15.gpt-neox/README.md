@@ -109,7 +109,6 @@ Parameters originate from either the [DeepSpeed runner CLI (DSL)](https://github
     "save": "/fsx/gpt-neox/models/pythia/1-4B_checkpoints",
     "load": "/fsx/gpt-neox/models/pythia/1-4B_checkpoints",
     "data_path": "/fsx/pile_subset/enwik8/enwik8_text_document",
-    "pipe_parallel_size": 1,
 ```
 
 Additionally, you need to modify all of your configs to conform to the JSON. When launching a GPT-NeoX job you can specify multiple YAML config files. Internally, all of these files are merged into one config and then passed as a single long command line argument to DeepSpeed. When using SLURM and its internal command srun, python fails to parse this long command line argument unless it is in the more restrictive JSON format. This test case prepares sample JSON configs in `configs/pythia` directory. See https://github.com/EleutherAI/gpt-neox/blob/main/configs/README.md#slurm-settings for details.
