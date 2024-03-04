@@ -4,7 +4,7 @@ set -euo pipefail
 
 # https://askubuntu.com/a/1472412
 # Exclude special characters that break create_slurm_database().
-EXCLUDED_CHAR="'\"\`\\[]{}()*"
+EXCLUDED_CHAR="'\"\`\\[]{}()*#"
 SLURM_DB_PASSWORD=$(apg -a 1 -M SNCL -m 10 -x 10 -n 1 -E "${EXCLUDED_CHAR}")
 
 # Retain adt behavior. However, verbosity will be disabled at select places to
