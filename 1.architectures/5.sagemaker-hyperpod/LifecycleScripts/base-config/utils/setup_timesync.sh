@@ -1,7 +1,10 @@
 #!/bin/bash
 
-# Credits: Sean Smith, Ben Snyder, Shubham Arora
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
 
+# Credits: Sean Smith, Ben Snyder, Shubham Arora
+#
 # Consistent times across cluster is crucial for distributed workload. For example, torchrun fails
 # fast when it detects 5 seconds (or more) time differences among workers.
 #
