@@ -65,25 +65,4 @@ declare -a TORCHRUN_ARGS=(
     --rdzv_endpoint=$(hostname) \
 )
 
-# srun -l "${ARGS[@]}" --mpi=pmix python /fsx/awsome-distributed-training/3.test_cases/15.gpt-neox/gpt-neox/launch.py --config ${MODEL_CONFIG} 
 srun -l "${ARGS[@]}" --mpi=pmix  python deepy.py train.py ${MODEL_CONFIG} 
-
-# function run_deepspeed() {
-#     # srun --nodelist=${NODE} --ntasks=1 -l "${ARGS[@]}" python3 -c "import os; print(os.environ['PATH'])"
-#     srun --nodelist=${NODE} --ntasks=1 -l "${ARGS[@]}" python3 deepy.py train.py ${MODEL_CONFIG} 
-#     #srun --nodelist=${NODE} --ntasks=1 -l "${ARGS[@]}" ls /opt/slurm/bin && which sinfo
-# }
-# 
-# NODE_RANK=1
-# for (( NODE_RANK=1; NODE_RANK<${NNODES}; NODE_RANK++ ))
-# do
-#     NODE=${NODES[$NODE_RANK]}
-#     echo "Run compute node ${NODE} for rank: ${NODE_RANK}"
-#     run_deepspeed &
-# done
-# NODE_RANK=0
-# NODE=${HEAD_NODE}
-# echo "Run main node ${NODE} for rank: ${NODE_RANK}"
-# run_deepspeed
-# wait
-
