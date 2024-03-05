@@ -65,4 +65,4 @@ declare -a TORCHRUN_ARGS=(
     --rdzv_endpoint=$(hostname) \
 )
 
-srun -l "${ARGS[@]}" --mpi=pmix  python deepy.py train.py ${MODEL_CONFIG} 
+srun -l "${ARGS[@]}" python deepy.py train.py ${MODEL_CONFIG} 
