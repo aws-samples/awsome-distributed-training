@@ -67,7 +67,7 @@ cp -r /apps/awsome-distributed-training/3.test_cases/14.bionemo/* ./apps/
 
 ```bash
 cd /apps/
-docker pull nvcr.io/nvidia/clara/bionemo-framework:latest
+docker pull nvcr.io/nvidia/clara/bionemo-framework:1.2
 ```
 
 ## 3. Create Conda env
