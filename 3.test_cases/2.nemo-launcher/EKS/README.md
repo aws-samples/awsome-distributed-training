@@ -96,3 +96,11 @@ docker cp -a <Nemo-Container-ID>:/opt/NeMo-Megatron-Launcher ./
 
 ```
 
+# 4. Install Requirements
+
+```bash
+git clone https://github.com/aws-samples/awsome-distributed-training.git
+cd ./awsome-distributed-training/3.test_cases/2.nemo-launcher/EKS/
+pip install -r requirements.txt
+```
+
