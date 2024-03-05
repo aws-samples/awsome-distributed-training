@@ -119,60 +119,6 @@ RUN apt-get remove -y libnccl2 libnccl-dev \
    && echo NCCL_SOCKET_IFNAME=^docker0,lo >> /etc/nccl.conf
 
 
-####################################################################################################
-# Rebuild OpenMPI with custom PMIX version. E.g., to match what host's Slurm is built with (see
-# /opt/pmix/ on host, or run pmix_info on host).
-#
-# May be needed on rare occassions when `srun --mpi=pmix --container-image=... <mpi_application>`
-# mysteriously crashes.
-#
-# NCCL EFA plugin (aws-ofi-nccl) depends on mpi, hence we must rebuild openmpi before building the
-# aws-ofi-ccnl.
-####################################################################################################
-ENV OPEN_MPI_PATH=/opt/amazon/openmpi
-
-# OpenMPI build script claims PMIX_VERSION, and complains if we use it.
-ENV CUSTOM_PMIX_VERSION=4.2.6
-RUN apt-get update && apt-get install -y libevent-dev \
-    && cd /tmp \
-    && wget https://github.com/openpmix/openpmix/releases/download/v${CUSTOM_PMIX_VERSION}/pmix-${CUSTOM_PMIX_VERSION}.tar.gz \
-    && tar -xzf pmix-${CUSTOM_PMIX_VERSION}.tar.gz \
-    && rm pmix-${CUSTOM_PMIX_VERSION}.tar.gz \
-    && cd pmix-${CUSTOM_PMIX_VERSION}/ \
-    && ./autogen.pl \
-    && ./configure --prefix=/opt/pmix \
-    && make -j \
-    && make install \
-    && echo /opt/pmix/lib > /etc/ld.so.conf.d/pmix.conf \
-    && ldconfig \
-    && cd / \
-    && rm -fr /tmp/pmix-${CUSTOM_PMIX_VERSION}/
-# To silence this runtime error message:
-# [p4de-st-p4de-2:110912] PMIX ERROR: ERROR in file gds_ds12_lock_pthread.c at line 168
-ENV PMIX_GDS_MODULE=^ds12 \
-    PMIX_MCA_gds=^ds12
-
-# Rebuild openmpi with DLC style (which it remarks as "without libfabric"), with the above pmix.
-ENV OMPI_VERSION=4.1.6
-RUN rm -fr ${OPEN_MPI_PATH} \
- && mkdir /tmp/openmpi \
- && cd /tmp/openmpi \
- && wget --quiet https://download.open-mpi.org/release/open-mpi/v4.1/openmpi-${OMPI_VERSION}.tar.gz \
- && tar zxf openmpi-${OMPI_VERSION}.tar.gz \
- && rm openmpi-${OMPI_VERSION}.tar.gz \
- && cd openmpi-${OMPI_VERSION} \
- && ./configure --enable-orterun-prefix-by-default --prefix=$OPEN_MPI_PATH --with-cuda=${CUDA_HOME} --with-slurm --with-pmix=/opt/pmix \
- && make -j $(nproc) all \
- && make install \
- && ldconfig \
- && cd / \
- && rm -rf /tmp/openmpi \
- && ompi_info --parsable --all | grep mpi_built_with_cuda_support:value \
- # Verify pmix from /opt/pmix/
- && ldd /opt/amazon/openmpi/lib/openmpi/mca_pmix_ext3x.so | grep '/opt/pmix/lib/libpmix.so.* ' > /opt/amazon/openmpi-pmix.txt
-####################################################################################################
-
-
 # NCCL EFA Plugin
 RUN mkdir -p /tmp && \
     cd /tmp && \
