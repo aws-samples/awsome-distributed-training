@@ -34,8 +34,8 @@ export NCCL_ASYNC_ERROR_HANDLING=1
 #export NCCL_DEBUG=INFO
 
 # export MODEL_CONFIG=${PWD}/configs/pythia/1-4B.json
-# export MODEL_CONFIG=${PWD}/configs/pythia/2-8B.json
-export MODEL_CONFIG=${PWD}/configs/pythia/12B.json
+export MODEL_CONFIG=${PWD}/configs/pythia/2-8B.json
+# export MODEL_CONFIG=${PWD}/configs/pythia/12B.json
 # Some potentially useful distributed environment variables
 export HOSTNAMES=`scontrol show hostnames "$SLURM_JOB_NODELIST"`
 export MASTER_ADDR=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
