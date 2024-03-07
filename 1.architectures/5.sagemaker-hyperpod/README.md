@@ -107,7 +107,7 @@ You can follow this same pattern for further customizations. For example, if you
 For now, let's just use the base configuration provided. Upload the scripts to the bucket you created earlier. This needs to be the same S3 bucket and prefix where we uploaded the other lifecycle scripts earlier.
 
 ```
-aws s3 cp --recursive LifeCycleScripts/base-config s3://${BUCKET}/LifeCycleScripts/base-config
+aws s3 cp --recursive LifecycleScripts/base-config s3://${BUCKET}/LifecycleScripts/base-config
 ```
 
 If you created an FSx for Lustre volume in the previous section, we'll need to update one file in the lifecycle scripts to attach it to our cluster.
@@ -142,7 +142,7 @@ Make sure the `instance_group_name` matches the instance group name `InstanceGro
 Copy the updated `provisioning_parameters.json` to S3:
 
 ```
-aws s3 cp LifeCycleScripts/base-config/provisioning_parameters.json s3://${BUCKET}/LifeCycleScripts/base-config/
+aws s3 cp LifecycleScripts/base-config/provisioning_parameters.json s3://${BUCKET}/LifecycleScripts/base-config/
 ```
 
 Lifecycle scripts can be reused across multiple cluster. This can be handy particularly if you want to move the work saved on your FSx for Lustre volume to a new cluster.
@@ -162,7 +162,7 @@ cat > cluster-config.json << EOL
     "InstanceType": "ml.c5.xlarge",
     "InstanceCount": 1,
     "LifeCycleConfig": {
-      "SourceS3Uri": "s3://${BUCKET}/LifeCycleScripts/base-config/",
+      "SourceS3Uri": "s3://${BUCKET}/LifecycleScripts/base-config/",
       "OnCreate": "on_create.sh"
     },
     "ExecutionRole": "${ROLE}",
@@ -173,7 +173,7 @@ cat > cluster-config.json << EOL
     "InstanceType": "ml.trn1.32xlarge",
     "InstanceCount": 4,
     "LifeCycleConfig": {
-      "SourceS3Uri": "s3://${BUCKET}/LifeCycleScripts/base-config/",
+      "SourceS3Uri": "s3://${BUCKET}/LifecycleScripts/base-config/",
       "OnCreate": "on_create.sh"
     },
     "ExecutionRole": "${ROLE}",
