@@ -7,10 +7,15 @@ import functools
 import numpy as np
 import torch
 import torch.distributed as dist
+from torch.utils.data import DataLoader
 from datetime import datetime
 import tqdm
 import logging
 from torch.distributed.fsdp import BackwardPrefetch, ShardingStrategy
+from transformers import AutoTokenizer
+from datasets import load_dataset
+
+from model_utils.concat_dataset import ConcatTokensDataset
 
 g_gigabyte = 1024**3
 
@@ -126,7 +131,7 @@ def get_model_config(args):
         model_config = LlamaConfig(
             vocab_size=args.vocab_size,
             hidden_size=args.hidden_width,
-            intermediate_size=args.llama_intermediate_size,
+            intermediate_size=args.intermediate_size,
             num_hidden_layers=args.num_layers,
             num_attention_heads=args.num_heads,
             num_key_value_heads=args.num_key_value_heads,
@@ -139,8 +144,26 @@ def get_model_config(args):
             tie_word_embeddings=False,
             rope_scaling=None,
         )
+    elif "mixtral" in args.model_type:
+        from transformers import MixtralConfig
+        model_config = MixtralConfig(
+            vocab_size=args.vocab_size,
+            hidden_size=args.hidden_width,
+            intermediate_size=args.intermediate_size,
+            num_hidden_layers=args.num_layers,
+            num_attention_heads=args.num_heads,
+            num_key_value_heads=args.num_key_value_heads,
+            hidden_act="silu",
+            max_position_embeddings=args.max_context_width,
+            initializer_range=args.initializer_range,
+            rms_norm_eps=1e-5,
+            use_cache=False,
+            tie_word_embeddings=False,
+            num_experts_per_tok=2,
+            num_local_experts=8,
+        )
     else:
-        raise NotImplementedError
+        raise NotImplementedError(f"Model {args.model_type} not implemented")
     return model_config
 
 def compute_num_params(model):
@@ -202,6 +225,15 @@ def get_transformer_layer(model_type="gpt2"):
         from transformers.models.llama.modeling_llama import LlamaDecoderLayer
 
         transformer_layer = LlamaDecoderLayer
+
+    elif model_type == "mixtral":
+        from transformers.models.mixtral.modeling_mixtral import MixtralDecoderLayer
+
+        transformer_layer = MixtralDecoderLayer
+
+    else:
+        raise NotImplementedError(f"Model type {model_type} not implemented")
+
     return transformer_layer
 
 def get_sharding_strategy(strategy: str):
@@ -413,3 +445,21 @@ def get_learning_rate_scheduler(optimizer, args):
     )
 
     return lr_scheduler
+
+def create_streaming_dataloader(dataset,
+                      tokenizer,
+                      name=None,
+                      global_rank=0,
+                      batch_size=1,
+                      max_context_width=4096,
+                      workers=4,
+                      split=None):
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer)
+    data = load_dataset(dataset, name=name, streaming=True, split=split).shuffle(42+global_rank)
+    train_concat_dataset = ConcatTokensDataset(data, tokenizer, max_context_width, True)
+    train_dataloader = DataLoader(train_concat_dataset,
+                                       batch_size=batch_size,
+                                       num_workers=workers,
+                                       pin_memory=True,
+                                       prefetch_factor=4)
+    return train_dataloader
