@@ -25,7 +25,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 # The three must-be-built packages.
 # Efa-installer>=1.29.0 required for nccl>=2.19.0 to avoid libfabric NCCL error.
 ENV EFA_INSTALLER_VERSION=1.30.0
-ENV AWS_OFI_NCCL_VERSION=1.7.4-aws
+ENV AWS_OFI_NCCL_VERSION=1.8.1-aws
 ENV NCCL_VERSION=2.19.3-1
 ENV NCCL_TESTS_VERSION=master
 
