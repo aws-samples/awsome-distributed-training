@@ -2,7 +2,7 @@
     "vocab_file": "/fsx/gpt-neox/tokenizers/20B_tokenizer.json",
     "save": "/fsx/gpt-neox/models/pythia/1-4B_checkpoints",
     "load": "/fsx/gpt-neox/models/pythia/1-4B_checkpoints",
-    "data_path": "/fsx/pile_subset/enwik8/enwik8_text_document",
+    "data_path": "/fsx/c4_subset/c4_openwebtext/c4_openwebtext_text_document",
     "pipe_parallel_size": 1,
     "model_parallel_size": 2,
     "world_size": 16,
