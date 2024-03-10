@@ -41,6 +41,8 @@ Below are the steps you need to follow:
     docker build -t gpt-neox -f 0.gpt-neox.dockerfile .
    ```
 
+If you wish to reduce memory footprint of the build process, consider tweaknig `MAX_JOBS` for `flash-attn` compile (in `0.gpt-neox.dockerfile` line 172).
+
 2. Once the Docker image is built, you can check if it is present with `docker images`. You should see an output similar to this one:
 
    ```bash

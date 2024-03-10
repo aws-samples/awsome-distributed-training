@@ -169,6 +169,6 @@ RUN git clone https://github.com/EleutherAI/gpt-neox.git \
     && pip install -r requirements/requirements-tensorboard.txt # optional, if logging via tensorboard \
     && python ./megatron/fused_kernels/setup.py install # optional, if using fused kernels 
 # Rebuild newer flash-attn
-RUN FLASH_ATTENTION_FORCE_BUILD=TRUE pip install flash-attn==2.5.5 --upgrade
+RUN MAX_JOBS=192 FLASH_ATTENTION_FORCE_BUILD=TRUE pip install flash-attn==2.5.5 --upgrade
 WORKDIR /workspace/gpt-neox
 COPY src/c4_prepare_data.py c4_prepare_data.py
