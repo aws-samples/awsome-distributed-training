@@ -13,7 +13,7 @@ set -ex;
 ###### User Variables #####
 ###########################
 
-GPUS_PER_NODE=4 # 4 for G5.12x, 8 for P4/P5
+GPUS_PER_NODE=8 # 4 for G5.12x, 8 for P4/P5
 
 ###########################
 ## Environment Variables ##
