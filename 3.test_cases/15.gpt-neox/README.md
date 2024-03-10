@@ -27,6 +27,11 @@ cd $TEST_CASE_PATH                         # Note that we assume that you are he
 ## 2. Build the container
 
 Before running training jobs, you need to use a build docker container image. [Enroot](https://github.com/NVIDIA/enroot) will be used to turn the image into unprivileged sandbox for Slurm. 
+You can build the image on your login node using the option 1 below, but build step could overwhelm it as it will compile [flash-attention](https://github.com/Dao-AILab/flash-attention).
+If you want to avoid that, follow steps in option 2.
+
+### Option 1: Bulid image on login node
+
 Below are the steps you need to follow:
 
 
@@ -71,6 +76,14 @@ Below are the steps you need to follow:
     ```
 
 Once done proceed to the next stage.
+
+### Option 2: Build image on a compute node
+
+In this option, you will use a compute node to build the image. Submit the job as:
+
+    ```bash
+    sbatch 1.build-image.sbatch
+    ```
 
 
 ## 4. Dataset preparation
