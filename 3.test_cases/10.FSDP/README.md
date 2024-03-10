@@ -1,4 +1,4 @@
-# Get Started Training Llama 2 with PyTorch FSDP in 5 Minutes
+# Get Started Training Llama 2 and Mixtral with PyTorch FSDP in 5 Minutes
 
 These scripts provide an easy way to get started with multinode [FSDP](https://pytorch.org/tutorials/intermediate/FSDP_tutorial.html) training on Slurm. It is designed to be as simple as possible, requires no data preparation, and uses a simple Conda environment. 
 
@@ -36,21 +36,23 @@ If you'd like to instead use your own dataset, you can do so by [formatting it a
 
 ## 3. Launch Training
 
-The script to launch a Slurm batch training job can be found in `1.distributed_training.sbatch`. You can adjust the number of training nodes by modifying `#SBATCH --nodes=4`. 
+The script to launch a Llama 2 Slurm batch training job can be found in `1.distributed_training.sbatch`. The script to launch a Mixtral training can be found in `2.distrbiuted_training_mixtral.sbatch` You can adjust the number of training nodes by modifying `#SBATCH --nodes=4`. 
 
-If you are using a non-EFA enable instance, such as G5, comment out lines 21-25.
+If you are using a non-RDMA enable instance, such as G5.12x, comment out lines 21-22. These instances have EFA between nodes, but do not have the GPU direct RDMA access of P4d and P5 instances.
 
 ```
 ## Plenty of EFA level variables
 ## Comment out for non-efa instances (G5, G4d, P3)
 # export FI_EFA_USE_DEVICE_RDMA=1 # use for p4d
 # export FI_EFA_FORK_SAFE=1
-# export FI_LOG_LEVEL=1
-# export FI_PROVIDER=efa
-# export NCCL_DEBUG=INFO
+export FI_LOG_LEVEL=1
+export FI_PROVIDER=efa
+export NCCL_DEBUG=INFO
 ```
 
-Also, make sure `--nproc_per_node` to match the number of GPUs on your instance type (8 for P4d/P5, 4 for G5.12xlarge, 1 for G5.xlarge).
+If you are using non-EFA enabled instances, such as G4dn, or single GPU G5 nodes, comment out all EFA environment variables on lines 21-25.
+
+Also, under `User Variables` make sure to adjust `GPUS_PER_NODE` to match the number of GPUs on your instance type (8 for P4d/P5, 4 for G5.12xlarge, 1 for G5.xlarge).
 
 You can also adjust the training parameters in `TRAINING_ARGS` (for example, to train Llama 2 70b). Additional parameters can be found in `model/arguments.py`. Note that we use the same directory for both `--checkpoint_dir` and `--resume_from_checkpoint`. If there are multiple checkpoints, `--resume_from_checkpoint` will automatically select the most recent one. This way if our training is interupted for any reason, it will automatically pick up the most recent checkpoint.
 

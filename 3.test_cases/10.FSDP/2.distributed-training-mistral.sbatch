@@ -45,28 +45,47 @@ export TORCHRUN=./pt_fsdp/bin/torchrun
 export TRAIN_SCRIPT=./train.py
 
 ############################
-# Llama 2 Training Params ##
+# Mixtral Training Params ##
 ############################
 
 declare -a TRAINING_ARGS=(
-    --max_context_width=4096 \
-    --num_key_value_heads=32 \ # 7b: 32 13b: 40 70b: 8
-    --llama_intermediate_size=11008 \ # 7b: 11008 13b: 13824 70b: 28672
-    --hidden_width=4096 \ # 7b: 4096 13b: 5120 70b: 8192
-    --num_layers=32 \ # 7b: 32 13b: 40 70b: 80
-    --num_heads=32 \ # 7b: 32 13b: 40 70b: 64
-    --model_type=llama_v2 \
-    --tokenizer="hf-internal-testing/llama-tokenizer" \
-    --checkpoint_freq=5000 \
-    --validation_freq=500 \
-    --max_steps 5000 \
-    --checkpoint_dir=./checkpoints \
-    --dataset='c4' \
-    --dataset_config_name='en' \
-    --resume_from_checkpoint=./checkpoints \
-    --train_batch_size=1 \
-    --val_batch_size=1 \
-    --sharding_strategy="hybrid"
+ --train_batch_size=4 \
+ --val_batch_size=4 \
+ --max_steps=5000 \
+ --seed=42 \
+ --bf16=1 \
+ --grad_clip=1.0 \
+ --weight_decay=0.2 \
+ --beta1=0.9 \
+ --beta2=0.95 \
+ --activation_checkpointing=1 \
+ --intermediate_size=14336 \
+ --num_key_value_heads=8 \
+ --logging_freq=1 \
+ --max_context_width=32768 \
+ --vocab_size=32000 \
+ --hidden_width=4096 \
+ --num_layers=32 \
+ --num_heads=32 \
+ --resid_pdrop=0.1 \
+ --embd_pdrop=0.1 \
+ --attn_pdrop=0.1 \
+ --summary_first_pdrop=0.1 \
+ --initializer_range=0.02 \
+ --model_type="mixtral" \
+ --rotary_pct=0.25 \
+ --rotary_emb_base=10000 \
+ --lr=0.0001 \
+ --lr_decay_style="cosine" \
+ --min_lr=1e-5 \
+ --warmup=0.0032 \
+ --plateau=0.0 \
+ --dataset="c4" \
+ --tokenizer="mistralai/Mixtral-8x7B-v0.1" \
+ --epochs=3 \
+ --dataset_config_name="en" \
+ --limit_all_gathers=1 \
+ --sharding_strategy="hybrid"
 )
 
 srun -l ${TORCHRUN} "${TORCHRUN_ARGS[@]}" $TRAIN_SCRIPT "${TRAINING_ARGS[@]}"
