@@ -102,6 +102,5 @@ RUN git clone https://github.com/NVIDIA/nccl-tests.git /opt/nccl-tests \
     NCCL_HOME=/opt/nccl/build \
     NVCC_GENCODE="-gencode=arch=compute_80,code=sm_80 -gencode=arch=compute_86,code=sm_86 -gencode=arch=compute_90,code=sm_90"
 
-ENV NCCL_PROTO simple
 RUN rm -rf /var/lib/apt/lists/*
 ENV LD_PRELOAD /opt/nccl/build/lib/libnccl.so
