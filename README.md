@@ -53,6 +53,7 @@ All test cases are under `3.test_cases/`. You can go in each test case directory
 | [`12.SM-dataparallel-FSDP`](./3.test_cases/12.SM-dataparallel-FSDP)           |  ✅   | ❓          | ❓         |
 | [`13.SM-dataparallel-deepspeed`](./3.test_cases/13.SM-dataparallel-deepspeed) |  ✅   | ❓          | ❓         |
 | [`14.bionemo`](./3.test_cases/14.bionemo)                                     |  ✅   | ❓          | ❓         |
+| [`15.gpt-neox`](./3.test_cases/15.gpt-neox)                                   |  ✅   | ❓          | ❓         |
 | [`jax`](./3.test_cases/jax)                                                   |  ✅   | ❓          | ❓         |
 
 ## 4. Validation scripts
