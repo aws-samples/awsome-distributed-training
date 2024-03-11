@@ -2,10 +2,10 @@
 # SPDX-License-Identifier: MIT-0
 FROM nvidia/cuda:12.2.0-devel-ubuntu22.04
 
-ARG EFA_INSTALLER_VERSION=1.28.0
-ARG AWS_OFI_NCCL_VERSION=v1.7.3-aws
-ARG NCCL_TESTS_VERSION=master
-ARG NCCL_VERSION=2.18.5
+ARG EFA_INSTALLER_VERSION=1.30.0
+ARG AWS_OFI_NCCL_VERSION=v1.8.1-aws
+ARG NCCL_TESTS_VERSION=2.13.9
+ARG NCCL_VERSION=2.19.4
 
 RUN apt-get update -y
 RUN apt-get remove -y --allow-change-held-packages \
@@ -70,7 +70,7 @@ RUN cd $HOME \
 
 ###################################################
 ## Install NCCL
-RUN git clone https://github.com/NVIDIA/nccl -b v${NCCL_VERSION}-1 /opt/nccl \
+RUN git clone -b v${NCCL_VERSION}-1 https://github.com/NVIDIA/nccl.git  /opt/nccl \
     && cd /opt/nccl \
     && make -j $(nproc) src.build CUDA_HOME=/usr/local/cuda \
     NVCC_GENCODE="-gencode=arch=compute_80,code=sm_80 -gencode=arch=compute_86,code=sm_86 -gencode=arch=compute_90,code=sm_90"
@@ -84,17 +84,16 @@ RUN export OPAL_PREFIX="" \
     && git checkout ${AWS_OFI_NCCL_VERSION} \
     && ./autogen.sh \
     && ./configure --prefix=/opt/aws-ofi-nccl/install \
-    --with-libfabric=/opt/amazon/efa/ \
-    --with-cuda=/usr/local/cuda \
-    --with-nccl=/opt/nccl/build \
-    --with-mpi=/opt/amazon/openmpi/ \
+        --with-mpi=/opt/amazon/openmpi \
+        --with-libfabric=/opt/amazon/efa \
+        --with-cuda=/usr/local/cuda \
+        --enable-platform-aws \
     && make -j $(nproc) && make install
 
 ###################################################
 ## Install NCCL-tests
-RUN git clone https://github.com/NVIDIA/nccl-tests.git /opt/nccl-tests \
+RUN git clone -b v${NCCL_TESTS_VERSION} https://github.com/NVIDIA/nccl-tests.git /opt/nccl-tests \
     && cd /opt/nccl-tests \
-    && git checkout ${NCCL_TESTS_VERSION} \
     && make -j $(nproc) \
     MPI=1 \
     MPI_HOME=/opt/amazon/openmpi/ \
