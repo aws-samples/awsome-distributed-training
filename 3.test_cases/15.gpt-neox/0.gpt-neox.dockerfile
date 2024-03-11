@@ -108,16 +108,17 @@ ENV PATH=/opt/amazon/efa/bin:/opt/amazon/openmpi/bin:$PATH
 # NCCL EFA plugin (aws-ofi-nccl) depends on mpi, hence we must rebuild openmpi before building the
 # aws-ofi-ccnl.
 ####################################################################################################
-RUN apt-get remove -y libnccl2 libnccl-dev \
-   && cd /tmp \
-   && git clone https://github.com/NVIDIA/nccl.git -b v${NCCL_VERSION} \
-   && cd nccl \
-   && make -j src.build BUILDDIR=/usr \
-   # Build for p4 & p5.
-   NVCC_GENCODE="-gencode=arch=compute_90,code=sm_90, -gencode=arch=compute_80,code=sm_80" \
-   && rm -rf /tmp/nccl \
-   && echo NCCL_SOCKET_IFNAME=^docker0,lo >> /etc/nccl.conf
-
+# RUN apt-get remove -y libnccl2 libnccl-dev \
+#    && cd /tmp \
+#    && git clone https://github.com/NVIDIA/nccl.git -b v${NCCL_VERSION} \
+#    && cd nccl \
+#    && make -j src.build BUILDDIR=/usr \
+#    # Build for p4 & p5.
+#    NVCC_GENCODE="-gencode=arch=compute_90,code=sm_90, -gencode=arch=compute_80,code=sm_80" \
+#    && rm -rf /tmp/nccl \
+#    && echo NCCL_SOCKET_IFNAME=^docker0,lo >> /etc/nccl.conf
+# Note: disabled custom NCCL installation as PyTorch container preinstalled 2.19.3 (cf. https://github.com/aws-samples/awsome-distributed-training/pull/174#discussion_r1519045216)
+# yet Keeping the above instructions for future updates.
 
 # NCCL EFA Plugin
 RUN mkdir -p /tmp && \
