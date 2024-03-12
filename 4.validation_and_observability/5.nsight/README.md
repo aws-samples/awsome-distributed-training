@@ -35,12 +35,17 @@ fi
 The above executable needs the following:
 
 ```bash
-1. DELAY-PERIOD: Collection start delay in seconds. Typically the multi-node workload takes a few seconds before collection of relevant metrics start. Typically for distributed training applications delaying by ~30sec avoids having empty gaps in the timeline view of the re
+1. DELAY-PERIOD: Collection start delay in seconds. Typically the multi-node workload takes a few seconds before collection of relevant metrics start. Typically for distributed training applications delaying by ~30sec avoids having empty gaps in the timeline view of the Nsight report. For the NCCL test a delay of less than 5 seconds works. You can also specify --duration in seconds to collect metrics.
+
+2. PATH-TO-SAVE-REPORT: One report is generated per GPU. Provide a path to save all reports.
+3. REPORT-NAME-TAG: Unique name tag to group all reports.
 ```
+Here, we are running the Nsight profile with 2 p4de nodes where each node has 4 EFA devices and 8 GPUs. The `nic sampler` metrics from all 4 EFA devices show up in every report so it is okay to collect these metrics only for 1 rank.
 
+Below is a screenshot of the generated Nsight report:
 
-
-
+<center><img src="reports/nccl_nsight.png" width="80%"/> </br>
+</center>
 
 
 # 3. Multi-node training with Slurm and Pyxis
