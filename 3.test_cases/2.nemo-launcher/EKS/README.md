@@ -104,3 +104,44 @@ cd ./awsome-distributed-training/3.test_cases/2.nemo-launcher/EKS/
 pip install -r requirements.txt
 ```
 
+# 5. Build and push AWS optimized Docker container
+
+```bash
+docker build -t ${REGISTRY}${IMAGE}${TAG} -f 0.Dockerfile .
+
+echo "Logging in to $REGISTRY ..."
+aws ecr get-login-password | docker login --username AWS --password-stdin $REGISTRY
+
+# Create registry if it does not exist
+REGISTRY_COUNT=$(aws ecr describe-repositories | grep ${IMAGE} | wc -l)
+if [ "$REGISTRY_COUNT" == "0" ]; then
+        echo ""
+        echo "Creating repository ${IMAGE} ..."
+        aws ecr create-repository --repository-name ${IMAGE}
+fi
+
+# Push image
+echo ""
+
+echo "Pushing image ${REGISTRY}${IMAGE}${TAG}"
+docker image push ${REGISTRY}${IMAGE}${TAG}
+```
+
+# 6. Deploy kubeflow mpi-operator
+
+You might need to restart mpi-operator
+
+```bash
+kubectl apply -f https://raw.githubusercontent.com/kubeflow/mpi-operator/v0.3.0/deploy/v2beta1/mpi-operator.yaml
+kubectl apply -f ./clusterrole-mpi-operator.yaml
+
+```
+
+# 7. Put launcher scripts in /fsx-shared???
+
+# 8. Run
+
+```bash
+python main.py
+
+```
