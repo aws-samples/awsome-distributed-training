@@ -1,0 +1,6 @@
+mamba-ssm
+transformers==4.36.0
+datasets
+accelerate>=0.21
+deepspeed==0.9.2
+mosaicml-streaming
