@@ -19,7 +19,7 @@
 #     # Load image to local docker registry -> on head node, or new compute/build node.
 #     docker load < /fsx/nvidia-pt-od__latest.tar
 ####################################################################################################
-FROM nvcr.io/nvidia/pytorch:23.12-py3
+FROM nvcr.io/nvidia/pytorch:24.02-py3
 ENV DEBIAN_FRONTEND=noninteractive
 
 # The three must-be-built packages.
@@ -84,10 +84,13 @@ ENV PATH=/opt/amazon/efa/bin:/opt/amazon/openmpi/bin:$PATH
 # [CUSTOM_NCCL_OPTION_1] Uncomment below stanza to install another NCCL version using the official
 # binaries.
 #
+# Please consult https://docs.nvidia.com/deeplearning/frameworks/pytorch-release-notes/index.html to
+# find out the prebuilt nccl version in the parent image.
+#
 # NCCL EFA plugin (aws-ofi-nccl) depends on mpi, hence we must rebuild openmpi before building the
 # aws-ofi-ccnl.
 ####################################################################################################
-#ENV NCCL_VERSION=2.19.3-1
+#ENV NCCL_VERSION=2.20.5-1
 #RUN cd /opt && \
 #    wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-keyring_1.0-1_all.deb && \
 #    dpkg -i cuda-keyring_1.0-1_all.deb && \
@@ -97,17 +100,21 @@ ENV PATH=/opt/amazon/efa/bin:/opt/amazon/openmpi/bin:$PATH
 
 
 ####################################################################################################
-# [CUSTOM_NCCL_OPTION_2] Install NCCL from source to the same location as the built-in ones. The
-# benefits of installing to the same location as the built-in version are:
+# [CUSTOM_NCCL_OPTION_2] Install NCCL from source to the same location as the built-in ones.
 #
-# 1. There's only ever a single libnccl version offered by this image, preventing application from
-#    mistakenly chooses a wrong version.
-# 2. No longer needing extra settings for LD_LIBRARY_PATH or LD_PRELOAD.
+# Please consult https://docs.nvidia.com/deeplearning/frameworks/pytorch-release-notes/index.html to
+# find out the prebuilt nccl version in the parent image.
+#
+# Installation mechanics:
+#
+# 1. Remove pre-installed nccl to ensure there's only ever a single libnccl version offered by this
+#    image, preventing application from mistakenly chooses a wrong version.
+# 2. Install to default location, so no more extra settings for LD_LIBRARY_PATH or LD_PRELOAD.
 #
 # NCCL EFA plugin (aws-ofi-nccl) depends on mpi, hence we must rebuild openmpi before building the
 # aws-ofi-ccnl.
 ####################################################################################################
-ENV NCCL_VERSION=2.19.3-1
+ENV NCCL_VERSION=2.20.5-1
 RUN apt-get remove -y libnccl2 libnccl-dev \
    && cd /tmp \
    && git clone https://github.com/NVIDIA/nccl.git -b v${NCCL_VERSION} \
