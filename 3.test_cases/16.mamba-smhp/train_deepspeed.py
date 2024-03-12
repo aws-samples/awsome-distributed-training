@@ -41,79 +41,97 @@ except ImportError:
 
 backend = "nccl"
 
-def parse_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--model_name",
-        type=str,
-        default="state-spaces/mamba",
-        help="Model name to be used for training"
-    ),
-    parser.add_argument("--world_size", type=int, default=24, help="number of GPUs being used for training")
-    parser.add_argument("--epochs", type=int, default=3, help="Number of epochs to train for.")
-    parser.add_argument("--max_steps", type=int, default=None, help="Number of epochs to train for.")
-    parser.add_argument(
-        "--batch_size",
-        type=int,
-        default=1,
-        help="Batch size to use for training.",
-    )
-    parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate to use for training.")
-    parser.add_argument("--optimizer", type=str, default="adamw_hf", help="Learning rate to use for training.")
-    parser.add_argument("--seed", type=int, default=42, help="Seed to use for training.")
-    parser.add_argument("--num_train_epochs", type=int, default=3, help="Total number of training epochs to perform.")
+@dataclass
+class TrainingArgs:
+    
+    """
+    Arguments required to set up trainer.
+    """
 
-    parser.add_argument(
-        "--gradient_checkpointing",
-        type=bool,
-        default=False,
-        help="Whether to use gradient checkpointing to save memory.",
+    world_size: int = field(
+        default=24,
+        metadata={
+            "help": (
+                "number of GPUs being used for training."
+            )
+        },
     )
-    parser.add_argument(
-    "--bf16",
-    type=bool,
-    default=True if torch.cuda.get_device_capability()[0] == 8 else False,
-    help="Whether to use bf16.",
-    )
-    parser.add_argument(
-        "--max_train_steps",
-        type=int,
-        default=None,
-        help="Total number of training steps to perform. If provided, overrides num_train_epochs.",
-    )
-    parser.add_argument(
-        "--learning_rate",
-        type=float,
-        default=1e-4,
-        help="Initial learning rate (after the potential warmup period) to use.",
-    )
-    parser.add_argument(
-        "--gradient_accumulation_steps",
-        type=int,
+    epochs: Optional[int] = field(
         default=3,
-        help="Number of updates steps to accumulate before performing a backward/update pass.",
+        metadata={
+            "help": "Number of epochs to train for. "},
     )
-    parser.add_argument(
-        "--lr_scheduler_type",
-        type=SchedulerType,
-        default="linear",
-        help="The scheduler type to use.",
-        choices=["linear", "cosine", "cosine_with_restarts", "polynomial", "constant", "constant_with_warmup"],
+    max_steps: Optional[int] = field(
+        default=None, metadata={
+            "help": "Number of epochs to train for. "},
     )
-    parser.add_argument(
-        "--num_warmup_steps", type=int, default=0, help="Number of steps for the warmup in the lr scheduler."
+    batch_size: Optional[int] = field(
+        default=1, metadata={
+            "help": "Batch size to use for training."},
     )
-    parser.add_argument(
-        "--deepspeed_config", type=str, help="Path to deepspeed config json"
+    lr: Optional[float] = field(
+        default=1e-4, metadata={
+            "help": "Learning rate to use for training."},
+    )
+    optimizer: Optional[str] = field(
+        default="adam_hf", metadata={
+            "help": "Optimizer to use for training."},
+    )
+    seed: Optional[int]= field(
+        default=42, metadata={
+            "help": "Seed to use for training."},
+    )
+    num_train_epochs: Optional[int] = field(
+        default=3, metadata={
+            "help": "Total number of training epochs to perform."},
+    )
+    gradient_checkpointing: Optional[bool] = field(
+        default=True, metadata={
+            "help": "Whether to use gradient checkpointing to save memory."},
+    )
+    bf16: Optional[bool] = field(
+        default=True if torch.cuda.get_device_capability()[0] == 8 else False, metadata={
+            "help": "Whether to use bf16."},
+    )
+    learning_date: Optional[float] = field(
+        default=1e-4, metadata={
+            "help": "Initial learning rate (after the potential warmup period) to use."},
     )
 
-    parser.add_argument("--weight_decay", type=float, default=1e-1, help="Weight decay to use.")
-    parser.add_argument("--cache_dir",type=str,default=None)
-    args = parser.parse_known_args()
-    return args
-
-
-
+    max_train_steps: Optional[int] = field(
+        default=None, metadata={
+            "help": "Total number of training steps to perform. If provided, overrides num_train_epochs."},
+    )
+    gradient_accumulation_steps: Optional[int] = field(
+        default=3, metadata={
+            "help": "Number of updates steps to accumulate before performing a backward/update pass."},
+    )
+    lr_scheduler_type: Optional[str]= field(
+        default="linear", metadata={
+            "help": "The scheduler type to use. From linear, cosine, cosine_with_restarts, polynomial, constant, constant_with_warmup"},
+    )
+    num_warmup_steps: Optional[int] = field(
+        default=0, metadata={
+            "help": "Number of steps for the warmup in the lr scheduler."},
+    )
+    deepspeed_config: Optional[str] = field(
+        default=None, metadata={
+            "help": "Path to Deepspeed config file."},
+    )
+    weight_decay: Optional[float] = field(
+        default=1e-1, metadata={
+            "help": "Weight decay to use."},
+    )
+    cache_dir: Optional[str] = field(
+        default=None, metadata={
+            "help": "Path to store model cache"},
+    )
+    learning_rate: float = field(
+        default=1e-4, metadata={
+            "help": "Initial learning rate (after the potential warmup period) to use."},
+    )
+  
+ 
 @dataclass
 class ModelArguments:
     """
@@ -683,15 +701,13 @@ def train(model_args, data_args, args):
 
 def main():
 
-    parser = HfArgumentParser((ModelArguments, DataTrainingArguments))
-    model_args, data_args = parser.parse_args_into_dataclasses()
+    parser = HfArgumentParser((ModelArguments, DataTrainingArguments, TrainingArgs))
+    model_args, data_args, training_args = parser.parse_args_into_dataclasses()
 
     deepspeed.init_distributed(dist_backend=backend)  
 
-    args, _ = parse_args()
-
-
-    train(model_args, data_args, args)
+ 
+    train(model_args, data_args, training_args)
 
 
 if __name__ == "__main__":
