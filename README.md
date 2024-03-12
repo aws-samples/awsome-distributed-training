@@ -54,6 +54,7 @@ All test cases are under `3.test_cases/`. You can go in each test case directory
 | [`13.SM-dataparallel-deepspeed`](./3.test_cases/13.SM-dataparallel-deepspeed) |  ✅   | ❓          | ❓         |
 | [`14.bionemo`](./3.test_cases/14.bionemo)                                     |  ✅   | ❓          | ❓         |
 | [`15.gpt-neox`](./3.test_cases/15.gpt-neox)                                   |  ✅   | ❓          | ❓         |
+| [`16.pytorch-cpu-ddp`](./3.test_cases/16.pytorch-cpu-dpp)                     |  ✅   | ❓          | ❓         |
 | [`jax`](./3.test_cases/jax)                                                   |  ✅   | ❓          | ❓         |
 
 ## 4. Validation scripts
