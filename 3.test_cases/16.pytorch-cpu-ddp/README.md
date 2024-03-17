@@ -38,7 +38,7 @@ sbatch 1.conda-train.sbatch
 Output of the training job can be found in `logs` directory:
 
 ```bash
-# cat logs/cpu-ddp_xxx.out
+# cat logs/cpu-ddp-conda_xxx.out
 Node IP: 10.1.96.108
 [2024-03-12 08:22:45,549] torch.distributed.run: [WARNING] master_addr is only used for static rdzv_backend and when rdzv_endpoint is not specified.
 [2024-03-12 08:22:45,549] torch.distributed.run: [WARNING] 
@@ -96,7 +96,7 @@ sbatch 4.container-train.sbatch
 Output of the training job can be found in `logs` directory:
 
 ```bash
-# cat logs/cpu-ddp_xxx.out
+# cat logs/cpu-ddp-container.out
 Node IP: 10.1.96.108
 [2024-03-12 08:22:45,549] torch.distributed.run: [WARNING] master_addr is only used for static rdzv_backend and when rdzv_endpoint is not specified.
 [2024-03-12 08:22:45,549] torch.distributed.run: [WARNING] 
