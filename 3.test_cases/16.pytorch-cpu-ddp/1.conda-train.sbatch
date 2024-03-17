@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=cpu-ddp
+#SBATCH --job-name=cpu-ddp-conda
 #SBATCH --exclusive
 #SBATCH --wait-all-nodes=1
 #SBATCH --nodes 2
