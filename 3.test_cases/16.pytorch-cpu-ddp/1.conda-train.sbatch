@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=cpu-ddp
+#SBATCH --job-name=cpu-ddp-conda
 #SBATCH --exclusive
 #SBATCH --wait-all-nodes=1
 #SBATCH --nodes 2
@@ -14,7 +14,7 @@ head_node_ip=$(srun --nodes=1 --ntasks=1 -w "$head_node" hostname --ip-address)
 echo Node IP: $head_node_ip
 export LOGLEVEL=INFO
 
-srun /opt/conda/envs/pytorch/bin/torchrun \
+srun ./pt_cpu/bin/torchrun \
 --nnodes 2 \
 --nproc_per_node 4 \
 --rdzv_id $RANDOM \
