@@ -8,7 +8,7 @@ ARG GOLANG_VERSION=1.21.5
 # install go
 RUN apt update && apt install curl git build-essential -y
 RUN curl -OL https://go.dev/dl/go${GOLANG_VERSION}.linux-amd64.tar.gz && \
-    tar -C /usr/local -xvf go${GOLANG_VERSION}.linux-amd64.tar.gz
+    tar -C /usr/local -xf go${GOLANG_VERSION}.linux-amd64.tar.gz
 ENV PATH=$PATH:/usr/local/go/bin
 
 # Install EFA
