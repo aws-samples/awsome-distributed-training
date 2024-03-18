@@ -41,6 +41,6 @@ declare -a TORCHRUN_ARGS=(
     --rdzv_endpoint=$(hostname) \
 )
 
-export TRAIN_SCRIPT=./train_fsdp.py
+export TRAIN_SCRIPT=./train.py
 
 srun -l torchrun "${TORCHRUN_ARGS[@]}" $TRAIN_SCRIPT
