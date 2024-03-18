@@ -17,19 +17,15 @@
     },
 
     "zero_optimization": {
-        "stage": 3,
-         "overlap_comm": true,
-        "contiguous_gradients": true,
-        "sub_group_size": 1e8,
-        "reduce_bucket_size": "auto",
-        "stage3_prefetch_bucket_size": "auto",
-        "stage3_param_persistence_threshold": "auto",
-        "stage3_max_live_parameters": 1e8,
-        "stage3_max_reuse_distance": 1e8,
-        "stage3_gather_16bit_weights_on_model_save": true
+        "stage": 2,
+        "allgather_partitions": true,
+        "allgather_bucket_size": 2e8,
+        "overlap_comm": true,
+        "reduce_scatter": true,
+        "reduce_bucket_size": 2e8,
+        "contiguous_gradients": true
     },
-
-    "gradient_accumulation_steps": "auto",
+    "gradient_accumulation_steps": 1,
     "gradient_clipping": "auto",
     "steps_per_print": 2000,
     "train_batch_size": "auto",

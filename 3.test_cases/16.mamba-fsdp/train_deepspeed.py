@@ -7,6 +7,7 @@ from transformers import (
     get_scheduler,
     SchedulerType
 )
+import deepspeed
 
 import argparse
 from dataclasses import dataclass, field
@@ -121,11 +122,7 @@ class TrainingArgs:
     weight_decay: Optional[float] = field(
         default=1e-1, metadata={
             "help": "Weight decay to use."},
-    )
-    cache_dir: Optional[str] = field(
-        default=None, metadata={
-            "help": "Path to store model cache"},
-    )
+    )    
     learning_rate: float = field(
         default=1e-4, metadata={
             "help": "Initial learning rate (after the potential warmup period) to use."},
