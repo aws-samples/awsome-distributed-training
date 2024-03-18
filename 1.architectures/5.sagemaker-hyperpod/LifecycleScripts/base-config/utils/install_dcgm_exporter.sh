@@ -4,14 +4,14 @@
 if nvidia-smi; then
     echo "NVIDIA GPU found. Proceeding with script..."
     # Set DCGM Exporter version
-    DCGM_EXPORTER_VERSION=2.1.4-2.3.1
+    DCGM_EXPORTER_VERSION=3.3.5-3.4.0-ubuntu22.04
 
     # Run the DCGM Exporter Docker container
     sudo docker run -d --rm \
        --gpus all \
        --net host \
        --cap-add SYS_ADMIN \
-       nvcr.io/nvidia/k8s/dcgm-exporter:${DCGM_EXPORTER_VERSION}-ubuntu20.04 \
+       nvcr.io/nvidia/k8s/dcgm-exporter:${DCGM_EXPORTER_VERSION} \
        -f /etc/dcgm-exporter/dcp-metrics-included.csv || { echo "Failed to run DCGM Exporter Docker container"; exit 1; }
 
     echo "Running DCGM exporter in a Docker container on port 9400..."
