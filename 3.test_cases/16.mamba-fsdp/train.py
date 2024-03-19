@@ -187,7 +187,6 @@ def train():
             # forward
             outputs = model(**inputs)
             loss = outputs.loss
-            print(f"loss after forward pass: {str(loss)}")
 
             # backward
             loss.backward()
@@ -208,7 +207,6 @@ def train():
 
             # avg loss over all processes
             loss = get_all_reduce_mean(loss).item()
-            print(f"avg loss over all processes: {str(loss)}")
 
             # log every 4 steps
             if current_step % 4 == 0:
