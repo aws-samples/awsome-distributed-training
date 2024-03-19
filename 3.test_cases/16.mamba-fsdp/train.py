@@ -9,6 +9,7 @@ from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 from tqdm import tqdm
 from datetime import datetime
+import torch.nn.functional as F
 from torch.distributed.fsdp import (
     FullyShardedDataParallel as FSDP,
     MixedPrecision,
@@ -38,6 +39,8 @@ def print_gpu_utilization(rank):
     print(f"GPU{rank} memory occupied: {info.used//1024**2} MB.")
 
 def train():
+    torch.backends.cuda.matmul.allow_tf32 = True
+    torch.backends.cudnn.allow_tf32 = True
     dist.init_process_group()
     global_rank = dist.get_rank()
     device = global_rank % torch.cuda.device_count()
@@ -177,13 +180,14 @@ def train():
             inputs = {
                 "input_ids": batch["input_ids"].to("cuda"),
                 "labels": batch["labels"].to("cuda"),
-                "attention_mask": batch["attention_mask"].to("cuda"),
+                #"attention_mask": batch["attention_mask"].to("cuda"),
             }
             token_count += batch["token_count"]
 
             # forward
             outputs = model(**inputs)
             loss = outputs.loss
+            print(f"loss after forward pass: {str(loss)}")
 
             # backward
             loss.backward()
@@ -200,10 +204,11 @@ def train():
             optimizer.zero_grad(set_to_none=True)
 
             # detach from graph
-            loss = loss.detach()
+            #loss = loss.detach()
 
             # avg loss over all processes
             loss = get_all_reduce_mean(loss).item()
+            print(f"avg loss over all processes: {str(loss)}")
 
             # log every 4 steps
             if current_step % 4 == 0:
@@ -238,7 +243,7 @@ def collate_mlm(elements, tokenizer, mlm_probability):
     tokens_maxlen = max([len(t) for t in tokenlist])
     token_count = 0
 
-    input_ids, labels, attention_masks = [], [], []
+    input_ids, labels = [], []
     for tokens in tokenlist:
         pad_len = tokens_maxlen - len(tokens)
 
@@ -246,16 +251,29 @@ def collate_mlm(elements, tokenizer, mlm_probability):
         input_ids_with_mask, labels_with_mask = mask_tokens(tokens, tokenizer, mlm_probability)
 
         # Pad inputs and labels
-        input_ids.append(input_ids_with_mask + [tokenizer.pad_token_id] * pad_len)
-        labels.append(labels_with_mask + [-100] * pad_len)
-        attention_masks.append([1] * len(tokens) + [0] * pad_len)
+        input_ids_with_mask = torch.tensor(input_ids_with_mask + [tokenizer.pad_token_id] * pad_len)
+        labels_with_mask = torch.cat([labels_with_mask, torch.tensor([-100] * pad_len)])
+
+        input_ids.append(input_ids_with_mask)
+        labels.append(labels_with_mask)
 
         token_count += len(tokens)
 
+    input_ids = torch.stack(input_ids)
+    labels = torch.stack(labels)
+
+    attention_masks = []
+    for tokens in tokenlist:
+        pad_len = tokens_maxlen - len(tokens)
+        attention_mask = [1] * len(tokens) + [0] * pad_len
+        attention_masks.append(attention_mask)
+
+    attention_masks = torch.tensor(attention_masks)
+
     batch = {
-        "input_ids": torch.tensor(input_ids),
-        "labels": torch.tensor(labels),
-        "attention_mask": torch.tensor(attention_masks),
+        "input_ids": input_ids,
+        "labels": labels,
+        "attention_mask": attention_masks,
         "token_count": token_count
     }
     return batch
@@ -263,20 +281,16 @@ def collate_mlm(elements, tokenizer, mlm_probability):
 
 def mask_tokens(tokens, tokenizer, mlm_probability):
     input_ids = tokens.copy()
-    labels = tokens.copy()
+    labels = torch.tensor(tokens.copy())  # Convert labels to a tensor
 
     # Mask tokens with probability `mlm_probability`
     probability_matrix = torch.full(labels.shape, mlm_probability)
     masked_indices = torch.bernoulli(probability_matrix).bool()
 
-    # Replace masked tokens in input_ids with [MASK] token
-    input_ids[masked_indices] = tokenizer.mask_token_id
-
     # Replace unmasked tokens in labels with -100 (ignore index)
     labels[~masked_indices] = -100
 
     return input_ids, labels
-
 
 def gather_object(object):
     output_objects = [None for _ in range(dist.get_world_size())]
@@ -321,8 +335,8 @@ def disable_model_dropout(model: torch.nn.Module):
             module.p = 0
 
 def setup_model(model_name):
-    # monkey patch MambaLMHeadModel.forward 
-    def forward_with_loss(self, input_ids, position_ids=None, inference_params=None, num_last_tokens=0, labels = None):
+    # modified forward for MambaLMHeadModel
+    def forward_with_loss(self, input_ids, position_ids=None, inference_params=None, num_last_tokens=0, labels=None):
         """
         "position_ids" is just to be compatible with Transformer generation. We don't use it.
         num_last_tokens: if > 0, only return the logits for the last n tokens
@@ -331,28 +345,26 @@ def setup_model(model_name):
         if num_last_tokens > 0:
             hidden_states = hidden_states[:, -num_last_tokens:]
         lm_logits = self.lm_head(hidden_states)
-        
-        # Source: https://github.com/huggingface/transformers/blob/80377eb018c077dba434bc8e7912bcaed3a64d09/src/transformers/models/llama/modeling_llama.py#L1196
+
         if labels is not None:
-            logits = lm_logits
             # Shift so that tokens < n predict n
-            shift_logits = logits[..., :-1, :].contiguous()
+            shift_logits = lm_logits[..., :-1, :].contiguous()
             shift_labels = labels[..., 1:].contiguous()
-            # Flatten the tokens
-            loss_fct = CrossEntropyLoss()
-            # shift_logits = shift_logits.view(-1, self.config.vocab_size)
-            shift_logits = shift_logits.view(-1, self.backbone.embedding.weight.size()[0])
-            shift_labels = shift_labels.view(-1)
-            # Enable model parallelism
-            shift_labels = shift_labels.to(shift_logits.device)
-            loss = loss_fct(shift_logits, shift_labels)
+
+            # Flatten the logits and labels
+            logits = shift_logits.view(-1, shift_logits.size(-1))
+            labels = shift_labels.view(-1).to(device=logits.device, dtype=torch.long)
+
+            # Use CrossEntropyLoss with label smoothing
+            loss_fct = CrossEntropyLoss(label_smoothing=0.1)
+            loss = loss_fct(logits, labels)
 
             CausalLMOutput = namedtuple("CausalLMOutput", ["loss"])
-            return CausalLMOutput(loss=loss)            
-            # return (loss,)   
+            return CausalLMOutput(loss=loss)
         else:
             CausalLMOutput = namedtuple("CausalLMOutput", ["logits"])
             return CausalLMOutput(logits=lm_logits)
+ 
     MambaLMHeadModel.forward=forward_with_loss
 
     model = MambaLMHeadModel.from_pretrained(
@@ -379,7 +391,7 @@ def evaluation(
         inputs = {
             "input_ids": batch["input_ids"].to("cuda"),
             "labels": batch["labels"].to("cuda"),
-            "attention_mask": batch["attention_mask"].to("cuda"),
+            #"attention_mask": batch["attention_mask"].to("cuda"),
         }
         with torch.no_grad():
             outputs = model(**inputs)
