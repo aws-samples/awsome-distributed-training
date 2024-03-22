@@ -2,10 +2,10 @@
 # SPDX-License-Identifier: MIT-0
 FROM nvidia/cuda:12.2.0-devel-ubuntu22.04
 
-ARG EFA_INSTALLER_VERSION=1.30.0
+ARG EFA_INSTALLER_VERSION=1.31.0
 ARG AWS_OFI_NCCL_VERSION=v1.8.1-aws
 ARG NCCL_TESTS_VERSION=2.13.9
-ARG NCCL_VERSION=2.19.4
+ARG NCCL_VERSION=2.20.3
 
 RUN apt-get update -y
 RUN apt-get remove -y --allow-change-held-packages \
