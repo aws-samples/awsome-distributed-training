@@ -17,6 +17,7 @@ head_node_ip=$(srun --nodes=1 --ntasks=1 -w "$head_node" hostname --ip-address)
 
 echo Node IP: $head_node_ip
 export LOGLEVEL=INFO
+export NVIDIA_VISIBLE_DEVICES=void
 
 declare -a ARGS=(
     --container-image ${PWD}/pytorch.sqsh
