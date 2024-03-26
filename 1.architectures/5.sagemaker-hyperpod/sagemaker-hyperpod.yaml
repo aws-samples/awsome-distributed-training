@@ -237,47 +237,6 @@ Resources:
       GroupId: !Ref SecurityGroup
       CidrIp: 0.0.0.0/0
 
-  FSXSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Allow FSX to mount to the head node
-      VpcId: !Ref VPC
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 988
-          ToPort: 988
-          CidrIp: !FindInMap [Networking, VPC, CIDR0]
-        - IpProtocol: tcp
-          FromPort: 1021
-          ToPort: 1023
-          CidrIp: !FindInMap [Networking, VPC, CIDR0]
-        - IpProtocol: tcp
-          FromPort: 988
-          ToPort: 988
-          CidrIp: !FindInMap [Networking, VPC, CIDR1]
-        - IpProtocol: tcp
-          FromPort: 1021
-          ToPort: 1023
-          CidrIp: !FindInMap [Networking, VPC, CIDR1]
-      SecurityGroupEgress:
-        - IpProtocol: tcp
-          FromPort: 988
-          ToPort: 988
-          CidrIp: !FindInMap [Networking, VPC, CIDR0]
-        - IpProtocol: tcp
-          FromPort: 1021
-          ToPort: 1023
-          CidrIp: !FindInMap [Networking, VPC, CIDR0]
-        - IpProtocol: tcp
-          FromPort: 988
-          ToPort: 988
-          CidrIp: !FindInMap [Networking, VPC, CIDR1]
-        - IpProtocol: tcp
-          FromPort: 1021
-          ToPort: 1023
-          CidrIp: !FindInMap [Networking, VPC, CIDR1]
-
-
   # Build the public subnet
   PublicSubnet:
     Type: AWS::EC2::Subnet
