@@ -29,6 +29,7 @@ Metadata:
           default: Availability Zone configuration for the subnets
         Parameters:
           - SubnetsAZ
+          - SubnetsAZ2
       - Label:
           default: Fsx Lustre storage size
         Parameters:
@@ -46,6 +47,8 @@ Metadata:
         default: Name of your VPC
       SubnetsAZ:
         default: Availability zone id to deploy the subnets
+      SubnetsAZ2:
+        default: (Optional) Availability zone id to deploy the 2nd private subnet
       CreateS3Endpoint:
         default: Create an S3 endpoint
 
@@ -63,6 +66,11 @@ Parameters:
     Description: Availability zone id in which the subnets will be created.
     Type: String
     Default: usw2-az4
+
+  SubnetsAZ2:
+    Description: Availability zone id in which the 2nd private subnet will be created. Specify it when you need multiple AZs for other AWS services (e.g. AWS Directory Service). Leave empty if you don't need it.
+    Type: String
+    Default: ''
 
   CreateS3Endpoint:
     AllowedValues:
@@ -116,6 +124,22 @@ Parameters:
 
 Conditions:
   S3EndpointCondition: !Equals [!Ref 'CreateS3Endpoint', 'true']
+  SecondSubnetCondition: !Not [ !Equals [!Ref 'SubnetsAZ2', ''] ] 
+
+
+##########################
+## Rules for Parameters ##
+##########################
+
+Rules:
+  SubnetsAZ2Rule:
+    Assertions:
+      - Assert: !Not 
+        - !Equals 
+          - !Ref SubnetsAZ
+          - !Ref SubnetsAZ2
+        AssertDescription: Second AZ has to be different from the first AZ.
+
 
 #########################
 ## VPC & Network Setup ##
@@ -303,6 +327,19 @@ Resources:
         - Key: Name
           Value: !Join [ ' ', [ !Ref VPCName, 'Private Subnet -', !Ref SubnetsAZ ] ]
 
+  # Create the 2nd private subnet
+  PrivateSubnet2:
+    Condition: SecondSubnetCondition
+    Type: AWS::EC2::Subnet
+    DependsOn: [VpcCidrBlock]
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Select [ 1, !Cidr [ !FindInMap [Networking, VPC, CIDR1], 2, 15 ]]
+      AvailabilityZoneId: !Ref SubnetsAZ2
+      Tags:
+        - Key: Name
+          Value: !Join [ ' ', [ !Ref VPCName, 'Private Subnet -', !Ref SubnetsAZ2 ] ]
+
   # Create and set the public route table
   PublicRouteTable:
     Type: AWS::EC2::RouteTable
@@ -341,6 +378,14 @@ Resources:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       SubnetId: !Ref PrivateSubnet
+      RouteTableId: !Ref PrivateRouteTable
+
+  # and the 2nd private subnet to the private route table
+  PrivateSubnetRTAssociation2:
+    Condition: SecondSubnetCondition
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet2
       RouteTableId: !Ref PrivateRouteTable
 
   # S3 endpoint
