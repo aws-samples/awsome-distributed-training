@@ -22,7 +22,7 @@ class SssdConfig:
     # The default bind DN to use for performing LDAP operations
     ldap_default_bind_dn = "CN=ReadOnly,OU=Users,OU=hyperpod,DC=hyperpod,DC=abc123,DC=com"
     
-    # "password" or "obfuscated_password"
+    # "password" or "obfuscated_password". Obfuscated password is recommended.
     ldap_default_authtok_type = "obfuscated_password"
 
     # You need to modify this parameter with the obfuscated password, not plain text password
@@ -47,5 +47,3 @@ class SssdConfig:
         "compute" : ["ClusterAdmin", "ClusterDev"],
         "login" : ["ClusterAdmin", "ClusterDev"],
     }
-
-
