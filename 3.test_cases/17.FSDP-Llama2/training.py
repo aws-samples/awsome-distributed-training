@@ -3,7 +3,8 @@ import os
 
 import torch
 import torch.optim as optim
-from transformers.models.llama.modeling_llama import LlamaDecoderLayer
+from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModel
 from torch import distributed as dist
 from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 from torch.optim.lr_scheduler import LambdaLR
@@ -27,7 +28,7 @@ from utils.train_utils import (
 
 def main(**kwargs):
 
-    cfg = train_config()
+    cfg = train_config.training_config()
     update_config(cfg, **kwargs)
 
     torch.cuda.manual_seed(cfg.seed)
@@ -52,16 +53,16 @@ def main(**kwargs):
         cfg, rank
     )
 
-    llama_config = get_model_config(cfg.model_size)
+    model_config = get_model_config(cfg.model_name)
 
     if cfg.low_cpu_fsdp:
         if rank == 0:
-            model = LlamaDecoderLayer(llama_config)
+            model = AutoModelForCausalLM.from_config(model_config)
         else:
             with torch.device("meta"):
-                model = LlamaDecoderLayer(llama_config)
+                model = AutoModelForCausalLM.from_config(model_config)
     else:
-        model = LlamaDecoderLayer(llama_config)
+        model = AutoModelForCausalLM.from_config(model_config)
 
     if rank == 0:
         total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -107,14 +108,14 @@ def main(**kwargs):
     )
 
     checkpointer = Checkpointer(
-        cfg.ckpt_save_path, 1000, cfg.sharding_strategy, rank, local_rank
+        cfg.save_ckpt_path:, 1000, cfg.sharding_strategy, rank, local_rank
     )
     
     model, optimizer, train_dataloader, start_step, tokens_seen = checkpointer.load(
         model,
         optimizer,
         train_dataloader,
-        path=os.join(cfg.ckpt_load_path, "checkpoints/"),
+        path=os.path.join(cfg.load_ckpt_path, "checkpoints/"),
     ) 
 
     warmup_interval = min(2000, cfg.num_steps // 20)

@@ -156,8 +156,8 @@ def main(args):
         ExecuteBashScript("./start_slurm.sh").run(node_type, ",".join(controllers))
 
         ## Note: Uncomment the below lines to install docker and enroot.
-        # ExecuteBashScript("./utils/install_docker.sh").run()
-        # ExecuteBashScript("./utils/install_enroot_pyxis.sh").run(node_type)
+        ExecuteBashScript("./utils/install_docker.sh").run()
+        ExecuteBashScript("./utils/install_enroot_pyxis.sh").run(node_type)
 
         # # Note: Uncomment the below lines to install DCGM Exporter and EFA Node Exporter and Cluster Nodes. (Docker must also be installed above)
         # if node_type == SlurmNodeType.COMPUTE_NODE:

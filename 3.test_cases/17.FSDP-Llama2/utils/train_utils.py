@@ -16,7 +16,8 @@ from torch.distributed.fsdp import ShardingStrategy
 from config import (
     train_config,
     checkpointing,
-    wrapper
+    wrapper,
+    mixed_precision
 )
 
 from transformers import default_data_collator
@@ -68,16 +69,18 @@ def train(
 
     start = time.time()
     loop_start = time.time()
-    for batch_idx, (input, label) in enumerate(train_loader, start=start_step + 1):
+    for batch_idx, batch in enumerate(train_loader, start=start_step + 1):
         if batch_idx > cfg.num_steps:
             break
+        input, label = batch['input_ids'], batch['labels']
         input = input.to(local_rank)
         label = label.to(local_rank)
 
         optimizer.zero_grad()
-        output = model(input)
-        ce_loss = torch.nn.CrossEntropyLoss()
-        loss = ce_loss(output.view(-1, output.size(-1)), label.view(-1).long())
+        output = model(input_ids=input, labels=label)
+        #ce_loss = torch.nn.CrossEntropyLoss()
+        #loss = ce_loss(output.view(-1, output.size(-1)), label.view(-1).long())
+        loss = output["loss"]
 
         loss.backward()
         ddp_stats[1] += model.clip_grad_norm_(cfg.grad_clip_thresh).item()
@@ -161,7 +164,7 @@ def setup():
 
 def setup_environ_flags():
     os.environ["TORCH_SHOW_CPP_STACKTRACES"] = str(1)
-    os.environ["NCCL_ASYNC_ERROR_HANDLING"] = str(1)
+    os.environ["TORCH_NCCL_ASYNC_ERROR_HANDLING"] = str(1)
 
 
 def get_policies(cfg, rank):
@@ -179,18 +182,18 @@ def get_policies(cfg, rank):
     if cfg.mixed_precision:
         bf16_ready = verify_bfloat_support
         if bf16_ready:
-            mixed_precision_policy = bfSixteen
+            mixed_precision_policy = mixed_precision.bfSixteen
             if rank == 0:
                 print(f"bFloat16 enabled for mixed precision - using bfSixteen policy")
         else:
-            mixed_precision_policy = fpSixteen
+            mixed_precision_policy = mixed_precision.fpSixteen
             if rank == 0:
                 print(f"FP16 enabled")
     else:
         mixed_precision_policy = None
 
     # wrapping policy
-    wrapping_policy = wrapper.get_llama_wrapper()
+    wrapping_policy = wrapper.get_wrapper(cfg.model_name)
 
     # sharding strategy
     if cfg.sharding_strategy == "fsdp":
