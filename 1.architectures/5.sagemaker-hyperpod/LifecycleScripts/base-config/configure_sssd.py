@@ -9,49 +9,7 @@ import re
 import getpass
 import argparse
 
-
-# ---------------------------------
-# Configurations you need to modify
-
-class Config:
-
-    # Name of domain. Can be default if you are not sure.
-    domain = "default"
-
-    # Comma separated list of LDAP server URIs
-    ldap_uri = "ldaps://nlb-ds-97c6de9ec6862771.elb.us-west-2.amazonaws.com"
-
-    # The default base DN to use for performing LDAP user operations
-    ldap_search_base = "dc=hyperpod,dc=abc123,dc=com"
-
-    # The default bind DN to use for performing LDAP operations
-    ldap_default_bind_dn = "CN=ReadOnly,OU=Users,OU=hyperpod,DC=hyperpod,DC=abc123,DC=com"
-    
-    # "password" or "obfuscated_password"
-    ldap_default_authtok_type = "obfuscated_password"
-
-    # You need to modify this parameter with the obfuscated password you got with obfuscate_password.py
-    ldap_default_authtok = "placeholder"
-
-    # SSH authentication method - "password" or "publickey"
-    ssh_auth_method = "publickey"
-
-    # Home directory. You can change it to "/home/%u" if your cluster doesn't use FSx volume.
-    override_homedir = "/fsx/%u"
-
-    # Group names to accept SSH login
-    ssh_allow_groups = {
-        "controller" : ["ClusterAdmin", "ubuntu"],
-        "compute" : ["ClusterAdmin", "ClusterDev", "ubuntu"],
-        "login" : ["ClusterAdmin", "ClusterDev", "ubuntu"],
-    }
-
-    # Group names for sudoers
-    sudoers_groups = {
-        "controller" : ["ClusterAdmin", "ClusterDev"],
-        "compute" : ["ClusterAdmin", "ClusterDev"],
-        "login" : ["ClusterAdmin", "ClusterDev"],
-    }
+from config import SssdConfig
 
 
 # ----------------------------------
@@ -81,23 +39,23 @@ cert_filename = "/etc/ldap/ldaps.crt"
 cert_filename_src = os.path.join( os.path.dirname(__file__), os.path.basename(cert_filename) )
 
 assert os.path.exists(cert_filename_src), f"Certificate file not found - {cert_filename_src}"
-assert Config.ldap_default_authtok != "placeholder", "You need to configure Config.ldap_default_authtok. You can use tools/obfuscate_password.py to get obfuscated password"
-assert Config.ssh_auth_method in ["password", "publickey"], f"Config.ssh_auth_method has to be either 'password' or 'publickey'"
+assert SssdConfig.ldap_default_authtok != "placeholder", "You need to configure SssdConfig.ldap_default_authtok. You can use tools/obfuscate_password.py to get obfuscated password"
+assert SssdConfig.ssh_auth_method in ["password", "publickey"], f"SssdConfig.ssh_auth_method has to be either 'password' or 'publickey'"
 
 
 # ---------------------------------
 # Templates for configuration files
 
 sssd_conf = f"""
-[domain/{Config.domain}]
+[domain/{SssdConfig.domain}]
 id_provider = ldap
 cache_credentials = True
-ldap_uri = {Config.ldap_uri}
-ldap_search_base = {Config.ldap_search_base}
+ldap_uri = {SssdConfig.ldap_uri}
+ldap_search_base = {SssdConfig.ldap_search_base}
 ldap_schema = AD
-ldap_default_bind_dn = {Config.ldap_default_bind_dn}
-ldap_default_authtok_type = {Config.ldap_default_authtok_type}
-ldap_default_authtok = {Config.ldap_default_authtok}
+ldap_default_bind_dn = {SssdConfig.ldap_default_bind_dn}
+ldap_default_authtok_type = {SssdConfig.ldap_default_authtok_type}
+ldap_default_authtok = {SssdConfig.ldap_default_authtok}
 ldap_tls_cacert = {cert_filename}
 ldap_tls_reqcert = hard
 ldap_id_mapping = True
@@ -107,14 +65,14 @@ ldap_user_ssh_public_key = altSecurityIdentities
 ldap_use_tokengroups = True
 enumerate = False
 fallback_homedir = /home/%u
-override_homedir = {Config.override_homedir}
+override_homedir = {SssdConfig.override_homedir}
 default_shell = /bin/bash
 #use_fully_qualified_names = True
 #debug_level = 6
 
 [sssd]
 config_file_version = 2
-domains = {Config.domain}
+domains = {SssdConfig.domain}
 services = nss, pam, ssh
 #debug_level = 6
 
@@ -197,7 +155,7 @@ def configure_sssd():
 def configure_ssh(node_type):
 
     print("---")
-    print(f"Configuring SSH authentication method to {Config.ssh_auth_method}")
+    print(f"Configuring SSH authentication method to {SssdConfig.ssh_auth_method}")
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp_sshd_config_filename = os.path.join(tmp_dir, os.path.basename(sshd_config_filename))
@@ -205,16 +163,16 @@ def configure_ssh(node_type):
         with open(sshd_config_filename) as fd_src:
             d = fd_src.read()
 
-        if Config.ssh_auth_method=="password":
+        if SssdConfig.ssh_auth_method=="password":
             d = re.sub( r"[#\t ]*PasswordAuthentication[ \t]+.*$", "PasswordAuthentication yes", d, flags=re.MULTILINE )
-        elif Config.ssh_auth_method=="publickey":
+        elif SssdConfig.ssh_auth_method=="publickey":
             d = re.sub( r"[#\t ]*AuthorizedKeysCommand[ \t]+.*$", "AuthorizedKeysCommand /usr/bin/sss_ssh_authorizedkeys", d, flags=re.MULTILINE )
             d = re.sub( r"[#\t ]*AuthorizedKeysCommandUser[ \t]+.*$", "AuthorizedKeysCommandUser root", d, flags=re.MULTILINE )
     
-        for group_name in Config.ssh_allow_groups[node_type]:
+        for group_name in SssdConfig.ssh_allow_groups[node_type]:
             assert " " not in group_name
 
-        joined_group_names = " ".join(Config.ssh_allow_groups[node_type])
+        joined_group_names = " ".join(SssdConfig.ssh_allow_groups[node_type])
 
         d += (
             f"\n"
@@ -250,7 +208,7 @@ def configure_sudoers(node_type):
 
         with open(tmp_sudoers_config_filename,"w") as fd:
 
-            for group_name in Config.sudoers_groups[node_type]:
+            for group_name in SssdConfig.sudoers_groups[node_type]:
                 assert " " not in group_name                
                 fd.write(f"%{group_name} ALL=(ALL:ALL) NOPASSWD:ALL\n")
 
@@ -272,7 +230,7 @@ def restart_services():
 if __name__ == "__main__":
 
     argparser = argparse.ArgumentParser(description="Script to configure ActiveDirectory/LDAP on SageMaker HyperPod")
-    argparser.add_argument('--node-type', action="store", help='Node type (controller, login, compute)')
+    argparser.add_argument('--node-type', action="store", required=True, help='Node type (controller, login, compute)')
     args = argparser.parse_args()
 
     assert args.node_type in ["controller", "login", "compute"]
