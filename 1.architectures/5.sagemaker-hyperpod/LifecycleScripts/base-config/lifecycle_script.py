@@ -169,7 +169,7 @@ def main(args):
         #     ExecuteBashScript("./utils/install_slurm_exporter.sh").run()
         #     ExecuteBashScript("./utils/install_prometheus.sh").run()
 
-        # # Note : Uncomment the below line to enable AcriveDirectory/LDAP integration
+        # # Note : Uncomment the below line to enable ActiveDirectory/LDAP integration
         # subprocess.run(["python3", "-u", "configure_sssd.py", "--node-type", node_type ], check=True)
 
     print("[INFO]: Success: All provisioning scripts completed")
