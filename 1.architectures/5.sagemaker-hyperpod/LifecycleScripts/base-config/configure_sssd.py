@@ -54,7 +54,8 @@ class Config:
     }
 
 
-# ---------------------------------
+# ----------------------------------
+# Constants you don't have to modify
 
 if getpass.getuser() == "root":
     sudo_command = []
