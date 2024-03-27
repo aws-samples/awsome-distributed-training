@@ -171,9 +171,9 @@ def main(args):
         #     ExecuteBashScript("./utils/install_slurm_exporter.sh").run()
         #     ExecuteBashScript("./utils/install_prometheus.sh").run()
 
-        # Install SSSD for ActiveDirectory/LDAP integration
+        # Install and configure SSSD for ActiveDirectory/LDAP integration
         if Config.enable_sssd:
-            subprocess.run(["python3", "-u", "configure_sssd.py", "--node-type", node_type], check=True)
+            subprocess.run(["python3", "-u", "setup_sssd.py", "--node-type", node_type], check=True)
 
     print("[INFO]: Success: All provisioning scripts completed")
 
