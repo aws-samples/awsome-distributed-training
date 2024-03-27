@@ -222,6 +222,7 @@ def get_profiler(cfg):
             profile_memory=True,
             with_stack=False,
             record_shapes=True,
+            with_flops=True
         )
     else:
         profiler = None
