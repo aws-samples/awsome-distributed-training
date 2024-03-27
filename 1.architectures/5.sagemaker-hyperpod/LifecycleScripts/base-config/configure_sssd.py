@@ -36,9 +36,8 @@ class Config:
     # SSH authentication method - "password" or "publickey"
     ssh_auth_method = "publickey"
 
-    # Home directory
-    override_homedir = "/home/%u"
-    #override_homedir = "/fsx/%u"
+    # Home directory. You can change it to "/home/%u" if your cluster doesn't use FSx volume.
+    override_homedir = "/fsx/%u"
 
     # Group names to accept SSH login
     ssh_allow_groups = {
