@@ -28,7 +28,8 @@ Metadata:
       - Label:
           default: Availability Zone configuration for the subnets
         Parameters:
-          - SubnetsAZ
+          - PrimarySubnetAZ
+          - BackupSubnetAZ
       - Label:
           default: Fsx Lustre storage size
         Parameters:
@@ -44,8 +45,10 @@ Metadata:
     ParameterLabels:
       VPCName:
         default: Name of your VPC
-      SubnetsAZ:
-        default: Availability zone id to deploy the subnets
+      PrimarySubnetAZ:
+        default: Availability zone id to deploy the primary subnets
+      BackupSubnetAZ:
+        default: (Optional) Availability zone id to deploy the backup private subnet
       CreateS3Endpoint:
         default: Create an S3 endpoint
 
@@ -59,10 +62,15 @@ Parameters:
     Default: 'SageMaker HyperPod VPC'
     Type: String
 
-  SubnetsAZ:
-    Description: Availability zone id in which the subnets will be created.
+  PrimarySubnetAZ:
+    Description: Availability zone id in which the public subnet and primary private subnet will be created.
     Type: String
     Default: usw2-az4
+
+  BackupSubnetAZ:
+    Description: Availability zone id in which the backup private subnet will be created. Specify it when you need multiple AZs for other AWS services (e.g. AWS Directory Service). Leave empty if you don't need it.
+    Type: String
+    Default: ''
 
   CreateS3Endpoint:
     AllowedValues:
@@ -116,6 +124,22 @@ Parameters:
 
 Conditions:
   S3EndpointCondition: !Equals [!Ref 'CreateS3Endpoint', 'true']
+  BackupSubnetCondition: !Not [ !Equals [!Ref 'BackupSubnetAZ', ''] ] 
+
+
+##########################
+## Rules for Parameters ##
+##########################
+
+Rules:
+  AZsRule:
+    Assertions:
+      - Assert: !Not 
+        - !Equals 
+          - !Ref PrimarySubnetAZ
+          - !Ref BackupSubnetAZ
+        AssertDescription: Backup AZ has to be different from the primary AZ.
+
 
 #########################
 ## VPC & Network Setup ##
@@ -245,22 +269,35 @@ Resources:
       MapPublicIpOnLaunch: true
       VpcId: !Ref VPC
       CidrBlock: !Select [ 0, !Cidr [ !GetAtt VPC.CidrBlock, 2, 15 ]]
-      AvailabilityZoneId: !Ref SubnetsAZ
+      AvailabilityZoneId: !Ref PrimarySubnetAZ
       Tags:
         - Key: Name
-          Value: !Join [ ' ', [ !Ref VPCName, 'Public Subnet -', !Ref SubnetsAZ ] ]
+          Value: !Join [ ' ', [ !Ref VPCName, 'Public Subnet -', !Ref PrimarySubnetAZ ] ]
 
-  # Create the private subnets
-  PrivateSubnet:
+  # Create the primary private subnet
+  PrimaryPrivateSubnet:
     Type: AWS::EC2::Subnet
     DependsOn: [VpcCidrBlock]
     Properties:
       VpcId: !Ref VPC
       CidrBlock: !Select [ 0, !Cidr [ !FindInMap [Networking, VPC, CIDR1], 2, 15 ]]
-      AvailabilityZoneId: !Ref SubnetsAZ
+      AvailabilityZoneId: !Ref PrimarySubnetAZ
       Tags:
         - Key: Name
-          Value: !Join [ ' ', [ !Ref VPCName, 'Private Subnet -', !Ref SubnetsAZ ] ]
+          Value: !Join [ ' ', [ !Ref VPCName, 'Private Subnet -', !Ref PrimarySubnetAZ ] ]
+
+  # Create the backup private subnet
+  BackupPrivateSubnet:
+    Condition: BackupSubnetCondition
+    Type: AWS::EC2::Subnet
+    DependsOn: [VpcCidrBlock]
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Select [ 1, !Cidr [ !FindInMap [Networking, VPC, CIDR1], 2, 15 ]]
+      AvailabilityZoneId: !Ref BackupSubnetAZ
+      Tags:
+        - Key: Name
+          Value: !Join [ ' ', [ !Ref VPCName, 'Private Subnet -', !Ref BackupSubnetAZ ] ]
 
   # Create and set the public route table
   PublicRouteTable:
@@ -295,11 +332,19 @@ Resources:
       SubnetId: !Ref PublicSubnet
       RouteTableId: !Ref PublicRouteTable
 
-  # and the private subnets to the private route table
-  PrivateSubnetRTAssociation:
+  # and the primary private subnet to the private route table
+  PrimaryPrivateSubnetRTAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
-      SubnetId: !Ref PrivateSubnet
+      SubnetId: !Ref PrimaryPrivateSubnet
+      RouteTableId: !Ref PrivateRouteTable
+
+  # and the backup private subnet to the private route table
+  BackupPrivateSubnetRTAssociation:
+    Condition: BackupSubnetCondition
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref BackupPrivateSubnet
       RouteTableId: !Ref PrivateRouteTable
 
   # S3 endpoint
@@ -338,7 +383,7 @@ Resources:
       SecurityGroupIds:
         - !Ref SecurityGroup
       SubnetIds:
-        - !Ref PrivateSubnet
+        - !Ref PrimaryPrivateSubnet
       LustreConfiguration:
         DataCompressionType: !Ref Compression
         DeploymentType: PERSISTENT_2
@@ -403,11 +448,11 @@ Outputs:
     Description: ID of the public subnet
     Export:
       Name: !Sub ${AWS::StackName}-PublicSubnet
-  PrivateSubnet:
-    Value: !Ref PrivateSubnet
-    Description: ID of the private subnets
+  PrimaryPrivateSubnet:
+    Value: !Ref PrimaryPrivateSubnet
+    Description: ID of the primary private subnet
     Export:
-      Name: !Sub ${AWS::StackName}-PrivateSubnet
+      Name: !Sub ${AWS::StackName}-PrimaryPrivateSubnet
   SecurityGroup:
     Value: !Ref SecurityGroup
     Description: SecurityGroup for Batch
