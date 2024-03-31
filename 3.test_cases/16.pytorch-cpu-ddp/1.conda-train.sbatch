@@ -20,4 +20,4 @@ srun ./pt_cpu/bin/torchrun \
 --rdzv_id $RANDOM \
 --rdzv_backend c10d \
 --rdzv_endpoint $head_node_ip:29500 \
-ddp.py 50 10
+ddp.py 5000000 10
