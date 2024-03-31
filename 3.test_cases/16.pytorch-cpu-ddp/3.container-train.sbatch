@@ -30,4 +30,4 @@ srun -l "${ARGS[@]}" torchrun \
     --rdzv_id $RANDOM \
     --rdzv_backend c10d \
     --rdzv_endpoint $head_node_ip:29500 \
-    ${PWD}/ddp.py 50 10
+    ${PWD}/ddp.py 5000000 10
