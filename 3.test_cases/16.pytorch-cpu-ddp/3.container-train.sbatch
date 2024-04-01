@@ -24,7 +24,13 @@ declare -a ARGS=(
     --container-mounts ${PWD}
 )
 
-srun -l "${ARGS[@]}" torchrun \
+AUTO_RESUME=""
+if [ -d "/opt/sagemaker_cluster" ]; then
+    echo "Detected Hyperpod cluster.. enabling --auto-resume=1"
+    AUTO_RESUME="--auto-resume=1"
+fi
+
+srun ${AUTO_RESUME} -l "${ARGS[@]}" torchrun \
     --nnodes 2 \
     --nproc_per_node 4 \
     --rdzv_id $RANDOM \
