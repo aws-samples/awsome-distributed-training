@@ -3,7 +3,6 @@
 #SBATCH --exclusive
 #SBATCH --wait-all-nodes=1
 #SBATCH --nodes 2
-#SBATCH --cpus-per-task=4
 #SBATCH --output=logs/%x_%j.out # logfile for stdout/stderr
 
 nodes=( $( scontrol show hostnames $SLURM_JOB_NODELIST ) )
@@ -14,7 +13,13 @@ head_node_ip=$(srun --nodes=1 --ntasks=1 -w "$head_node" hostname --ip-address)
 echo Node IP: $head_node_ip
 export LOGLEVEL=INFO
 
-srun ./pt_cpu/bin/torchrun \
+AUTO_RESUME=""
+if [ -d "/opt/sagemaker_cluster" ]; then
+    echo "Detected Hyperpod cluster.. enabling --auto-resume=1"
+    AUTO_RESUME="--auto-resume=1"
+fi
+
+srun ${AUTO_RESUME} ./pt_cpu/bin/torchrun \
 --nnodes 2 \
 --nproc_per_node 4 \
 --rdzv_id $RANDOM \
