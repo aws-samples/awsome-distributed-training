@@ -106,10 +106,18 @@ def main():
     args = parser.parse_args()
 
     with open(args.cluster_config, "r") as cluster_config_file:
-        cluster_config = json.load(cluster_config_file)
+        try:
+            cluster_config = json.load(cluster_config_file)
+        except json.decoder.JSONDecodeError:
+            print(f"❌ cluster-config.json is invalid.")
+            return False
 
     with open(args.provisioning_parameters, "r") as provisioning_parameters_file:
-        provisioning_parameters = json.load(provisioning_parameters_file)
+        try:
+            provisioning_parameters = json.load(provisioning_parameters_file)
+        except json.decoder.JSONDecodeError:
+            print(f"❌ provisioning_parameters.json is invalid.")
+            return False
 
     ec2_client = boto3.client('ec2')
 
