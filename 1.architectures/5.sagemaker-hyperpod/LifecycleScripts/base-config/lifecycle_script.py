@@ -10,6 +10,8 @@ import sys
 import time
 from typing import Any, Dict, List, Optional, Tuple
 
+from config import Config
+
 
 SLURM_CONF = os.getenv("SLURM_CONF", "/opt/slurm/etc/slurm.conf")
 
@@ -168,6 +170,10 @@ def main(args):
         # if node_type == SlurmNodeType.HEAD_NODE:
         #     ExecuteBashScript("./utils/install_slurm_exporter.sh").run()
         #     ExecuteBashScript("./utils/install_prometheus.sh").run()
+
+        # Install and configure SSSD for ActiveDirectory/LDAP integration
+        if Config.enable_sssd:
+            subprocess.run(["python3", "-u", "setup_sssd.py", "--node-type", node_type], check=True)
 
     print("[INFO]: Success: All provisioning scripts completed")
 
