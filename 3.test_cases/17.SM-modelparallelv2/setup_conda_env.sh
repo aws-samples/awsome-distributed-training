@@ -50,12 +50,14 @@ python -m pip install --no-cache-dir -U \
     "tensorboard==2.13.0" \
     "tqdm==4.65.0"
 
-  MAX_JOBS=128 pip install flash-attn==2.3.3 --no-build-isolation
 
+pip uninstall -y ninja && pip install ninja
+
+MAX_JOBS=64 pip install flash-attn==2.3.3 --no-build-isolation
 
 # Install SMDDP
 
-RUN SMDDP_WHL="smdistributed_dataparallel-2.2.0-cp310-cp310-linux_x86_64.whl" \
+SMDDP_WHL="smdistributed_dataparallel-2.2.0-cp310-cp310-linux_x86_64.whl" \
   && wget -q https://smdataparallel.s3.amazonaws.com/binary/pytorch/2.2.0/cu121/2024-03-04/${SMDDP_WHL} \
   && pip install --force ${SMDDP_WHL} \
   && rm ${SMDDP_WHL}
