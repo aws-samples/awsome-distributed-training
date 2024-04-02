@@ -28,7 +28,10 @@ export FI_EFA_FORK_SAFE=1
 export FI_LOG_LEVEL=1
 export FI_PROVIDER=efa
 export NCCL_DEBUG=INFO
-## Switching SYNC_MEMOPS to zero can boost throughput on P5
+## Switching SYNC_MEMOPS to zero can boost throughput with FSDP
+## Disables CU_POINTER_ATTRIBUTE_SYNC_MEMOPS
+## Reduces memory synchronizations
+## https://docs.nvidia.com/cuda/cuda-driver-api/group__CUDA__UNIFIED.html
 export FI_EFA_SET_CUDA_SYNC_MEMOPS=0
 
 ###########################
@@ -87,7 +90,7 @@ declare -a TRAINING_ARGS=(
     --epochs=3 \
     --dataset_config_name="en" \
     --limit_all_gathers=1 \
-    --sharding_strategy="full" \
+    --sharding_strategy="full" \ # https://pytorch.org/docs/stable/fsdp.html
     --offload_activations=1
 )
 
