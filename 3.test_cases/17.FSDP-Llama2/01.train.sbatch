@@ -60,6 +60,7 @@ declare -a MODEL_ARGS=(
     --checkpoint_interval=20000
     --use_torch_compile=False
     --use_profiler=False
+    --deepspeed_config="deepspeed_config.json"
 )
 
 srun -l torchrun "${TORCHRUN_ARGS[@]}" $TRAIN_SCRIPT "${MODEL_ARGS[@]}"

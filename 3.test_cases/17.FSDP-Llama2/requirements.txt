@@ -1,5 +1,4 @@
 torch>=2.1.0
 pyarrow==15.0.0
-transformers==4.37.2
 datasets
 wandb

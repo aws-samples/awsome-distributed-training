@@ -108,7 +108,7 @@ def main(**kwargs):
     )
 
     checkpointer = Checkpointer(
-        cfg.save_ckpt_path:, 1000, cfg.sharding_strategy, rank, local_rank
+        cfg.save_ckpt_path, 1000, cfg.sharding_strategy, rank, local_rank
     )
     
     model, optimizer, train_dataloader, start_step, tokens_seen = checkpointer.load(

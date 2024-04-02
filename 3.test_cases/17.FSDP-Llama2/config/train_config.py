@@ -23,7 +23,7 @@ class training_config:
 
     # training spec
     seed: int = 2023
-    batch_size: int = 2
+    batch_size: int = 1
     num_steps: int = 2000000
     learning_rate: float = 3e-4
     grad_clip_thresh: float = 1.0
