@@ -14,7 +14,6 @@ import torch.distributed as dist
 
 # pylint: disable=import-error,no-name-in-module
 import torch.distributed.checkpoint as dist_cp
-import torch.multiprocessing as mp
 from torch.distributed.checkpoint.optimizer import load_sharded_optimizer_state_dict
 from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 from torch.distributed.fsdp.fully_sharded_data_parallel import StateDictType
