@@ -28,6 +28,11 @@ export FI_EFA_FORK_SAFE=1
 export FI_LOG_LEVEL=1
 export FI_PROVIDER=efa
 export NCCL_DEBUG=INFO
+## Switching SYNC_MEMOPS to zero can boost throughput with FSDP
+## Disables CU_POINTER_ATTRIBUTE_SYNC_MEMOPS
+## Reduces memory synchronizations
+## https://docs.nvidia.com/cuda/cuda-driver-api/group__CUDA__UNIFIED.html
+export FI_EFA_SET_CUDA_SYNC_MEMOPS=0
 
 ###########################
 ####### Torch Dist  #######
@@ -49,43 +54,44 @@ export TRAIN_SCRIPT=./train.py
 ############################
 
 declare -a TRAINING_ARGS=(
- --train_batch_size=4 \
- --val_batch_size=4 \
- --max_steps=5000 \
- --seed=42 \
- --bf16=1 \
- --grad_clip=1.0 \
- --weight_decay=0.2 \
- --beta1=0.9 \
- --beta2=0.95 \
- --activation_checkpointing=1 \
- --intermediate_size=14336 \
- --num_key_value_heads=8 \
- --logging_freq=1 \
- --max_context_width=32768 \
- --vocab_size=32000 \
- --hidden_width=4096 \
- --num_layers=32 \
- --num_heads=32 \
- --resid_pdrop=0.1 \
- --embd_pdrop=0.1 \
- --attn_pdrop=0.1 \
- --summary_first_pdrop=0.1 \
- --initializer_range=0.02 \
- --model_type="mixtral" \
- --rotary_pct=0.25 \
- --rotary_emb_base=10000 \
- --lr=0.0001 \
- --lr_decay_style="cosine" \
- --min_lr=1e-5 \
- --warmup=0.0032 \
- --plateau=0.0 \
- --dataset="c4" \
- --tokenizer="mistralai/Mixtral-8x7B-v0.1" \
- --epochs=3 \
- --dataset_config_name="en" \
- --limit_all_gathers=1 \
- --sharding_strategy="hybrid"
+    --train_batch_size=4 \
+    --val_batch_size=4 \
+    --max_steps=5000 \
+    --seed=42 \
+    --bf16=1 \
+    --grad_clip=1.0 \
+    --weight_decay=0.2 \
+    --beta1=0.9 \
+    --beta2=0.95 \
+    --activation_checkpointing=1 \
+    --intermediate_size=14336 \
+    --num_key_value_heads=8 \
+    --logging_freq=1 \
+    --max_context_width=32768 \
+    --vocab_size=32000 \
+    --hidden_width=4096 \
+    --num_layers=32 \
+    --num_heads=32 \
+    --resid_pdrop=0.1 \
+    --embd_pdrop=0.1 \
+    --attn_pdrop=0.1 \
+    --summary_first_pdrop=0.1 \
+    --initializer_range=0.02 \
+    --model_type="mixtral" \
+    --rotary_pct=0.25 \
+    --rotary_emb_base=10000 \
+    --lr=0.0001 \
+    --lr_decay_style="cosine" \
+    --min_lr=1e-5 \
+    --warmup=0.0032 \
+    --plateau=0.0 \
+    --dataset="c4" \
+    --tokenizer="mistralai/Mixtral-8x7B-v0.1" \
+    --epochs=3 \
+    --dataset_config_name="en" \
+    --limit_all_gathers=1 \
+    --sharding_strategy="full" \ # https://pytorch.org/docs/stable/fsdp.html
+    --offload_activations=1
 )
 
 srun -l ${TORCHRUN} "${TORCHRUN_ARGS[@]}" $TRAIN_SCRIPT "${TRAINING_ARGS[@]}"
