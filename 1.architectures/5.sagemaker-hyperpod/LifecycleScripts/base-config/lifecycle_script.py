@@ -151,8 +151,8 @@ def main(args):
         if node_type == SlurmNodeType.HEAD_NODE:
             ExecuteBashScript("./setup_mariadb_accounting.sh").run()
 
+        ExecuteBashScript("./apply_hotfix.sh").run(node_type)
         ExecuteBashScript("./utils/motd.sh").run(node_type)
-        ExecuteBashScript("./utils/setup_timesync.sh").run()
         ExecuteBashScript("./utils/fsx_ubuntu.sh").run()
 
         ExecuteBashScript("./start_slurm.sh").run(node_type, ",".join(controllers))
