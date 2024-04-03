@@ -9,7 +9,7 @@ cd awsome-distributed-training/4.validation_and_observability/3.efa-node-exporte
 sudo docker build -t node_exporter_efa:latest . || { echo "Failed to build Docker image"; exit 1; }
 
 # Run the Docker container with appropriate configurations
-sudo docker run -d \
+sudo docker run -d --restart always\
   --net="host" \
   --pid="host" \
   -v "/:/host:ro,rslave" \
