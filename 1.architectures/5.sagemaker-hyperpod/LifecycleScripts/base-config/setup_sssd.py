@@ -27,6 +27,7 @@ packages_to_install = [
 ]
 
 packages_to_uninstall = [
+    # Uninstall ec2-instance-connect because it overrides AuthorizedKeysCommand in sshd_config.
     "ec2-instance-connect",
 ]
 
