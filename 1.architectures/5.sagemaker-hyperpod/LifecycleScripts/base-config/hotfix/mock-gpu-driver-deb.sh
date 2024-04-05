@@ -14,5 +14,13 @@ apt-cache show ${MOCK_PKG}=${DRV_VERSION}-0ubuntu1 \
     &> ${MOCK_PKG}
 
 equivs-build ${MOCK_PKG}
-dpkg -i ${MOCK_PKG}_*.deb
-echo "${MOCK_PKG} hold" | sudo dpkg --set-selections
+apt install -y -o DPkg::Lock::Timeout=120 ./${MOCK_PKG}_*.deb
+
+dpkg_hold_with_retry() {
+    # Retry when dpkg frontend is locked
+    for (( i=0; i<=20; i++ )); do
+        echo "$1 hold" | sudo dpkg --set-selections && break || { echo To retry... ; sleep 6 ; }
+    done
+}
+dpkg_hold_with_retry ${MOCK_PKG}
+
