@@ -6,8 +6,9 @@
 FROM nvcr.io/nvidia/nemo:24.01.framework
 
 ENV DEBIAN_FRONTEND=noninteractive
-ENV EFA_INSTALLER_VERSION=latest
-ENV AWS_OFI_NCCL_VERSION=1.7.4-aws
+ENV EFA_INSTALLER_VERSION=1.30.0
+ENV AWS_OFI_NCCL_VERSION=1.8.1-aws
+ENV NCCL_VERSION=2.19.4-1
 ENV NCCL_TESTS_VERSION=master
 
 RUN apt-get update -y
@@ -40,7 +41,7 @@ RUN apt-get install -y --allow-unauthenticated \
 
 # Uncomment below stanza to install the latest NCCL
 # Require efa-installer>=1.29.0 for nccl-2.19.0 to avoid libfabric gave NCCL error.
-ENV NCCL_VERSION=2.19.4-1
+
 RUN apt-get remove -y libnccl2 libnccl-dev \
    && cd /tmp \
    && git clone https://github.com/NVIDIA/nccl.git -b v${NCCL_VERSION} \
