@@ -1,9 +1,9 @@
-ENROOT_IMAGE=gpt-neox
+ENROOT_IMAGE=deepspeed
 
 all: build clean import
 
 build:
-	docker build -t ${ENROOT_IMAGE} -f 0.gpt-neox.dockerfile .
+	docker build -t ${ENROOT_IMAGE} -f 0.deepspeed.dockerfile .
 
 clean:
 	-rm ${ENROOT_IMAGE}.sqsh
