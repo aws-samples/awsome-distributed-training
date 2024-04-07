@@ -12,10 +12,10 @@ set -euxo pipefail
 
 # default variables for Enroot, if these variables are defined then use them
 : "${APPS_PATH:=/fsx/apps}"
-: "${IMAGE:=$APPS_PATH/gpt-neox.sqsh}"
+: "${IMAGE:=$APPS_PATH/deepspeed.sqsh}"
 
-ENROOT_IMAGE=gpt-neox
-docker build -t ${ENROOT_IMAGE} -f 0.gpt-neox.dockerfile .
+ENROOT_IMAGE=deepspeed
+docker build -t ${ENROOT_IMAGE} -f 0.deepspeed.dockerfile .
 # Remove old sqsh file if exists
 if [ -f ${ENROOT_IMAGE}.sqsh ] ; then
     rm ${ENROOT_IMAGE}.sqsh
