@@ -1,5 +1,6 @@
 # DeepSpeed Test Cases <!-- omit in toc -->
-[DeepSpeed](https://github.com/microsoft/DeepSpeed) enables world's most powerful language models like MT-530B and BLOOM. It is an easy-to-use deep learning optimization software suite that powers unprecedented scale and speed for both training and inference. `18.deepspeed` illustrates several example test cases for 
+
+[DeepSpeed](https://github.com/microsoft/DeepSpeed) enables world's most powerful language models like MT-530B and BLOOM. It is an easy-to-use deep learning optimization software suite that powers unprecedented scale and speed for both training and inference. `18.deepspeed` illustrates several example test cases for DeepSpeed training on AWS. 
 
 ## 1. Preparation
 
