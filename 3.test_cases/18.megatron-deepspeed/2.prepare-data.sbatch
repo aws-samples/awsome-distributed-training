@@ -11,11 +11,11 @@
 
 # default variables for Enroot, if these variables are defined then use them
 : "${APPS_PATH:=/fsx/apps}"
-: "${IMAGE:=$APPS_PATH/gpt-neox.sqsh}"
+: "${IMAGE:=$APPS_PATH/deepspeed.sqshg}"
 : "${FSX_PATH:=/fsx}"
 : "${DATASET:=c4_subset}"
 : "${DATA_PATH:=$FSX_PATH/$DATASET}"
-: "${MODEL_PATH:=$FSX_PATH/gpt-neox}"
+: "${MODEL_PATH:=$FSX_PATH/deepspeed}"
 : "${CONTAINER_MOUNT:=$FSX_PATH:$FSX_PATH}"
 
 echo "Retrieve and preprocess ${DATASET}"
