@@ -1,6 +1,6 @@
 # Pythia GPT-NeoX Test Case <!-- omit in toc -->
 
-GPT-NeoX is an [EleutherAI](https://www.eleuther.ai)'s library for training large-scale language models on GPUs. This framework is based on [NVIDIA's Megatron Language Model](https://github.com/NVIDIA/Megatron-LM) and has been augmented with techniques from [DeepSpeed](https://www.deepspeed.ai as well as some novel optimizations. This test case illustrates how to train [Pythia](https://arxiv.org/abs/2304.01373) model using GPT-Neox. 
+GPT-NeoX is an [EleutherAI](https://www.eleuther.ai)'s library for training large-scale language models on GPUs. This framework is based on [NVIDIA's Megatron Language Model](https://github.com/NVIDIA/Megatron-LM) and has been augmented with techniques from [DeepSpeed](https://www.deepspeed.ai) as well as some novel optimizations. This test case illustrates how to train [Pythia](https://arxiv.org/abs/2304.01373) model using GPT-Neox. 
 
 ## 1. Preparation
 
