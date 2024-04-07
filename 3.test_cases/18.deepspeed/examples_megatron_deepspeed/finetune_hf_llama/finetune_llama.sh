@@ -3,7 +3,6 @@ DS_CONFIG=./examples_deepspeed/finetune_hf_llama/ds_config.json
 DATASET_PATH=./alpaca_data.json
 # dataset link: https://github.com/tatsu-lab/stanford_alpaca/blob/main/alpaca_data.json
 
-HF_LLAMA_PATH=/data/llama-7b/
 # weights link: https://huggingface.co/huggyllama/llama-7b
 
 MICRO_BATCH_SIZE=16
@@ -30,21 +29,6 @@ MEGA_DS_LLAMA_PATH=./"llama-7b-mega-ds-T${TP}P${PP}"
 # --normalization rmsnorm \
 # --disable-bias-linear \
 ######################################
-cat <<EOT > $DS_CONFIG
-{
-  "train_batch_size" : $GLOBAL_BATCH_SIZE,
-  "train_micro_batch_size_per_gpu": $MICRO_BATCH_SIZE,
-  "steps_per_print": 100,
-  "zero_optimization": {
-    "stage": 0
-  },
-  "bf16": {
-    "enabled": true
-  }
-}
-EOT
-
-
 covert_args="deepspeed tools/hf2megads_weight_converter.py \
 --hf-ckpt-num-shards 2 \
 --origin-hf-ckpt-dir $HF_LLAMA_PATH \
