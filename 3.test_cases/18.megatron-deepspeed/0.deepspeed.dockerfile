@@ -161,15 +161,4 @@ RUN git clone https://github.com/NVIDIA/nccl-tests.git /opt/nccl-tests \
     CUDA_HOME=/usr/local/cuda \
     NVCC_GENCODE="-gencode=arch=compute_90,code=sm_90 -gencode=arch=compute_80,code=sm_80"
 
-
-# Install GPT-NeoX  and its dependencies
-RUN git clone https://github.com/EleutherAI/gpt-neox.git \
-    && cd gpt-neox \
-    && pip install -r requirements/requirements.txt \
-    && pip install -r requirements/requirements-wandb.txt # optional, if logging using WandB \ 
-    && pip install -r requirements/requirements-tensorboard.txt # optional, if logging via tensorboard \
-    && python ./megatron/fused_kernels/setup.py install # optional, if using fused kernels 
-# Rebuild newer flash-attn
-RUN MAX_JOBS=192 FLASH_ATTENTION_FORCE_BUILD=TRUE pip install flash-attn==2.5.5 --upgrade
-WORKDIR /workspace/gpt-neox
-COPY src/c4_prepare_data.py c4_prepare_data.py
+RUN pip install deepspeed
