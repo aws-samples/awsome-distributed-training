@@ -10,13 +10,12 @@ This guide assumes that you have the following:
 * Docker, [Pyxis](https://github.com/NVIDIA/pyxis) and [Enroot](https://github.com/NVIDIA/enroot) installed.
 * An FSx for Lustre filesystem mounted on `/fsx`.
 
-We recommend that you set up a Slurm cluster using the templates in the architectures [directory](../../1.architectures). You need to set the following environment variables to run this test case:
+We recommend that you set up a Slurm cluster using the templates in the architectures [directory](../../1.architectures). You need to set the following environment variables to run these test cases:
 
 ```bash
 export APPS_PATH=/fsx/apps
 export ENROOT_IMAGE=$APPS_PATH/deepspeed.sqsh
 export FSX_PATH=/fsx
-export DATA_PATH=$FSX_PATH/c4     # use pile to download entire dataset (see 4. Data preparation)
 export MODEL_PATH=$FSX_PATH/deepspeed
 export TEST_CASE_PATH=${HOME}/18.deepspeed  # where you copy the test case or set to your test case path
 cd $TEST_CASE_PATH                          # Note that we assume that you are here during the following command executions
