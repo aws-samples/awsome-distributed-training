@@ -87,21 +87,25 @@ NOTE: If EFA is enabled in the node group, edit the security group that the node
 
 # 2. Mount Amazon FSx for Lustre file system on EKS
 
+To have a FSx for Lustre filesystem mounted on your EKS cluster, we will follow the following steps:
+
+1. Create an IAM role and a security group for the EKS nodes to access the filesystem
+2. Create the filesystem
+3. Install [FSx CSI drivers](https://docs.aws.amazon.com/eks/latest/userguide/fsx-csi.html)
+4. Mount the filesystem
+
+## 2.1 Create IAM role
+
+Follow the scripts below to create an IAM role and attach the FSx Policy
+
 ```bash
-# From EC2 console
-export MY_REGION=us-west-2
-# FSX_SUBNET_ID should be same ID the compute nodes are present in. You can get this from the EKS console 
-export FSX_SUBNET_ID=subnet-0edecd850cff2cfad
-# From EC2 Auto Scaling Group
-export EKS_INSTANCE_PROFILE_NAME=(eks-1ec6fc6b-1a19-d65d-66ac-293ff0a20eb9 )
-export FSX_SECURITY_GROUP_NAME=eks-fsx-sg
-export FSX_STORAGE_CLASS_NAME=fsx-sc
 export FSX_POLICY_NAME=fsx-csi
+
 # Get FSX_POLICY_DOC from https://github.com/aws-samples/aws-do-eks/blob/main/Container-Root/eks/deployment/csi/fsx/fsx-policy.json
 export FSX_POLICY_DOC=file://fsx-policy.json
 
-# Get VPC_ID from EKS console
-export VPC_ID=vpc-04411d49af198a6ea
+# From EC2 Auto Scaling Group
+export EKS_INSTANCE_PROFILE_NAME=(eks-xxx... )
 
 POLICY_ARN=$(aws iam create-policy --policy-name ${FSX_POLICY_NAME} --policy-document $FSX_POLICY_DOC --query "Policy.Arn" --output text)
 
@@ -112,69 +116,82 @@ ROLE_NAME=$(aws iam get-instance-profile --instance-profile-name ${INSTANCE_PROF
 # Attach FSx Policy to role ${ROLE_NAME} ..."
 aws iam attach-role-policy --policy-arn ${POLICY_ARN} --role-name ${ROLE_NAME}
 
+```
+
+## 2.2 Create Security Grouo
+
+Next we can use the script below to create a security group that allows EKS nodes to access the filesystem:
+
+```bash
+# From EC2 console
+export MY_REGION=us-west-2
+# FSX_SUBNET_ID should be same ID the compute nodes are present in. You can get this from the EKS console 
+export FSX_SUBNET_ID=subnet-xxx
+# From EC2 Auto Scaling Group
+export FSX_SECURITY_GROUP_NAME=eks-fsx-sg
+
+# Get VPC_ID from EKS console
+export VPC_ID=vpc-xxx
+
+# Create security group
 export SECURITY_GROUP_ID=$(aws ec2 create-security-group --vpc-id ${VPC_ID} --region ${MY_REGION} --group-name ${FSX_SECURITY_GROUP_NAME} --description "FSx for Lustre Security Group" --query "GroupId" --output text)
 
 export SUBNET_CIDR=$(aws ec2 describe-subnets --region ${MY_REGION} --query Subnets[?SubnetId=="'${FSX_SUBNET_ID}'"].{CIDR:CidrBlock} --output text)
 
+# Ingress rule
 aws ec2 authorize-security-group-ingress --region ${MY_REGION} --group-id ${SECURITY_GROUP_ID} --protocol tcp --port 988 --cidr ${SUBNET_CIDR}
+
 ```
 
-```bash
-echo "Installing FSx CSI driver ..."
-kubectl apply -k "github.com/kubernetes-sigs/aws-fsx-csi-driver/deploy/kubernetes/overlays/stable/?ref=master"
+## 2.3 Create FileSystem
 
+Next, we create a 1.2TB Persistent_2 Amazon FSx for Lustre filesystem from the console in the same availability zone as my compute instances (FSX_SUBNET_ID), VPC of EKS (VPC_ID) and security group created above (SECURITY_GROUP_ID). Once the filesystem is created, grab the filesystem ID, DNS name and Mount name from the console.
+
+<center><img src="fsx.png" width="80%"/> </br>
+</center>
+
+## 2.4 Mount the filesystem on EKS cluster
+
+Next to mount the file system, we provide scripts in the fsx-storage-class.yaml, fsx-pv.yaml and fsx-pvc.yaml:
+
+```bash
 # Storage Class
 kubectl apply -f fsx-storage-class.yaml
 kubectl get sc
 
-root@cb9511473ccc:/eks/deployment/csi/fsx# kubectl get sc
-NAME            PROVISIONER             RECLAIMPOLICY   VOLUMEBINDINGMODE      ALLOWVOLUMEEXPANSION   AGE
-fsx-sc          fsx.csi.aws.com         Delete          Immediate              false                  22s
-gp2 (default)   kubernetes.io/aws-ebs   Delete          WaitForFirstConsumer   false                  12h
-# To create the persistent volume we just need to apply this:
+# Persistent Volume
+kubectl apply -f fsx-pv.yaml
 
-
-
-# Test
-kubectl apply -f fsx-share-test.yaml
-
+# Persistent Volume Claim
+kubectl apply -f fsx-pvc.yaml
 ```
 
-# 1. Execute in `aws-do-eks` container
+Once this is done, you can check to make sure that the volumes are in Bound state.
 
 ```bash
-cd aws-do-eks
-./exec.sh
+root@cb9511473ccc:/eks# k get pv
+NAME     CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS   CLAIM             STORAGECLASS   REASON   AGE
+fsx-pv   1200Gi     RWX            Retain           Bound    default/fsx-pvc   fsx-sc                  37d
+root@cb9511473ccc:/eks# k get pvc
+NAME      STATUS   VOLUME   CAPACITY   ACCESS MODES   STORAGECLASS   AGE
+fsx-pvc   Bound    fsx-pv   1200Gi     RWX            fsx-sc         37d
 ```
 
-# 2. Pull Nemo Container
+# 3. Build AWS Optimized Dockerfile for NeMo
+
+The NeMo framework is available publicly in the image `nvcr.io/nvidia/nemo:24.01.framework`. We provide an AWS optimized `0.Dockerfile` for use with P4 and P5 instances. Follow the steps below to build and push the image to [Amazon ECR](https://aws.amazon.com/ecr/?gclid=Cj0KCQjwn7mwBhCiARIsAGoxjaJcHDOSi2wFn6P6fxbGGmxCorrgjCWL63p7Vs7LGRO06ACzbSQIw-caAvXAEALw_wcB&trk=d66ebef2-a56b-4c4d-9630-4d0838c2f114&sc_channel=ps&ef_id=Cj0KCQjwn7mwBhCiARIsAGoxjaJcHDOSi2wFn6P6fxbGGmxCorrgjCWL63p7Vs7LGRO06ACzbSQIw-caAvXAEALw_wcB:G:s&s_kwcid=AL!4422!3!629393325529!!!g!!!16080176282!133788119438)
 
 ```bash
-docker pull nvcr.io/nvidia/nemo:24.01.framework
-```
+## AWS
+export AWS_REGION=us-west-2
+export ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
 
-# 3. Copy Launcher scripts
+## Docker Image
+export REGISTRY=${ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com/
+export IMAGE=nemo-aws
+export TAG=":24.01.framework"
 
-```bash
-# Run Nemo container
-
-cd /eks/deployment/distributed-training/pytorch/pytorchjob/nemo
-
-docker cp -a <Nemo-Container-ID>:/opt/NeMo-Megatron-Launcher ./
-
-```
-
-# 4. Install Requirements
-
-```bash
-git clone https://github.com/aws-samples/awsome-distributed-training.git
-cd ./awsome-distributed-training/3.test_cases/2.nemo-launcher/EKS/
-pip install -r requirements.txt
-```
-
-# 5. Build and push AWS optimized Docker container
-
-```bash
+## Build image
 docker build -t ${REGISTRY}${IMAGE}${TAG} -f 0.Dockerfile .
 
 echo "Logging in to $REGISTRY ..."
@@ -189,27 +206,77 @@ if [ "$REGISTRY_COUNT" == "0" ]; then
 fi
 
 # Push image
-echo ""
-
-echo "Pushing image ${REGISTRY}${IMAGE}${TAG}"
 docker image push ${REGISTRY}${IMAGE}${TAG}
+```
+
+# 4. Copy Launcher scripts
+
+The NeMo framework requires users to fill out config files with job and model information. You can copy the launcher scripts from the container as below:
+
+```bash
+
+export LAUNCHER_SCRIPTS_PATH=<Path-to-save-launcher-scripts>
+
+# Run container
+docker run -it ${REPOSITORY}${IMAGE}${TAG} bash
+
+# Copy files
+docker cp -a <container-id>: /opt/NeMo-Megatron-Launcher/${LAUNCHER_SCRIPTS_PATH} 
+
+```
+
+```bash
+Note, in a Slurm cluster implementation the launcher scripts, data and results folder could reside in the filesystem that both the head node (node from where jobs are submitted) and compute nodes. But in this EKS implementation, the head node does not have access to EKS filesystem. To get around this, we can put the launcher scripts in the head node and the results and data folder in the filesystem which the compute nodes have access to. 
+
+```
+
+# 5. Install Requirements
+
+```bash
+git clone https://github.com/aws-samples/awsome-distributed-training.git
+cd ./awsome-distributed-training/3.test_cases/2.nemo-launcher/EKS/
+pip install -r requirements.txt
 ```
 
 # 6. Deploy kubeflow mpi-operator
 
-You might need to restart mpi-operator
+For preprcessing training data in parallel, we will leverage the [KubeFlow MPI Operator](https://github.com/kubeflow/mpi-operator). You can install it as follows:
 
 ```bash
-kubectl apply -f https://raw.githubusercontent.com/kubeflow/mpi-operator/v0.3.0/deploy/v2beta1/mpi-operator.yaml
+kubectl apply -f https://raw.githubusercontent.com/kubeflow/mpi-operator/v0.4.0/deploy/v2beta1/mpi-operator.yaml
+
+# From https://github.com/aws-samples/aws-do-eks/blob/main/Container-Root/eks/deployment/kubeflow/mpi-operator/clusterrole-mpi-operator.yaml
+# Add lease permissions fot mpi-operator cluster role
 kubectl apply -f ./clusterrole-mpi-operator.yaml
-
 ```
 
-# 7. Put launcher scripts in /fsx-shared???
+# 7. Deploy kubeflow training-operator
 
-# 8. Run
+To enable distributed training, we will leverage the [KubeFlow Training Operator](https://github.com/kubeflow/training-operator). You can install it as follows:
 
 ```bash
-python main.py
+# Deploy Kubeflow training operator
+
+kubectl apply -k "github.com/kubeflow/training-operator/manifests/overlays/standalone?ref=v1.7.0"
+
+# From https://github.com/aws-samples/aws-do-eks/blob/main/Container-Root/eks/deployment/kubeflow/training-operator/deploy.sh
+
+# Configure RBAC resources
+
+kubectl apply -f ./clusterrole-hpa-access.yaml
+
+kubectl apply -f ./clusterrolebinding-training-operator-hpa-access.yaml
 
 ```
+
+# 8. Run NeMo on EKS
+
+Now we can modify launcher scripts and run NeMo jobs on EKS. First, we will download the [Pile dataset](https://huggingface.co/datasets/monology/pile-uncopyrighted) and then run distributed training for the GPT3 5B model
+
+
+
+
+
+
+
+
