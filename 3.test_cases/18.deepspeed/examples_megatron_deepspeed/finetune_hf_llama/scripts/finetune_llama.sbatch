@@ -20,10 +20,18 @@ export MASTER_ADDR=$(hostname --ip-address)
 export MASTER_PORT=$((RANDOM + 10000))
 export NNODES=$SLURM_JOB_NUM_NODES
 export NUM_GPUS_PER_NODE=8
-
+## EFA settings
+export FI_LOG_LEVEL=1
+export FI_PROVIDER=efa # change to eth if you want to use ENA for comparisons
+export FI_EFA_USE_HUGE_PAGE=0
+# https://discuss.pytorch.org/t/nccl-network-is-unreachable-connection-refused-when-initializing-ddp/137352
+# https://github.com/pytorch/pytorch/issues/68893
+export NCCL_SOCKET_IFNAME=en
+export NCCL_ASYNC_ERROR_HANDLING=1
+export OMPI_MCA_plm=^slurm 
 export MICRO_BATCH_SIZE=16
 export GLOBAL_BATCH_SIZE=256
-export TP=2
+export TP=4
 export PP=2
 # require to align with weight dimensions
 export HIDDEN_SIZE=4096
@@ -32,7 +40,6 @@ export NUM_LAYERS=32
 export NUM_HEADS=32
 export SEQ_LENGTH=512
 export MEGA_DS_LLAMA_PATH=${MODEL_PATH}/Llama2-7b-mega-ds-T${TP}P${PP}
-
 cat <<EOF > configs/ds_config.json
 {
     "train_batch_size": ${GLOBAL_BATCH_SIZE},
@@ -52,7 +59,7 @@ export HOSTFILE=/fsx/hostfile
 # https://github.com/microsoft/DeepSpeed/issues/3489
 function makehostfile() {
 perl -e '$slots=split /,/, $ENV{"SLURM_STEP_GPUS"};
-$slots=4 if $slots==0; # workaround 8 gpu machines
+$slots=8 if $slots==0; # workaround 8 gpu machines
 @nodes = split /\n/, qx[scontrol show hostnames $ENV{"SLURM_JOB_NODELIST"}];
 print map { "$b$_ slots=$slots\n" } @nodes'
 }
@@ -61,15 +68,16 @@ makehostfile > ${HOSTFILE}
 
 declare -a ARGS=(
     --container-image ${IMAGE}
-    --container-mounts /fsx
+    --container-mounts /fsx,/opt/slurm/bin
 )
 declare -a DIST_ARGS=(
-    --num_nodes ${NNODES}
-    --num_gpus ${NUM_GPUS_PER_NODE}
+    --nnodes ${NNODES}
+    --nproc-per-node ${NUM_GPUS_PER_NODE}
     --master_addr ${MASTER_ADDR}
-    --hostfile  ${HOSTFILE}
-    --launcher "OpenMPI"
-    --no_ssh_check
+    --master_port ${MASTER_PORT}
+    --rdzv_id $RANDOM
+    --rdzv_backend c10d
+    --rdzv_endpoint ${MASTER_ADDR}:${MASTER_PORT}
 )
 declare -a CONVERT_ARGS=(
     --hf-ckpt-num-shards 3 
@@ -125,11 +133,29 @@ declare -a COMM_ARGS=(
 )
 
 if [ "$1" = "convert" ]; then
-    srun -l "${ARGS[@]}" deepspeed "${DIST_ARGS[@]}" \
+    srun -l "${ARGS[@]}" torchrun "${DIST_ARGS[@]}" \
     ${PWD}/../Megatron-DeepSpeed/tools/hf2megads_weight_converter.py \
     "${CONVERT_ARGS[@]}" "${COMM_ARGS[@]}"
 else
-    srun -l "${ARGS[@]}" deepspeed "${DIST_ARGS[@]}" \
+    srun -l "${ARGS[@]}" torchrun "${DIST_ARGS[@]}" \
     ${PWD}/../Megatron-DeepSpeed/finetune_llama.py \
     --load ${MEGA_DS_LLAMA_PATH} "${COMM_ARGS[@]}"
+    # function run_deepspeed() {
+    #     srun --nodelist=${NODE} --ntasks=1 -l "${ARGS[@]}" deepspeed "${DIST_ARGS[@]}" \
+    #     ${PWD}/../Megatron-DeepSpeed/finetune_llama.py \
+    #     --load ${MEGA_DS_LLAMA_PATH} "${COMM_ARGS[@]}"
+    # }
+    # # run deepspeed
+    # NODE_RANK=1
+    # for (( NODE_RANK=1; NODE_RANK<${NNODES}; NODE_RANK++ ))
+    # do
+    #     NODE=${NODES[$NODE_RANK]}
+    #     echo "Run compute node ${NODE} for rank: ${NODE_RANK}"
+    #     run_deepspeed &
+    # done
+    # NODE_RANK=0
+    # NODE=${HEAD_NODE}
+    # echo "Run main node ${NODE} for rank: ${NODE_RANK}"
+    # run_deepspeed
+    # wait
 fi
