@@ -152,7 +152,7 @@ Next, we create a 1.2TB Persistent_2 Amazon FSx for Lustre filesystem from the c
 
 ## 2.4 Mount the filesystem on EKS cluster
 
-Next to mount the file system, we provide scripts in the fsx-storage-class.yaml, fsx-pv.yaml and fsx-pvc.yaml:
+Next to mount the file system, we provide scripts in the `fsx` folder fsx-storage-class.yaml, fsx-pv.yaml and fsx-pvc.yaml:
 
 ```bash
 # Storage Class
@@ -271,12 +271,47 @@ kubectl apply -f ./clusterrolebinding-training-operator-hpa-access.yaml
 
 # 8. Run NeMo on EKS
 
-Now we can modify launcher scripts and run NeMo jobs on EKS. First, we will download the [Pile dataset](https://huggingface.co/datasets/monology/pile-uncopyrighted) and then run distributed training for the GPT3 5B model
+Now we can modify launcher scripts and run NeMo jobs on EKS. First, we will download the [Pile dataset](https://huggingface.co/datasets/monology/pile-uncopyrighted) and then run distributed training for the GPT3 5B model.
+
+First, export these environment variables:
+
+```bash
+LAUNCHER_SCRIPTS_PATH="<Path-to-launcher-scripts>"
+FSX_MOUNT_NAME="fsx_shared"
+PATH_TO_FSX="/${FSX_MOUNT_NAME}"
+FSX_PVC="fsx-pvc" #In case you changed the FSx PVC name in fsx-pvc.yaml
+FSX_PV="fsx-pv" #In case you changed the FSx PV name in fsx-pv.yaml
+NODE_ARRAY_SIZE=2 # Change it if you have more nodes. This will scale preprocessing in parallel
+FILE_NUMBERS="0-5" # Number of files to be downloaded out of the 30 files. With 5 files it should be around 350GB of data
+```
+
+Run the following next to substitute the environment variables in the yaml file and place it in the right location:
+
+```bash
+git clone https://github.com/aws-samples/awsome-distributed-training.git
+cd awsome-distributed-training/3.test_cases/2.nemo-launcher/EKS/launcher_scripts/conf
 
 
+envsubst < ./config.yaml > ${LAUNCHER_SCRIPTS_PATH}/launcher_scripts/conf/config.yaml
+envsubst < ./cluster/k8s.yaml > ${LAUNCHER_SCRIPTS_PATH}/launcher_scripts/conf/cluster/k8s.yaml
+envsubst < ./download_gpt3_pile.yaml > ${LAUNCHER_SCRIPTS_PATH}/launcher_scripts/conf/data_preparation/gpt3/download_gpt3_pile.yaml
+envsubst < ./data-prep.yaml > ${LAUNCHER_SCRIPTS_PATH}/launcher_scripts/nemo_launcher/core/k8s_templates/data_preparation/data-prep.yaml
+envsubst < ./training.yaml > ${LAUNCHER_SCRIPTS_PATH}/launcher_scripts/nemo_launcher/core/k8s_templates/training/training.yaml
+```
 
+Launch the data preparation job: To launch the data prepapration job which downloads, extracts and preprocess the Pile dataset, set the stage to data_preparation only and comment other stages. 
 
+```bash
+python main.py
+```
 
+This script creates a Helm chart for the selected stage (in this case, data_preparation) and runs the Helm chart automatically. You can monitor your job status/logs using three commands (“helm list”, “kubectl get pods”, and “kubectl logs --follow”).
 
+To launch the training job, change the stage in the config to training and run `python main.py`.
 
+```bash
+Epoch 0: :   0%|          | 2000/603000 [1:03:17<317:00:58, v_num=, reduced_train_loss=2.600, global_step=2e+3, consumed_samples=1.28e+6, train_step_timing in s=1.900, val_loss=2.800]dation DataLoader 0: : 51it [00:20,  2.53it/s]
+```
+
+Once the job is finished, you can remove the helm chart with `helm uninstall <job-name>`.
 
