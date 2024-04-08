@@ -4,38 +4,77 @@
 #SBATCH --output=logs/%x_%j.out # logfile for stdout/stderr
 #SBATCH --nodes 1
 
+set -euxo pipefail
 : "${APPS_PATH:=/fsx/apps}"
 : "${IMAGE:=$APPS_PATH/deepspeed.sqsh}"
 : "${FSX_PATH:=/fsx}"
-: "${DATASET:=c4_subset}"
-: "${DATA_PATH:=$FSX_PATH/$DATASET}"
+: "${DATA_PATH:=/fsx/alpaca/alpaca_data.json}"
 : "${MODEL_PATH:=$FSX_PATH/deepspeed}"
 : "${CONTAINER_MOUNT:=$FSX_PATH:$FSX_PATH}"
+: "${HF_LLAMA_PATH:=/fsx/deepspeed/Llama2-7b-hf}"
 
-MICRO_BATCH_SIZE=16
-GLOBAL_BATCH_SIZE=256
-TP=2
-PP=2
+export NODES=( $( scontrol show hostnames $SLURM_JOB_NODELIST ) )
+export NODES_ARRAY=($NODES)
+export HEAD_NODE=${NODES_ARRAY[0]}
+export MASTER_ADDR=$(hostname --ip-address)
+export MASTER_PORT=$((RANDOM + 10000))
+export NNODES=$SLURM_JOB_NUM_NODES
+export NUM_GPUS_PER_NODE=8
+
+export MICRO_BATCH_SIZE=16
+export GLOBAL_BATCH_SIZE=256
+export TP=2
+export PP=2
 # require to align with weight dimensions
-HIDDEN_SIZE=4096
-FFN_HIDDEN_SIZE=11008
-NUM_LAYERS=32
-NUM_HEADS=32
-SEQ_LENGTH=512
+export HIDDEN_SIZE=4096
+export FFN_HIDDEN_SIZE=11008
+export NUM_LAYERS=32
+export NUM_HEADS=32
+export SEQ_LENGTH=512
+export MEGA_DS_LLAMA_PATH=${MODEL_PATH}/Llama2-7b-mega-ds-T${TP}P${PP}
+
+cat <<EOF > configs/ds_config.json
+{
+    "train_batch_size": ${GLOBAL_BATCH_SIZE},
+    "train_micro_batch_size_per_gpu": ${MICRO_BATCH_SIZE},
+    "steps_per_print": 100,
+    "zero_optimization": {
+        "stage": 0
+    },
+    "bf16": {
+        "enabled": true
+    }
+}
+EOF
+
+export HOSTFILE=/fsx/hostfile
+# create hostfile on the fly
+# https://github.com/microsoft/DeepSpeed/issues/3489
+function makehostfile() {
+perl -e '$slots=split /,/, $ENV{"SLURM_STEP_GPUS"};
+$slots=4 if $slots==0; # workaround 8 gpu machines
+@nodes = split /\n/, qx[scontrol show hostnames $ENV{"SLURM_JOB_NODELIST"}];
+print map { "$b$_ slots=$slots\n" } @nodes'
+}
+makehostfile > ${HOSTFILE}
+
 
 declare -a ARGS=(
     --container-image ${IMAGE}
     --container-mounts /fsx
 )
 declare -a DIST_ARGS=(
-    --num_nodes ${NUM_NODES} \
-    --num_gpus ${NUM_GPUS_PER_NODE} \
+    --num_nodes ${NNODES}
+    --num_gpus ${NUM_GPUS_PER_NODE}
     --master_addr ${MASTER_ADDR}
+    --hostfile  ${HOSTFILE}
+    --launcher "OpenMPI"
+    --no_ssh_check
 )
 declare -a CONVERT_ARGS=(
-    --hf-ckpt-num-shards 2 
+    --hf-ckpt-num-shards 3 
     --origin-hf-ckpt-dir ${MODEL_PATH}/Llama2-7b-hf
-    --save ${MODEL_PATH}/Llama2-7b-mega-ds-T${TP}P${PP}
+    --save ${MEGA_DS_LLAMA_PATH}
 )
 declare -a COMM_ARGS=(
     --tensor-model-parallel-size $TP 
@@ -67,14 +106,14 @@ declare -a COMM_ARGS=(
     --log-interval 1 
     --eval-iters 100 
     --eval-interval 100 
-    --data-path $DATASET_PATH 
+    --data-path $DATA_PATH 
     --save-interval 1500 
     --split 100,0,0 
     --bf16 
     --zero-stage 0 
     --tokenizer-type HFTokenizer 
     --tokenizer-model $HF_LLAMA_PATH 
-    --deepspeed_config ./examples_deepspeed/finetune_hf_llama/ds_config.json 
+    --deepspeed_config ${PWD}/configs/ds_config.json 
     --deepspeed 
     --distributed-backend nccl 
     --num-workers 0 
@@ -86,9 +125,11 @@ declare -a COMM_ARGS=(
 )
 
 if [ "$1" = "convert" ]; then
-    TASK_ARGS=${PWD}/../Megatron-DeepSpeed/tools/hf2megads_weight_converter.py ${CONVERT_ARGS}
+    srun -l "${ARGS[@]}" deepspeed "${DIST_ARGS[@]}" \
+    ${PWD}/../Megatron-DeepSpeed/tools/hf2megads_weight_converter.py \
+    "${CONVERT_ARGS[@]}" "${COMM_ARGS[@]}"
 else
-    TASK_ARGS=${PWD}/../Megatron-DeepSpeed/finetune_llama.py --load ${MEGA_DS_LLAMA_PATH}
+    srun -l "${ARGS[@]}" deepspeed "${DIST_ARGS[@]}" \
+    ${PWD}/../Megatron-DeepSpeed/finetune_llama.py \
+    --load ${MEGA_DS_LLAMA_PATH} "${COMM_ARGS[@]}"
 fi
-
-srun -l "${ARGS[@]}" deepspeed "${DIST_ARGS[@]}" "${TASK_ARGS}" "${COMM_ARGS[@]}"
