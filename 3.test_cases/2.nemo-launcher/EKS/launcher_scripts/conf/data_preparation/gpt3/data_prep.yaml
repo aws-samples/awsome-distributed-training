@@ -36,17 +36,17 @@ spec:
               name: dshm
             - mountPath: /config
               name: data-prep-config
-            - mountPath: /fsx-shared
-              name: fsx-pv
+            - mountPath: ${PATH_TO_FSX}
+              name: ${FSX_PV}
             imagePullPolicy: Always
           restartPolicy: Never
           imagePullSecrets:
           - name: {{ .Values.image.pullSecret }}
 
           volumes:
-          - name: fsx-pv
+          - name: ${FSX_PV}
             persistentVolumeClaim:
-              claimName: fsx-pvc
+              claimName: ${FSX_PVC}
 
           - name: dshm
             emptyDir:

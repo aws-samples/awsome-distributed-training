@@ -41,9 +41,9 @@ stages:
   #- steerlm_reg
 
 cluster_type: k8s  # bcm, bcp, or k8s. If bcm or k8s, it must match - cluster above.
-launcher_scripts_path: <Path-to- NeMo-Megatron-Launcher>/launcher_scripts  # Path to NeMo Megatron Launch scripts, should ends with /launcher_scripts
-data_dir: /fsx-shared/data  # Location to store and read the data.
-base_results_dir: <Path-to- NeMo-Megatron-Launcher>/launcher_scripts/results  # Location to store the results, checkpoints and logs.
+launcher_scripts_path: ${LAUNCHER_SCRIPTS_PATH}/launcher_scripts  # Path to NeMo Megatron Launch scripts, should ends with /launcher_scripts
+data_dir: ${PATH_TO_FSX}/data  # Location to store and read the data.
+base_results_dir: ${LAUNCHER_SCRIPTS_PATH}/launcher_scripts/results  # Location to store the results, checkpoints and logs.
 
 container: ${REPOSITORY}${IMAGE}${TAG}
 
