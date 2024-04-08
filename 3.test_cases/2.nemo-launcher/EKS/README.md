@@ -4,7 +4,7 @@
 
 In this work we will present a step by step guide to run distributed training workloads on an [Amazon EKS](https://aws.amazon.com/eks/) cluster.
 
-# 0. Prerequisites
+## 0. Prerequisites
 We require that to run this workload, you have a 2 node P4de or P5 cluster available with EFA enabled and a [Amazon FSx for Lustre](https://aws.amazon.com/fsx/lustre/) mounted on that cluster. You can follow the steps at [4.amazon-eks](https://github.com/aws-samples/awsome-distributed-training/tree/nemo-on-eks/1.architectures/4.amazon-eks) to create a EFA enabled EKS cluster with P4de nodes. To this end, we provide the cluster creation config in `p4de-cluster-config.yaml`.
 
 This config will create 2 managed node groups, one for the system node `c5.2xlarge` and one `p4de.24xlarge`. Managed node groups will use EKS optimized AMIs.
@@ -17,7 +17,7 @@ The [Nvidia device plugin for Kubernetes](https://github.com/NVIDIA/k8s-device-p
 kubectl apply -f https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/v0.14.3/nvidia-device-plugin.yml
 ```
 
-# 1. Deploy the AWS EFA Kubernetes Device Plugin
+## 1. Deploy the AWS EFA Kubernetes Device Plugin
 
 Once the cluster is created you can install the [AWS EFA Kubernetes Device Plugin](https://github.com/aws/eks-charts/tree/master/stable/aws-efa-k8s-device-plugin) as follows:
 
@@ -85,7 +85,7 @@ NOTE: If EFA is enabled in the node group, edit the security group that the node
 
 ```
 
-# 2. Mount Amazon FSx for Lustre file system on EKS
+## 2. Mount Amazon FSx for Lustre file system on EKS
 
 To have a FSx for Lustre filesystem mounted on your EKS cluster, we will follow the following steps:
 
@@ -94,7 +94,7 @@ To have a FSx for Lustre filesystem mounted on your EKS cluster, we will follow 
 3. Install [FSx CSI drivers](https://docs.aws.amazon.com/eks/latest/userguide/fsx-csi.html)
 4. Mount the filesystem
 
-## 2.1 Create IAM role
+### 2.1 Create IAM role
 
 Follow the scripts below to create an IAM role and attach the FSx Policy
 
@@ -118,7 +118,7 @@ aws iam attach-role-policy --policy-arn ${POLICY_ARN} --role-name ${ROLE_NAME}
 
 ```
 
-## 2.2 Create Security Grouo
+### 2.2 Create Security Grouo
 
 Next we can use the script below to create a security group that allows EKS nodes to access the filesystem:
 
@@ -143,14 +143,14 @@ aws ec2 authorize-security-group-ingress --region ${MY_REGION} --group-id ${SECU
 
 ```
 
-## 2.3 Create FileSystem
+### 2.3 Create FileSystem
 
 Next, we create a 1.2TB Persistent_2 Amazon FSx for Lustre filesystem from the console in the same availability zone as my compute instances (FSX_SUBNET_ID), VPC of EKS (VPC_ID) and security group created above (SECURITY_GROUP_ID). Once the filesystem is created, grab the filesystem ID, DNS name and Mount name from the console.
 
 <center><img src="fsx.png" width="80%"/> </br>
 </center>
 
-## 2.4 Mount the filesystem on EKS cluster
+### 2.4 Mount the filesystem on EKS cluster
 
 Next to mount the file system, we provide scripts in the `fsx` folder fsx-storage-class.yaml, fsx-pv.yaml and fsx-pvc.yaml:
 
@@ -177,7 +177,7 @@ NAME      STATUS   VOLUME   CAPACITY   ACCESS MODES   STORAGECLASS   AGE
 fsx-pvc   Bound    fsx-pv   1200Gi     RWX            fsx-sc         37d
 ```
 
-# 3. Build AWS Optimized Dockerfile for NeMo
+## 3. Build AWS Optimized Dockerfile for NeMo
 
 The NeMo framework is available publicly in the image `nvcr.io/nvidia/nemo:24.01.framework`. We provide an AWS optimized `0.Dockerfile` for use with P4 and P5 instances. Follow the steps below to build and push the image to [Amazon ECR](https://aws.amazon.com/ecr/?gclid=Cj0KCQjwn7mwBhCiARIsAGoxjaJcHDOSi2wFn6P6fxbGGmxCorrgjCWL63p7Vs7LGRO06ACzbSQIw-caAvXAEALw_wcB&trk=d66ebef2-a56b-4c4d-9630-4d0838c2f114&sc_channel=ps&ef_id=Cj0KCQjwn7mwBhCiARIsAGoxjaJcHDOSi2wFn6P6fxbGGmxCorrgjCWL63p7Vs7LGRO06ACzbSQIw-caAvXAEALw_wcB:G:s&s_kwcid=AL!4422!3!629393325529!!!g!!!16080176282!133788119438)
 
@@ -209,7 +209,7 @@ fi
 docker image push ${REGISTRY}${IMAGE}${TAG}
 ```
 
-# 4. Copy Launcher scripts
+## 4. Copy Launcher scripts
 
 The NeMo framework requires users to fill out config files with job and model information. You can copy the launcher scripts from the container as below:
 
@@ -230,7 +230,7 @@ Note, in a Slurm cluster implementation the launcher scripts, data and results f
 
 ```
 
-# 5. Install Requirements
+## 5. Install Requirements
 
 ```bash
 git clone https://github.com/aws-samples/awsome-distributed-training.git
@@ -238,7 +238,7 @@ cd ./awsome-distributed-training/3.test_cases/2.nemo-launcher/EKS/
 pip install -r requirements.txt
 ```
 
-# 6. Deploy kubeflow mpi-operator
+## 6. Deploy kubeflow mpi-operator
 
 For preprcessing training data in parallel, we will leverage the [KubeFlow MPI Operator](https://github.com/kubeflow/mpi-operator). You can install it as follows:
 
@@ -250,7 +250,7 @@ kubectl apply -f https://raw.githubusercontent.com/kubeflow/mpi-operator/v0.4.0/
 kubectl apply -f ./clusterrole-mpi-operator.yaml
 ```
 
-# 7. Deploy kubeflow training-operator
+## 7. Deploy kubeflow training-operator
 
 To enable distributed training, we will leverage the [KubeFlow Training Operator](https://github.com/kubeflow/training-operator). You can install it as follows:
 
@@ -269,7 +269,7 @@ kubectl apply -f ./clusterrolebinding-training-operator-hpa-access.yaml
 
 ```
 
-# 8. Run NeMo on EKS
+## 8. Run NeMo on EKS
 
 Now we can modify launcher scripts and run NeMo jobs on EKS. First, we will download the [Pile dataset](https://huggingface.co/datasets/monology/pile-uncopyrighted) and then run distributed training for the GPT3 5B model.
 
