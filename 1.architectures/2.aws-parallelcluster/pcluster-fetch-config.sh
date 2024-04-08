@@ -57,7 +57,9 @@ parse_args() {
 
 parse_args $@
 
-cluster_config_url=$(pcluster describe-cluster -n $cluster_name "${pcluster_args[@]}" | jq -r .clusterConfiguration.url)
+pcluster_response=$(pcluster describe-cluster -n $cluster_name "${pcluster_args[@]}" || true)
+cluster_config_url=$(echo "$pcluster_response" | jq -r .clusterConfiguration.url)
+[[ "$cluster_config_url" == "null" ]] && { echo "${pcluster_response}" | jq . ; exit 1 ; }
 cluster_config=$(curl --silent "$cluster_config_url")
 
 # By default, auto-detect the syntax highlighter
