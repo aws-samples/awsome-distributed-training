@@ -41,12 +41,11 @@ stages:
   #- steerlm_reg
 
 cluster_type: k8s  # bcm, bcp, or k8s. If bcm or k8s, it must match - cluster above.
-launcher_scripts_path: /eks/deployment/distributed-training/pytorch/pytorchjob/nemo/NeMo-Megatron-Launcher/launcher_scripts  # Path to NeMo Megatron Launch scripts, should ends with /launcher_scripts
-data_dir: ${launcher_scripts_path}/data  # Location to store and read the data.
-base_results_dir: ${launcher_scripts_path}/results  # Location to store the results, checkpoints and logs.
-container_mounts: # List of additional paths to mount to container. They will be mounted to same path.
-  - /fsx-shared:/fsx-shared
-container: nvcr.io/nvidia/nemo:24.01.framework
+launcher_scripts_path: <Path-to- NeMo-Megatron-Launcher>/launcher_scripts  # Path to NeMo Megatron Launch scripts, should ends with /launcher_scripts
+data_dir: /fsx-shared/data  # Location to store and read the data.
+base_results_dir: <Path-to- NeMo-Megatron-Launcher>/launcher_scripts/results  # Location to store the results, checkpoints and logs.
+
+container: ${REPOSITORY}${IMAGE}${TAG}
 
 wandb_api_key_file: null  # File where the w&B api key is stored. Key must be on the first line.
 wandb_api_bcp_secret_key: null  # For BCP clusters, read the W&B api key directly from the environment variable set as a secret from BCP. The value must match the name of the environment variable in BCP, such as WANDB_TOKEN.

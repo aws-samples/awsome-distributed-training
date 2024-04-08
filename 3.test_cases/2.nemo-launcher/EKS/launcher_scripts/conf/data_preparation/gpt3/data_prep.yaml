@@ -32,8 +32,6 @@ spec:
             args:
               - "-De"
             volumeMounts:
-            #- mountPath: {{ $config.NFSPath }}
-            #  name: workspace
             - mountPath: /dev/shm
               name: dshm
             - mountPath: /config
