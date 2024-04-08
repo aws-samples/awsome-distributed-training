@@ -1,9 +1,33 @@
-# Run Nemo on EKS
+# Run the NeMo Framework on Amazon EKS
+
+[NVIDIA NeMo™](https://www.nvidia.com/en-us/ai-data-science/products/nemo/) is an end-to-end, cloud-native enterprise framework for developers to build, customize, and deploy generative AI models with billions of parameters. The NeMo framework provides an accelerated workflow for training with 3D parallelism techniques. It offers a choice of several customization techniques and is optimized for at-scale inference of models for language and image applications, with multi-GPU and multi-node configurations. NeMo makes generative AI model development easy, cost-effective, and fast for enterprises.
+
+In this work we will present a step by step guide to run distributed training workloads on an [Amazon EKS](https://aws.amazon.com/eks/) cluster.
 
 # 0. Prerequisites
-1. Have a EFA enabled Kubernetes cluster with 2 `p4de.24xlarge` nodes
-2. `k get pods -A` looks like
+We require that to run this workload, you have a 2 node P4de or P5 cluster available with EFA enabled and a [Amazon FSx for Lustre](https://aws.amazon.com/fsx/lustre/) mounted on that cluster. You can follow the steps at [4.amazon-eks](https://github.com/aws-samples/awsome-distributed-training/tree/nemo-on-eks/1.architectures/4.amazon-eks) to create a EFA enabled EKS cluster with P4de nodes. To this end, we provide the cluster creation config in `p4de-cluster-config.yaml`.
 
+This config will create 2 managed node groups, one for the system node `c5.2xlarge` and one `p4de.24xlarge`. Managed node groups will use EKS optimized AMIs.
+
+If you wish to provide a custom AMI, you can create an `unmanaged` node group and specify a custom AMI. To find the AMI id you can follow these [steps](https://docs.aws.amazon.com/eks/latest/userguide/retrieve-ami-id.html). Also, to find more details about the EKS optimized AMI, please see [here](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa.html#efa-instance-types).
+
+The [Nvidia device plugin for Kubernetes](https://github.com/NVIDIA/k8s-device-plugin) should already be deployed but if not you can do so as follows:
+
+```bash
+kubectl apply -f https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/v0.14.3/nvidia-device-plugin.yml
+```
+
+# 1. Deploy the AWS EFA Kubernetes Device Plugin
+
+Once the cluster is created you can install the [AWS EFA Kubernetes Device Plugin](https://github.com/aws/eks-charts/tree/master/stable/aws-efa-k8s-device-plugin) as follows:
+
+```bash
+helm repo add eks https://aws.github.io/eks-charts
+helm install efa eks/aws-efa-k8s-device-plugin -n kube-system
+
+```
+
+Once this is done, you should see the following pods:
 ```bash
 root@cb9511473ccc:/eks/deployment/efa-device-plugin# k get pods -A
 NAMESPACE     NAME                                        READY   STATUS    RESTARTS   AGE
@@ -22,8 +46,46 @@ kube-system   nvidia-device-plugin-daemonset-h58n7        1/1     Running   0   
 kube-system   nvidia-device-plugin-daemonset-vrz2q        1/1     Running   0          10h
 
 ```
+You can use the [EKS node viewer](https://github.com/awslabs/eks-node-viewer) tool to view nodes and their status in your cluster. Once it is installed, you can simply type `eks-node-viewer` in the console or `nv` in the `aws-do-eks` container to get the following view:
 
-3. Mount FSX file system
+```bash
+3 nodes (650m/199290m) 0.3% cpu ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ $82.272/hour | $60058.195/month
+21 pods (0 pending 21 running 21 bound)
+
+ip-192-168-120-214.us-west-2.compute.internal cpu ██░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   4% (8 pods) c5.2xlarge/$0.3400     On-Demand - Ready
+ip-192-168-165-37.us-west-2.compute.internal  cpu ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0% (7 pods) p4de.24xlarge/$40.9657 On-Demand - Ready
+ip-192-168-164-33.us-west-2.compute.internal  cpu ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0% (6 pods) p4de.24xlarge/$40.9657 On-Demand - Ready
+•
+←/→ page • q: quit
+
+```
+
+Here the node viewer shows the IP addresses of my 2 p4de.24xlarge compute nodes. We can take one of the IP addresses to describe the node as:
+
+```bash
+kubectl describe node ip-192-168-165-37.us-west-2.compute.internal
+```
+The above command describes a lot of detail of the node. To make sure EFA is installed correctly make sure you see the following:
+
+```bash
+Allocatable:
+  cpu:                    95690m
+  ephemeral-storage:      868645791124
+  hugepages-1Gi:          0
+  hugepages-2Mi:          21122Mi
+  memory:                 1146004920Ki
+  nvidia.com/gpu:         8
+  pods:                   250
+  vpc.amazonaws.com/efa:  4
+```
+For p4 nodes you will see ` vpc.amazonaws.com/efa:  4` and for p5.48xlarge nodes you should see ` vpc.amazonaws.com/efa:  32`.
+
+```bash
+NOTE: If EFA is enabled in the node group, edit the security group that the nodes are attached to and add a rule to allow all outgoing traffic originating from the same security group. This is required for EFA to work.
+
+```
+
+# 2. Mount Amazon FSx for Lustre file system on EKS
 
 ```bash
 # From EC2 console
