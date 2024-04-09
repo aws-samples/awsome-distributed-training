@@ -58,3 +58,17 @@ ${MODEL_PATH}/Llama2-7b-hf
 └── tokenizer_config.json
 ```
 
+Finally, transforms the checkpoint into Megatron DeepSpeed format:
+
+``bash
+bash 2.convert-weights-to-mega-ds.sh
+```
+
+
+## 1. Finetuning
+
+Finetuning job can be submitted as follows:
+
+```bash
+bash 3.finetune-llama.sh
+```
