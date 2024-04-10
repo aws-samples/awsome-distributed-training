@@ -3,6 +3,49 @@
 import json
 import argparse
 import boto3
+from jsonschema import validate
+
+# This function checks that provisioning_parameter.json meets schema
+def validate_provisioning_parameters(provisioning_parameters):
+
+    # {
+    #     "version": "1.0.0",
+    #     "workload_manager": "slurm",
+    #     "controller_group": "controller-machine",
+    #     "worker_groups": [
+    #         {
+    #         "instance_group_name": "worker-group-1",
+    #         "partition_name": "ml.p5.48xlarge"
+    #         }
+    #     ],
+    #     "fsx_dns_name": "fs-05dac34e835f2c47f.fsx.us-west-2.amazonaws.com",
+    #     "fsx_mountname": "4owupbev"
+    # }
+
+    schema = {
+        "type": "object",
+        "properties": {
+            "version": {"type": "string"},
+            "workload_manager": {"type": "string"},
+            "controller_group": {"type": "string"},
+            "worker_groups": {
+                "list": [
+                {"type": "string"},
+                {"type": "string"}
+            ]},
+            "fsx_dns_name": {"type": "string"},
+            "fsx_mountname": {"type": "string"}
+        },
+        "required": ["version", "workload_manager", "controller_group", "worker_groups", "fsx_dns_name", "fsx_mountname" ]
+    }
+
+    try:
+        validate(instance=provisioning_parameters, schema=schema)  # No error means valid
+        print(f"✔️  Validated provisioning_parameter.json is valid json ...")
+        return True
+    except Exception as e:
+        print(f"❌ Invalid provisioning_parameter.json, {e}")
+        return False
 
 # This function checks that all instance group names match
 # between the cluster config and provisioning parameters.
@@ -132,6 +175,9 @@ def main():
 
     # Validate FSx Lustre
     valid = validate_fsx_lustre(boto3.client('fsx'), cluster_config, provisioning_parameters) and valid
+
+    # validate provisioning_parameters
+    valid = validate_provisioning_parameters(provisioning_parameters)
 
     if valid:
         # All good!
