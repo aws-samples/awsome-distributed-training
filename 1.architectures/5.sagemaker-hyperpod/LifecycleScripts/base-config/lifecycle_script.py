@@ -98,7 +98,8 @@ def wait_for_slurm_conf(controllers: List[str]) -> bool:
     """
     SageMaker agents do a slurm configuration. Wait for a signal that slurm is ready to start.
     This means that we can start controller, or do additional setup
-    Function return True if walid slurm configuration found
+    Returns:
+        bool: True if valid slurm configuration found
     """
     sleep = 5 # sec
     timeout = 60  # sec
@@ -116,6 +117,30 @@ def wait_for_slurm_conf(controllers: List[str]) -> bool:
         time.sleep(sleep)
     return False
 
+def wait_for_scontrol():
+    """
+    Checks if 'scontrol show nodes' command returns output within specified time.
+    This means we can proceed with install scripts which require nodes to be registered with slurm.
+    Returns:
+        bool: True if the command returns output from scontrol within the specified time, False otherwise.
+    """
+    timeout = 120
+    sleep = 5
+    for i in range (timeout // sleep):
+        try:
+            output = subprocess.check_output(['scontrol', 'show', 'nodes'])
+            if output.strip():
+                print("Nodes registered with Slurm, Proceeding with install scripts.", output)
+                return True
+        except subprocess.CalledProcessError:
+            pass
+
+        print(f"Waiting for output. Retrying in {sleep} seconds...")
+        time.sleep(sleep)
+
+    print(f"Exceeded maximum wait time of {timeout} seconds. No output from scontrol.")
+    return False
+    
 
 def main(args):
     params = ProvisioningParameters(args.provisioning_parameters)
@@ -168,6 +193,7 @@ def main(args):
 
         # # Note: Uncomment the below lines to install Slurm Exporter and Prometheus on the Controller Node.
         # if node_type == SlurmNodeType.HEAD_NODE:
+        #     wait_for_scontrol()
         #     ExecuteBashScript("./utils/install_slurm_exporter.sh").run()
         #     ExecuteBashScript("./utils/install_prometheus.sh").run()
 
