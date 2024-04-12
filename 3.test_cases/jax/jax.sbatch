@@ -39,7 +39,7 @@ export LEAD_NODE=${SLURMD_NODENAME}
 export BASE_DIR=${CHECKPOINT_DIR}
 
 # JAX Configuration
-export TRAINING_CONFIG=paxml.tasks.lm.params.lm_cloud.LmCloudSpmd2BLimitsteps
+export TRAINING_CONFIG=paxml.tasks.lm.params.lm_cloud.LmCloudSpmd2BLimitSteps
 export JAX_FLAGS="--fdl.ICI_MESH_SHAPE=[1,${TOTAL_NB_GPUS},1] --fdl.PERCORE_BATCH_SIZE=32"
 
 srun --container-image /fsx/paxml_jax-0.4.18-1.2.0.sqsh --container-mounts /fsx/data:/data -n ${TOTAL_NB_GPUS} -N ${SLURM_JOB_NUM_NODES} /bin/bash run_paxml.sh
