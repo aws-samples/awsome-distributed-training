@@ -89,7 +89,7 @@ sudo amazon-linux-extras install -y python3.8 # we need Python =>3.8
 /usr/bin/python3.8 -m venv .venv
 source .venv/bin/activate
 pip3.8 install --upgrade pip setuptools
-pip3.8 install -r <(curl -fsSL https://raw.githubusercontent.com/NVIDIA/NeMo-Megatron-Launcher/$NEMO_VERSION/requirements.txt)
+pip3.8 install -r <(curl -fsSL "https://raw.githubusercontent.com/NVIDIA/NeMo-Megatron-Launcher/${NEMO_VERSION%.*}/requirements.txt")
 ```
 
 Next, you need to prepare the configuration files as follow:
@@ -107,12 +107,14 @@ Next, you need to prepare the configuration files as follow:
 | `job_name_prefix`  | `"nemo-megatron-"`            | Prefix for your job names                                                                                                                                                   |
 | `gres`             | `"gpu:8"`                     | Generic resource [scheduling](https://slurm.schedmd.com/gres.html)                                                                                                          |
 | `srun_args`        | `"--no-container-mount-home"` | Arguments for the [srun](https://slurm.schedmd.com/srun.html) command (here for Pyxis)                                                                                      |
+| `srun_args`        | `"-l"`                        | Arguments for the [srun](https://slurm.schedmd.com/srun.html) command to improve log verbosity. This flag prepends Slurm task number to lines of stdout/stderr.             |
+| `srun_args`        | `"--open-mode=append"`        | Arguments for the [srun](https://slurm.schedmd.com/srun.html) command. When a Slurm job has multiple steps, each step appends (rather than truncate) to existing logs.      |
 | `stderr_to_stdout` | `True`                        | Merge `stderr` and `stdout`                                                                                                                                                 |
 
 2. Copy all the .yaml config files `{conf.template/ => launcher_scripts/conf/}` and substitute environment variables as follows:
 
 ```bash
-cp -Rv ${TEST_CASE_PATH}/conf.template/cluster ${TARGET_PATH}/launcher_scripts/conf/cluster
+cp -v ${TEST_CASE_PATH}/conf.template/cluster/* ${TARGET_PATH}/launcher_scripts/conf/cluster/
 envsubst < ${TEST_CASE_PATH}/conf.template/config.yaml > ${TARGET_PATH}/launcher_scripts/conf/config.yaml
 ```
 
