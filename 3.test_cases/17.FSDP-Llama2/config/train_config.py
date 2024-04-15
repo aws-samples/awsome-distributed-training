@@ -3,7 +3,7 @@ from dataclasses import dataclass
 @dataclass
 class training_config:
 
-    model_name: str = "mamba370m"
+    model_name: str = "state-spaces/mamba-130m"
     load_ckpt_path: str = f"/fsx/{model_name}/ckpt"
     save_ckpt_path: str = f"/fsx/{model_name}/ckpt" 
 
@@ -16,7 +16,7 @@ class training_config:
 
     # fsdp policies
     mixed_precision: bool = True
-    fsdp_activation_checkpointing: bool = False
+    fsdp_activation_checkpointing: bool = True
     selective_checkpointing: int = 1
     sharding_strategy: str = "hsdp"
     low_cpu_fsdp: bool = False

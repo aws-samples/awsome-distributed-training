@@ -19,9 +19,7 @@ conda create -n mambapretrain python=3.10
 conda activate mambapretrain
 
 # Install pytorch and other dependencies
-conda install -y pytorch=2.0.1 pytorch-cuda=12.2 torchvision torchaudio fsspec=2023.9.2 --strict-channel-priority --override-channels -c https://aws-ml-conda.s3.us-west-2.amazonaws.com -c nvidia -c conda-forge
-conda install -y pytorch==2.1.0 pytorch-cuda=11.8 -c pytorch -c nvidia
-pip install git+https://github.com/huggingface/transformers@main
+conda install -y pytorch==2.0.1 torchvision==0.15.2 torchaudio==2.0.2 pytorch-cuda=11.8  --strict-channel-priority --override-channels -c https://aws-ml-conda.s3.us-west-2.amazonaws.com -c nvidia -c conda-forgea
 pip install causal-conv1d>=1.2.0
 pip install mamba-ssm
 

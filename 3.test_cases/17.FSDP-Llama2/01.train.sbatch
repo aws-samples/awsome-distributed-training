@@ -61,6 +61,6 @@ declare -a MODEL_ARGS=(
     --use_torch_compile=False
     --use_profiler=False
     --deepspeed_config="deepspeed_config.json"
-)
+de)
 
 srun -l torchrun "${TORCHRUN_ARGS[@]}" $TRAIN_SCRIPT "${MODEL_ARGS[@]}"

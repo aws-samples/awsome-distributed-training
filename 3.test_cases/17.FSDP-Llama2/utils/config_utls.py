@@ -104,6 +104,18 @@ def get_model_config(model_name):
             time_step_rank = 64,
             vocab_size = 50280
         )
+    elif model_name == "state-spaces/mamba-130m":
+        model_config = MambaConfig(
+            d_model = 1024,
+            hidden_size = 1024,
+            initializer_range = 0.1,
+            intermediate_size = 2048,
+            n_layer = 48,
+            num_hidden_layers = 48,
+            state_size = 16,
+            time_step_rank = 64,
+            vocab_size = 50280
+        )
 
     else:
         raise ValueError(f"Model {model_name} currently not supported.")

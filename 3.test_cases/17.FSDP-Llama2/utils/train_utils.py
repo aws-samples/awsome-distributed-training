@@ -12,6 +12,9 @@ import torch
 import torch.cuda.nccl as nccl
 import torch.distributed as dist
 from torch.distributed.fsdp import ShardingStrategy
+from torch.distributed.fsdp.sharded_grad_scaler import ShardedGradScaler
+
+import torch.nn.functional as F
 
 from config import (
     train_config,
@@ -26,6 +29,8 @@ import datasets
 from torch.utils.data import DistributedSampler
 from transformers import set_seed
 
+from mamba_ssm.models.mixer_seq_simple import MambaLMHeadModel
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
 def train(
     cfg,
@@ -66,6 +71,7 @@ def train(
 
     model.train()
     ddp_stats = torch.zeros(3).to(local_rank)
+    scaler = ShardedGradScaler()
 
     start = time.time()
     loop_start = time.time()
@@ -77,14 +83,16 @@ def train(
         label = label.to(local_rank)
 
         optimizer.zero_grad()
-        output = model(input_ids=input, labels=label)
+        logits = model(input).logits
+        loss = F.cross_entropy(logits.view(-1, logits.size(-1)), label.view(-1), ignore_index=0)
+        #output = model(input_ids=input, labels=label)
         #ce_loss = torch.nn.CrossEntropyLoss()
         #loss = ce_loss(output.view(-1, output.size(-1)), label.view(-1).long())
-        loss = output["loss"]
-
-        loss.backward()
+        #loss = output["loss"]
+        scaler.scale(loss).backward()
         ddp_stats[1] += model.clip_grad_norm_(cfg.grad_clip_thresh).item()
-        optimizer.step()
+        scaler.step(optimizer)
+        scaler.update()
         scheduler.step()
 
         ddp_stats[0] += loss.item()
@@ -258,3 +266,10 @@ def create_pretraining_dataset(
         pin_memory=True,
     )
     return train_dataloader
+
+def load_model(model_name, model_config):
+    if "mamba" in model_name:
+        model = MambaLMHeadModel.from_pretrained(model_name)
+    else:
+        model = AutoModelForCausalLM.from_config(model_config)
+    return model

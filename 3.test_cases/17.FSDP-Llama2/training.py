@@ -3,17 +3,32 @@ import os
 
 import torch
 import torch.optim as optim
-from transformers import AutoModelForCausalLM, AutoTokenizer
 from transformers import AutoModel
 from torch import distributed as dist
 from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 from torch.optim.lr_scheduler import LambdaLR
 
+from torch.distributed.fsdp.wrap import transformer_auto_wrap_policy
+from torch.distributed.fsdp.fully_sharded_data_parallel import (
+    ShardingStrategy,
+)
 from config import (
     train_config,
     checkpointing,
     wrapper
 )
+
+from torch.distributed.fsdp import (
+    FullyShardedDataParallel as FSDP,
+    MixedPrecision,
+    FullStateDictConfig,
+    StateDictType,
+    CPUOffload
+)
+
+
+from mamba_ssm.modules.mamba_simple import Mamba, Block
+
 from utils.checkpointing_utils import Checkpointer
 from utils.config_utls import get_model_config, update_config
 from utils.train_utils import (
@@ -22,7 +37,8 @@ from utils.train_utils import (
     setup,
     setup_environ_flags,
     train,
-    create_pretraining_dataset
+    create_pretraining_dataset,
+    load_model
 )
 
 
@@ -57,12 +73,12 @@ def main(**kwargs):
 
     if cfg.low_cpu_fsdp:
         if rank == 0:
-            model = AutoModelForCausalLM.from_config(model_config)
+            model = load_model(cfg.model_name, model_config)
         else:
             with torch.device("meta"):
-                model = AutoModelForCausalLM.from_config(model_config)
+                model = load_model(cfg.model_name, model_config)
     else:
-        model = AutoModelForCausalLM.from_config(model_config)
+        model = load_model(cfg.model_name, model_config)
 
     if rank == 0:
         total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
