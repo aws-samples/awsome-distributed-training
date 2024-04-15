@@ -85,13 +85,13 @@ Parameters:
     Description: Storage capacity in GiB (1200 or increments of 2400)
     Type: Number
     Default: 1200
-  
+
   S3Bucket:
     Description: S3 Bucket to save lifecycle configuration file
     Type: String
     Default: "sagemaker-lifecycle"
 
-  
+
   PerUnitStorageThroughput:
     Description: Provisioned Read/Write (MB/s/TiB)
     Type: Number
@@ -101,7 +101,7 @@ Parameters:
       - 250
       - 500
       - 1000
-  
+
   Compression:
     Description: Data compression type
     Type: String
@@ -109,7 +109,7 @@ Parameters:
       - "LZ4"
       - "NONE"
     Default: "LZ4"
-  
+
   LustreVersion:
     Description: Lustre software version
     Type: String
@@ -124,7 +124,7 @@ Parameters:
 
 Conditions:
   S3EndpointCondition: !Equals [!Ref 'CreateS3Endpoint', 'true']
-  BackupSubnetCondition: !Not [ !Equals [!Ref 'BackupSubnetAZ', ''] ] 
+  BackupSubnetCondition: !Not [ !Equals [!Ref 'BackupSubnetAZ', ''] ]
 
 
 ##########################
@@ -134,8 +134,8 @@ Conditions:
 Rules:
   AZsRule:
     Assertions:
-      - Assert: !Not 
-        - !Equals 
+      - Assert: !Not
+        - !Equals
           - !Ref PrimarySubnetAZ
           - !Ref BackupSubnetAZ
         AssertDescription: Backup AZ has to be different from the primary AZ.
@@ -228,6 +228,14 @@ Resources:
     Properties:
       Domain: vpc
 
+  # NOTE: when you create additional security groups, you must ensure that every
+  # security group has ingress/egress from/to its own security group id. Failure
+  # to do so may cause trn1/p4d/p4de/p5 SMHP cluster creation to fail:
+  #
+  #     Instance i-aaaabbbbccccddddf failed to provision with the following
+  #     error: "EFA health checks did not run successfully. Ensure that your
+  #     VPC and security groups are properly configured before attempting to
+  #     create a new cluster." Note that multiple instances may be impacted."
   SecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -388,7 +396,7 @@ Resources:
         DataCompressionType: !Ref Compression
         DeploymentType: PERSISTENT_2
         PerUnitStorageThroughput: !Ref PerUnitStorageThroughput
-  
+
   AmazonSagemakerClusterExecutionRole:
     Type: AWS::IAM::Role
     Properties:
@@ -401,7 +409,7 @@ Resources:
                 - sagemaker.amazonaws.com
             Action:
               - sts:AssumeRole
-      ManagedPolicyArns: 
+      ManagedPolicyArns:
         - "arn:aws:iam::aws:policy/AmazonSageMakerClusterInstanceRolePolicy"
       Policies:
         - PolicyName: AmazonSagemakerClusterVPCPolicy
@@ -428,12 +436,12 @@ Resources:
     Type: 'AWS::S3::Bucket'
     DeletionPolicy: Retain
     Properties:
-      BucketName: 
+      BucketName:
        !Sub
           - '${S3Bucket}-${RandomGUID}'
           - { RandomGUID: !Select [0, !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId ]]]] }
 
-    
+
 #############
 ## Outputs ##
 #############
@@ -478,7 +486,7 @@ Outputs:
     Value: !GetAtt AmazonSagemakerClusterExecutionRole.Arn
     Export:
       Name: !Sub ${AWS::StackName}-AmazonSagemakerClusterExecutionRoleArn
-  
+
   AmazonS3BucketName:
     Description: The S3 bucket where Lifecycle scripts are stored
     Value: !Ref LCScriptsBucket
