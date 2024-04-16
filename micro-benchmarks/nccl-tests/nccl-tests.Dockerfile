@@ -2,48 +2,55 @@
 # SPDX-License-Identifier: MIT-0
 FROM nvidia/cuda:12.2.0-devel-ubuntu22.04
 
+ARG GDRCOPY_VERSION=2.4.1
 ARG EFA_INSTALLER_VERSION=1.31.0
 ARG AWS_OFI_NCCL_VERSION=1.8.1
-ARG NCCL_TESTS_VERSION=2.13.9
 ARG NCCL_VERSION=2.20.3
-ARG GDRCOPY_VERSION=2.4.1
+ARG NCCL_TESTS_VERSION=2.13.9
 
 RUN apt-get update -y
 RUN apt-get remove -y --allow-change-held-packages \
-    libmlx5-1 ibverbs-utils libibverbs-dev libibverbs1 libnccl2 libnccl-dev
+    ibverbs-utils \
+    libibverbs-dev \
+    libibverbs1 \
+    libmlx5-1 \
+    libnccl2 \
+    libnccl-dev
 
 RUN rm -rf /opt/hpcx \
     && rm -rf /usr/local/mpi \
     && rm -f /etc/ld.so.conf.d/hpcx.conf \
     && ldconfig
+
 ENV OPAL_PREFIX=
 
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y --allow-unauthenticated \
+    apt-utils \
+    autoconf \
+    automake \
+    build-essential \
+    check \
+    cmake \
+    curl \
+    debhelper \
+    devscripts \
     git \
     gcc \
-    vim \
+    gdb \
     kmod \
+    libsubunit-dev \
+    libtool \
     openssh-client \
     openssh-server \
-    build-essential \
-    curl \
-    autoconf \
-    libtool \
-    gdb \
-    automake \
+    pkg-config \
     python3-distutils \
-    cmake \
-    apt-utils \
-    devscripts \
-    debhelper \
-    libsubunit-dev \
-    check \
-    pkg-config
+    vim
 
 RUN mkdir -p /var/run/sshd
 RUN sed -i 's/[ #]\(.*StrictHostKeyChecking \).*/ \1no/g' /etc/ssh/ssh_config && \
     echo "    UserKnownHostsFile /dev/null" >> /etc/ssh/ssh_config && \
     sed -i 's/#\(StrictModes \).*/\1no/g' /etc/ssh/sshd_config
+
 ENV LD_LIBRARY_PATH /usr/local/cuda/extras/CUPTI/lib64:/opt/amazon/openmpi/lib:/opt/nccl/build/lib:/opt/amazon/efa/lib:/opt/aws-ofi-nccl/install/lib:/usr/local/lib:$LD_LIBRARY_PATH
 ENV PATH /opt/amazon/openmpi/bin/:/opt/amazon/efa/bin:/usr/bin:/usr/local/bin:$PATH
 
