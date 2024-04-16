@@ -6,6 +6,7 @@ ARG EFA_INSTALLER_VERSION=1.31.0
 ARG AWS_OFI_NCCL_VERSION=v1.8.1-aws
 ARG NCCL_TESTS_VERSION=2.13.9
 ARG NCCL_VERSION=2.20.3
+ARG GDRCOPY_VERSION=2.4.1
 
 RUN apt-get update -y
 RUN apt-get remove -y --allow-change-held-packages \
@@ -52,12 +53,14 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py \
 
 #################################################
 ## Install NVIDIA GDRCopy
-#RUN git clone https://github.com/NVIDIA/gdrcopy.git /opt/gdrcopy \
-#    && cd /opt/gdrcopy \
-#    && make lib_install install \
-#    && cd /opt/gdrcopy/tests \
-#    && make \
-#    && mv copylat copybw sanity apiperf /usr/bin/
+RUN git clone -b v${GDRCOPY_VERSION} https://github.com/NVIDIA/gdrcopy.git /tmp/gdrcopy \
+    && cd /tmp/gdrcopy \
+    && make prefix=/opt/gdrcopy install
+
+ENV LD_LIBRARY_PATH /opt/gdrcopy/lib:/usr/local/cuda/compat:$LD_LIBRARY_PATH
+ENV LIBRARY_PATH /opt/gdrcopy/lib:/usr/local/cuda/compat/:$LIBRARY_PATH
+ENV CPATH /opt/gdrcopy/include:$CPATH
+ENV PATH /opt/gdrcopy/bin:$PATH
 
 #################################################
 ## Install EFA installer
