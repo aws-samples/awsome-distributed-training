@@ -3,7 +3,7 @@
 FROM nvidia/cuda:12.2.0-devel-ubuntu22.04
 
 ARG EFA_INSTALLER_VERSION=1.31.0
-ARG AWS_OFI_NCCL_VERSION=v1.8.1-aws
+ARG AWS_OFI_NCCL_VERSION=1.8.1
 ARG NCCL_TESTS_VERSION=2.13.9
 ARG NCCL_VERSION=2.20.3
 ARG GDRCOPY_VERSION=2.4.1
@@ -80,18 +80,20 @@ RUN git clone -b v${NCCL_VERSION}-1 https://github.com/NVIDIA/nccl.git  /opt/ncc
 
 ###################################################
 ## Install AWS-OFI-NCCL plugin
-RUN apt-get install libtool autoconf cmake nasm unzip pigz parallel nfs-common build-essential hwloc libhwloc-dev libjemalloc2 libnuma-dev numactl libjemalloc-dev preload htop iftop liblapack-dev libgfortran5 ipcalc wget curl devscripts debhelper check libsubunit-dev fakeroot pkg-config dkms -y
-RUN export OPAL_PREFIX="" \
-    && git clone https://github.com/aws/aws-ofi-nccl.git /opt/aws-ofi-nccl \
-    && cd /opt/aws-ofi-nccl \
-    && git checkout ${AWS_OFI_NCCL_VERSION} \
-    && ./autogen.sh \
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y libhwloc-dev
+RUN curl -OL https://github.com/aws/aws-ofi-nccl/releases/download/v${AWS_OFI_NCCL_VERSION}-aws/aws-ofi-nccl-${AWS_OFI_NCCL_VERSION}-aws.tar.gz \
+    && tar -xf aws-ofi-nccl-${AWS_OFI_NCCL_VERSION}-aws.tar.gz \
+    && cd aws-ofi-nccl-${AWS_OFI_NCCL_VERSION}-aws \
     && ./configure --prefix=/opt/aws-ofi-nccl/install \
         --with-mpi=/opt/amazon/openmpi \
         --with-libfabric=/opt/amazon/efa \
         --with-cuda=/usr/local/cuda \
         --enable-platform-aws \
-    && make -j $(nproc) && make install
+    && make -j $(nproc) \
+    && make install \
+    && cd .. \
+    && rm -rf aws-ofi-nccl-${AWS_OFI_NCCL_VERSION}-aws \
+    && rm aws-ofi-nccl-${AWS_OFI_NCCL_VERSION}-aws.tar.gz
 
 ###################################################
 ## Install NCCL-tests
