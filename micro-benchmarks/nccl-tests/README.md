@@ -35,30 +35,40 @@ The NCCL tests are packaged in a container.
 
 > | Variable              | Default     |
 > |-----------------------|-------------|
-> |`EFA_INSTALLER_VERSION`| `latest`    |
-> |`AWS_OFI_NCCL_VERSION` | `aws`       |
-> |`NCCL_TESTS_VERSION`   | `master`    |
-> |`NCCL_VERSION`         | `v2.12.7-1` |
+> |`EFA_INSTALLER_VERSION`| `1.31.0`    |
+> |`AWS_OFI_NCCL_VERSION` | `1.8.1`     |
+> |`NCCL_VERSION`         | `2.20.3`    |
+> |`NCCL_TESTS_VERSION`   | `2.13.9`    |
 
-### Slurm
-
-To run the NCCL tests on Slurm, you will need to build the container then convert it into a Squash file using Enroot.
-
-To build the container:
-
-1. Copy the file `0.nccl-tests.Dockerfile` or its content to your head-node.
-2. Build the container image with the command below
+### Build the container
+1. Build the container image with the command below:
    ```bash
-   docker build -t nccl-tests -f 0.nccl-tests.Dockerfile .
+   EFA_INSTALLER_VERSION=1.31.0
+   AWS_OFI_NCCL_VERSION=1.8.1
+   NCCL_VERSION=2.20.3
+   NCCL_TESTS_VERSION=2.13.9
+   docker build  -f slurm/nccl-tests.Dockerfile \
+          --build-arg="EFA_INSTALLER_VERSION=${EFA_INSTALLER_VERSION}" \
+          --build-arg="AWS_OFI_NCCL_VERSION=${AWS_OFI_NCCL_VERSION}" \
+          --build-arg="NCCL_VERSION=${NCCL_VERSION}" \
+          --build-arg="NCCL_TESTS_VERSION=${NCCL_TESTS_VERSION}" \
+          -t nccl-tests:${EFA_INSTALLER_VERSION}-${AWS_OFI_NCCL_VERSION}-${NCCL_VERSION}-${NCCL_TESTS_VERSION} \
+          .
    ```
-3. Once the image is built, you can check if it is present with `docker images`. You should see an output similar to this one:
+
+1. Once the container image is built, you can check if it is present with `docker images`. You should see an output similar to this one:
    ```
    REPOSITORY               TAG                        IMAGE ID       CREATED         SIZE
    nccl                     latest                     6e981e5cf6a5   5 hours ago     8.61GB
    ...
    nvidia/cuda              12.2.0-devel-ubuntu20.04   a86c511c87e1   2 weeks ago     6.56GB
    ```
-3. Convert the container image to a squash file via Enroot
+
+### Slurm
+
+To run the NCCL tests on Slurm, you will need to convert the container into a Squash file using Enroot.
+
+1. Convert the container image to a squash file via Enroot
    ```bash
    enroot import -o /apps/nccl.sqsh  dockerd://nccl-tests:latest
    ```
