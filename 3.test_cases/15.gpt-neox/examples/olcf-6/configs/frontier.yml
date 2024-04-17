@@ -1,6 +1,6 @@
 # Suggested data paths when using GPT-NeoX locally
 {
-  "data-path": "/fsx/data/olcf",
+  "data-path": "/fsx/data/olcf/all_text_document",
   # or for weighted datasets:
   # "train-data-paths": ["data/enron/enron_text_document", "data/enron/enron_text_document"],
   # "test-data-paths": ["data/enron/enron_text_document", "data/enron/enron_text_document"],
