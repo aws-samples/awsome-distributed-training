@@ -149,7 +149,7 @@ def main(args):
     fsx_dns_name, fsx_mountname = params.fsx_settings
     if fsx_dns_name and fsx_mountname:
         print(f"Mount fsx: {fsx_dns_name}. Mount point: {fsx_mountname}")
-        ExecuteBashScript("./mount_fsx.sh").run(fsx_dns_name, fsx_mountname)
+        ExecuteBashScript("./mount_fsx.sh").run(fsx_dns_name, fsx_mountname, "/fsx")
 
     ExecuteBashScript("./add_users.sh").run()
 
