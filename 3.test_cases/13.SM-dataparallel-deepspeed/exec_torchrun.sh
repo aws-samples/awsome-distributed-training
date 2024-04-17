@@ -3,6 +3,10 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 
+# Activate conda environment
+source ./conda/bin/activate
+conda activate smdataparallel
+
 export OMP_NUM_THREADS=1
 export GPUS_PER_NODE=8 # p4d/p4de instances have 8 GPUs per node
 MASTER_NODE=$(scontrol show hostname | head -n 1)
