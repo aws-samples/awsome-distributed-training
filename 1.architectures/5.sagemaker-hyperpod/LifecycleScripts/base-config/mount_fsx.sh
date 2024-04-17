@@ -8,8 +8,7 @@ set -e
 # FSx Lustre Endpoints
 FSX_DNS_NAME="$1"
 FSX_MOUNTNAME="$2"
-
-: "${MOUNT_POINT:=/fsx}"
+MOUNT_POINT="$3"
 
 is_mounted() {
   mountpoint -q "$1"
@@ -77,7 +76,7 @@ install_remount_service() {
     echo "Created dir /opt/ml/scripts"
   fi
 
-  CHECK_MOUNT_FILE=/opt/ml/scripts/check_mount.sh
+  CHECK_MOUNT_FILE=/opt/ml/scripts/check_mount_$FSX_MOUNTNAME.sh
 
   cat > $CHECK_MOUNT_FILE << EOF
 #!/bin/bash
@@ -86,14 +85,14 @@ if ! grep -qs "$MOUNT_POINT" /proc/mounts; then
   mount -t lustre -o noatime,flock "$FSX_DNS_NAME"@tcp:/"$FSX_MOUNTNAME" "$MOUNT_POINT"
   echo "Mounted FSx to $MOUNT_POINT"
 else
-  echo "FSx Lustre already mounted to $MOUNT_POINT. Stopping services check_fsx_mount.timer and check_fsx_mount.service"
-  systemctl stop check_fsx_mount.timer
+  echo "FSx Lustre already mounted to $MOUNT_POINT. Stopping services check_fsx_mount_$FSX_MOUNTNAME.timer and check_fsx_mount_$FSX_MOUNTNAME.service"
+  systemctl stop check_fsx_mount_$FSX_MOUNTNAME.timer
 fi
 EOF
 
   chmod +x $CHECK_MOUNT_FILE
 
-  cat > /etc/systemd/system/check_fsx_mount.service << EOF
+  cat > /etc/systemd/system/check_fsx_mount_$FSX_MOUNTNAME.service << EOF
 [Unit]
 Description=Check and remount FSx Lustre filesystems if necessary
 
@@ -101,9 +100,9 @@ Description=Check and remount FSx Lustre filesystems if necessary
 ExecStart=$CHECK_MOUNT_FILE
 EOF
 
-  cat > /etc/systemd/system/check_fsx_mount.timer << EOF
+  cat > /etc/systemd/system/check_fsx_mount_$FSX_MOUNTNAME.timer << EOF
 [Unit]
-Description=Run check_fsx_mount.service every minute
+Description=Run check_fsx_mount_$FSX_MOUNTNAME.service every minute
 
 [Timer]
 OnBootSec=1min
@@ -114,7 +113,7 @@ WantedBy=timers.target
 EOF
 
   systemctl daemon-reload
-  systemctl enable --now check_fsx_mount.timer
+  systemctl enable --now check_fsx_mount_$FSX_MOUNTNAME.timer
 }
 
 main() {
