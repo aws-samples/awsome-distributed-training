@@ -26,10 +26,10 @@ use_synthetic_data=1
 
 export TRAINING_DIR=/fsx/path_to_train_data
 export TEST_DIR=/fsx/path_to_test_data
-export CHECKPOINT_DIR=$(pwd)/checkpoints
+export CHECKPOINT_DIR=$HOME/checkpoints
 
 ############
-export TORCHRUN=$(pwd)/miniconda3/envs/smpv2/bin/torchrun
+export TORCHRUN=$HOME/miniconda3/envs/smpv2/bin/torchrun
 export TRAIN_SCRIPT=$(pwd)/scripts/train_external.py
 
 ###############
