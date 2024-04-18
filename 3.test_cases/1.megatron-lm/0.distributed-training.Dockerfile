@@ -99,7 +99,7 @@ RUN pip install transformers==4.21.0 sentencepiece
 #####################
 # Install megatron-lm
 #####################
-RUN cd /workspace && git clone https://github.com/NVIDIA/Megatron-LM.git \
+RUN cd /workspace && git clone --depth 1 --branch core_v0.4.0 https://github.com/NVIDIA/Megatron-LM.git \
 	&& cd Megatron-LM \
 	&& python3 -m pip install nltk  \
 	&& python -m pip install .

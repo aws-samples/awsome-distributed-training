@@ -59,29 +59,35 @@ declare -a ARGS=(
 
 declare -a TORCHRUN_ARGS=(
     # change this to match the number of gpus per node:
-    --nproc_per_node=8 \
-    --nnodes=$SLURM_JOB_NUM_NODES \
-    --rdzv_id=$SLURM_JOB_ID \
-    --rdzv_backend=c10d \
-    --rdzv_endpoint=$(hostname) \
+    --nproc_per_node=8
+    --nnodes=$SLURM_JOB_NUM_NODES
+    --rdzv_id=$SLURM_JOB_ID
+    --rdzv_backend=c10d
+    --rdzv_endpoint=$(hostname)
 )
 
 declare -a MEGATRON_ARGS=(
-        --num-layers $NUM_LAYERS \
-        --hidden-size $HIDDEN_SIZE \
-        --num-attention-heads $NUM_ATTENTION_HEADS \
-        --seq-length $SEQ_LENGTH \
-        --max-position-embeddings $MAX_POSITION_EMBEDDINGS \
-        --micro-batch-size $MICRO_BATCH_SIZE \
-        --global-batch-size $GLOBAL_BATCH_SIZE \
+        --num-layers $NUM_LAYERS
+        --hidden-size $HIDDEN_SIZE
+        --num-attention-heads $NUM_ATTENTION_HEADS
+        --seq-length $SEQ_LENGTH
+        --max-position-embeddings $MAX_POSITION_EMBEDDINGS
+        --micro-batch-size $MICRO_BATCH_SIZE
+        --global-batch-size $GLOBAL_BATCH_SIZE
 )
 
 declare -a MEGATRON_PARALLELISM=(
-        --tensor-model-parallel-size $TENSOR_PARALLEL \
-        --pipeline-model-parallel-size $PIPELINE_PARALLEL \
+        --tensor-model-parallel-size $TENSOR_PARALLEL
+        --pipeline-model-parallel-size $PIPELINE_PARALLEL
 )
 
-srun -l "${ARGS[@]}" python -m torch.distributed.run "${TORCHRUN_ARGS[@]}" /workspace/Megatron-LM/pretrain_gpt.py \
+AUTO_RESUME=""
+if [ -d "/opt/sagemaker_cluster" ]; then
+    echo "Detected Hyperpod cluster.. enabling --auto-resume=1"
+    AUTO_RESUME="--auto-resume=1"
+fi
+
+srun ${AUTO_RESUME} -l "${ARGS[@]}" python -m torch.distributed.run "${TORCHRUN_ARGS[@]}" /workspace/Megatron-LM/pretrain_gpt.py \
         "${MEGATRON_PARALLELISM[@]}" \
         "${MEGATRON_ARGS[@]}" \
         --train-samples 146484375 \
