@@ -16,7 +16,9 @@ set -ex;
 
 #########################
 model_type=llama_v2
-model_size=70b
+max_context_width=8192
+model_size=$1
+DEFAULT_SHARD_DEGREE=$2
 
 #Toggle this to use synthetic data
 use_synthetic_data=1
@@ -64,6 +66,18 @@ if [ "$model_size" == "7b" ]; then
     NUM_HEADS=32
     LLAMA_INTERMEDIATE_SIZE=11008
     DEFAULT_SHARD_DEGREE=8
+elif [ "$model_size" == "8b" ]; then
+    HIDDEN_WIDTH=4096
+    NUM_LAYERS=42
+    NUM_HEADS=32
+    LLAMA_INTERMEDIATE_SIZE=11008
+    # Reduce for better perf on p4de
+elif [ "$model_size" == "25b" ]; then
+    HIDDEN_WIDTH=6144
+    NUM_LAYERS=54
+    NUM_HEADS=48
+    LLAMA_INTERMEDIATE_SIZE=16384
+    # Reduce for better perf on p4de
 elif [ "$model_size" == "13b" ]; then
     HIDDEN_WIDTH=5120
     NUM_LAYERS=40
@@ -127,7 +141,7 @@ declare -a TORCHRUN_ARGS=(
 
 srun -l ${TORCHRUN} "${TORCHRUN_ARGS[@]}" $TRAIN_SCRIPT \
             --train_batch_size 4 \
-            --max_steps 100 \
+            --max_steps 10000 \
             --hidden_width $HIDDEN_WIDTH \
             --num_layers $NUM_LAYERS \
             --num_heads $NUM_HEADS \
@@ -136,11 +150,12 @@ srun -l ${TORCHRUN} "${TORCHRUN_ARGS[@]}" $TRAIN_SCRIPT \
             --model_type $model_type \
             --profile_nsys 1 \
             --use_smp_implementation 1 \
-            --max_context_width 4096 \
+            --max_context_width $max_context_width \
             --tensor_parallel_degree 1 \
             --use_synthetic_data $use_synthetic_data \
             --training_dir $TRAINING_DIR \
             --test_dir $TEST_DIR \
+            --fp8 $3 \
             --dataset_type hf \
             --checkpoint_dir $CHECKPOINT_DIR \
             --checkpoint_freq 100 \
