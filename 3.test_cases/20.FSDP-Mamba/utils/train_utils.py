@@ -6,7 +6,6 @@ except ImportError:
     from pkg_resources import packaging  # type: ignore
 
 import time
-from datetime import timedelta
 
 import torch
 import torch.cuda.nccl as nccl
@@ -17,8 +16,6 @@ from torch.distributed.fsdp.sharded_grad_scaler import ShardedGradScaler
 import torch.nn.functional as F
 
 from config import (
-    train_config,
-    checkpointing,
     wrapper,
     mixed_precision
 )
@@ -30,7 +27,7 @@ from torch.utils.data import DistributedSampler
 from transformers import set_seed
 
 from mamba_ssm.models.mixer_seq_simple import MambaLMHeadModel
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM
 
 def train(
     cfg,
@@ -267,9 +264,6 @@ def create_pretraining_dataset(
     )
     return train_dataloader
 
-def load_model(model_name, model_config):
-    if "mamba" in model_name:
-        model = MambaLMHeadModel.from_pretrained(model_name)
-    else:
-        model = AutoModelForCausalLM.from_config(model_config)
+def load_model(model_name):
+    model = MambaLMHeadModel.from_pretrained(model_name)
     return model

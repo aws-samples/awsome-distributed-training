@@ -18,7 +18,7 @@ class training_config:
     mixed_precision: bool = True
     fsdp_activation_checkpointing: bool = True
     selective_checkpointing: int = 1
-    sharding_strategy: str = "hsdp"
+    sharding_strategy: str = "fsdp"
     low_cpu_fsdp: bool = False
 
     # training spec

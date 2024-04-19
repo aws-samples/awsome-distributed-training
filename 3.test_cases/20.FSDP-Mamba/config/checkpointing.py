@@ -1,6 +1,5 @@
 from functools import partial
 
-from transformers.models.llama.modeling_llama import LlamaDecoderLayer
 from transformers.models.mamba.modeling_mamba import MambaBlock
 from torch.distributed.algorithms._checkpoint.checkpoint_wrapper import (
     CheckpointImpl,
@@ -19,7 +18,7 @@ def apply_fsdp_checkpointing(model, every_xth_item):
     def selective_checkpointing(submodule):
         selective_checkpointing.__dict__.setdefault("_count", 0)
 
-        if isinstance(submodule, LlamaDecoderLayer) or isinstance(submodule, MambaBlock):
+        if isinstance(submodule, MambaBlock):
             selective_checkpointing._count += 1
             if (
                 not every_xth_item
