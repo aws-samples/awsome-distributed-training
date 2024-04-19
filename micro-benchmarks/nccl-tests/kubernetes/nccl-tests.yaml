@@ -22,49 +22,48 @@ spec:
                value: /opt/amazon/openmpi/lib:/opt/nccl/build/lib:/opt/amazon/efa/lib:/opt/aws-ofi-nccl/install/lib:/usr/local/nvidia/lib:$LD_LIBRARY_PATH
              - name: PATH
                value: $PATH:/opt/amazon/efa/bin:/usr/bin
-             - name: XLA_FLAGS
-               value: "--xla_gpu_cuda_data_dir=/usr/local/cuda"
-             - name: TF_XLA_FLAGS
-               value: "--tf_xla_cpu_global_jit"
-             - name: NCCL_DEBUG
-               value: INFO
             command:
             - /opt/amazon/openmpi/bin/mpirun
             - --allow-run-as-root
             - --tag-output
             - -np
             - "16"
-            - -bind-to
+            - -N
+            - "8"
+            - --bind-to
             - none
-            - -map-by
-            - slot
             - -x
             - PATH
             - -x
             - LD_LIBRARY_PATH
             - -x
-            - XLA_FLAGS
+            - FI_PROVIDER=efa
             - -x
-            - TF_XLA_FLAGS
+            - FI_EFA_USE_DEVICE_RDMA=1
+            - -x
+            - FI_EFA_FORK_SAFE=1
             - -x
             - NCCL_DEBUG=INFO
             - -x
-            - NCCL_NVLS_ENABLE=1
+            - NCCL_BUFFSIZE=8388608
+            - -x
+            - NCCL_P2P_NET_CHUNKSIZE=524288
             - --mca
             - pml
-            - ^cm
+            - ^cm,ucx
             - --mca
-            - pml_rsh_agent=ssh
-            - --oversubscribe
+            - btl
+            - tcp,self
+            - --mca
+            - btl_tcp_if_exclude
+            - lo,docker0,veth_def_agent
             - /opt/nccl-tests/build/all_reduce_perf
             - -b
-            - "1"
+            - "8"
             - -e
-            - 2G
+            - "16G"
             - -f
             - "2"
-            - -t
-            - "1"
             - -g
             - "1"
             - -c
