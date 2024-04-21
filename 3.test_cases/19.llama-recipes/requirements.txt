@@ -8,3 +8,4 @@ transformers>=4.34.1
 accelerate
 sentencepiece
 peft
+gradio

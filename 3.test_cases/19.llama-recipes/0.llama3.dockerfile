@@ -24,9 +24,10 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # The three must-be-built packages.
 # Efa-installer>=1.29.0 required for nccl>=2.19.0 to avoid libfabric NCCL error.
-ENV EFA_INSTALLER_VERSION=1.30.0
-ENV AWS_OFI_NCCL_VERSION=1.8.1-aws
-ENV NCCL_TESTS_VERSION=master
+ARG EFA_INSTALLER_VERSION=1.31.0
+ARG AWS_OFI_NCCL_VERSION=v1.8.1-aws
+ARG NCCL_TESTS_VERSION=2.13.9
+ARG NCCL_VERSION=2.20.3-1
 
 RUN apt-get update -y
 RUN apt-get remove -y --allow-change-held-packages \
@@ -87,13 +88,12 @@ ENV PATH=/opt/amazon/efa/bin:/opt/amazon/openmpi/bin:$PATH
 # NCCL EFA plugin (aws-ofi-nccl) depends on mpi, hence we must rebuild openmpi before building the
 # aws-ofi-ccnl.
 ####################################################################################################
-#ENV NCCL_VERSION=2.19.3-1
-#RUN cd /opt && \
-#    wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-keyring_1.0-1_all.deb && \
-#    dpkg -i cuda-keyring_1.0-1_all.deb && \
-#    apt update && \
-#    apt install -y libnccl2==${NCCL_VERSION} libnccl-dev==${NCCL_VERSION} && \
-#    echo NCCL_SOCKET_IFNAME=^docker0,lo >> /etc/nccl.conf
+# RUN cd /opt && \
+#     wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-keyring_1.0-1_all.deb && \
+#     dpkg -i cuda-keyring_1.0-1_all.deb && \
+#     apt update && \
+#     apt install -y libnccl2==${NCCL_VERSION} libnccl-dev==${NCCL_VERSION} && \
+#     echo NCCL_SOCKET_IFNAME=^docker0,lo >> /etc/nccl.conf
 
 
 ####################################################################################################
@@ -107,9 +107,7 @@ ENV PATH=/opt/amazon/efa/bin:/opt/amazon/openmpi/bin:$PATH
 # NCCL EFA plugin (aws-ofi-nccl) depends on mpi, hence we must rebuild openmpi before building the
 # aws-ofi-ccnl.
 ####################################################################################################
-ENV NCCL_VERSION=2.19.3-1
-RUN apt-get remove -y libnccl2 libnccl-dev \
-   && cd /tmp \
+RUN cd /tmp \
    && git clone https://github.com/NVIDIA/nccl.git -b v${NCCL_VERSION} \
    && cd nccl \
    && make -j src.build BUILDDIR=/usr \
@@ -173,22 +171,38 @@ RUN rm -fr ${OPEN_MPI_PATH} \
 ####################################################################################################
 
 
-# NCCL EFA Plugin
-RUN mkdir -p /tmp && \
-    cd /tmp && \
-    curl -LO https://github.com/aws/aws-ofi-nccl/archive/refs/tags/v${AWS_OFI_NCCL_VERSION}.tar.gz && \
-    tar -xzf /tmp/v${AWS_OFI_NCCL_VERSION}.tar.gz && \
-    rm /tmp/v${AWS_OFI_NCCL_VERSION}.tar.gz && \
-    mv aws-ofi-nccl-${AWS_OFI_NCCL_VERSION} aws-ofi-nccl && \
-    cd /tmp/aws-ofi-nccl && \
-    ./autogen.sh && \
-    ./configure --prefix=/opt/amazon/efa \
+## NCCL EFA Plugin
+#RUN mkdir -p /tmp && \
+#    cd /tmp && \
+#    curl -LO https://github.com/aws/aws-ofi-nccl/archive/refs/tags/v${AWS_OFI_NCCL_VERSION}.tar.gz && \
+#    tar -xzf /tmp/v${AWS_OFI_NCCL_VERSION}.tar.gz && \
+#    rm /tmp/v${AWS_OFI_NCCL_VERSION}.tar.gz && \
+#    mv aws-ofi-nccl-${AWS_OFI_NCCL_VERSION} aws-ofi-nccl && \
+#    cd /tmp/aws-ofi-nccl && \
+#    ./autogen.sh && \
+#    ./configure --prefix=/opt/amazon/efa \
+#        --with-libfabric=/opt/amazon/efa \
+#        --with-cuda=/usr/local/cuda \
+#        --enable-platform-aws \
+#        --with-mpi=/opt/amazon/openmpi && \
+#    make -j$(nproc) install && \
+#    rm -rf /tmp/aws-ofi/nccl
+
+###################################################
+## Install AWS-OFI-NCCL plugin
+RUN apt-get install libtool autoconf cmake nasm unzip pigz parallel nfs-common build-essential hwloc libhwloc-dev libjemalloc2 libnuma-dev numactl libjemalloc-dev preload htop iftop liblapack-dev libgfortran5 ipcalc wget curl devscripts debhelper check libsubunit-dev fakeroot pkg-config dkms -y
+RUN export OPAL_PREFIX="" \
+    && git clone https://github.com/aws/aws-ofi-nccl.git /opt/aws-ofi-nccl \
+    && cd /opt/aws-ofi-nccl \
+    && git checkout ${AWS_OFI_NCCL_VERSION} \
+    && ./autogen.sh \
+    && ./configure --prefix=/opt/aws-ofi-nccl/install \
+        --with-mpi=/opt/amazon/openmpi \
         --with-libfabric=/opt/amazon/efa \
         --with-cuda=/usr/local/cuda \
         --enable-platform-aws \
-        --with-mpi=/opt/amazon/openmpi && \
-    make -j$(nproc) install && \
-    rm -rf /tmp/aws-ofi/nccl
+    && make -j $(nproc) && make install
+
 
 # Do this to minimize the ld path env vars that users need to define when running this image.
 RUN echo "/usr/local/lib"      >> /etc/ld.so.conf.d/local.conf && \
@@ -208,7 +222,7 @@ ENV LD_LIBRARY_PATH="/usr/local/lib:/usr/local/cuda/lib64:${LD_LIBRARY_PATH}"
 # NCCL-tests: always good to include this as a diagnostic tool.
 RUN git clone https://github.com/NVIDIA/nccl-tests.git /opt/nccl-tests \
     && cd /opt/nccl-tests \
-    && git checkout ${NCCL_TESTS_VERSION} \
+    && git checkout v${NCCL_TESTS_VERSION} \
     && make MPI=1 \
     MPI_HOME=/opt/amazon/openmpi \
     CUDA_HOME=/usr/local/cuda \
@@ -238,8 +252,3 @@ RUN export TORCH_CUDA_ARCH_LIST="8.0;9.0+PTX" && \
 
 COPY requirements.txt requirements.txt
 RUN pip install -r requirements.txt
-COPY llama llama
-COPY setup.py setup.py
-RUN pip install -e .
-RUN git clone https://github.com/meta-llama/llama-recipes.git /tmp/llama-recipes \
-    && cp -r /tmp/llama-recipes/src/llama_recipes llama_recipes

@@ -10,15 +10,18 @@ This guide assumes that you have the following:
 * Docker, [Pyxis](https://github.com/NVIDIA/pyxis) and [Enroot](https://github.com/NVIDIA/enroot) installed.
 * An FSx for Lustre filesystem mounted on `/fsx`.
 
-We recommend that you set up a Slurm cluster using the templates in the architectures [directory](../../1.architectures). You need to set the following environment variables to run this test case:
+We recommend that you set up a Slurm cluster using the templates in the architectures [directory](../../1.architectures). You need to set the following environment variables to run this test case.
+Modify the following snipet and prepare `.env` file. You can always load the variables with `source .env`:
 
 ```bash
+cat >> .env << EOF
 export APPS_PATH=/fsx/apps
 export ENROOT_IMAGE=$APPS_PATH/llama3.sqsh
 export FSX_PATH=/fsx
 export MODEL_PATH=$FSX_PATH/llama3
 export TEST_CASE_PATH=${HOME}/18.llama3   # where you copy the test case or set to your test case path
-cd $TEST_CASE_PATH                         # Note that we assume that you are here during the following command executions
+export HF_HOME=${FSX_PATH}/.cache
+EOF
 ```
 
 ## 2. Build the container
@@ -37,6 +40,35 @@ Below are the steps you need to follow:
     docker build -t llama3 -f 0.llama3.dockerfile .
    ```
 
+## 3. Get access to the Llama3 model
+
+Go to https://huggingface.co/meta-llama/Meta-Llama-3-70B and apply for the access
+Go to https://huggingface.co/settings/tokens to create access token. 
+
+In the login node, launch Python process on the head node, run the following:
+
+```python
+from huggingface_hub import login
+login()
+```
+
+It will prompt you to input the token. Paste the token and answer to `n` to the following question:
+
+```bash
+>> Add token as git credential? (Y/n) n
+>> Token is valid (permission: read).
+>> Your token has been saved to /home/ubuntu/.cache/huggingface/token
+```
+
+As you can see on the output, the access token stored under the
+
+## 4. Instruct tuning
+
+
+
+
 ## 3. Chat with llama3
 
-In this step, you will use Slurm interactive job functionality. 
+In this step, you will use Slurm interactive job functionality to communicate with llama3 model.
+
+
