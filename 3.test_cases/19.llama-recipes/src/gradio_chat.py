@@ -1,9 +1,11 @@
 import gradio as gr
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
+
 # Load the model and tokenizer
-model_name = "your-model-name"  # Replace with the actual model name
+model_name = "meta-llama/Meta-Llama-3-70B"  # Replace with the actual model name
 model = AutoModelForCausalLM.from_pretrained(model_name)
+model = model.to("cuda")
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 
 def format_prompt(user_input, chat_history=None, system_prompt=None):
@@ -18,30 +20,31 @@ def format_prompt(user_input, chat_history=None, system_prompt=None):
     Returns:
     - str: A formatted prompt string ready to be processed by the Llama2 model.
     """
-    prompt = ""
+    # prompt = ""
     
-    # Include system prompt if provided
-    if system_prompt:
-        prompt += f"System: {system_prompt}\n"
+    # # Include system prompt if provided
+    # if system_prompt:
+    #     prompt += f"System: {system_prompt}\n"
     
-    # Add chat history to the prompt
-    if chat_history:
-        for user_msg, model_resp in chat_history:
-            prompt += f"User: {user_msg}\n"
-            prompt += f"Model: {model_resp}\n"
-    
+    # # Add chat history to the prompt
+    # if chat_history:
+    #     for user_msg, model_resp in chat_history:
+    #         prompt += f"User: {user_msg}\n"
+    #         prompt += f"Model: {model_resp}\n"
+    #
     # Add the current user input to the prompt
-    prompt += f"User: {user_input}\n"
+    #prompt += f"User: {user_input}\n"
     
-    return prompt
+    return user_input
 
 # Define a function to generate responses
-def generate_response(user_input, chat_history):
+def generate_response(user_input, chat_history=None):
     # Format the prompt as required by the model
     prompt = format_prompt(user_input, chat_history)
     
     # Generate a response
     inputs = tokenizer(prompt, return_tensors="pt")
+    inputs = inputs.to("cuda")
     outputs = model.generate(**inputs)
     response = tokenizer.decode(outputs[0], skip_special_tokens=True)
     
@@ -53,9 +56,8 @@ def generate_response(user_input, chat_history):
 # Create the Gradio interface
 iface = gr.Interface(
     fn=generate_response,
-    inputs=["text", "state"],
-    outputs="text",
-    live=True
+    inputs=["text"],
+    outputs="text"
 )
 
 # Launch the interface

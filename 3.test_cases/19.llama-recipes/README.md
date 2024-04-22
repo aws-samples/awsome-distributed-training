@@ -74,8 +74,11 @@ This example making use of W&B experiment tracking.
 by using use_wandb flag as below. You can change the project name, entity and other wandb.init arguments in wandb_config.
 
 
-## 3. Chat with llama3
+## 5. Chat with Finetuned model
 
 In this step, you will use Slurm interactive job functionality to communicate with llama3 model.
 
+
+
+## 6. Evaluate model
 

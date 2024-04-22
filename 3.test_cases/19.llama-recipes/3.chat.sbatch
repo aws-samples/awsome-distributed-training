@@ -3,9 +3,9 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 
-#SBATCH --job-name="llama3-finetune"
-#SBATCH --nodes=2
-#SBATCH --ntasks=2
+#SBATCH --job-name="gradio-chat"
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
 #SBATCH --gpus-per-node=8 # Number of GPU per node
 #SBATCH --output=logs/%x_%j.out # logfile for stdout
 #SBATCH --error=logs/%x_%j.err # logfile for stderr, remove it to merge both outputs
@@ -58,17 +58,16 @@ declare -a TORCHRUN_ARGS=(
 )
 
 declare -a TRAIN_ARGS=(
-    --model_name "meta-llama/Meta-Llama-3-70B" \
-    --dist_checkpoint_root_folder "/fsx/models/meta-llama/Meta-Llama-3-70B-tuned" \
+    --model_name "meta-llama/Meta-Llama-3-8B" \
+    --dist_checkpoint_root_folder "/fsx/models/meta-llama/Meta-Llama-3-8B-tuned" \
     --dataset alpaca_dataset --data_path /fsx/data/alpaca_data.json \
     --enable_fsdp True \
     --low_cpu_fsdp \
     --fsdp_activation_checkpointing True \
     --use_wandb \
     --pure_bf16 \
-    --run_validation False 
+    --run_validation False \
+    --batch_size_training 1 
 )
 export PYTHONPATH=${PWD}/llama-recipes/src
-srun -l "${ARGS[@]}" torchrun  "${TORCHRUN_ARGS[@]}" \
-    /fsx/awsome-distributed-training/3.test_cases/19.llama-recipes/llama-recipes/recipes/finetuning/finetuning.py \
-    "${TRAIN_ARGS[@]}"
+srun -l "${ARGS[@]}" python ${PWD}/src/gradio_chat.py
