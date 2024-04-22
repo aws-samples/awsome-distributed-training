@@ -20,15 +20,21 @@ conda create -p ${ENV_PATH} python=3.10
 
 conda activate ${ENV_PATH}
 
+
 # Install OFI nccl 
-conda install "aws-ofi-nccl >=1.7.1,<2.0" packaging --override-channels \
+conda install "aws-ofi-nccl==1.7.4" packaging --override-channels \
   -c https://aws-ml-conda.s3.us-west-2.amazonaws.com \
   -c pytorch -c numba/label/dev \
   -c nvidia \
   -c conda-forge \
 
+conda install -c conda-forge mkl=2023.1.0
+conda install "requests==2.28.2"
+conda install "filelock==3.9.0"
+conda install "sympy==1.12"
+
 # Install SMP V2 pytorch. We will install SMP with pytorch 2.2
-conda install pytorch="2.2.0=sm_py3.10_cuda12.1_cudnn8.9.5_nccl_pt_2.2_tsm_2.2_cuda12.1_0" packaging --override-channels \
+conda install pytorch="2.2.0=sm_py3.10_cuda12.1_cudnn8.9.5_nccl_pt_2.2_tsm_2.3_cuda12.1_0" packaging --override-channels \
   -c https://sagemaker-distributed-model-parallel.s3.us-west-2.amazonaws.com/smp-v2/ \
   -c pytorch -c numba/label/dev \
   -c pytorch-nightly -c nvidia -c conda-forge
@@ -50,6 +56,7 @@ python -m pip install --no-cache-dir -U \
     "tensorboard==2.13.0" \
     "tqdm==4.65.0"
 
+pip install megatron-core==0.5.0
 
 pip uninstall -y ninja && pip install ninja
 
