@@ -14,13 +14,15 @@ We recommend that you set up a Slurm cluster using the templates in the architec
 Modify the following snipet and prepare `.env` file. You can always load the variables with `source .env`:
 
 ```bash
-cat >> .env << EOF
+cat > .env << EOF
 export APPS_PATH=/fsx/apps
 export ENROOT_IMAGE=$APPS_PATH/llama3.sqsh
 export FSX_PATH=/fsx
 export MODEL_PATH=$FSX_PATH/llama3
 export TEST_CASE_PATH=${HOME}/18.llama3   # where you copy the test case or set to your test case path
 export HF_HOME=${FSX_PATH}/.cache
+export WANDB_CONFIG_DIR=${FSX_PATH}
+export WANDB_API_KEY=PUT_YOUR_API_KEY_HERE # You need to place your WANDB_API_KEY here 
 EOF
 ```
 
@@ -47,9 +49,10 @@ Go to https://huggingface.co/settings/tokens to create access token.
 
 In the login node, launch Python process on the head node, run the following:
 
-```python
-from huggingface_hub import login
-login()
+```bash
+    enroot start --env NVIDIA_VISIBLE_DEVICES=void \
+        --mount ${FSX_PATH}:${FSX_PATH} ${ENROOT_IMAGE} \
+        python -c "from huggingface_hub import login; login()"
 ```
 
 It will prompt you to input the token. Paste the token and answer to `n` to the following question:
@@ -62,9 +65,13 @@ It will prompt you to input the token. Paste the token and answer to `n` to the 
 
 As you can see on the output, the access token stored under the
 
-## 4. Instruct tuning
 
+## 4. Finetune Llama3 model
 
+In this step, you will fine tune llama model, using Alpaca dataset
+
+This example making use of W&B experiment tracking. 
+by using use_wandb flag as below. You can change the project name, entity and other wandb.init arguments in wandb_config.
 
 
 ## 3. Chat with llama3

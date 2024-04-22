@@ -9,3 +9,4 @@ accelerate
 sentencepiece
 peft
 gradio
+wandb

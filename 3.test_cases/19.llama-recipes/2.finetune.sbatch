@@ -12,7 +12,7 @@
 #SBATCH --wait-all-nodes=1
 #SBATCH --exclusive
 set -euxo pipefail
-
+source .env
 # default variables for Enroot, if these variables are defined then use them
 : "${APPS_PATH:=/fsx/apps}"
 : "${IMAGE:=$APPS_PATH/llama3.sqsh}"
@@ -64,9 +64,11 @@ declare -a TRAIN_ARGS=(
     --enable_fsdp True \
     --low_cpu_fsdp \
     --fsdp_activation_checkpointing True \
+    --use_wandb \
     --pure_bf16 \
     --batch_size_training 1 \
     --val_batch_size 1
+    --we
 )
 export CUDA_LAUNCH_BLOCKING=1
 export PYTHONPATH=${PWD}/llama-recipes/src
