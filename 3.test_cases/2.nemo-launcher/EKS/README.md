@@ -77,7 +77,7 @@ Allocatable:
 ```
 For p4 nodes you will see ` vpc.amazonaws.com/efa:  4` and for p5.48xlarge nodes you should see ` vpc.amazonaws.com/efa:  32`.
 
-[!TIP]
+> [!TIP]
 > NOTE: If EFA is enabled in the node group, edit the security group that the nodes are attached to and add a rule to allow all outgoing traffic originating from the same security group. This is required for EFA to work.
 
 ## 2. Mount Amazon FSx for Lustre file system on EKS
