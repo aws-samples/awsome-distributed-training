@@ -6,7 +6,7 @@
 #SBATCH --job-name=nccl-all_reduce_perf # name of your job
 #SBATCH --nodes=2 # number of nodes to use, 24 p4d(e) = 192 A100 GPUs
 #SBATCH --ntasks-per-node 8 # Number of GPU per node
-#SBATCH --gpus-per-node=8 # number of GPU we reserve
+###SBATCH --gpus-per-node=8 # number of GPU we reserve. Uncomment for AWS ParallelCluster
 #SBATCH --output %x_%j.out
 #SBATCH --error %x_%j.err
 #SBATCH --exclusive
