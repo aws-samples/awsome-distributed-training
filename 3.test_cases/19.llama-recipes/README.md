@@ -19,11 +19,25 @@ export APPS_PATH=/fsx/apps
 export ENROOT_IMAGE=$APPS_PATH/llama3.sqsh
 export FSX_PATH=/fsx
 export MODEL_PATH=$FSX_PATH/llama3
-export TEST_CASE_PATH=${HOME}/18.llama3   # where you copy the test case or set to your test case path
+export TEST_CASE_PATH=${FSX_PATH}/awsome-distributed-training/3.test_cases/19.llama-recipes
 export HF_HOME=${FSX_PATH}/.cache
 export WANDB_CONFIG_DIR=${FSX_PATH}
 export WANDB_API_KEY=PUT_YOUR_API_KEY_HERE # You need to place your WANDB_API_KEY here 
 EOF
+```
+
+On the head/login node of the cluster, clone the repository, move to the test case directory.
+
+```bash
+git clone https://github.com/aws-samples/awsome-distributed-training ${FSX_PATH}
+cd ${TEST_CASE_PATH}
+```
+
+Clone two llama sample repositories
+
+```bash
+git clone https://github.com/meta-llama/llama3.git
+git clone https://github.com/meta-llama/llama-recipes.git
 ```
 
 ## 2. Build the container
