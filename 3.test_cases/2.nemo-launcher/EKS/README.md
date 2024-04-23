@@ -24,12 +24,11 @@ Once the cluster is created you can install the [AWS EFA Kubernetes Device Plugi
 ```bash
 helm repo add eks https://aws.github.io/eks-charts
 helm install efa eks/aws-efa-k8s-device-plugin -n kube-system
-
 ```
 
 Once this is done, you should see the following pods:
 ```bash
-root@cb9511473ccc:/eks/deployment/efa-device-plugin# k get pods -A
+root@cb9511473ccc:/eks/deployment/efa-device-plugin# kubectl get pods -A
 NAMESPACE     NAME                                        READY   STATUS    RESTARTS   AGE
 kube-system   aws-efa-k8s-device-plugin-daemonset-78x4q   1/1     Running   0          38m
 kube-system   aws-efa-k8s-device-plugin-daemonset-tgfbk   1/1     Running   0          38m
@@ -44,7 +43,6 @@ kube-system   kube-proxy-v6c62                            1/1     Running   0   
 kube-system   nvidia-device-plugin-daemonset-6fz2s        1/1     Running   0          10h
 kube-system   nvidia-device-plugin-daemonset-h58n7        1/1     Running   0          10h
 kube-system   nvidia-device-plugin-daemonset-vrz2q        1/1     Running   0          10h
-
 ```
 You can use the [EKS node viewer](https://github.com/awslabs/eks-node-viewer) tool to view nodes and their status in your cluster. Once it is installed, you can simply type `eks-node-viewer` in the console or `nv` in the `aws-do-eks` container to get the following view:
 
@@ -57,7 +55,6 @@ ip-192-168-165-37.us-west-2.compute.internal  cpu ░░░░░░░░░░
 ip-192-168-164-33.us-west-2.compute.internal  cpu ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   0% (6 pods) p4de.24xlarge/$40.9657 On-Demand - Ready
 •
 ←/→ page • q: quit
-
 ```
 
 Here the node viewer shows the IP addresses of my 2 p4de.24xlarge compute nodes. We can take one of the IP addresses to describe the node as:
@@ -82,7 +79,6 @@ For p4 nodes you will see ` vpc.amazonaws.com/efa:  4` and for p5.48xlarge nodes
 
 ```bash
 NOTE: If EFA is enabled in the node group, edit the security group that the nodes are attached to and add a rule to allow all outgoing traffic originating from the same security group. This is required for EFA to work.
-
 ```
 
 ## 2. Mount Amazon FSx for Lustre file system on EKS
@@ -115,7 +111,6 @@ ROLE_NAME=$(aws iam get-instance-profile --instance-profile-name ${INSTANCE_PROF
 
 # Attach FSx Policy to role ${ROLE_NAME} ..."
 aws iam attach-role-policy --policy-arn ${POLICY_ARN} --role-name ${ROLE_NAME}
-
 ```
 
 ### 2.2 Create Security Grouo
@@ -140,7 +135,6 @@ export SUBNET_CIDR=$(aws ec2 describe-subnets --region ${MY_REGION} --query Subn
 
 # Ingress rule
 aws ec2 authorize-security-group-ingress --region ${MY_REGION} --group-id ${SECURITY_GROUP_ID} --protocol tcp --port 988 --cidr ${SUBNET_CIDR}
-
 ```
 
 ### 2.3 Create FileSystem
@@ -169,7 +163,7 @@ kubectl apply -f fsx-pvc.yaml
 Once this is done, you can check to make sure that the volumes are in Bound state.
 
 ```bash
-root@cb9511473ccc:/eks# k get pv
+root@cb9511473ccc:/eks# kubectl get pv
 NAME     CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS   CLAIM             STORAGECLASS   REASON   AGE
 fsx-pv   1200Gi     RWX            Retain           Bound    default/fsx-pvc   fsx-sc                  37d
 root@cb9511473ccc:/eks# k get pvc
@@ -179,7 +173,7 @@ fsx-pvc   Bound    fsx-pv   1200Gi     RWX            fsx-sc         37d
 
 ## 3. Build AWS Optimized Dockerfile for NeMo
 
-The NeMo framework is available publicly in the image `nvcr.io/nvidia/nemo:24.01.framework`. We provide an AWS optimized `0.Dockerfile` for use with P4 and P5 instances. Follow the steps below to build and push the image to [Amazon ECR](https://aws.amazon.com/ecr/?gclid=Cj0KCQjwn7mwBhCiARIsAGoxjaJcHDOSi2wFn6P6fxbGGmxCorrgjCWL63p7Vs7LGRO06ACzbSQIw-caAvXAEALw_wcB&trk=d66ebef2-a56b-4c4d-9630-4d0838c2f114&sc_channel=ps&ef_id=Cj0KCQjwn7mwBhCiARIsAGoxjaJcHDOSi2wFn6P6fxbGGmxCorrgjCWL63p7Vs7LGRO06ACzbSQIw-caAvXAEALw_wcB:G:s&s_kwcid=AL!4422!3!629393325529!!!g!!!16080176282!133788119438)
+The NeMo framework is available publicly in the image `nvcr.io/nvidia/nemo:24.01.framework`. We provide an AWS optimized `0.Dockerfile` for use with P4 and P5 instances. Follow the steps below to build and push the image to [Amazon ECR](https://aws.amazon.com/ecr/)
 
 ```bash
 ## AWS
@@ -214,7 +208,6 @@ docker image push ${REGISTRY}${IMAGE}${TAG}
 The NeMo framework requires users to fill out config files with job and model information. You can copy the launcher scripts from the container as below:
 
 ```bash
-
 export LAUNCHER_SCRIPTS_PATH=<Path-to-save-launcher-scripts>
 
 # Run container
@@ -222,15 +215,15 @@ docker run -it ${REPOSITORY}${IMAGE}${TAG} bash
 
 # Copy files
 docker cp -a <container-id>: /opt/NeMo-Megatron-Launcher/${LAUNCHER_SCRIPTS_PATH} 
-
 ```
 
-```bash
-Note, in a Slurm cluster implementation the launcher scripts, data and results folder could reside in the filesystem that both the head node (node from where jobs are submitted) and compute nodes. But in this EKS implementation, the head node does not have access to EKS filesystem. To get around this, we can put the launcher scripts in the head node and the results and data folder in the filesystem which the compute nodes have access to. 
+>[!TIP]
+>Note, in a Slurm cluster implementation the launcher scripts, data and results folder could reside in the filesystem that both the head node (node from where jobs are submitted) and compute nodes. But in this EKS implementation, the head node does not have access to EKS filesystem. To get around this, we can put the launcher scripts in the head node and the results and data folder in the filesystem which the compute nodes have access to. 
 
-```
 
 ## 5. Install Requirements
+
+Run the following to install the necessary dependencies to run NeMo.
 
 ```bash
 git clone https://github.com/aws-samples/awsome-distributed-training.git
@@ -266,7 +259,6 @@ kubectl apply -k "github.com/kubeflow/training-operator/manifests/overlays/stand
 kubectl apply -f ./clusterrole-hpa-access.yaml
 
 kubectl apply -f ./clusterrolebinding-training-operator-hpa-access.yaml
-
 ```
 
 ## 8. Run NeMo on EKS
@@ -290,7 +282,6 @@ Run the following next to substitute the environment variables in the yaml file 
 ```bash
 git clone https://github.com/aws-samples/awsome-distributed-training.git
 cd awsome-distributed-training/3.test_cases/2.nemo-launcher/EKS/launcher_scripts/conf
-
 
 envsubst < ./config.yaml > ${LAUNCHER_SCRIPTS_PATH}/launcher_scripts/conf/config.yaml
 envsubst < ./cluster/k8s.yaml > ${LAUNCHER_SCRIPTS_PATH}/launcher_scripts/conf/cluster/k8s.yaml

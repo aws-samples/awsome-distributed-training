@@ -8,8 +8,8 @@ FROM nvcr.io/nvidia/nemo:24.01.framework
 ENV DEBIAN_FRONTEND=noninteractive
 ENV EFA_INSTALLER_VERSION=1.30.0
 ENV AWS_OFI_NCCL_VERSION=1.8.1-aws
-ENV NCCL_VERSION=2.19.4-1
-ENV NCCL_TESTS_VERSION=master
+ENV NCCL_VERSION=2.20.3-1
+ENV NCCL_TESTS_VERSION=2.13.9
 
 RUN apt-get update -y
 RUN apt-get remove -y --allow-change-held-packages \
