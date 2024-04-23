@@ -35,19 +35,20 @@ The NCCL tests are packaged in a container.
 
 > | Variable              | Default     |
 > |-----------------------|-------------|
+> |`GDRCOPY_VERSION`      | `v2.4.1`    |
 > |`EFA_INSTALLER_VERSION`| `1.31.0`    |
-> |`AWS_OFI_NCCL_VERSION` | `1.8.1`     |
-> |`NCCL_VERSION`         | `2.20.3`    |
-> |`NCCL_TESTS_VERSION`   | `2.13.9`    |
+> |`AWS_OFI_NCCL_VERSION` | `v1.8.1-aws`|
+> |`NCCL_VERSION`         | `v2.20.3-1` |
+> |`NCCL_TESTS_VERSION`   | `v2.13.9`   |
 
 ### Build the container
 1. Build the container image with the command below:
    ```bash
    EFA_INSTALLER_VERSION=1.31.0
-   AWS_OFI_NCCL_VERSION=1.8.1
-   NCCL_VERSION=2.20.3
-   NCCL_TESTS_VERSION=2.13.9
-   docker build  -f slurm/nccl-tests.Dockerfile \
+   AWS_OFI_NCCL_VERSION=v1.8.1-aws
+   NCCL_VERSION=v2.20.3-1
+   NCCL_TESTS_VERSION=v2.13.9
+   docker build  -f nccl-tests.Dockerfile \
           --build-arg="EFA_INSTALLER_VERSION=${EFA_INSTALLER_VERSION}" \
           --build-arg="AWS_OFI_NCCL_VERSION=${AWS_OFI_NCCL_VERSION}" \
           --build-arg="NCCL_VERSION=${NCCL_VERSION}" \
@@ -81,9 +82,9 @@ To run the NCCL tests on EKS, you will need to build the container image, then p
 1. Create the ECR repository if it does not exist
    ```bash
    EFA_INSTALLER_VERSION=1.31.0
-   AWS_OFI_NCCL_VERSION=1.8.1
-   NCCL_VERSION=2.20.3
-   NCCL_TESTS_VERSION=2.13.9
+   AWS_OFI_NCCL_VERSION=v1.8.1-aws
+   NCCL_VERSION=v2.20.3-1
+   NCCL_TESTS_VERSION=v2.13.9
    ECR_REPOSITORY_NAME="nccl-tests"
    TAG="${EFA_INSTALLER_VERSION}-${AWS_OFI_NCCL_VERSION}-${NCCL_VERSION}-${NCCL_TESTS_VERSION}"
 
