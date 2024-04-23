@@ -2,11 +2,11 @@
 # SPDX-License-Identifier: MIT-0
 FROM nvidia/cuda:12.2.0-devel-ubuntu22.04
 
-ARG GDRCOPY_VERSION=2.4.1
+ARG GDRCOPY_VERSION=v2.4.1
 ARG EFA_INSTALLER_VERSION=1.31.0
-ARG AWS_OFI_NCCL_VERSION=1.8.1
-ARG NCCL_VERSION=2.20.3
-ARG NCCL_TESTS_VERSION=2.13.9
+ARG AWS_OFI_NCCL_VERSION=v1.8.1-aws
+ARG NCCL_VERSION=v2.20.3-1
+ARG NCCL_TESTS_VERSION=v2.13.9
 
 RUN apt-get update -y
 RUN apt-get remove -y --allow-change-held-packages \
@@ -60,7 +60,7 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py \
 
 #################################################
 ## Install NVIDIA GDRCopy
-RUN git clone -b v${GDRCOPY_VERSION} https://github.com/NVIDIA/gdrcopy.git /tmp/gdrcopy \
+RUN git clone -b ${GDRCOPY_VERSION} https://github.com/NVIDIA/gdrcopy.git /tmp/gdrcopy \
     && cd /tmp/gdrcopy \
     && make prefix=/opt/gdrcopy install
 
@@ -80,7 +80,7 @@ RUN cd $HOME \
 
 ###################################################
 ## Install NCCL
-RUN git clone -b v${NCCL_VERSION}-1 https://github.com/NVIDIA/nccl.git  /opt/nccl \
+RUN git clone -b ${NCCL_VERSION} https://github.com/NVIDIA/nccl.git  /opt/nccl \
     && cd /opt/nccl \
     && make -j $(nproc) src.build CUDA_HOME=/usr/local/cuda \
     NVCC_GENCODE="-gencode=arch=compute_80,code=sm_80 -gencode=arch=compute_86,code=sm_86 -gencode=arch=compute_89,code=sm_89 -gencode=arch=compute_90,code=sm_90"
@@ -88,9 +88,9 @@ RUN git clone -b v${NCCL_VERSION}-1 https://github.com/NVIDIA/nccl.git  /opt/ncc
 ###################################################
 ## Install AWS-OFI-NCCL plugin
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y libhwloc-dev
-RUN curl -OL https://github.com/aws/aws-ofi-nccl/releases/download/v${AWS_OFI_NCCL_VERSION}-aws/aws-ofi-nccl-${AWS_OFI_NCCL_VERSION}-aws.tar.gz \
-    && tar -xf aws-ofi-nccl-${AWS_OFI_NCCL_VERSION}-aws.tar.gz \
-    && cd aws-ofi-nccl-${AWS_OFI_NCCL_VERSION}-aws \
+RUN curl -OL https://github.com/aws/aws-ofi-nccl/releases/download/${AWS_OFI_NCCL_VERSION}/aws-ofi-nccl-${AWS_OFI_NCCL_VERSION//v}.tar.gz \
+    && tar -xf aws-ofi-nccl-${AWS_OFI_NCCL_VERSION//v}.tar.gz \
+    && cd aws-ofi-nccl-${AWS_OFI_NCCL_VERSION//v} \
     && ./configure --prefix=/opt/aws-ofi-nccl/install \
         --with-mpi=/opt/amazon/openmpi \
         --with-libfabric=/opt/amazon/efa \
@@ -99,12 +99,12 @@ RUN curl -OL https://github.com/aws/aws-ofi-nccl/releases/download/v${AWS_OFI_NC
     && make -j $(nproc) \
     && make install \
     && cd .. \
-    && rm -rf aws-ofi-nccl-${AWS_OFI_NCCL_VERSION}-aws \
-    && rm aws-ofi-nccl-${AWS_OFI_NCCL_VERSION}-aws.tar.gz
+    && rm -rf aws-ofi-nccl-${AWS_OFI_NCCL_VERSION//v} \
+    && rm aws-ofi-nccl-${AWS_OFI_NCCL_VERSION//v}.tar.gz
 
 ###################################################
 ## Install NCCL-tests
-RUN git clone -b v${NCCL_TESTS_VERSION} https://github.com/NVIDIA/nccl-tests.git /opt/nccl-tests \
+RUN git clone -b ${NCCL_TESTS_VERSION} https://github.com/NVIDIA/nccl-tests.git /opt/nccl-tests \
     && cd /opt/nccl-tests \
     && make -j $(nproc) \
     MPI=1 \
