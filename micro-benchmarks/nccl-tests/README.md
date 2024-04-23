@@ -113,13 +113,25 @@ To run the NCCL tests on EKS, you will need to build the container image, then p
 
 ## 2. Running the NCCL Tests
 
-### Slurm
+### Slurm with container
 
 Copy the file `slurm/nccl-tests.sbatch` or its content on your cluster then submit a preprocessing jobs with the command below:
 
 ```bash
 sbatch nccl-tests.sbatch
 ```
+
+### Slurm with Deep Learning AMI
+
+In this step, you can use the NCCL tests already compiled in the deep learning AMI.
+
+Copy the file `slurm/nccl-tests-deep-learning-ami.sbatch` or its content on your cluster then submit a preprocessing jobs with the command below:
+
+```bash
+sbatch nccl-tests.sbatch
+```
+
+### Results
 
 All_reduce performance test will be executed from 8B to 2GB on 2x p4de.24xlarg, the output should look as below (with a lot more information).
 ```txt
