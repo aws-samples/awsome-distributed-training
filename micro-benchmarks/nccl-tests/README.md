@@ -33,13 +33,13 @@ The NCCL tests are packaged in a container.
 
 > You can set versions and the branch for NCCL and EFA by editing the variables below in the Dockerfile.
 
-> | Variable              | Default     |
-> |-----------------------|-------------|
-> |`GDRCOPY_VERSION`      | `v2.4.1`    |
-> |`EFA_INSTALLER_VERSION`| `1.31.0`    |
-> |`AWS_OFI_NCCL_VERSION` | `v1.8.1-aws`|
-> |`NCCL_VERSION`         | `v2.20.3-1` |
-> |`NCCL_TESTS_VERSION`   | `v2.13.9`   |
+> | Variable              | Default     | Repository                                                                                  |
+> |-----------------------|-------------|---------------------------------------------------------------------------------------------|
+> |`GDRCOPY_VERSION`      | `v2.4.1`    | [link](https://github.com/NVIDIA/gdrcopy)                                                   |
+> |`EFA_INSTALLER_VERSION`| `1.31.0`    | [link](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa-start.html#efa-start-enable) |
+> |`AWS_OFI_NCCL_VERSION` | `v1.8.1-aws`| [link](https://github.com/aws/aws-ofi-nccl)                                                 |
+> |`NCCL_VERSION`         | `v2.20.3-1` | [link](https://github.com/NVIDIA/nccl)                                                      |
+> |`NCCL_TESTS_VERSION`   | `v2.13.9`   | [link](https://github.com/NVIDIA/nccl-tests)                                                |
 
 ### Build the container
 1. Build the container image with the command below:
