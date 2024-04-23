@@ -36,6 +36,9 @@ export FI_EFA_FORK_SAFE=1
 
 ## NCCL Environment variables
 export NCCL_DEBUG=INFO
+
+### Increase the send queue depth and can turn NCCL communications into non-blocking.
+### https://www.usenix.org/system/files/atc23-choi.pdf
 export NCCL_BUFFSIZE=8388608
 ### Improve performance by increasing buffer size for Send/Recv, Gather, Scatter and Alltoall communications
 ### https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/usage/p2p.html
