@@ -3,13 +3,13 @@ from transformers.models.llama.configuration_llama import LlamaConfig
 from config import train_config
 
 
-def update_config(config, **kwargs):
+def update_config(config, args):
     if isinstance(config, (tuple,list)):
         for c in config:
-            update_config(c, **kwargs)
+            update_config(c, args)
 
     else:
-        for k, v in kwargs.items():
+        for k, v in vars(args).items():
             if hasattr(config, k):
                 setattr(config, k, v)
             elif "." in k:
@@ -19,7 +19,7 @@ def update_config(config, **kwargs):
                         setattr(config, param_name, v)
                     else:
                         print(f"Warning: {config_name} does not accept parameter: {k}")
-            elif isinstance(config, train_config):
+            else:
                 print(f"Warning: unknown parameter {k}")
 
 def get_model_config(model_name):

@@ -1,5 +1,5 @@
 import os
-
+import pandas as pd
 try:
     import packaging.version
 except ImportError:
@@ -154,7 +154,6 @@ def train(
                 train_loader,
                 tokens_seen=tokens_seen + new_tokens_seen,
             )
-
     return train_loss
 
 
@@ -222,6 +221,7 @@ def get_profiler(cfg):
             profile_memory=True,
             with_stack=False,
             record_shapes=True,
+            with_flops=True
         )
     else:
         profiler = None
