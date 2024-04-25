@@ -8,7 +8,6 @@ class Config:
     # Set true if you want to install 
     # DCGM Exporter and EFA Node Exporter are installed on compute nodes, 
     # Slurm Exporter and Prometheus are installed on controller node.
-    # Note: enable_docker_enroot_pyxis must be set to True.
     enable_observability = False
 
     # Set true if you want to install SSSD for ActiveDirectory/LDAP integration.
