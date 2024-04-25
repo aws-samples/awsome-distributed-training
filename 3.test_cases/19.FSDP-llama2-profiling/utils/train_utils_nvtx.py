@@ -8,7 +8,7 @@ except ImportError:
 import time
 from datetime import timedelta
 
-import nvtx
+import torch.cuda.nvtx as nvtx
 import torch
 import torch.cuda.nccl as nccl
 import torch.distributed as dist
@@ -70,81 +70,87 @@ def train(
 
     start = time.time()
     loop_start = time.time()
-    for batch_idx, batch in enumerate(train_loader, start=start_step + 1):
-        if batch_idx > cfg.num_steps:
-            break
-        input, label = batch['input_ids'], batch['labels']
-        input = input.to(local_rank)
+    with torch.autograd.profiler.emit_nvtx():
+        for batch_idx, batch in enumerate(train_loader, start=start_step + 1):
+            nvtx.range_push( "Batch " + str(batch _idx))
+            if batch_idx > cfg.num_steps:
+                break
+            input, label = batch['input_ids'], batch['labels']
+            input = input.to(local_rank)
+            nvtx.range_push("Copy to device")
+            label = label.to(local_rank)
+            nvtx.range_pop()
 
-        label = label.to(local_rank)
-        optimizer.zero_grad()
-        output = model(input_ids=input, labels=label)
-        #ce_loss = torch.nn.CrossEntropyLoss()
-        #loss = ce_loss(output.view(-1, output.size(-1)), label.view(-1).long())
-        loss = output["loss"]
+            nvtx.range_push("Forward pass")
+            optimizer.zero_grad()
+            output = model(input_ids=input, labels=label)
+            #ce_loss = torch.nn.CrossEntropyLoss()
+            #loss = ce_loss(output.view(-1, output.size(-1)), label.view(-1).long())
+            loss = output["loss"]
+            nvtx.range_pop()
 
-        loss.backward()
-        ddp_stats[1] += model.clip_grad_norm_(cfg.grad_clip_thresh).item()
-        optimizer.step()
-        scheduler.step()
+            loss.backward()
+            ddp_stats[1] += model.clip_grad_norm_(cfg.grad_clip_thresh).item()
+            optimizer.step()
+            scheduler.step()
 
-        ddp_stats[0] += loss.item()
-        ddp_stats[2] += 1
+            ddp_stats[0] += loss.item()
+            ddp_stats[2] += 1
 
-        if profiler:
-            profiler.step()
+            if profiler:
+                profiler.step()
 
-        if batch_idx % cfg.report_interval == 0:
-            dist.all_reduce(ddp_stats, op=dist.ReduceOp.SUM)
-            train_loss = ddp_stats[0] / ddp_stats[2]
-            g_norm = ddp_stats[1] / ddp_stats[2]
-            elapsed_time = time.time() - loop_start
-            world_size = int(os.environ["WORLD_SIZE"])
-            new_tokens_seen = (
-                (batch_idx - start_step) * world_size * cfg.batch_size * cfg.seq_length
-            )
-            if rank == 0:
-                total_tokens_seen = tokens_seen + new_tokens_seen
-                current_loss = train_loss.item()
-                current_lr = scheduler.get_last_lr()[0]
-                current_gnorm = g_norm.item()
-                overall_throughput = int(new_tokens_seen / world_size / elapsed_time)
-                reserved_mem = torch.cuda.max_memory_reserved(
-                    device=torch.cuda.current_device()
+            if batch_idx % cfg.report_interval == 0:
+                dist.all_reduce(ddp_stats, op=dist.ReduceOp.SUM)
+                train_loss = ddp_stats[0] / ddp_stats[2]
+                g_norm = ddp_stats[1] / ddp_stats[2]
+                elapsed_time = time.time() - loop_start
+                world_size = int(os.environ["WORLD_SIZE"])
+                new_tokens_seen = (
+                    (batch_idx - start_step) * world_size * cfg.batch_size * cfg.seq_length
                 )
-                allocated_mem = torch.cuda.max_memory_allocated(
-                    device=torch.cuda.current_device()
-                )
-
-                print("step:", batch_idx)
-                print("tokens seen:", total_tokens_seen)
-                print("loss:", current_loss)
-                print("gradient norm:", current_gnorm)
-                print(
-                    f"speed for these {cfg.report_interval} steps:",
-                    (time.time() - start) / cfg.report_interval,
-                )
-                print("overall speed:", elapsed_time / (batch_idx - start_step))
-                print("LR:", current_lr)
-                print("reserved memory:", reserved_mem)
-                print("allocated memory:", allocated_mem)
-                print("overall token per gpu per sec:", overall_throughput)
-                print("token per day:", int(new_tokens_seen / elapsed_time * 3600 * 24))
-                if cfg.use_wandb:
-                    wandb.log(
-                        {
-                            "learning rate": current_lr,
-                            "loss": current_loss,
-                            "gradient norm": current_gnorm,
-                            "token seen": total_tokens_seen,
-                            "throughput (token per gpu per sec)": overall_throughput,
-                            "gpu reserved memory": reserved_mem,
-                            "gpu allocated memory": allocated_mem,
-                        },
-                        step=batch_idx,
+                if rank == 0:
+                    total_tokens_seen = tokens_seen + new_tokens_seen
+                    current_loss = train_loss.item()
+                    current_lr = scheduler.get_last_lr()[0]
+                    current_gnorm = g_norm.item()
+                    overall_throughput = int(new_tokens_seen / world_size / elapsed_time)
+                    reserved_mem = torch.cuda.max_memory_reserved(
+                        device=torch.cuda.current_device()
                     )
-            start = time.time()
-            ddp_stats.zero_()
+                    allocated_mem = torch.cuda.max_memory_allocated(
+                        device=torch.cuda.current_device()
+                    )
+
+                    print("step:", batch_idx)
+                    print("tokens seen:", total_tokens_seen)
+                    print("loss:", current_loss)
+                    print("gradient norm:", current_gnorm)
+                    print(
+                        f"speed for these {cfg.report_interval} steps:",
+                        (time.time() - start) / cfg.report_interval,
+                    )
+                    print("overall speed:", elapsed_time / (batch_idx - start_step))
+                    print("LR:", current_lr)
+                    print("reserved memory:", reserved_mem)
+                    print("allocated memory:", allocated_mem)
+                    print("overall token per gpu per sec:", overall_throughput)
+                    print("token per day:", int(new_tokens_seen / elapsed_time * 3600 * 24))
+                    if cfg.use_wandb:
+                        wandb.log(
+                            {
+                                "learning rate": current_lr,
+                                "loss": current_loss,
+                                "gradient norm": current_gnorm,
+                                "token seen": total_tokens_seen,
+                                "throughput (token per gpu per sec)": overall_throughput,
+                                "gpu reserved memory": reserved_mem,
+                                "gpu allocated memory": allocated_mem,
+                            },
+                            step=batch_idx,
+                        )
+                start = time.time()
+                ddp_stats.zero_()
         torch.cuda.reset_peak_memory_stats(device=torch.cuda.current_device())
 
         if batch_idx % cfg.checkpoint_interval == 0:
@@ -258,3 +264,4 @@ def create_pretraining_dataset(
         pin_memory=True,
     )
     return train_dataloader
+
