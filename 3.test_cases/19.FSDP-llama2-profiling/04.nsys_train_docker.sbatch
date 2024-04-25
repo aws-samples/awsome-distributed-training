@@ -78,4 +78,8 @@ declare -a MODEL_ARGS=(
     --use_profiler=False
 )
 
-srun -l "${ENROOT_ARGS[@]}" /usr/local/cuda/bin/nsys profile --output /fsx/nsys_profiles/ --stats true torchrun "${TORCHRUN_ARGS[@]}" $TRAIN_SCRIPT "${MODEL_ARGS[@]}"
+
+srun -l "${ENROOT_ARGS[@]}" /usr/local/cuda/bin/nsys profile \
+        --sample none --delay 30 --duration 1200 --force-overwrite true \
+        --output /fsx/nsys_profiles/report_llama2_job%q{SLURM_JOB_ID}_rank%q{SLURM_PROCID}_on_%q{HOSTNAME}.nsys-rep torchrun \
+        "${TORCHRUN_ARGS[@]}" $TRAIN_SCRIPT "${MODEL_ARGS[@]}"
