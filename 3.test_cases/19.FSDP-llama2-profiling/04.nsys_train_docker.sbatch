@@ -57,7 +57,7 @@ declare -a TORCHRUN_ARGS=(
     --rdzv_endpoint=$(hostname) \
 )
 
-export TRAIN_SCRIPT=/workspace/training.py
+export TRAIN_SCRIPT=/workspace/training_nvtx.py
 
 ##################################
 # Llama 2 Model Training Params ##
