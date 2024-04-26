@@ -317,5 +317,6 @@ cat > cluster-config.json << EOL
 }
 EOL
 
-echo "Now that you have the necessary files in the S3 bucket, you can create the cluster by running the following command:"
-echo "aws sagemaker create-cluster --cli-input-json file://cluster-config.json" ${REGION}
+echo "aws sagemaker create-cluster --cli-input-json file://cluster-config.json --region ${REGION}"
+[[ DRY_RUN -eq 1 ]] && exit 0
+aws sagemaker create-cluster --cli-input-json "file://cluster-config.json" --region ${REGION}
