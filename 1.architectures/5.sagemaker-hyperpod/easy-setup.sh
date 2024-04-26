@@ -317,6 +317,13 @@ cat > cluster-config.json << EOL
 }
 EOL
 
+# Validate Cluster configuration
+wget https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/main/1.architectures/5.sagemaker-hyperpod/validate-config.py
+# install boto3
+pip3 install boto3
+# check config for known issues
+python3 validate-config.py --cluster-config cluster-config.json --provisioning-parameters provisioning_parameters.json
+
 echo "aws sagemaker create-cluster --cli-input-json file://cluster-config.json --region ${REGION}"
 [[ DRY_RUN -eq 1 ]] && exit 0
 aws sagemaker create-cluster --cli-input-json "file://cluster-config.json" --region ${REGION}
