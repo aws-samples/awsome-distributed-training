@@ -2,6 +2,14 @@
 # Basic configuration parameters
 class Config:
 
+    # Set true if you want to install Docker/Enroot/Pyxis.
+    enable_docker_enroot_pyxis = True
+
+    # Set true if you want to install metric exporter software and Prometheus for observability
+    # DCGM Exporter and EFA Node Exporter are installed on compute nodes, 
+    # Slurm Exporter and Prometheus are installed on controller node.
+    enable_observability = False
+
     # Set true if you want to install SSSD for ActiveDirectory/LDAP integration.
     # You need to configure parameters in SssdConfig as well.
     enable_sssd = False

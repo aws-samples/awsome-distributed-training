@@ -2,6 +2,12 @@
 
 set -exo pipefail
 
+# If docker is alrady installed, skip installing again
+if command -v docker &> /dev/null; then
+    echo "Docker is already installed and in the PATH."
+    exit 0
+fi
+
 echo "
 ###################################
 # BEGIN: install docker
