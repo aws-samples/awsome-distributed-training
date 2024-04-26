@@ -83,6 +83,15 @@ parse_args() {
 parse_args $@
 
 mkdir $CLUSTER_NAME && cd $CLUSTER_NAME
+
+# Check for AWS CLI
+if ! command -v aws &> /dev/null
+then
+    echo -e "please install aws..."
+    echo -e "see https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html for the installation guide"
+    exit 1
+fi
+
 # Check for JQ
 if ! command -v jq &> /dev/null
 then
