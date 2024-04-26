@@ -182,20 +182,23 @@ def main(args):
 
         ExecuteBashScript("./start_slurm.sh").run(node_type, ",".join(controllers))
 
-        ## Note: Uncomment the below lines to install docker and enroot.
-        # ExecuteBashScript("./utils/install_docker.sh").run()
-        # ExecuteBashScript("./utils/install_enroot_pyxis.sh").run(node_type)
+        # Install Docker/Enroot/Pyxis
+        if Config.enable_docker_enroot_pyxis:
+            ExecuteBashScript("./utils/install_docker.sh").run()
+            ExecuteBashScript("./utils/install_enroot_pyxis.sh").run(node_type)
 
-        # # Note: Uncomment the below lines to install DCGM Exporter and EFA Node Exporter and Cluster Nodes. (Docker must also be installed above)
-        # if node_type == SlurmNodeType.COMPUTE_NODE:
-        #     ExecuteBashScript("./utils/install_dcgm_exporter.sh").run()
-        #     ExecuteBashScript("./utils/install_efa_node_exporter.sh").run()
+        # Install metric exporting software and Prometheus for observability
+        if Config.enable_observability:
+            if node_type == SlurmNodeType.COMPUTE_NODE:
+                ExecuteBashScript("./utils/install_docker.sh").run()
+                ExecuteBashScript("./utils/install_dcgm_exporter.sh").run()
+                ExecuteBashScript("./utils/install_efa_node_exporter.sh").run()
 
-        # # Note: Uncomment the below lines to install Slurm Exporter and Prometheus on the Controller Node.
-        # if node_type == SlurmNodeType.HEAD_NODE:
-        #     wait_for_scontrol()
-        #     ExecuteBashScript("./utils/install_slurm_exporter.sh").run()
-        #     ExecuteBashScript("./utils/install_prometheus.sh").run()
+            if node_type == SlurmNodeType.HEAD_NODE:
+                wait_for_scontrol()
+                ExecuteBashScript("./utils/install_docker.sh").run()
+                ExecuteBashScript("./utils/install_slurm_exporter.sh").run()
+                ExecuteBashScript("./utils/install_prometheus.sh").run()
 
         # Install and configure SSSD for ActiveDirectory/LDAP integration
         if Config.enable_sssd:
