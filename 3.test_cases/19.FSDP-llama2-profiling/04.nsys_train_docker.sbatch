@@ -35,7 +35,7 @@ export NCCL_DEBUG=INFO
 ###########################
 
 # default variables for Enroot
-: "${IMAGE:=$(pwd)/${ENROOT_IMAGE}}"
+: "${IMAGE:=$(pwd)/fsdp-llama2.sqsh}"
 : "${DATA_PATH:=/fsx}"
 : "${FSX_MOUNT:=$DATA_PATH:$DATA_PATH}"
 
@@ -64,6 +64,7 @@ export TRAIN_SCRIPT=/fsx/awsome-distributed-training/3.test_cases/19.FSDP-llama2
 ##################################
 
 declare -a MODEL_ARGS=(
+    --model_name=llama2_7b
     --ckpt_load_path=/fsx/llama2/pretrain/ckpt
     --ckpt_save_path=/fsx/llama2/pretrain/ckpt
     --data_path=/fsx/data/

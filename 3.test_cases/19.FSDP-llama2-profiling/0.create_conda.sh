@@ -15,8 +15,8 @@ rm ./mambaforge.sh
 
 source ./conda/bin/activate
 
-conda create -n mambapretrain python=3.10
-conda activate mambapretrain
+conda create -n llamapretrain python=3.10
+conda activate llamapretrain
 
 # Install pytorch and other dependencies
 conda install -y pytorch==2.1.0 pytorch-cuda=11.8 -c pytorch -c nvidia

@@ -49,6 +49,7 @@ export TRAIN_SCRIPT=training_nvtx.py
 ##################################
 
 declare -a MODEL_ARGS=(
+    --model_name=llama2_7b
     --ckpt_load_path=/fsx/llama2/pretrain/ckpt
     --ckpt_save_path=/fsx/llama2/pretrain/ckpt
     --data_path=/fsx/data/

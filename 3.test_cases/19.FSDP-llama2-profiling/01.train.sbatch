@@ -48,6 +48,7 @@ export TRAIN_SCRIPT=training.py
 ##################################
 
 declare -a MODEL_ARGS=(
+    --model_name=llama2_7b
     --ckpt_load_path=/fsx/llama2/pretrain/ckpt
     --ckpt_save_path=/fsx/llama2/pretrain/ckpt
     --data_path=/fsx/data/
@@ -59,7 +60,7 @@ declare -a MODEL_ARGS=(
     --report_interval=200
     --checkpoint_interval=20000
     --use_torch_compile=False
-    --use_profiler=False
+    --use_profiler=True
 )
 
 export TORCH_DIST_INIT_BARRIER=1
