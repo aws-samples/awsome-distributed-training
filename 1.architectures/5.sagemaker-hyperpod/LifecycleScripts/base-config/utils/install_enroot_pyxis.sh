@@ -34,7 +34,7 @@ fi
 rm -fr $SLURM_INSTALL_DIR/pyxis
 mkdir -p $SLURM_INSTALL_DIR/enroot/ $SLURM_INSTALL_DIR/pyxis/ $PYXIS_TMP_DIR
 
-PYXIS_VERSION=v0.16.1
+PYXIS_VERSION=v0.19.0
 ENROOT_VERSION=3.4.1
 arch=$(dpkg --print-architecture)
 cd $PYXIS_TMP_DIR
