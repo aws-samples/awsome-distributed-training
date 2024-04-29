@@ -28,6 +28,12 @@ export FI_EFA_FORK_SAFE=1
 export FI_LOG_LEVEL=1
 export FI_PROVIDER=efa
 export NCCL_DEBUG=INFO
+export TORCH_NCCL_ASYNC_ERROR_HANDLING=1
+export NCCL_SOCKET_IFNAME=ens
+export OMP_NUM_THREADS=4
+#export FI_EFA_SET_CUDA_SYNC_MEMOPS=0
+#export NCCL_CUMEM_ENABLE=0 
+export CUDA_DEVICE_MAX_CONNECTIONS=1
 
 ###########################
 ####### Torch Dist  #######

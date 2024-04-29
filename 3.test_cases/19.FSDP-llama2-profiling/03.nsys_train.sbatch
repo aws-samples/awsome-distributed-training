@@ -28,6 +28,13 @@ export FI_EFA_FORK_SAFE=1
 export FI_LOG_LEVEL=1
 export FI_PROVIDER=efa
 export NCCL_DEBUG=INFO
+export TORCH_NCCL_ASYNC_ERROR_HANDLING=1
+export NCCL_SOCKET_IFNAME=ens
+export OMP_NUM_THREADS=4
+#export FI_EFA_SET_CUDA_SYNC_MEMOPS=0
+#export NCCL_CUMEM_ENABLE=0 
+export CUDA_DEVICE_MAX_CONNECTIONS=1
+
 
 
 ###########################
@@ -66,7 +73,7 @@ declare -a MODEL_ARGS=(
 
 export TORCH_DIST_INIT_BARRIER=1
 
-srun -l /fsx/nsight-efa/target-linux-x64/nsys profile \
+srun -l /fsx/nsight-efa/target-linux-x64/nsys profile -w true -t cuda,nvtx,osrt,cudnn,cublas \
         --sample none --delay 30 --duration 1200 --force-overwrite true \
         --output /fsx/nsys_profiles/report_llama2_job%q{SLURM_JOB_ID}_rank%q{SLURM_PROCID}_on_%q{HOSTNAME}.nsys-rep torchrun \
         "${TORCHRUN_ARGS[@]}" $TRAIN_SCRIPT "${MODEL_ARGS[@]}"
