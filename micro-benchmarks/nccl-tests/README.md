@@ -33,34 +33,45 @@ The NCCL tests are packaged in a container.
 
 > You can set versions and the branch for NCCL and EFA by editing the variables below in the Dockerfile.
 
-> | Variable              | Default     |
-> |-----------------------|-------------|
-> |`EFA_INSTALLER_VERSION`| `latest`    |
-> |`AWS_OFI_NCCL_VERSION` | `aws`       |
-> |`NCCL_TESTS_VERSION`   | `master`    |
-> |`NCCL_VERSION`         | `v2.12.7-1` |
+> | Variable              | Default     | Repository                                                                                  |
+> |-----------------------|-------------|---------------------------------------------------------------------------------------------|
+> |`GDRCOPY_VERSION`      | `v2.4.1`    | [link](https://github.com/NVIDIA/gdrcopy)                                                   |
+> |`EFA_INSTALLER_VERSION`| `1.31.0`    | [link](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa-start.html#efa-start-enable) |
+> |`AWS_OFI_NCCL_VERSION` | `v1.8.1-aws`| [link](https://github.com/aws/aws-ofi-nccl)                                                 |
+> |`NCCL_VERSION`         | `v2.20.3-1` | [link](https://github.com/NVIDIA/nccl)                                                      |
+> |`NCCL_TESTS_VERSION`   | `v2.13.9`   | [link](https://github.com/NVIDIA/nccl-tests)                                                |
 
-### Slurm
-
-To run the NCCL tests on Slurm, you will need to build the container then convert it into a Squash file using Enroot.
-
-To build the container:
-
-1. Copy the file `0.nccl-tests.Dockerfile` or its content to your head-node.
-2. Build the container image with the command below
+### Build the container
+1. Build the container image with the command below:
    ```bash
-   docker build -t nccl-tests -f 0.nccl-tests.Dockerfile .
+   EFA_INSTALLER_VERSION=1.31.0
+   AWS_OFI_NCCL_VERSION=v1.8.1-aws
+   NCCL_VERSION=v2.20.3-1
+   NCCL_TESTS_VERSION=v2.13.9
+   docker build  -f nccl-tests.Dockerfile \
+          --build-arg="EFA_INSTALLER_VERSION=${EFA_INSTALLER_VERSION}" \
+          --build-arg="AWS_OFI_NCCL_VERSION=${AWS_OFI_NCCL_VERSION}" \
+          --build-arg="NCCL_VERSION=${NCCL_VERSION}" \
+          --build-arg="NCCL_TESTS_VERSION=${NCCL_TESTS_VERSION}" \
+          -t nccl-tests:${EFA_INSTALLER_VERSION}-${AWS_OFI_NCCL_VERSION}-${NCCL_VERSION}-${NCCL_TESTS_VERSION} \
+          .
    ```
-3. Once the image is built, you can check if it is present with `docker images`. You should see an output similar to this one:
+
+1. Once the container image is built, you can check if it is present with `docker images`. You should see an output similar to this one:
    ```
    REPOSITORY               TAG                        IMAGE ID       CREATED         SIZE
    nccl                     latest                     6e981e5cf6a5   5 hours ago     8.61GB
    ...
    nvidia/cuda              12.2.0-devel-ubuntu20.04   a86c511c87e1   2 weeks ago     6.56GB
    ```
-3. Convert the container image to a squash file via Enroot
+
+### Slurm
+
+To run the NCCL tests on Slurm, you will need to convert the container into a Squash file using Enroot.
+
+Convert the container image to a squash file via Enroot
    ```bash
-   enroot import -o /apps/nccl.sqsh  dockerd://nccl-tests:latest
+   enroot import -o /apps/nccl.sqsh  dockerd://nccl-tests:${EFA_INSTALLER_VERSION}-${AWS_OFI_NCCL_VERSION}-${NCCL_VERSION}-${NCCL_TESTS_VERSION}
    ```
    The file will be stored in the `/apps` directory.
 
@@ -68,86 +79,140 @@ To build the container:
 
 To run the NCCL tests on EKS, you will need to build the container image, then push it to a container registry, such as the private [ECR](https://aws.amazon.com/ecr/) in your AWS account.
 
-1. Build the container URI:
+1. Create the ECR repository if it does not exist
    ```bash
-   export AWS_REGION=$(aws ec2 describe-availability-zones --output text --query 'AvailabilityZones[0].[RegionName]')
-   export ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
-   export REGISTRY=${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/
-   export IMAGE=nccl-tests
-   export TAG=:latest
+   EFA_INSTALLER_VERSION=1.31.0
+   AWS_OFI_NCCL_VERSION=v1.8.1-aws
+   NCCL_VERSION=v2.20.3-1
+   NCCL_TESTS_VERSION=v2.13.9
+   ECR_REPOSITORY_NAME="nccl-tests"
+   TAG="${EFA_INSTALLER_VERSION}-${AWS_OFI_NCCL_VERSION}-${NCCL_VERSION}-${NCCL_TESTS_VERSION}"
+
+   aws ecr create-repository --repository-name ${ECR_REPOSITORY_NAME}
    ```
 
-2. Build the container image:
+1. Get the ECR repository URI:
    ```bash
-   docker image build -t ${REGISTRY}${IMAGE}${TAG} -f ./0.nccl-tests.Dockerfile .
+   REPO_URI=`aws ecr describe-repositories --query repositories[].[repositoryUri] | grep "/${ECR_REPOSITORY_NAME}" | tr -d '"' | xargs`
+   ECR_URI=${REPO_URI%"/${ECR_REPOSITORY_NAME}"}
    ```
 
-3. Create the ECR repository if it does not exist
+1. Build the container image:
    ```bash
-   REGISTRY_COUNT=$(aws ecr describe-repositories | grep ${IMAGE} | wc -l)
-   if [ "$REGISTRY_COUNT" == "0" ]; then
-         aws ecr create-repository --repository-name ${IMAGE}
-   fi
+   docker image build -t ${REPO_URI}:${TAG} -f ./nccl-tests.Dockerfile .
+   ```
+1. Login to the container registry
+   ```bash
+   aws ecr get-login-password | docker login --username AWS --password-stdin ${ECR_URI}
    ```
 
-4. Login to the container registry
+1. Push the container image to the registry
    ```bash
-   aws ecr get-login-password | docker login --username AWS --password-stdin $REGISTRY
-   ```
-
-5. Push the container image to the registry
-   ```bash
-   docker image push ${REGISTRY}${IMAGE}${TAG}
+   docker image push ${REPO_URI}:${TAG}
    ```
 
 ## 2. Running the NCCL Tests
 
-### Slurm
+### Slurm with container
 
-Copy the file `1.nccl-tests.sbatch` or its content on your cluster then submit a preprocessing jobs with the command below:
+Copy the file `slurm/nccl-tests.sbatch` or its content on your cluster then submit a preprocessing jobs with the command below:
 
 ```bash
-sbatch 1.nccl-tests.sbatch
+sbatch nccl-tests.sbatch
 ```
 
-A Scatter performance test will be executed from 8B to 2 GB, the output should look as below (with a lot more information).
+### Slurm with Deep Learning AMI
 
+In this step, you can use the NCCL tests already compiled in the deep learning AMI.
+
+Copy the file `slurm/nccl-tests-deep-learning-ami.sbatch` or its content on your cluster then submit a preprocessing jobs with the command below:
+
+```bash
+sbatch nccl-tests.sbatch
 ```
-0: #
-0: #                                                              out-of-place                       in-place
+
+### Results
+
+All_reduce performance test will be executed from 8B to 2GB on 2x p4de.24xlarg, the output should look as below (with a lot more information).
+```txt
 0: #       size         count      type   redop    root     time   algbw   busbw #wrong     time   algbw   busbw #wrong
-0: #        (B)    (elements)                               (us)  (GB/s)  (GB/s)            (us)  (GB/s)  (GB/s)
-0:            0             0     float    none       0     0.15    0.00    0.00      0     0.14    0.00    0.00      0
-...
-0:    536870912       8388608     float    none       0   6561.3   81.82   76.71      0   6508.3   82.49   77.33      0
-0:   1073741824      16777216     float    none       0    12828   83.70   78.47      0    12809   83.82   78.59      0
-0:   2147483648      33554432     float    none       0    25421   84.48   79.20      0    25283   84.94   79.63      0
+0: #        (B)    (elements)                               (us)  (GB/s)  (GB/s)            (us)  (GB/s)  (GB/s)       
+0:            8             2     float     sum      -1    164.3    0.00    0.00      0    163.3    0.00    0.00      0
+0:           16             4     float     sum      -1    161.4    0.00    0.00      0    160.6    0.00    0.00      0
+0:           32             8     float     sum      -1    161.5    0.00    0.00      0    160.9    0.00    0.00      0
+0:           64            16     float     sum      -1    161.0    0.00    0.00      0    160.6    0.00    0.00      0
+0:          128            32     float     sum      -1    161.2    0.00    0.00      0    161.2    0.00    0.00      0
+0:          256            64     float     sum      -1    161.8    0.00    0.00      0    161.5    0.00    0.00      0
+0:          512           128     float     sum      -1    162.3    0.00    0.01      0    161.5    0.00    0.01      0
+0:         1024           256     float     sum      -1    165.0    0.01    0.01      0    164.8    0.01    0.01      0
+0:         2048           512     float     sum      -1    177.6    0.01    0.02      0    178.5    0.01    0.02      0
+0:         4096          1024     float     sum      -1    169.4    0.02    0.05      0    170.0    0.02    0.05      0
+0:         8192          2048     float     sum      -1    175.9    0.05    0.09      0    175.7    0.05    0.09      0
+0:        16384          4096     float     sum      -1    193.4    0.08    0.16      0    192.5    0.09    0.16      0
+0:        32768          8192     float     sum      -1    224.6    0.15    0.27      0    223.7    0.15    0.27      0
+0:        65536         16384     float     sum      -1    227.4    0.29    0.54      0    225.5    0.29    0.54      0
+0:       131072         32768     float     sum      -1    229.7    0.57    1.07      0    226.8    0.58    1.08      0
+0:       262144         65536     float     sum      -1    238.2    1.10    2.06      0    235.5    1.11    2.09      0
+0:       524288        131072     float     sum      -1    260.3    2.01    3.78      0    259.9    2.02    3.78      0
+0:      1048576        262144     float     sum      -1    309.4    3.39    6.35      0    307.3    3.41    6.40      0
+0:      2097152        524288     float     sum      -1    432.6    4.85    9.09      0    397.4    5.28    9.90      0
+0:      4194304       1048576     float     sum      -1    533.9    7.86   14.73      0    530.3    7.91   14.83      0
+0:      8388608       2097152     float     sum      -1    762.8   11.00   20.62      0    760.7   11.03   20.68      0
+0:     16777216       4194304     float     sum      -1   1191.8   14.08   26.39      0   1190.4   14.09   26.42      0
+0:     33554432       8388608     float     sum      -1   1540.2   21.79   40.85      0   1540.7   21.78   40.83      0
+0:     67108864      16777216     float     sum      -1   2644.6   25.38   47.58      0   2647.2   25.35   47.53      0
+0:    134217728      33554432     float     sum      -1   3912.9   34.30   64.31      0   3932.8   34.13   63.99      0
+0:    268435456      67108864     float     sum      -1   7201.7   37.27   69.89      0   7227.9   37.14   69.64      0
+0:    536870912     134217728     float     sum      -1    13552   39.62   74.28      0    13548   39.63   74.30      0
+0:   1073741824     268435456     float     sum      -1    26217   40.96   76.79      0    26194   40.99   76.86      0
+0:   2147483648     536870912     float     sum      -1    51406   41.78   78.33      0    51406   41.77   78.33      0
 ```
 
-
-To change the type of collective to test, modify the line with `srun` in the file `1.nccl-tests.sbatch` and change `scatter_perf` to any of: `all_gather_perf`, `alltoall_perf`, `gather_perf`, `reduce_perf`, `scatter_perf`, `all_reduce_perf`, `broadcast_perf`, `hypercube_perf`, `reduce_scatter_perf`, `sendrecv_perf`.
-
-### 2.1 Measure multiple collectives with one job
-
-Run the NCCL tests for different collectives in one job using the submission script `2.nccl-3collectives.sbatch`. It will execute tests on the collectives [AllReduce](https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/usage/collectives.html#allreduce), [AllGather](https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/usage/collectives.html#allgather) and [ReduceScatter](https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/usage/collectives.html#reducescatter).
-
-```bash
-sbatch 2.nccl-3collectives.sbatch
+All_reduce performance test will be executed from 8B to 16GB on 2x p5.48xlarge, the output should look as below (with a lot more information).
+```txt
+0: #       size         count      type   redop    root     time   algbw   busbw #wrong     time   algbw   busbw #wrong
+0: #        (B)    (elements)                               (us)  (GB/s)  (GB/s)            (us)  (GB/s)  (GB/s)       
+0:            8             2     float     sum      -1    69.12    0.00    0.00      0    72.43    0.00    0.00      0
+0:           16             4     float     sum      -1    72.64    0.00    0.00      0    73.91    0.00    0.00      0
+0:           32             8     float     sum      -1    74.06    0.00    0.00      0    64.75    0.00    0.00      0
+0:           64            16     float     sum      -1    65.48    0.00    0.00      0    74.40    0.00    0.00      0
+0:          128            32     float     sum      -1    74.92    0.00    0.00      0    65.43    0.00    0.00      0
+0:          256            64     float     sum      -1    74.12    0.00    0.01      0    65.70    0.00    0.01      0
+0:          512           128     float     sum      -1    69.50    0.01    0.01      0    66.88    0.01    0.01      0
+0:         1024           256     float     sum      -1    69.24    0.01    0.03      0    69.04    0.01    0.03      0
+0:         2048           512     float     sum      -1    72.22    0.03    0.05      0    71.29    0.03    0.05      0
+0:         4096          1024     float     sum      -1    78.58    0.05    0.10      0    78.55    0.05    0.10      0
+0:         8192          2048     float     sum      -1    81.44    0.10    0.19      0    80.47    0.10    0.19      0
+0:        16384          4096     float     sum      -1    94.36    0.17    0.33      0    82.35    0.20    0.37      0
+0:        32768          8192     float     sum      -1    111.7    0.29    0.55      0    89.75    0.37    0.68      0
+0:        65536         16384     float     sum      -1    135.1    0.48    0.91      0    103.8    0.63    1.18      0
+0:       131072         32768     float     sum      -1    108.9    1.20    2.26      0    96.55    1.36    2.55      0
+0:       262144         65536     float     sum      -1    128.0    2.05    3.84      0    104.7    2.50    4.70      0
+0:       524288        131072     float     sum      -1    123.7    4.24    7.95      0    113.3    4.63    8.67      0
+0:      1048576        262144     float     sum      -1    123.2    8.51   15.95      0    121.3    8.64   16.21      0
+0:      2097152        524288     float     sum      -1    147.2   14.24   26.70      0    147.1   14.25   26.72      0
+0:      4194304       1048576     float     sum      -1    168.6   24.87   46.64      0    167.7   25.02   46.91      0
+0:      8388608       2097152     float     sum      -1    204.8   40.96   76.80      0    201.1   41.71   78.20      0
+0:     16777216       4194304     float     sum      -1    298.1   56.28  105.52      0    298.3   56.24  105.45      0
+0:     33554432       8388608     float     sum      -1    439.7   76.31  143.09      0    417.7   80.33  150.62      0
+0:     67108864      16777216     float     sum      -1    601.5  111.57  209.19      0    604.2  111.07  208.26      0
+0:    134217728      33554432     float     sum      -1    870.3  154.22  289.16      0    876.8  153.07  287.01      0
+0:    268435456      67108864     float     sum      -1   1468.2  182.83  342.81      0   1452.7  184.78  346.46      0
+0:    536870912     134217728     float     sum      -1   2559.2  209.78  393.34      0   2554.9  210.14  394.00      0
+0:   1073741824     268435456     float     sum      -1   4607.6  233.04  436.95      0   4565.6  235.18  440.96      0
+0:   2147483648     536870912     float     sum      -1   9074.5  236.65  443.72      0   9108.5  235.77  442.06      0
+0:   4294967296    1073741824     float     sum      -1    17286  248.46  465.87      0    17343  247.64  464.33      0
+0:   8589934592    2147483648     float     sum      -1    33605  255.62  479.28      0    33628  255.44  478.95      0
+0:  17179869184    4294967296     float     sum      -1    66132  259.78  487.09      0    66109  259.87  487.26      0
 ```
 
+To change the type of collective to test, modify the line with `srun` in the file `nccl-tests.sbatch` and change `all_reduce_perf` to any of: `all_gather_perf`, `alltoall_perf`, `gather_perf`, `reduce_perf`, `scatter_perf`, `all_reduce_perf`, `broadcast_perf`, `hypercube_perf`, `reduce_scatter_perf`, `sendrecv_perf`.
 
-### 2.2 Validate the NCCL configuration
-
-You can validate your environment for NCCL using the batch file `3.nccl-validate.sbatch`. Submit it as follows:
-
-```bash
-sbatch 3.nccl-validate.sbatch
-```
 
 ### Amazon EKS
 
 1. Prepare the MPIJob manifest
-   Edit file `nccl-test-eks.yaml` and adjust the following values:
+   Edit file `kubernetes/nccl-tests.yaml` and adjust the following values:
 
    - slotsPerWorker: 8 <- set to the number of GPUs per node in your cluster
    - image: <account>.dkr.ecr.<region>.amazonaws.com/<image>:<tag> <- set to your container image URI. Note: change both locations in the file. You may use `echo ${REGISTRY}${IMAGE}${TAG}` to print the image URI.
@@ -163,7 +228,7 @@ sbatch 3.nccl-validate.sbatch
 
 2. Apply the MPIJob manifest to the cluster
    ```bash
-   kubectl apply -f ./nccl-test-eks.yaml
+   kubectl apply -f ./nccl-tests.yaml
    ```
 
 3. Wait until pods to enter the Running state
@@ -201,7 +266,7 @@ sbatch 3.nccl-validate.sbatch
 5. Clean up test run
    Before running a subsequent test, the current MPIJob needs to be deleted:
    ```bash
-   kubectl delete -f nccl-test-eks.yaml
+   kubectl delete -f nccl-tests.yaml
    ```
 
 ## 3. Understanding NCCL Bandwidth
