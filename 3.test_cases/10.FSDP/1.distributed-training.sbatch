@@ -29,6 +29,8 @@ export FI_LOG_LEVEL=1
 export FI_PROVIDER=efa
 export NCCL_DEBUG=INFO
 
+
+
 ###########################
 ####### Torch Dist  #######
 ###########################

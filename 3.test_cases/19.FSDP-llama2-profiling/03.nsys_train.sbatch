@@ -42,7 +42,7 @@ declare -a TORCHRUN_ARGS=(
     --rdzv_endpoint=$(hostname) \
 )
 
-export TRAIN_SCRIPT=/workspace/training.py
+export TRAIN_SCRIPT=training_nvtx.py
 
 ##################################
 # Llama 2 Model Training Params ##
@@ -63,6 +63,7 @@ declare -a MODEL_ARGS=(
     --use_profiler=False
 )
 
+export TORCH_DIST_INIT_BARRIER=1
 
 srun -l /fsx/nsight-efa/target-linux-x64/nsys profile \
         --sample none --delay 30 --duration 1200 --force-overwrite true \

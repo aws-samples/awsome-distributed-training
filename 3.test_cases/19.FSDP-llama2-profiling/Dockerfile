@@ -161,7 +161,7 @@ RUN git clone https://github.com/NVIDIA/nccl-tests.git /opt/nccl-tests \
     CUDA_HOME=/usr/local/cuda \
     NVCC_GENCODE="-gencode=arch=compute_90,code=sm_90 -gencode=arch=compute_80,code=sm_80"
 
-COPY requirements.txt /workspace/requirements.txt
+COPY . /workspace
 WORKDIR /workspace/
 
 RUN pip install -r requirements.txt

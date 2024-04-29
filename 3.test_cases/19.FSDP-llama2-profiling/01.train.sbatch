@@ -41,7 +41,7 @@ declare -a TORCHRUN_ARGS=(
     --rdzv_endpoint=$(hostname) \
 )
 
-export TRAIN_SCRIPT=./training.py
+export TRAIN_SCRIPT=training.py
 
 ##################################
 # Llama 2 Model Training Params ##
@@ -61,5 +61,7 @@ declare -a MODEL_ARGS=(
     --use_torch_compile=False
     --use_profiler=False
 )
+
+export TORCH_DIST_INIT_BARRIER=1
 
 srun -l torchrun "${TORCHRUN_ARGS[@]}" $TRAIN_SCRIPT "${MODEL_ARGS[@]}"
