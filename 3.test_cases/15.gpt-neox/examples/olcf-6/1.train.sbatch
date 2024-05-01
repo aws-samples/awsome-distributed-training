@@ -7,7 +7,6 @@
 #SBATCH --nodes=2
 #SBATCH --ntasks-per-node=8
 #SBATCH --gpus-per-node=8 # Number of GPU per node
-#SBATCH --gres=gpu:8
 #SBATCH --output=logs/%x_%j.out # logfile for stdout
 #SBATCH --error=logs/%x_%j.err # logfile for stderr, remove it to merge both outputs
 #SBATCH --wait-all-nodes=1
