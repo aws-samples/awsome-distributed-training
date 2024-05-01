@@ -86,7 +86,12 @@ declare -a MODEL_ARGS=(
 
 export TORCH_DIST_INIT_BARRIER=1
 
-srun -u -l "${ENROOT_ARGS[@]}" /usr/local/cuda/bin/nsys profile -w true -t cuda,nvtx,osrt,cudnn,cublas \
+srun -u -l "${ENROOT_ARGS[@]}" /usr/local/cuda/bin/nsys profile \
             --sample none --delay 30 --duration 1200 --force-overwrite true \
             --output /fsx/nsys_profiles2/llama2/report_llama2_job%q{SLURM_JOB_ID}_rank%q{SLURM_PROCID}_on_%q{HOSTNAME}.nsys-rep \
             torchrun "${TORCHRUN_ARGS[@]}" $TRAIN_SCRIPT "${MODEL_ARGS[@]}"
+
+#srun -u -l "${ENROOT_ARGS[@]}" /usr/local/cuda/bin/nsys profile -w true -t cuda,nvtx,osrt,cudnn,cublas \
+#            --sample none --delay 30 --duration 1200 --force-overwrite true \
+#            --output /fsx/nsys_profiles2/llama2/report_llama2_job%q{SLURM_JOB_ID}_rank%q{SLURM_PROCID}_on_%q{HOSTNAME}.nsys-rep \
+#            torchrun "${TORCHRUN_ARGS[@]}" $TRAIN_SCRIPT "${MODEL_ARGS[@]}"

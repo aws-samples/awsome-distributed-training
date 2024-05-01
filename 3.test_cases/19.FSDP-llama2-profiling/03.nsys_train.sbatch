@@ -76,7 +76,13 @@ declare -a MODEL_ARGS=(
 
 #export TORCH_DIST_INIT_BARRIER=1
 
-srun -l /fsx/nsight-efa/target-linux-x64/nsys profile -w true -t cuda,nvtx,osrt,cudnn,cublas \
+srun -l /fsx/nsight-efa/target-linux-x64/nsys profile \ 
         --sample none --delay 30 --duration 1200 --force-overwrite true \
         --output /fsx/nsys_profiles/report_llama2_job%q{SLURM_JOB_ID}_rank%q{SLURM_PROCID}_on_%q{HOSTNAME}.nsys-rep torchrun \
         "${TORCHRUN_ARGS[@]}" $TRAIN_SCRIPT "${MODEL_ARGS[@]}"
+
+#srun -l /fsx/nsight-efa/target-linux-x64/nsys profile \ 
+#        -w true -t cuda,nvtx,osrt,cudnn,cublas \
+#        --sample none --delay 30 --duration 1200 --force-overwrite true \
+#        --output /fsx/nsys_profiles/report_llama2_job%q{SLURM_JOB_ID}_rank%q{SLURM_PROCID}_on_%q{HOSTNAME}.nsys-rep torchrun \
+#        "${TORCHRUN_ARGS[@]}" $TRAIN_SCRIPT "${MODEL_ARGS[@]}"
