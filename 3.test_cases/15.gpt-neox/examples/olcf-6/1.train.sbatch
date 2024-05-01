@@ -14,9 +14,8 @@
 set -uxo pipefail
 
 # default variables for Enroot, if these variables are defined then use them
-: "${APPS_PATH:=$FSX_PATH/apps}"
-: "${IMAGE:=$APPS_PATH/gpt-neox.sqsh}"
 : "${FSX_PATH:=/fsx}"
+: "${IMAGE:=$FSX_PATH/apps/gpt-neox.sqsh}"
 : "${CONTAINER_MOUNT:=$FSX_PATH:$FSX_PATH}"
 ## EFA settings
 export FI_LOG_LEVEL=warn
