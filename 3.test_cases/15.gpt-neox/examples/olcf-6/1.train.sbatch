@@ -19,7 +19,7 @@ set -uxo pipefail
 : "${FSX_PATH:=/fsx}"
 : "${CONTAINER_MOUNT:=$FSX_PATH:$FSX_PATH}"
 ## EFA settings
-export FI_LOG_LEVEL=1
+export FI_LOG_LEVEL=warn
 export FI_PROVIDER=efa # change to eth if you want to use ENA for comparisons
 export FI_EFA_USE_HUGE_PAGE=0
 # https://discuss.pytorch.org/t/nccl-network-is-unreachable-connection-refused-when-initializing-ddp/137352
