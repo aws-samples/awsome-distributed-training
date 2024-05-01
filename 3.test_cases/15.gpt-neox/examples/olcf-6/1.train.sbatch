@@ -14,7 +14,7 @@
 set -uxo pipefail
 
 # default variables for Enroot, if these variables are defined then use them
-: "${APPS_PATH:=/fsx/apps}"
+: "${APPS_PATH:=$FSX_PATH/apps}"
 : "${IMAGE:=$APPS_PATH/gpt-neox.sqsh}"
 : "${FSX_PATH:=/fsx}"
 : "${CONTAINER_MOUNT:=$FSX_PATH:$FSX_PATH}"
