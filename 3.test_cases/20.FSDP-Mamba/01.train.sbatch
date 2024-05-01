@@ -48,19 +48,15 @@ export TRAIN_SCRIPT=./training.py
 ##################################
 
 declare -a MODEL_ARGS=(
-    --ckpt_load_path=/fsx/llama2/pretrain/ckpt
-    --ckpt_save_path=/fsx/llama2/pretrain/ckpt
+    --load_ckpt_path=/fsx/llama2/pretrain/ckpt
+    --save_ckpt_path=/fsx/llama2/pretrain/ckpt
     --data_path=/fsx/data/
-    --fsdp_activation_checkpointing=False
+    --fsdp_activation_checkpointing=True
     --selective_checkpointing=1
-    --sharding_strategy=hsdp
-    --low_cpu_fsdp=False
+    --sharding_strategy=fsdp
     --batch_size=2
     --report_interval=200
     --checkpoint_interval=20000
-    --use_torch_compile=False
-    --use_profiler=False
-    --deepspeed_config="deepspeed_config.json"
-de)
+)
 
 srun -l torchrun "${TORCHRUN_ARGS[@]}" $TRAIN_SCRIPT "${MODEL_ARGS[@]}"

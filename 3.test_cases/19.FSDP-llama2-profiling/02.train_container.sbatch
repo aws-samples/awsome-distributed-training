@@ -29,11 +29,11 @@ export FI_LOG_LEVEL=1
 export FI_PROVIDER=efa
 export NCCL_DEBUG=INFO
 export TORCH_NCCL_ASYNC_ERROR_HANDLING=1
-export NCCL_SOCKET_IFNAME=ens
-export OMP_NUM_THREADS=4
+#export NCCL_SOCKET_IFNAME=ens
+#export OMP_NUM_THREADS=4
 #export FI_EFA_SET_CUDA_SYNC_MEMOPS=0
 #export NCCL_CUMEM_ENABLE=0 
-export CUDA_DEVICE_MAX_CONNECTIONS=1
+#export CUDA_DEVICE_MAX_CONNECTIONS=1
 
 
 ###########################
@@ -71,20 +71,21 @@ export TRAIN_SCRIPT=/fsx/awsome-distributed-training/3.test_cases/19.FSDP-llama2
 
 declare -a MODEL_ARGS=(
     --model_name=llama2_7b
-    --ckpt_load_path=/fsx/llama2/pretrain/ckpt
-    --ckpt_save_path=/fsx/llama2/pretrain/ckpt
+    --load_ckpt_path=/fsx/llama2/pretrain/ckpt
+    --save_ckpt_path=/fsx/llama2/pretrain/ckpt
     --data_path=/fsx/data/
-    --fsdp_activation_checkpointing=False
+    --fsdp_activation_checkpointing=True
     --selective_checkpointing=1
-    --sharding_strategy=hsdp
-    --low_cpu_fsdp=False
+    --sharding_strategy=fsdp
     --batch_size=2
+    --learning_rate=3e-4
+    --grad_clip_thresh=4.0
+    --num_steps=1200
     --report_interval=200
     --checkpoint_interval=20000
-    --use_torch_compile=False
     --use_profiler=True
 )
 
-export TORCH_DIST_INIT_BARRIER=1
+#export TORCH_DIST_INIT_BARRIER=1
 
 srun -l "${ENROOT_ARGS[@]}" torchrun "${TORCHRUN_ARGS[@]}" $TRAIN_SCRIPT "${MODEL_ARGS[@]}"

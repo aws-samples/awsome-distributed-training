@@ -19,5 +19,5 @@ conda create -n llamapretrain python=3.10
 conda activate llamapretrain
 
 # Install pytorch and other dependencies
-conda install -y pytorch==2.1.0 pytorch-cuda=11.8 -c pytorch -c nvidia
+conda install -y pytorch==2.3.0 pytorch-cuda=11.8 -c pytorch -c nvidia
 pip install -r requirements.txt

@@ -29,7 +29,7 @@ class training_config:
     grad_clip_thresh: float = 4.0
 
     # profiling and logging
-    use_profiler: bool = False
+    use_profiler: bool = True
     use_wandb: bool = False
     wandb_dir: str = f"/fsx/wandb/{model_name}-fsdp"
     wandb_project_name = f"training-{model_name}"

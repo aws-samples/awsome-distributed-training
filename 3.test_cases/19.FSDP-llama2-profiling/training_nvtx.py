@@ -40,25 +40,29 @@ def parse_arge():
 
     parser.add_argument("--ckpt_load_path", type=str, default="/fsx/llama2/pretrain/ckpt", help="path to load checkpoints from.")
     parser.add_argument("--ckpt_save_path", type=str, default="/fsx/llama2/pretrain/ckpt", help="path to load checkpoints from.")
-    parser.add_argument("--fsdp_activation_checkpointing", type=bool, default=False)
+    parser.add_argument("--fsdp_activation_checkpointing", type=bool)
     parser.add_argument("--selective_checkpointing", type=int, default=1)
 
     parser.add_argument("--sharding_strategy", type=str, default="fsdp", help="FSDP sharding strategy.")
 
-    parser.add_argument("--low_cpu_fsdp", type=bool, default=False)
+    parser.add_argument("--low_cpu_fsdp", type=bool)
     parser.add_argument("--batch_size", type=int, default=2, help="Batch size for the training run.")
 
     parser.add_argument("--report_interval", type=int, default=200, help="Reporting interval for the training run.")
 
     parser.add_argument("--checkpoint_interval", type=int, default=20000, help="Checkpoint interval for the training run.")
 
-    parser.add_argument("--use_torch_compile", type=bool, default=False)
+    parser.add_argument("--use_torch_compile", type=bool)
 
-    parser.add_argument("--use_profiler", type=bool, default=False)
+    parser.add_argument("--use_profiler", type=bool)
 
-    parser.add_argument("--use_wandb", type=bool, default=False)
+    parser.add_argument("--use_wandb", type=bool)
 
     parser.add_argument("--num_steps", type=int, default=2000, help="Number of steps to train for.")
+
+    parser.add_argument("--learning_rate", type=float, default=3e-4)
+
+    parser.add_argument("--grad_clip_thresh", type=float, default=4.0)
 
     args = parser.parse_known_args()
     return args

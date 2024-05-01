@@ -8,7 +8,6 @@ except ImportError:
 import time
 from datetime import timedelta
 
-import nvtx
 import torch
 import torch.cuda.nccl as nccl
 import torch.distributed as dist

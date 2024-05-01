@@ -70,19 +70,19 @@ export TRAIN_SCRIPT=/fsx/awsome-distributed-training/3.test_cases/19.FSDP-llama2
 
 declare -a MODEL_ARGS=(
     --model_name=llama2_7b
-    --ckpt_load_path=/fsx/llama2/pretrain/ckpt
-    --ckpt_save_path=/fsx/llama2/pretrain/ckpt
+    --load_ckpt_path=/fsx/llama2/pretrain/ckpt
+    --save_ckpt_path=/fsx/llama2/pretrain/ckpt
     --data_path=/fsx/data/
-    --fsdp_activation_checkpointing=False
     --selective_checkpointing=1
-    --sharding_strategy=hsdp
-    --low_cpu_fsdp=False
+    --sharding_strategy=fsdp
     --batch_size=2
+    --learning_rate=3e-4
+    --grad_clip_thresh=4.0
+    --num_steps=1200
     --report_interval=200
     --checkpoint_interval=20000
-    --use_torch_compile=False
-    --use_profiler=False
 )
+
 
 export TORCH_DIST_INIT_BARRIER=1
 

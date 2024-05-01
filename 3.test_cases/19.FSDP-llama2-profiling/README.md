@@ -36,10 +36,9 @@ Once you have downloaded the tokenizer and model weights, you can copy the token
 
 Next run the following script to download and process the dataset:
 
-.. code:: ipython3
-
+```
    python3 get_dataset.py
-
+```
 We are now ready to start training.
 
 ## 3. Launch Training

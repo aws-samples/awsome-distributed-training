@@ -19,13 +19,13 @@
 #     # Load image to local docker registry -> on head node, or new compute/build node.
 #     docker load < /fsx/nvidia-pt-od__latest.tar
 ####################################################################################################
-FROM nvcr.io/nvidia/pytorch:23.12-py3
+FROM nvcr.io/nvidia/pytorch:24.03-py3
 ENV DEBIAN_FRONTEND=noninteractive
 
 # The three must-be-built packages.
 # Efa-installer>=1.29.0 required for nccl>=2.19.0 to avoid libfabric NCCL error.
 ENV EFA_INSTALLER_VERSION=1.30.0
-ENV AWS_OFI_NCCL_VERSION=1.8.1-aws
+ENV AWS_OFI_NCCL_VERSION=1.9.1-aws
 ENV NCCL_VERSION=2.20.3-1
 ENV NCCL_TESTS_VERSION=master
 
@@ -108,15 +108,15 @@ ENV PATH=/opt/amazon/efa/bin:/opt/amazon/openmpi/bin:$PATH
 # NCCL EFA plugin (aws-ofi-nccl) depends on mpi, hence we must rebuild openmpi before building the
 # aws-ofi-ccnl.
 ####################################################################################################
-# RUN apt-get remove -y libnccl2 libnccl-dev \
-#    && cd /tmp \
-#    && git clone https://github.com/NVIDIA/nccl.git -b v${NCCL_VERSION} \
-#    && cd nccl \
-#    && make -j src.build BUILDDIR=/usr \
+RUN apt-get remove -y libnccl2 libnccl-dev \
+    && cd /tmp \
+    && git clone https://github.com/NVIDIA/nccl.git -b v${NCCL_VERSION} \
+    && cd nccl \
+    && make -j src.build BUILDDIR=/usr \
 #    # Build for p4 & p5.
-#    NVCC_GENCODE="-gencode=arch=compute_90,code=sm_90, -gencode=arch=compute_80,code=sm_80" \
-#    && rm -rf /tmp/nccl \
-#    && echo NCCL_SOCKET_IFNAME=^docker0,lo >> /etc/nccl.conf
+    NVCC_GENCODE="-gencode=arch=compute_90,code=sm_90, -gencode=arch=compute_80,code=sm_80" \
+    && rm -rf /tmp/nccl \
+    && echo NCCL_SOCKET_IFNAME=^docker0,lo >> /etc/nccl.conf
 # Note: disabled custom NCCL installation as PyTorch container preinstalled 2.19.3 (cf. https://github.com/aws-samples/awsome-distributed-training/pull/174#discussion_r1519045216)
 # yet Keeping the above instructions for future updates.
 
@@ -153,15 +153,29 @@ ENV OMPI_MCA_pml=^cm,ucx            \
 ENV LD_LIBRARY_PATH="/usr/local/lib:/usr/local/cuda/lib64:${LD_LIBRARY_PATH}"
 
 # NCCL-tests: always good to include this as a diagnostic tool.
-RUN git clone https://github.com/NVIDIA/nccl-tests.git /opt/nccl-tests \
-    && cd /opt/nccl-tests \
-    && git checkout ${NCCL_TESTS_VERSION} \
-    && make MPI=1 \
-    MPI_HOME=/opt/amazon/openmpi \
-    CUDA_HOME=/usr/local/cuda \
-    NVCC_GENCODE="-gencode=arch=compute_90,code=sm_90 -gencode=arch=compute_80,code=sm_80"
+# RUN git clone https://github.com/NVIDIA/nccl-tests.git /opt/nccl-tests \
+#    && cd /opt/nccl-tests \
+#    && git checkout ${NCCL_TESTS_VERSION} \
+#    && make MPI=1 \
+#    MPI_HOME=/opt/amazon/openmpi \
+#    CUDA_HOME=/usr/local/cuda \
+#    NVCC_GENCODE="-gencode=arch=compute_90,code=sm_90 -gencode=arch=compute_80,code=sm_80"
 
-COPY . /workspace
+COPY requirements.txt /workspace/requirements.txt
 WORKDIR /workspace/
 
 RUN pip install -r requirements.txt
+
+## Set Open MPI variables to exclude network interface and conduit.
+ENV OMPI_MCA_pml=^cm,ucx            \
+    OMPI_MCA_btl=tcp,self           \
+    OMPI_MCA_btl_tcp_if_exclude=lo,docker0,veth_def_agent\
+    OPAL_PREFIX=/opt/amazon/openmpi \
+    NCCL_SOCKET_IFNAME=^docker,lo
+
+## Turn off PMIx Error https://github.com/open-mpi/ompi/issues/7516
+ENV PMIX_MCA_gds=hash
+
+## Set LD_PRELOAD for NCCL library
+ENV LD_PRELOAD /usr/lib/libnccl.so
+
