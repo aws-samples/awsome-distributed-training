@@ -7,7 +7,7 @@ This test case illustrates how to train [Pythia](https://arxiv.org/abs/2304.0137
 
 This test case assumes that you have built GPT-NeoX container `../../0.gpt-neox.dockerfile`.
 
-## 2. Dowload Dataset 
+## 2. Download Dataset 
 
 This test case make use of [Tokenized Data for FORGE Foundation Models](https://doi.ccs.ornl.gov/ui/doi/453). Download the data and place as follows:
 
