@@ -5,7 +5,7 @@ This test case illustrates how to train [Pythia](https://arxiv.org/abs/2304.0137
 
 ## 1. Preparation
 
-This test case assumes that you have built GPT-NeoX container `../../0.gpt-neox.dockerfile`.
+This test case assumes that you have built GPT-NeoX container [`../../0.gpt-neox.dockerfile`](https://github.com/aws-samples/awsome-distributed-training/tree/main/3.test_cases/15.gpt-neox).
 
 ## 2. Download Dataset 
 
