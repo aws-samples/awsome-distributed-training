@@ -23,3 +23,9 @@ This dataset comprises a vast corpus of 257 billion tokens, accompanied by the c
 
 ## 3. Train 
 
+Now that you can kickstart the training with:
+
+```bash
+sbatch 1.train.sbatch
+```
+
