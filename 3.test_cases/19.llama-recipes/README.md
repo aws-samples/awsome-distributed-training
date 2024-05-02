@@ -77,7 +77,9 @@ It will prompt you to input the token. Paste the token and answer to `n` to the 
 >> Your token has been saved to /home/ubuntu/.cache/huggingface/token
 ```
 
-As you can see on the output, the access token stored under the
+As you can see on the output, the access token stored under `/home/ubuntu/.cache/huggingface`.
+Move the token to `/fsx/.cache`.
+
 
 
 ## 4. Finetune Llama3 model

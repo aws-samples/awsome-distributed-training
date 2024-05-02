@@ -3,14 +3,8 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 
-#SBATCH --job-name="llama3-finetune"
-#SBATCH --nodes=2
-#SBATCH --ntasks=2
-#SBATCH --gpus-per-node=8 # Number of GPU per node
-#SBATCH --output=logs/%x_%j.out # logfile for stdout
-#SBATCH --error=logs/%x_%j.err # logfile for stderr, remove it to merge both outputs
-#SBATCH --wait-all-nodes=1
-#SBATCH --exclusive
+#SBATCH --job-name="serve-gradio"
+#SBATCH --nodes=1
 set -euxo pipefail
 source .env
 # default variables for Enroot, if these variables are defined then use them
@@ -19,14 +13,14 @@ source .env
 : "${FSX_PATH:=/fsx}"
 : "${CONTAINER_MOUNT:=$FSX_PATH:$FSX_PATH}"
 ## EFA settings
-export FI_LOG_LEVEL=1
+#export FI_LOG_LEVEL=1
 export FI_PROVIDER=efa # change to eth if you want to use ENA for comparisons
 export FI_EFA_USE_HUGE_PAGE=0
 # https://discuss.pytorch.org/t/nccl-network-is-unreachable-connection-refused-when-initializing-ddp/137352
 # https://github.com/pytorch/pytorch/issues/68893
 export NCCL_SOCKET_IFNAME=en
 export TORCH_NCCL_ASYNC_ERROR_HANDLING=1
-export NCCL_DEBUG=INFO
+#export NCCL_DEBUG=INFO
 # Some potentially useful distributed environment variables
 export HOSTNAMES=`scontrol show hostnames "$SLURM_JOB_NODELIST"`
 export MASTER_ADDR=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
@@ -65,14 +59,10 @@ declare -a TRAIN_ARGS=(
     --enable_fsdp True \
     --low_cpu_fsdp \
     --fsdp_activation_checkpointing True \
-    --pure_bf16 \
     --use_wandb \
-    --num_epochs 1 \
-    --batching_strategy padding \
-    --run_validation True
+    --pure_bf16 \
+    --run_validation False 
 )
-#     --use_wandb \
 export PYTHONPATH=${PWD}/llama-recipes/src
-srun -l "${ARGS[@]}" torchrun  "${TORCHRUN_ARGS[@]}" \
-    /fsx/awsome-distributed-training/3.test_cases/19.llama-recipes/llama-recipes/recipes/finetuning/finetuning.py \
-    "${TRAIN_ARGS[@]}"
+
+srun -l "${ARGS[@]}" python  ${PWD}/src/gradio_chat.py

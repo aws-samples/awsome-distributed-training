@@ -19,7 +19,7 @@
 #     # Load image to local docker registry -> on head node, or new compute/build node.
 #     docker load < /fsx/nvidia-pt-od__latest.tar
 ####################################################################################################
-FROM nvcr.io/nvidia/pytorch:24.03-py3
+FROM nvcr.io/nvidia/pytorch:24.04-py3
 ENV DEBIAN_FRONTEND=noninteractive
 
 # The three must-be-built packages.
@@ -238,17 +238,23 @@ RUN git clone https://github.com/NVIDIA/nccl-tests.git /opt/nccl-tests \
 # its own pt + cuda.
 #
 # Pre-requisite: build node has enough memory to compile xformers. More info on the stanza.
-RUN export TORCH_CUDA_ARCH_LIST="8.0;9.0+PTX" && \
-    # On p4de.24xlarge:
-    # - MAX_JOBS=16 => 145GB memory
-    # - MAX_JOBS=32 => 241GB memory
-    # - MAX_JOBS=48 => 243GB memory, 542.5s
-    #
-    # NOTE: must export MAX_JOBS. For some reason, `MAX_JOBS=16 pip install ...` doesn't seem to
-    #       work to prevent OOM.
-    export MAX_JOBS=32 && \
-    export NVCC_PREPEND_FLAGS="-t 32" && \
-    pip install -v -U git+https://github.com/facebookresearch/xformers.git@main#egg=xformers
-
-COPY requirements.txt requirements.txt
-RUN pip install -r requirements.txt
+#RUN export TORCH_CUDA_ARCH_LIST="8.0;9.0+PTX" && \
+#    # On p4de.24xlarge:
+#    # - MAX_JOBS=16 => 145GB memory
+#    # - MAX_JOBS=32 => 241GB memory
+#    # - MAX_JOBS=48 => 243GB memory, 542.5s
+#    #
+#    # NOTE: must export MAX_JOBS. For some reason, `MAX_JOBS=16 pip install ...` doesn't seem to
+#    #       work to prevent OOM.
+#    export MAX_JOBS=32 && \
+#    export NVCC_PREPEND_FLAGS="-t 32" && \
+#    pip install -v -U git+https://github.com/facebookresearch/xformers.git@main#egg=xformers
+#
+#COPY requirements.txt requirements.txt
+# If we install those packages with requirements.txt, torch will be re-installed.
+RUN pip install accelerate appdirs loralib bitsandbytes datasets fire peft transformers>=4.40.0 sentencepiece wandb
+# RUN pip install transformers accelerate
+# # https://github.com/Dao-AILab/flash-attention/issues/451
+#COPY llama-recipes llama-recipes
+#RUN cd llama-recipes \
+#    && pip install --ignore-installed -e .
