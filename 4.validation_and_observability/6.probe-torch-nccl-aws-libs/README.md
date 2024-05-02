@@ -98,6 +98,15 @@ $ srun -l -N1 ./probe-pt-nccl-aws-libs.sh
 0: NCCL path    : /fsx/marcverd/awsome-distributed-training/3.test_cases/10.FSDP/conda_env_pytorch/lib/python3.10/site-packages/nvidia/nccl/lib/libnccl.so.2
 0: aws-ofi-nccl version : 1.7.4
 0: aws-ofi-nccl path    : /opt/aws-ofi-nccl/lib/libnccl-net.so.0.0.0
+0: libfabric version : 1.19.0amzn4.0
+0: libfabric path    : /opt/amazon/efa/lib/libfabric.so.1.22.0
+0: efa kernel module : 2.6.0g
+0:
+0: cat /opt/amazon/efa_installed_packages:
+0: # EFA installer version: 1.30.0
+# Debug packages installed: no
+0: # Packages installed:
+0: efa-config_1.15_all efa-nv-peermem_1.1.0-1.amzn1_amd64 efa-profile_1.6_all libfabric-aws-bin_1.19.0amzn4.0_amd64 libfabric-aws-dev_1.19.0amzn4.0_amd64 libfabric1-aws_1.19.0amzn4.0_amd64 libpmix-aws_4.2.7_amd64 openmpi40-aws_4.1.6-2_amd64 openmpi50-aws_5.0.0_amd64 prrte-aws_3.0.2_amd64 ibacm_46.0-1_amd64 ibverbs-providers_46.0-1_amd64 ibverbs-utils_46.0-1_amd64 infiniband-diags_46.0-1_amd64 libibmad-dev_46.0-1_amd64 libibmad5_46.0-1_amd64 libibnetdisc-dev_46.0-1_amd64 libibnetdisc5_46.0-1_amd64 libibumad-dev_46.0-1_amd64 libibumad3_46.0-1_amd64 libibverbs-dev_46.0-1_amd64 libibverbs1_46.0-1_amd64 librdmacm-dev_46.0-1_amd64 librdmacm1_46.0-1_amd64 rdma-core_46.0-1_amd64 rdmacm-utils_46.0-1_amd64 efa_2.6.0-1.amzn1_amd64
 ```
 
 ## 3. Appendix
