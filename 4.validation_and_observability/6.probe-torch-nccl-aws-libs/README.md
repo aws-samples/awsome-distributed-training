@@ -1,7 +1,7 @@
 # Runtime sanity checks: which NCCL is loaded by PyTorch
 
-The scripts in this folder disambiguate the exact NCCL library that a PyTorch application actually
-uses, in the presence of potentially multiple NCCL libraries installed.
+The scripts in this folder disambiguate the exact NCCL libraries that a PyTorch application actually
+uses, in the presence of potentially multiple installed versions.
 
 ## 1. Motivation
 
@@ -141,3 +141,8 @@ $ find /usr/local/cuda-* -name 'libnccl.so' | xargs -n1 -I{} bash -c  "echo -n {
 $ strings /opt/aws-ofi-nccl/lib/libnccl-net.so | grep '^NET/OFI Initializing aws-ofi-nccl .*-aws'
 NET/OFI Initializing aws-ofi-nccl 1.7.4-aws
 ```
+
+### 3.2. Check other library versions
+
+Please refer to `4.validation_and_observability/1.pytorch-env-validation` to probe additional
+library versions used by PyTorch.

@@ -11,17 +11,37 @@ retval="$?"
 set -e
 
 ## strace output expected to contain these lines:
-#openat(AT_FDCWD, "/fsx/marcverd/awsome-distributed-training/3.test_cases/10.FSDP/conda_env_pytorch/lib/python3.10/site-packages/torch/lib/../../nvidia/nccl/lib/libnccl.so.2", O_RDONLY|O_CLOEXEC) = 3
-#openat(AT_FDCWD, "/opt/aws-ofi-nccl/lib/libnccl-net.so", O_RDONLY|O_CLOEXEC) = 85
-declare -a OPENED_LIB=( $(echo "$strace_output" | egrep 'libnccl.so|libnccl-net.so' | cut -d',' -f 2 | tr -d '"' ) )
+#openat(AT_FDCWD, "/path/to/libxxx.so.*", O_xxx) = <FD>
+get_lib() {
+    echo "$strace_output" | grep "$1" | cut -d'"' -f 2
+}
 
 set +o pipefail
-NCCL_VERSION=$(strings "${OPENED_LIB[0]}" | grep -m1 '^NCCL version' | cut -d' ' -f3 | cut -d'+' -f1)
-[[ ! "$NCCL_VERSION" == "" ]] || NCCL_VERSION="not found"
-echo "NCCL version :" "$NCCL_VERSION"
-echo "NCCL path    :" "$(realpath ${OPENED_LIB[0]})"
 
-AWS_OFI_NCCL_VERSION=$(strings "${OPENED_LIB[1]}" | grep -m1 '^NET/OFI Initializing aws-ofi-nccl ' | cut -d' ' -f4 | cut -d'-' -f1)
-[[ ! "$AWS_OFI_NCCL_VERSION" == "" ]] || AWS_OFI_NCCL_VERSION="not found"
-echo "aws-ofi-nccl version :" "$AWS_OFI_NCCL_VERSION"
-echo "aws-ofi-nccl path    :" "$(realpath ${OPENED_LIB[1]})"
+LIB_PATH="$(get_lib libnccl.so)"
+LIB_VERSION=$(strings "${LIB_PATH}" | grep -m1 '^NCCL version' | cut -d' ' -f3 | cut -d'+' -f1)
+LIB_NAME=NCCL
+[[ ! "$LIB_VERSION" == "" ]] || LIB_VERSION="not found"
+echo "${LIB_NAME} version :" "$LIB_VERSION"
+echo "${LIB_NAME} path    :" "$(realpath ${LIB_PATH})"
+
+LIB_PATH=$(get_lib libnccl-net.so)
+LIB_VERSION=$(strings "${LIB_PATH}" | grep -m1 '^NET/OFI Initializing aws-ofi-nccl ' | cut -d' ' -f4 | cut -d'-' -f1)
+LIB_NAME=aws-ofi-nccl
+[[ ! "$LIB_VERSION" == "" ]] || LIB_VERSION="not found"
+echo "${LIB_NAME} version :" "$LIB_VERSION"
+echo "${LIB_NAME} path    :" "$(realpath ${LIB_PATH})"
+
+LIB_PATH=$(get_lib libfabric.so)
+LIB_VERSION=$(strings "${LIB_PATH}" | grep -m1 'amzn')
+LIB_NAME=libfabric
+[[ ! "$LIB_VERSION" == "" ]] || LIB_VERSION="not found"
+echo "${LIB_NAME} version :" "$LIB_VERSION"
+echo "${LIB_NAME} path    :" "$(realpath ${LIB_PATH})"
+
+echo "efa kernel module :" $(modinfo -F version efa 2> /dev/null)
+
+echo
+echo "cat /opt/amazon/efa_installed_packages:"
+cat /opt/amazon/efa_installed_packages
+echo
