@@ -30,6 +30,7 @@ class training_config:
 
     # profiling and logging
     use_profiler: bool = True
+    use_nsight: bool = False
     use_wandb: bool = False
     wandb_dir: str = f"/fsx/wandb/{model_name}-fsdp"
     wandb_project_name = f"training-{model_name}"

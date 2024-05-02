@@ -38,8 +38,8 @@ def parse_arge():
     )
     parser.add_argument("--dataset_path", type=str, default="/fsx/data/examples_datasets/wikicorpus_llama2_7B_tokenized_4k", help="Path to dataset.")
 
-    parser.add_argument("--ckpt_load_path", type=str, default="/fsx/llama2/pretrain/ckpt", help="path to load checkpoints from.")
-    parser.add_argument("--ckpt_save_path", type=str, default="/fsx/llama2/pretrain/ckpt", help="path to load checkpoints from.")
+    parser.add_argument("--load_ckpt_path", type=str, default="/fsx/llama2/pretrain/ckpt", help="path to load checkpoints from.")
+    parser.add_argument("--save_ckpt_path", type=str, default="/fsx/llama2/pretrain/ckpt", help="path to load checkpoints from.")
     parser.add_argument("--fsdp_activation_checkpointing", type=bool)
     parser.add_argument("--selective_checkpointing", type=int, default=1)
 
@@ -89,6 +89,11 @@ def main():
     torch.cuda.empty_cache()
     setup_environ_flags()
 
+    if torch.distributed.is_initialized():
+        if torch.cuda.is_available():
+            torch.cuda.set_device(local_rank)
+        clear_gpu_cache(local_rank)
+        
     if rank == 0:
         print(f"Starting up the environment with configs {cfg}")
     
@@ -130,8 +135,8 @@ def main():
         limit_all_gathers=True,
         sync_module_states=cfg.low_cpu_fsdp,
         param_init_fn=lambda module: (
-            model.to_empty(device=torch.device("cuda"), recurse=False)
-            if cfg.low_cpu_fsdp
+            module.to_empty(device=torch.device("cuda"), recurse=False)
+            if cfg.low_cpu_fsdp and rank == 0
             else None
         ),
     )

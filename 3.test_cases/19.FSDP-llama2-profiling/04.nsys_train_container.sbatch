@@ -62,7 +62,7 @@ declare -a TORCHRUN_ARGS=(
     --rdzv_endpoint=$(hostname) \
 )
 
-export TRAIN_SCRIPT=/fsx/awsome-distributed-training/3.test_cases/19.FSDP-llama2-profiling/training_nvtx.py
+export TRAIN_SCRIPT=/fsx/awsome-distributed-training/3.test_cases/19.FSDP-llama2-profiling/training.py
 
 ##################################
 # Llama 2 Model Training Params ##
@@ -81,6 +81,7 @@ declare -a MODEL_ARGS=(
     --num_steps=1200
     --report_interval=200
     --checkpoint_interval=20000
+    --use_nsight=True
 )
 
 

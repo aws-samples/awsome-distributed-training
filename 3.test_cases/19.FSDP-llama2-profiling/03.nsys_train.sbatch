@@ -49,7 +49,7 @@ declare -a TORCHRUN_ARGS=(
     --rdzv_endpoint=$(hostname) \
 )
 
-export TRAIN_SCRIPT=training_nvtx.py
+export TRAIN_SCRIPT=training.py
 
 ##################################
 # Llama 2 Model Training Params ##
@@ -69,7 +69,7 @@ declare -a MODEL_ARGS=(
     --num_steps=1200
     --report_interval=200
     --checkpoint_interval=20000
-    --use_profiler=True
+    --use_nsys=True
 )
 
 
