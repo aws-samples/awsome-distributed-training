@@ -92,6 +92,14 @@ Direct invocation: `./probe-pt-nccl-aws-libs.sh`
 
 Via Slurm: `srun -l -N1 ./probe-pt-nccl-aws-libs.sh`
 
+```console
+$ srun -l -N1 ./probe-pt-nccl-aws-libs.sh
+0: NCCL version : 2.19.3
+0: NCCL path    : /fsx/marcverd/awsome-distributed-training/3.test_cases/10.FSDP/conda_env_pytorch/lib/python3.10/site-packages/nvidia/nccl/lib/libnccl.so.2
+0: aws-ofi-nccl version : 1.7.4
+0: aws-ofi-nccl path    : /opt/aws-ofi-nccl/lib/libnccl-net.so.0.0.0
+```
+
 ## 3. Appendix
 
 ### 3.1. System-wide NCCL provided by DLAMI
