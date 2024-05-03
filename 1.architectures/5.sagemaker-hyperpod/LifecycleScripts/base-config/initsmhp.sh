@@ -22,6 +22,10 @@ done
 bash -x $BIN_DIR/initsmhp/fix-profile.sh
 bash -x $BIN_DIR/initsmhp/ssh-to-compute.sh
 
+# /opt/ml/config/resource_config.json is not world-readable, so take only the part that later-on
+# used for ssh-keygen comment.
+cat /opt/ml/config/resource_config.json | jq '.ClusterConfig' > /opt/initsmhp-cluster_config.json
+
 if [[ "${NODE_TYPE}" == "controller" ]]; then
     runuser -l ubuntu $BIN_DIR/initsmhp/gen-keypair-ubuntu.sh
     bash -x $BIN_DIR/initsmhp/howto-miniconda.sh
