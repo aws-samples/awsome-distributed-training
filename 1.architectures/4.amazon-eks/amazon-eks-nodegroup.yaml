@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: "2010-09-09"
 
-Description: Amazon EKS - Create an unmanaged node group for Capacity Blocks for ML.
+Description: Amazon EKS - Create an unmanaged P5 node group for Capacity Blocks for ML.
 
 Metadata:
   "AWS::CloudFormation::Interface":
@@ -90,7 +90,6 @@ Parameters:
     Default: p5.48xlarge
     AllowedValues:
       - p5.48xlarge
-      - p4d.24xlarge
     Description: EC2 instance type for the node instances
 
   NodeVolumeSize:
