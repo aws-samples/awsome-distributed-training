@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: "2010-09-09"
 
-Description: Amazon EKS - Create an unmanaged P5 node group for Capacity Blocks for ML.
+Description: Amazon EKS - Create an unmanaged P4d/P5 node group for Capacity Blocks for ML.
 
 Metadata:
   "AWS::CloudFormation::Interface":
@@ -90,6 +90,7 @@ Parameters:
     Default: p5.48xlarge
     AllowedValues:
       - p5.48xlarge
+      - p4d.24xlarge
     Description: EC2 instance type for the node instances
 
   NodeVolumeSize:
@@ -133,6 +134,14 @@ Conditions:
     - "Fn::Equals":
       - !Ref NodeImageId
       - ""
+  isP5: 
+    - "Fn::Equals":
+      - !Ref NodeInstanceType
+      - "p5.48xlarge" 
+  isP4d: 
+    - "Fn::Equals":
+      - !Ref NodeInstanceType
+      - "p4d.24xlarge"    
 
   IMDSv1Disabled:
     "Fn::Equals":
@@ -273,6 +282,7 @@ Resources:
 
   NodeLaunchTemplate:
     Type: "AWS::EC2::LaunchTemplate"
+    Condition: isP5
     Properties:
       LaunchTemplateData:
         InstanceMarketOptions:
@@ -515,6 +525,59 @@ Resources:
           - Description: NetworkInterfaces Configuration For EFA and EKS
             NetworkCardIndex: 31
             DeviceIndex: 1
+            DeleteOnTermination: true
+            Groups:
+              - !Ref NodeSecurityGroup
+            InterfaceType: efa   
+  NodeLaunchTemplate:
+    Type: "AWS::EC2::LaunchTemplate"
+    Condition: isP4d
+    Properties:
+      LaunchTemplateData:
+        InstanceMarketOptions:
+          MarketType: "capacity-block"
+        CapacityReservationSpecification:
+          CapacityReservationTarget:
+            CapacityReservationId: !Ref CapacityBlockId
+        BlockDeviceMappings:
+          - DeviceName: /dev/xvda
+            Ebs:
+              DeleteOnTermination: true
+              VolumeSize: !Ref NodeVolumeSize
+              VolumeType: !Ref NodeVolumeType
+        IamInstanceProfile:
+          Arn: !GetAtt NodeInstanceProfile.Arn
+        ImageId: !If
+          - HasNodeImageId
+          - !Ref NodeImageId
+          - !Ref NodeImageIdSSMParam
+        InstanceType: !Ref NodeInstanceType
+        KeyName: !Ref KeyName
+        NetworkInterfaces:
+          - Description: NetworkInterfaces Configuration For EFA and EKS
+            NetworkCardIndex: 0
+            DeviceIndex: 0
+            DeleteOnTermination: true
+            Groups:
+              - !Ref NodeSecurityGroup
+            InterfaceType: efa
+          - Description: NetworkInterfaces Configuration For EFA and EKS
+            NetworkCardIndex: 1
+            DeviceIndex: 1
+            DeleteOnTermination: true
+            Groups:
+              - !Ref NodeSecurityGroup
+            InterfaceType: efa
+          - Description: NetworkInterfaces Configuration For EFA and EKS
+            NetworkCardIndex: 2
+            DeviceIndex: 2
+            DeleteOnTermination: true
+            Groups:
+              - !Ref NodeSecurityGroup
+            InterfaceType: efa
+          - Description: NetworkInterfaces Configuration For EFA and EKS
+            NetworkCardIndex: 3
+            DeviceIndex: 3
             DeleteOnTermination: true
             Groups:
               - !Ref NodeSecurityGroup
