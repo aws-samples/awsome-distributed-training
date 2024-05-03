@@ -3,7 +3,8 @@
 
 ####################################################################################################
 # This is a sample Dockerfile, with optional stanzas. Please read through this Dockerfile,
-# understand what it does, then create your own Dockerfile.
+# understand what it does, then create your own Dockerfile. Software versions are provided for
+# illustration only.
 #
 # Sample build instructions:
 #
@@ -19,13 +20,13 @@
 #     # Load image to local docker registry -> on head node, or new compute/build node.
 #     docker load < /fsx/nvidia-pt-od__latest.tar
 ####################################################################################################
-FROM nvcr.io/nvidia/pytorch:23.12-py3
+FROM nvcr.io/nvidia/pytorch:24.03-py3
 ENV DEBIAN_FRONTEND=noninteractive
 
 # The three must-be-built packages.
 # Efa-installer>=1.29.1 required for nccl>=2.19.0 to avoid libfabric NCCL error.
-ENV EFA_INSTALLER_VERSION=1.30.0
-ENV AWS_OFI_NCCL_VERSION=1.8.1-aws
+ENV EFA_INSTALLER_VERSION=1.32.0
+ENV AWS_OFI_NCCL_VERSION=1.9.1-aws
 ENV NCCL_TESTS_VERSION=master
 
 ## Uncomment below when this Dockerfile builds a container image with efa-installer<1.29.1 and
@@ -82,36 +83,44 @@ RUN apt-get update && \
     rm -rf /tmp/aws-efa-installer /var/lib/apt/lists/*
 ENV LD_LIBRARY_PATH=/opt/amazon/efa/lib:$LD_LIBRARY_PATH
 ENV PATH=/opt/amazon/efa/bin:/opt/amazon/openmpi/bin:$PATH
+ENV OPAL_PREFIX=/opt/amazon/openmpi
 
 
 ####################################################################################################
 # [CUSTOM_NCCL_OPTION_1] Uncomment below stanza to install another NCCL version using the official
 # binaries.
 #
+# Please consult https://docs.nvidia.com/deeplearning/frameworks/pytorch-release-notes/index.html to
+# find out the prebuilt nccl version in the parent image.
+#
 # NCCL EFA plugin (aws-ofi-nccl) depends on mpi, hence we must rebuild openmpi before building the
 # aws-ofi-ccnl.
 ####################################################################################################
-#ENV NCCL_VERSION=2.19.3-1
+#ENV NCCL_VERSION=2.21.5-1
 #RUN cd /opt && \
 #    wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-keyring_1.0-1_all.deb && \
 #    dpkg -i cuda-keyring_1.0-1_all.deb && \
 #    apt update && \
 #    apt install -y libnccl2==${NCCL_VERSION} libnccl-dev==${NCCL_VERSION} && \
-#    echo NCCL_SOCKET_IFNAME=^docker0,lo >> /etc/nccl.conf
+#    echo NCCL_SOCKET_IFNAME=^docker0,lo,veth_def_agent >> /etc/nccl.conf
 
 
 ####################################################################################################
-# [CUSTOM_NCCL_OPTION_2] Install NCCL from source to the same location as the built-in ones. The
-# benefits of installing to the same location as the built-in version are:
+# [CUSTOM_NCCL_OPTION_2] Install NCCL from source to the same location as the built-in ones.
 #
-# 1. There's only ever a single libnccl version offered by this image, preventing application from
-#    mistakenly chooses a wrong version.
-# 2. No longer needing extra settings for LD_LIBRARY_PATH or LD_PRELOAD.
+# Please consult https://docs.nvidia.com/deeplearning/frameworks/pytorch-release-notes/index.html to
+# find out the prebuilt nccl version in the parent image.
+#
+# Installation mechanics:
+#
+# 1. Remove pre-installed nccl to ensure there's only ever a single libnccl version offered by this
+#    image, preventing application from mistakenly chooses a wrong version.
+# 2. Install to default location, so no more extra settings for LD_LIBRARY_PATH or LD_PRELOAD.
 #
 # NCCL EFA plugin (aws-ofi-nccl) depends on mpi, hence we must rebuild openmpi before building the
 # aws-ofi-ccnl.
 ####################################################################################################
-ENV NCCL_VERSION=2.19.3-1
+ENV NCCL_VERSION=2.21.5-1
 RUN apt-get remove -y libnccl2 libnccl-dev \
    && cd /tmp \
    && git clone https://github.com/NVIDIA/nccl.git -b v${NCCL_VERSION} \
@@ -120,7 +129,7 @@ RUN apt-get remove -y libnccl2 libnccl-dev \
    # Build for p4 & p5.
    NVCC_GENCODE="-gencode=arch=compute_90,code=sm_90, -gencode=arch=compute_80,code=sm_80" \
    && rm -rf /tmp/nccl \
-   && echo NCCL_SOCKET_IFNAME=^docker0,lo >> /etc/nccl.conf
+   && echo NCCL_SOCKET_IFNAME=^docker0,lo,veth_def_agent >> /etc/nccl.conf
 
 
 ####################################################################################################
@@ -136,7 +145,7 @@ RUN apt-get remove -y libnccl2 libnccl-dev \
 ENV OPEN_MPI_PATH=/opt/amazon/openmpi
 
 # OpenMPI build script claims PMIX_VERSION, and complains if we use it.
-ENV CUSTOM_PMIX_VERSION=4.2.6
+ENV CUSTOM_PMIX_VERSION=4.2.7
 RUN apt-get update && apt-get install -y libevent-dev \
     && cd /tmp \
     && wget https://github.com/openpmix/openpmix/releases/download/v${CUSTOM_PMIX_VERSION}/pmix-${CUSTOM_PMIX_VERSION}.tar.gz \
@@ -151,10 +160,6 @@ RUN apt-get update && apt-get install -y libevent-dev \
     && ldconfig \
     && cd / \
     && rm -fr /tmp/pmix-${CUSTOM_PMIX_VERSION}/
-# To silence this runtime error message:
-# [p4de-st-p4de-2:110912] PMIX ERROR: ERROR in file gds_ds12_lock_pthread.c at line 168
-ENV PMIX_GDS_MODULE=^ds12 \
-    PMIX_MCA_gds=^ds12
 
 # Rebuild openmpi with DLC style (which it remarks as "without libfabric"), with the above pmix.
 ENV OMPI_VERSION=4.1.6
@@ -192,20 +197,31 @@ RUN mkdir -p /tmp && \
         --enable-platform-aws \
         --with-mpi=/opt/amazon/openmpi && \
     make -j$(nproc) install && \
-    rm -rf /tmp/aws-ofi/nccl
+    rm -rf /tmp/aws-ofi-nccl
 
 # Do this to minimize the ld path env vars that users need to define when running this image.
 RUN echo "/usr/local/lib"      >> /etc/ld.so.conf.d/local.conf && \
     echo "/opt/amazon/openmpi/lib" >> /etc/ld.so.conf.d/efa.conf && \
     ldconfig
 
-ENV OMPI_MCA_pml=^cm,ucx            \
-    OMPI_MCA_btl=tcp,self           \
-    OMPI_MCA_btl_tcp_if_exclude=lo,docker0 \
-    OPAL_PREFIX=/opt/amazon/openmpi \
+ENV \
+    # ----- BEGIN pmix env vars
+    # To silence this runtime error message:
+    # [p4de-st-p4de-2:110912] PMIX ERROR: ERROR in file gds_ds12_lock_pthread.c at line 168
+    # https://github.com/open-mpi/ompi/issues/7516#issuecomment-599305327
+    PMIX_GDS_MODULE=^ds12                                   \
+    PMIX_MCA_gds=^ds12                                      \
+    # https://github.com/open-mpi/ompi/issues/11557#issuecomment-1496245026
+    PMIX_MCA_psec=^munge                                    \
+    # ----- BEGIN openmpi env vars
+    OMPI_MCA_pml=^cm,ucx                                    \
+    OMPI_MCA_btl=tcp,self                                   \
+    OMPI_MCA_btl_tcp_if_exclude=lo,docker0,veth_def_agent   \
+    OPAL_PREFIX=/opt/amazon/openmpi                         \
     # https://discuss.pytorch.org/t/nccl-network-is-unreachable-connection-refused-when-initializing-ddp/137352
     # https://github.com/pytorch/pytorch/issues/68893
-    NCCL_SOCKET_IFNAME=^docker,lo
+    # NOTE: veth_def_agent is from SageMaker HyperPod
+    NCCL_SOCKET_IFNAME=^docker,lo,veth_def_agent
 
 ENV LD_LIBRARY_PATH="/usr/local/lib:/usr/local/cuda/lib64:${LD_LIBRARY_PATH}"
 
@@ -220,22 +236,6 @@ RUN git clone https://github.com/NVIDIA/nccl-tests.git /opt/nccl-tests \
 
 
 ####################################################################################################
-# Custom packages. Disable as you like. NOTE: always check `pip list` what's been installed. For
-# example, the base container comes pre-installed with Transformer Engine, flash attention, triton
-# (https://github.com/openai/triton/), etc.
+# Add your custom build steps below. For example, from 1.partial-xformers.dockerfile
 ####################################################################################################
-# Install the xformers dependency from source, because pip install either breaks or try to pull
-# its own pt + cuda.
-#
-# Pre-requisite: build node has enough memory to compile xformers. More info on the stanza.
-RUN export TORCH_CUDA_ARCH_LIST="8.0;9.0+PTX" && \
-    # On p4de.24xlarge:
-    # - MAX_JOBS=16 => 145GB memory
-    # - MAX_JOBS=32 => 241GB memory
-    # - MAX_JOBS=48 => 243GB memory, 542.5s
-    #
-    # NOTE: must export MAX_JOBS. For some reason, `MAX_JOBS=16 pip install ...` doesn't seem to
-    #       work to prevent OOM.
-    export MAX_JOBS=32 && \
-    export NVCC_PREPEND_FLAGS="-t 32" && \
-    pip install -v -U git+https://github.com/facebookresearch/xformers.git@main#egg=xformers
+# This section is intentionally left empty by default.
