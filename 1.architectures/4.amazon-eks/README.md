@@ -103,7 +103,7 @@ eksctl create cluster -f ./eks-p5-capacity-block.yaml
 
 
 * `ClusterName` this needs to be the same as the cluster you created above, default to `eks-p5-odcr-vpc`
-* `ClusterControlPlaneSecurityGroup` grab this by visiting the [EKS Console]() > **Cluster** > **Networking** > **Cluster Security Group**
+* `ClusterControlPlaneSecurityGroup` grab this by visiting the [EKS Console]() > **Cluster** > **Networking** > **Additional Security Group**
 * `NodeImageIdSSMParam` defaults to the [EKS GPU AMI 1.29](https://docs.aws.amazon.com/eks/latest/userguide/eks-optimized-ami.html) but you can override this with the `NodeImageId` parameter.
 * This sets up a [security group for EFA](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa-start.html#efa-start-security).
 
@@ -113,13 +113,13 @@ eksctl create cluster -f ./eks-p5-capacity-block.yaml
 kubectl get nodes
 ```
 
-4. Apply EKS Nvidia CNI Plugin:
+4. Apply [K8 Nvidia CNI Plugin](https://github.com/NVIDIA/k8s-device-plugin):
 
 ```bash
-kubectl apply -f https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/v0.15.0/nvidia-device-plugin.yml
+kubectl create -f https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/v0.15.0/deployments/static/nvidia-device-plugin.yml
 ```
 
-5. If using EFA, make sure to install the EFA CNI Plugin.
+5. If using EFA, make sure to install the [EFA CNI Plugin](https://docs.aws.amazon.com/eks/latest/userguide/node-efa.html).
 
 ```bash
 kubectl apply -f https://raw.githubusercontent.com/aws-samples/aws-efa-eks/main/manifest/efa-k8s-device-plugin.yml
