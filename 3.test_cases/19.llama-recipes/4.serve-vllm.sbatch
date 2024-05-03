@@ -44,33 +44,9 @@ declare -a ARGS=(
     --container-mounts $CONTAINER_MOUNT
 )
 
-declare -a TORCHRUN_ARGS=(
-    # change this to match the number of gpus per node:
-    --master_addr $MASTER_ADDR \
-    --master_port $RANDOM \
-    --nproc_per_node=8 \
-    --nnodes $NNODES \
-    --nnodes=$SLURM_JOB_NUM_NODES \
-    --rdzv_backend=c10d \
-    --rdzv_endpoint=$(hostname)
-)
-
-declare -a TRAIN_ARGS=(
-    --model_name "meta-llama/Meta-Llama-3-8B" \
-    --dist_checkpoint_root_folder "/fsx/models/meta-llama/Meta-Llama-3-8B-tuned" \
-    --dist_checkpoint_folder fine-tuned \
-    --dataset alpaca_dataset --data_path /fsx/data/alpaca_data.json \
-    --enable_fsdp True \
-    --low_cpu_fsdp \
-    --fsdp_activation_checkpointing True \
-    --use_wandb \
-    --pure_bf16 \
-    --run_validation False 
-)
 export PYTHONPATH=${PWD}/llama-recipes/src
+export MODEL=meta-llama/Meta-LLama-3-70B
 
-srun -l "${ARGS[@]}" python -m vllm.entrypoints.openai.api_server --model "meta-llama/Meta-Llama-3-8B" --tensor-parallel-size 8 
-
-#    enroot start --env NVIDIA_VISIBLE_DEVICES=void \
-#        --mount ${FSX_PATH}:${FSX_PATH} ${ENROOT_IMAGE} \
-#        python -c "from huggingface_hub import login; login()"
+# To avoid ImportError: /usr/local/lib/python3.10/dist-packages/transformer_engine_extensions.cpython-310-x86_64-linux-gnu.so: undefined symbol:
+# error we remove transformer_engine on the fly
+srun -l "${ARGS[@]}" bash -c "pip uninstall -y transformer_engine && python -m vllm.entrypoints.openai.api_server --model ${MODEL} --tensor-parallel-size 8"

@@ -81,7 +81,6 @@ As you can see on the output, the access token stored under `/home/ubuntu/.cache
 Move the token to `/fsx/.cache`.
 
 
-
 ## 4. Finetune Llama3 model
 
 In this step, you will fine tune llama model, using Alpaca dataset
@@ -89,12 +88,111 @@ In this step, you will fine tune llama model, using Alpaca dataset
 This example making use of W&B experiment tracking. 
 by using use_wandb flag as below. You can change the project name, entity and other wandb.init arguments in wandb_config.
 
+The training process will create the following FSDP checkponits.
+
+```bash
+$ ls /fsx/models/meta-llama/Meta-Llama-3-8B-tuned/fine-tuned-meta-llama/Meta-Llama-3-8B/
+__0_0.distcp   __12_0.distcp  __15_0.distcp  __3_0.distcp  __6_0.distcp  __9_0.distcp
+__10_0.distcp  __13_0.distcp  __1_0.distcp   __4_0.distcp  __7_0.distcp  train_params.yaml
+__11_0.distcp  __14_0.distcp  __2_0.distcp   __5_0.distcp  __8_0.distcp
+```
+
+
+Use the following command to convert the checkpoint into 
+
+```
+    enroot start --env NVIDIA_VISIBLE_DEVICES=void \
+        --mount ${FSX_PATH}:${FSX_PATH} ${ENROOT_IMAGE} \
+        python ${PWD}/llama-recipes/src/llama_recipes/src/inference/checkpoint_converter_fsdp_hf.py \
+        --fsdp_checkpoint_path /fsx/models/meta-llama/Meta-Llama-3-8B-tuned/fine-tuned-meta-llama/Meta-Llama-3-8B \
+        --
+```
+
+that result in the HF checkpoints
+
+```bash
+$ ls /fsx/models/meta-llama/Meta-Llama-3-8B-tuned/fine-tuned-meta-llama/Meta-Llama-3-8B-hf
+config.json             model-00001-of-00007.safetensors  model-00003-of-00007.safetensors  model-00005-of-00007.safetensors  model-00007-of-00007.safetensors  special_tokens_map.json  tokenizer_config.json
+generation_config.json  model-00002-of-00007.safetensors  model-00004-of-00007.safetensors  model-00006-of-00007.safetensors  model.safetensors.index.json      tokenizer.json
+```
+
 
 ## 5. Chat with Finetuned model
 
-In this step, you will use Slurm interactive job functionality to communicate with llama3 model.
+This step illustrates how to test Llama3 model deployment on 
 
 
+```
+==> logs/serve-vllm_546.err <==
+0: Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
+0: INFO:     Started server process [3554353]
+0: INFO:     Waiting for application startup.
+0: INFO:     Application startup complete.
+0: INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
 
+==> logs/serve-vllm_546.out <==
+0: INFO 05-03 00:53:42 metrics.py:229] Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 0 reqs, Swapped: 0 reqs, Pending: 0 reqs, GPU KV cache usage: 0.0%, CPU KV cache usage: 0.0%
+0: INFO 05-03 00:53:52 metrics.py:229] Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 0 reqs, Swapped: 0 reqs, Pending: 0 reqs, GPU KV cache usage: 0.0%, CPU KV cache usage: 0.0%
+0: INFO 05-03 00:54:02 metrics.py:229] Avg prompt throughput: 0.0 tokens/s, Avg generation throughput: 0.0 tokens/s, Running: 0 reqs, Swapped: 0 reqs, Pending: 0 reqs, GPU KV cache usage: 0.0%, CPU KV cache usage: 0.0%
+```
+
+
+check instance running the inference server
+
+```bash
+$ squeue
+JOBID PARTITION     NAME     USER ST       TIME  NODES NODELIST(REASON)
+546        p5 serve-vl   ubuntu  R      13:04      1 p5-st-p5-1
+```
+
+Now you can query 
+
+```bash
+$  curl http://p5-st-p5-1:8000/v1/models
+{"object":"list","data":[{"id":"/fsx/models/meta-llama/Meta-Llama-3-8B-tuned/fine-tuned-meta-llama/Meta-Llama-3-8B-hf","object":"model","created":1714698315,"owned_by":"vllm","root":"/fsx/models/meta-llama/Meta-Llama-3-8B-tuned/fine-tuned-meta-llama/Meta-Llama-3-8B-hf","parent":null,"permission":[{"id":"modelperm-5ed883dd35534fd89feb98a182217e3a","object":"model_permission","created":1714698315,"allow_create_engine":false,"allow_sampling":true,"allow_logprobs":true,"allow_search_indices":false,"allow_view":true,"allow_fine_tuning":false,"organization":"*","group":null,"is_blocking":false}]}]}
+```
+
+Copy  
+```
+export MODEL="/fsx/models/meta-llama/Meta-Llama-3-8B-tuned/fine-tuned-meta-llama/Meta-Llama-3-8B-hf"
+```
+
+
+Then you can query
+
+```bash
+curl http://p5-st-p5-1:8000/v1/completions     -H "Content-Type: application/json"     -d '{
+        "model": "/fsx/models/meta-llama/Meta-Llama-3-8B-tuned/fine-tuned-meta-llama/Meta-Llama-3-8B-hf",
+        "prompt": "San Francisco is a",
+        "max_tokens": 20,
+        "temperature": 0
+    }'
+```
+
+then you get
+
+```bash
+{"id":"cmpl-c6758a500e16474e95c175df02a14cdb","object":"text_completion","created":1714699824,"model":"/fsx/models/meta-llama/Meta-Llama-3-8B-tuned/fine-tuned-meta-llama/Meta-Llama-3-8B-hf","choices":[{"index":0,"text":" city of many cultures. It is home to a variety of people from all backgrounds, including people from","logprobs":null,"finish_reason":"length","stop_reason":null}],"usage":{"prompt_tokens":5,"total_tokens":25,"completion_tokens":20}}
+```
+
+
+```bash
+curl http://p5-st-p5-1:8000/v1/chat/completions \
+    -H "Content-Type: application/json" \
+    -d '{
+        "model": "/fsx/models/meta-llama/Meta-Llama-3-8B-tuned/fine-tuned-meta-llama/Meta-Llama-3-8B-hf",
+        "messages": [
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": ""}
+        ]
+    }'
+```
+
+
+Now that you can launch gradio app that queries the endpoint from the login node.
+
+```
+
+```
 ## 6. Evaluate model
 

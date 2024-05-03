@@ -58,8 +58,8 @@ declare -a TORCHRUN_ARGS=(
 )
 
 declare -a TRAIN_ARGS=(
-    --model_name "meta-llama/Meta-Llama-3-8B" \
-    --dist_checkpoint_root_folder "/fsx/models/meta-llama/Meta-Llama-3-8B-tuned" \
+    --model_name "meta-llama/Meta-Llama-3-70B" \
+    --dist_checkpoint_root_folder "/fsx/models/Meta-Llama-3-70B-tuned" \
     --dist_checkpoint_folder fine-tuned \
     --dataset alpaca_dataset --data_path /fsx/data/alpaca_data.json \
     --enable_fsdp True \

@@ -252,7 +252,9 @@ RUN git clone https://github.com/NVIDIA/nccl-tests.git /opt/nccl-tests \
 #
 #COPY requirements.txt requirements.txt
 # If we install those packages with requirements.txt, torch will be re-installed.
-RUN pip install accelerate appdirs loralib bitsandbytes datasets fire peft transformers>=4.40.0 sentencepiece wandb
+RUN pip install accelerate appdirs loralib bitsandbytes datasets fire peft transformers>=4.40.0 sentencepiece wandb vllm gradio openai
+RUN pip uninstall -y transformer_engine flash_attn
+RUN FLASH_ATTENTION_FORCE_BUILD=TRUE FLASH_ATTENTION_FORCE_BUILD=TRUE pip install flash-attn
 # RUN pip install transformers accelerate
 # # https://github.com/Dao-AILab/flash-attention/issues/451
 #COPY llama-recipes llama-recipes
