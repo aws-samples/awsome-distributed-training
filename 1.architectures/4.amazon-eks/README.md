@@ -107,19 +107,74 @@ eksctl create cluster -f ./eks-p5-capacity-block.yaml
 * `NodeImageIdSSMParam` defaults to the [EKS GPU AMI 1.29](https://docs.aws.amazon.com/eks/latest/userguide/eks-optimized-ami.html) but you can override this with the `NodeImageId` parameter.
 * This sets up a [security group for EFA](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa-start.html#efa-start-security).
 
-3. After the cluster is created we can list the nodes:
+
+3. After the nodegroup is created we need to update the config map
+
+3.1 Check to see if you already have an `aws-auth` `ConfigMap`.
+
+```bash
+kubectl describe configmap -n kube-system aws-auth
+```
+
+3.2 If you are shown an `aws-auth` `ConfigMap`, then update it as needed.
+
+3.2.1 Open the `ConfigMap` for editing.
+
+```bash
+kubectl edit -n kube-system configmap/aws-auth
+```
+
+3.2.2 Add a new `mapRoles` entry as needed. Set the `rolearn` value to the **NodeInstanceRole** value that you recorded in the previous procedure.
+
+```bash
+[...]
+data:
+  mapRoles: |
+    - rolearn: <ARN of instance role (not instance profile)>
+      username: system:node:{{EC2PrivateDNSName}}
+      groups:
+        - system:bootstrappers
+        - system:nodes
+[...]
+```
+
+3.2.3 Save the file and exit your text editor.
+
+3.3 If you received an error stating `"Error from server (NotFound): configmaps "aws-auth" not found`, then apply the stock `ConfigMap`.
+
+3.3.1 Download the configuration map.
+
+```bash 
+curl -O https://s3.us-west-2.amazonaws.com/amazon-eks/cloudformation/2020-10-29/aws-auth-cm.yaml
+```
+
+3.3.2 In the `aws-auth-cm.yaml` file, set the `rolearn` value to the **NodeInstanceRole** value that you recorded in the previous procedure. You can do this with a text editor, or by replacing `my-node-instance-role` and running the following command:
+
+```bash
+sed -i.bak -e 's|<ARN of instance role (not instance profile)>|my-node-instance-role|' aws-auth-cm.yaml
+```
+
+3.3.3 Apply the configuration. This command may take a few minutes to finish.
+
+```bash
+kubectl apply -f aws-auth-cm.yaml
+```
+
+
+
+4. After the cluster is created we can list the nodes:
 
 ```bash
 kubectl get nodes
 ```
 
-4. Apply [K8 Nvidia CNI Plugin](https://github.com/NVIDIA/k8s-device-plugin):
+5. Apply [K8 Nvidia CNI Plugin](https://github.com/NVIDIA/k8s-device-plugin):
 
 ```bash
 kubectl create -f https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/v0.15.0/deployments/static/nvidia-device-plugin.yml
 ```
 
-5. If using EFA, make sure to install the [EFA CNI Plugin](https://docs.aws.amazon.com/eks/latest/userguide/node-efa.html).
+6. If using EFA, make sure to install the [EFA CNI Plugin](https://docs.aws.amazon.com/eks/latest/userguide/node-efa.html).
 
 ```bash
 kubectl apply -f https://raw.githubusercontent.com/aws-samples/aws-efa-eks/main/manifest/efa-k8s-device-plugin.yml
