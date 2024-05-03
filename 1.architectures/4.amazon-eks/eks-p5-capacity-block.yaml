@@ -1,0 +1,28 @@
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: eks-p5-odcr-vpc
+  region: PLACEHOLDER_AWS_REGION
+  version: "1.29"
+
+iam:
+  withOIDC: true
+
+# Substitute vpc and subnet ids below
+vpc:
+  id: PLACEHOLDER_VPC_ID
+  subnets:
+    private:
+      private-one:
+        id: PLACEHOLDER_SUBNET_PRIVATE_1
+      private-two:
+        id: PLACEHOLDER_SUBNET_PRIVATE_2
+    public:
+      public-one:
+        id: PLACEHOLDER_SUBNET_PUBLIC_1
+      public-two:
+        id: PLACEHOLDER_SUBNET_PUBLIC_2  
+
+# Create the node group as a un-managed node group
+# by deploying the CloudFormation stack amazon-eks-nodegroup.yaml
