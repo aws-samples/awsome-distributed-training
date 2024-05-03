@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: "2010-09-09"
 
-Description: Amazon EKS - Create an unmanaged P5 node group for Capacity Blocks for ML.
+Description: Amazon EKS - Create an unmanaged P4d/P5 node group for Capacity Blocks for ML.
 
 Metadata:
   "AWS::CloudFormation::Interface":
@@ -90,6 +90,7 @@ Parameters:
     Default: p5.48xlarge
     AllowedValues:
       - p5.48xlarge
+      - p4d.24xlarge
     Description: EC2 instance type for the node instances
 
   NodeVolumeSize:
@@ -133,6 +134,12 @@ Conditions:
     - "Fn::Equals":
       - !Ref NodeImageId
       - ""
+  isP5: !Equals
+      - !Ref NodeInstanceType
+      - "p5.48xlarge"
+  isP4d: !Equals
+      - !Ref NodeInstanceType
+      - "p4d.24xlarge"
 
   IMDSv1Disabled:
     "Fn::Equals":
@@ -271,12 +278,11 @@ Resources:
       SourceSecurityGroupId: !Ref ClusterControlPlaneSecurityGroup
       ToPort: 443
 
-  NodeLaunchTemplate:
+  NodeLaunchTemplateP5:
     Type: "AWS::EC2::LaunchTemplate"
+    Condition: isP5
     Properties:
       LaunchTemplateData:
-        InstanceMarketOptions:
-          MarketType: "capacity-block"
         CapacityReservationSpecification:
           CapacityReservationTarget:
             CapacityReservationId: !Ref CapacityBlockId
@@ -519,6 +525,57 @@ Resources:
             Groups:
               - !Ref NodeSecurityGroup
             InterfaceType: efa
+  NodeLaunchTemplateP4:
+    Type: "AWS::EC2::LaunchTemplate"
+    Condition: isP4d
+    Properties:
+      LaunchTemplateData:
+        CapacityReservationSpecification:
+          CapacityReservationTarget:
+            CapacityReservationId: !Ref CapacityBlockId
+        BlockDeviceMappings:
+          - DeviceName: /dev/xvda
+            Ebs:
+              DeleteOnTermination: true
+              VolumeSize: !Ref NodeVolumeSize
+              VolumeType: !Ref NodeVolumeType
+        IamInstanceProfile:
+          Arn: !GetAtt NodeInstanceProfile.Arn
+        ImageId: !If
+          - HasNodeImageId
+          - !Ref NodeImageId
+          - !Ref NodeImageIdSSMParam
+        InstanceType: !Ref NodeInstanceType
+        KeyName: !Ref KeyName
+        NetworkInterfaces:
+          - Description: NetworkInterfaces Configuration For EFA and EKS
+            NetworkCardIndex: 0
+            DeviceIndex: 0
+            DeleteOnTermination: true
+            Groups:
+              - !Ref NodeSecurityGroup
+            InterfaceType: efa
+          - Description: NetworkInterfaces Configuration For EFA and EKS
+            NetworkCardIndex: 1
+            DeviceIndex: 1
+            DeleteOnTermination: true
+            Groups:
+              - !Ref NodeSecurityGroup
+            InterfaceType: efa
+          - Description: NetworkInterfaces Configuration For EFA and EKS
+            NetworkCardIndex: 2
+            DeviceIndex: 2
+            DeleteOnTermination: true
+            Groups:
+              - !Ref NodeSecurityGroup
+            InterfaceType: efa
+          - Description: NetworkInterfaces Configuration For EFA and EKS
+            NetworkCardIndex: 3
+            DeviceIndex: 3
+            DeleteOnTermination: true
+            Groups:
+              - !Ref NodeSecurityGroup
+            InterfaceType: efa
         UserData: !Base64
           "Fn::Sub": |
             Content-Type: multipart/mixed; boundary="==BOUNDARY=="
@@ -561,8 +618,14 @@ Resources:
     Properties:
       DesiredCapacity: !Ref NodeAutoScalingGroupDesiredCapacity
       LaunchTemplate:
-        LaunchTemplateId: !Ref NodeLaunchTemplate
-        Version: !GetAtt NodeLaunchTemplate.LatestVersionNumber
+        LaunchTemplateId: !If
+          - isP5
+          - !Ref NodeLaunchTemplateP5
+          - !Ref NodeLaunchTemplateP4
+        Version: !If
+          - isP5
+          - !GetAtt NodeLaunchTemplateP5.LatestVersionNumber
+          - !GetAtt NodeLaunchTemplateP4.LatestVersionNumber
       MaxSize: !Ref NodeAutoScalingGroupMaxSize
       MinSize: !Ref NodeAutoScalingGroupMinSize
       Tags:
