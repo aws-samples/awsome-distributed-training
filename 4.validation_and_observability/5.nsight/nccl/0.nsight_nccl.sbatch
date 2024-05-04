@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: MIT-0
 
 #SBATCH -N 2 # number of nodes to use, 24 p4d(e) = 192 A100 GPUs
-#SBATCH --job-name=nsight_nccl # name of your job
+#SBATCH --job-name=megatron_gpt # name of your job
 #SBATCH --ntasks-per-node 8 # Number of GPU per node
 #SBATCH --gres=gpu:8 # number of GPU we reserve
 #SBATCH --exclusive
@@ -16,7 +16,6 @@
 ###########################
 ###### User Variables #####
 ###########################
-
 
 # default variables for Enroot
 : "${APPS_PATH:=/apps}"
@@ -39,11 +38,11 @@ export FI_EFA_ENABLE_SHM_TRANSFER=1
 export NCCL_ASYNC_ERROR_HANDLING=1
 export NCCL_DEBUG=INFO
 
-
 declare -a ARGS=(
     --container-image $IMAGE
     --container-mount-home
     --container-mounts $FSX_MOUNT
+    --no-container-remap-root
 )
 
-srun -l "${ARGS[@]}" --mpi=pmix /fsx/nsys-slurm-exec $NCCL_TESTS_PATH/scatter_perf -b 8 -e 2G -f 2 -g 1 -c 1 -n 100
+srun -l "${ARGS[@]}" --mpi=pmix /fsx/nccl-slurm-exec $NCCL_TESTS_PATH/scatter_perf -b 8 -e 2G -f 2 -g 1 -c 1 -n 100

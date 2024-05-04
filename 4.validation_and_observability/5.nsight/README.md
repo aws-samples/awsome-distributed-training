@@ -1,18 +1,37 @@
 # Profile Distributed Training Applications with Nsight
 
-[Nsight Systems](https://developer.nvidia.com/nsight-systems) is a statistical sampling profiler with tracing features.
+[Nsight Systems](https://developer.nvidia.com/nsight-systems) is a system-wide performance analysis tool designed to profile and visualize multi-node CPU and GPU workloads such as distributed training and inference to identify the largest opportunities to optimize, and tune to scale efficiently across the cluster. It also enables researchers to add their own markers into their code to surface application-level metrics into the profiler and gain further observability.
+
+We will show how to profile and analyze:
+
+1. [NCCL Tests](https://github.com/aws-samples/awsome-distributed-training/tree/main/micro-benchmarks/nccl-tests/slurm)
+2. [Distributed training run with NeMo](https://github.com/aws-samples/awsome-distributed-training/tree/main/3.test_cases/2.nemo-launcher)
+3. [Distributed training run with FSDP](https://github.com/aws-samples/awsome-distributed-training/tree/main/3.test_cases/10.FSDP)
 
 # 0. Prerequisities
-1. A slurm or Kubernetes cluster is created
-2. The compute nodes have nsight installed
+1. A cluster created with P4de or P5 nodes with AWS ParallelCluster or EKS
+2. Before profiling the above workloads, make sure you can run them on your cluster.
 
 # 1. Installation
-Get the latest Nsight 2024.2.1 version from S3 and place it in `/fsx` like below after ssh into the head node. The `nsight-efa`folder will have the necessary dependencies for the `host` which is the head node in a Slurm cluster from which the user works and controls the profiling session and `target` which refers to the GPU on which profiling happens. This latest version also has the `nic_sampler` in `/nsight-efa/target-linux-x64/plugins/` which collects the EFA metrics.
+If you created the cluster with DLAMI or are using the default ParallelCluster base image, Nsight comes pre-installed. You can check the version in the `/usr/local/cuda/` folder you should see `nsight-systems-202x.x.x` folder. ParallelCluster 3.8.0 has the version 2023.2 version pre-installed. 
+
+To get the latest Nsight 2024.3 version from [here](https://developer.nvidia.com/nsight-systems/get-started). If you are installing it on a remote cluster, then the CLI version would suffice. To install it on a Ubuntu based OS node:
 
 ```bash
-mkdir -p /fsx/nsight-efa
-aws s3 cp s3://awsankur-nsight/nsight-efa/ /fsx/nsight-efa/
+# Download Nsight CLI
+wget https://developer.nvidia.com/downloads/assets/tools/secure/nsight-systems/2024_3/NsightSystems-linux-cli-public-2024.3.1.75-3419530.deb
+
+# Install
+sudo dpkg -i NsightSystems-linux-cli-public-2024.3.1.75-3419530.deb
+
+# This would place the nsys binay at /opt/nvidia/nsight-systems-cli/2024.3.1/target-linux-x64/nsys
+
+# Move to FSx filesystem
+cp -r /opt/nvidia/nsight-systems-cli/2024.3.1/* /fsx/nsight-efa
 ```
+
+ The `nsight-efa`folder will have the necessary dependencies for the `host` which is the head node in a Slurm cluster from which the user works and controls the profiling session and `target` which refers to the GPU on which profiling happens. This latest version also has the `nic_sampler` in `/nsight-efa/target-linux-x64/plugins/` which collects the EFA metrics.
+
 
 # 2. Profiling NCCL tests
 In this section we will show how to generate Nsight reports for NCCL tests. Follow the instructions [here](https://github.com/aws-samples/awsome-distributed-training/tree/main/4.validation_and_observability/0.nccl-tests) to setup NCCL tests and generate the Enroot image `nccl.sqsh`. The `0.nsight_nccl.sbatch` script shows an example on how to profile the NCCL run with Nsight and collect EFA metrics. Key differences between `0.nsight_nccl.sbatch` and [this](https://github.com/aws-samples/awsome-distributed-training/blob/main/4.validation_and_observability/0.nccl-tests/1.nccl-tests.sbatch) are:
@@ -25,7 +44,7 @@ In this section we will show how to generate Nsight reports for NCCL tests. Foll
 
 NSYS_EXTRAS=""
 if [ "$SLURM_LOCALID" == "0" ]; then
-NSYS_EXTRAS="--enable nic_sampler,-mode:counters,-struct:true,-efa:true"
+NSYS_EXTRAS="--enable efa_metrics"
 fi
 
 /fsx/nsight-efa/target-linux-x64/nsys profile $NSYS_EXTRAS --sample none --delay <DELAY-PERIOD> \
@@ -44,8 +63,15 @@ Here, we are running the Nsight profile with 2 p4de nodes where each node has 4 
 
 Below is a screenshot of the generated Nsight report:
 
-<center><img src="reports/nccl_nsight.png" width="80%"/> </br>
+<center><img src="nccl/NCCL_Scatter_Perf.png" width="80%"/> </br>
 </center>
+
+Here there are the following things to note:
+
+•   The RDMA read bytes per second shown in green are from the EFA NIC samplers. You can see there are 4 `rdma*` rows in the report, one corresponding to each of the EFA devices one 1 node. For a P5.48xlarge node, you will see 32 rows.
+•   This report is generated for the [Scatter Performance NCCL test](https://github.com/NVIDIA/nccl-tests/blob/2cbb968101e2bfc7d3a7f0f1826c0189355de6fe/src/scatter.cu#L34), which essentially calls the ncclSendRecv kernels again and again which is why ncclDevKernel_SendRecv takes 99.3% utilization among all kernels.
+•   You can right click on any row to see the meta-data over time in the Events View which shows start times, durations and other meta-data for each kernel
+
 
 
 # 3. Multi-node training with Slurm and Pyxis
