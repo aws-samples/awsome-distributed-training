@@ -108,6 +108,17 @@ Use the following command to convert the checkpoint into
         --
 ```
 
+
+```bash
+==> logs/convert-checkpoint_560.out <==
+0: Model name: meta-llama/Meta-Llama-3-70B
+0: model is loaded from config
+0: Sharded state checkpoint loaded from /fsx/models/Meta-Llama-3-70B-tuned/fine-tuned-meta-llama/Meta-Llama-3-70B
+0: model is loaded from FSDP checkpoints
+0: debug:  meta-llama/Meta-Llama-3-70B <class 'str'>
+0: HuggingFace model checkpoints has been saved in /fsx/models/meta-llama/Meta-Llama-3-70B-tuned/fine-tuned-meta-llama/Meta-Llama-3-70B-hf
+```
+
 that result in the HF checkpoints
 
 ```bash
@@ -162,8 +173,8 @@ Then you can query
 
 ```bash
 curl http://p5-st-p5-1:8000/v1/completions     -H "Content-Type: application/json"     -d '{
-        "model": "/fsx/models/meta-llama/Meta-Llama-3-8B-tuned/fine-tuned-meta-llama/Meta-Llama-3-8B-hf",
-        "prompt": "San Francisco is a",
+        "model": "/fsx/models/meta-llama/Meta-Llama-3-70B-tuned/fine-tuned-meta-llama/Meta-Llama-3-70B-hf",
+        "prompt": "<|im_start|>user\n How can I launch a virtual server?<|im_end|>",
         "max_tokens": 20,
         "temperature": 0
     }'
@@ -192,7 +203,12 @@ curl http://p5-st-p5-1:8000/v1/chat/completions \
 Now that you can launch gradio app that queries the endpoint from the login node.
 
 ```
-
+bash 5.launch-gradio-app.sh
 ```
+
 ## 6. Evaluate model
+
+In this last section, you will evaluate the model you have trained. 
+
+
 

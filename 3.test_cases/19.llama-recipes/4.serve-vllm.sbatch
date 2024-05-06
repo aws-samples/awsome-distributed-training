@@ -47,6 +47,38 @@ declare -a ARGS=(
 export PYTHONPATH=${PWD}/llama-recipes/src
 export MODEL=meta-llama/Meta-LLama-3-70B
 
+
+declare -a HELP=(
+    "[--help]"
+    "[--model]"
+    "[--tp]"
+)
+
+parse_args() {
+    local key
+    while [[ $# -gt 0 ]]; do
+        key="$1"
+        case $key in
+        --help)
+            echo "Deploy Llama model using VLLM API server" 
+            echo "Usage: $(basename ${BASH_SOURCE[0]}) ${HELP[@]}"
+            exit 0
+            ;;
+        --model)
+            MODEL="$2"
+            shift 2
+            ;;
+        --tp)
+            TP="$2"
+            shift 2
+            ;;
+        esac
+    done
+}
+
+parse_args $@
+
+
 # To avoid ImportError: /usr/local/lib/python3.10/dist-packages/transformer_engine_extensions.cpython-310-x86_64-linux-gnu.so: undefined symbol:
 # error we remove transformer_engine on the fly
 srun -l "${ARGS[@]}" bash -c "pip uninstall -y transformer_engine && python -m vllm.entrypoints.openai.api_server --model ${MODEL} --tensor-parallel-size 8"

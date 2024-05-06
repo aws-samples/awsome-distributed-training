@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: MIT-0
 
 #SBATCH --job-name="convert-checkpoint"
-#SBATCH --nodes=2
+#SBATCH --nodes=1
 #SBATCH --ntasks=2
 #SBATCH --gpus-per-node=8 # Number of GPU per node
 #SBATCH --output=logs/%x_%j.out # logfile for stdout
@@ -26,8 +26,8 @@ declare -a ARGS=(
 )
 
 declare -a CKPT_ARGS=(
-    --fsdp_checkpoint_path /fsx/models/meta-llama/Meta-Llama-3-8B-tuned/fine-tuned-meta-llama/Meta-Llama-3-8B 
-    --consolidated_model_path /fsx/models/meta-llama/Meta-Llama-3-8B-tuned/fine-tuned-meta-llama/Meta-Llama-3-8B-hf
+    --fsdp_checkpoint_path /fsx/models/Meta-Llama-3-70B-tuned/fine-tuned-meta-llama/Meta-Llama-3-70B
+    --consolidated_model_path /fsx/models/meta-llama/Meta-Llama-3-70B-tuned/fine-tuned-meta-llama/Meta-Llama-3-70B-hf
 )
 
 export PYTHONPATH=${PWD}/llama-recipes/src
