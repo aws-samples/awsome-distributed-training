@@ -25,9 +25,41 @@ declare -a ARGS=(
     --container-mounts $CONTAINER_MOUNT
 )
 
+declare -a HELP=(
+    "[--help]"
+    "[--fsdp_checkpoint_path]"
+    "[--port]"
+    "[--consolidated_model_path]"
+)
+
+parse_args() {
+    local key
+    while [[ $# -gt 0 ]]; do
+        key="$1"
+        case $key in
+        --help)
+            echo "Launch Gradio App locally, querying endpoint hosted on a compute node" 
+            echo "It requires endpoint pre-deployed. Use 4.serve-vllm.sbatch for deployment" 
+            echo "Usage: $(basename ${BASH_SOURCE[0]}) ${HELP[@]}"
+            exit 0
+            ;;
+        --fsdp_checkpoint_path)
+            FSDP_CHECKPOINT_PATH="$2"
+            shift 2
+            ;;
+        --consolidated_model_path)
+            CONSOLIDATED_MODEL_PATH="$2"
+            shift 2
+            ;;
+        esac
+    done
+}
+
+parse_args $@
+
 declare -a CKPT_ARGS=(
-    --fsdp_checkpoint_path /fsx/models/Meta-Llama-3-70B-tuned/fine-tuned-meta-llama/Meta-Llama-3-70B
-    --consolidated_model_path /fsx/models/meta-llama/Meta-Llama-3-70B-tuned/fine-tuned-meta-llama/Meta-Llama-3-70B-hf
+    --fsdp_checkpoint_path ${FSDP_CHECKPOINT_PATH}
+    --consolidated_model_path ${CONSOLIDATED_MODEL_PATH}
 )
 
 export PYTHONPATH=${PWD}/llama-recipes/src
