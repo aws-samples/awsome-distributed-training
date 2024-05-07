@@ -54,7 +54,7 @@ If you wish to reduce memory footprint of the build process, consider tweaknig `
 3. Convert the Docker image to a squash file with the command below.
 
    ```bash
-   enroot import -o ${ENROOT_IMAGE} dockerd://get-neox:latest
+   enroot import -o ${ENROOT_IMAGE} dockerd://gpt-neox:latest
    ```
 
    The file will be stored in the `/apps` directory (default). The output should look as below.
