@@ -93,7 +93,7 @@ ENV OMPI_MCA_pml=^cm,ucx            \
 # NCCL-tests
 RUN git clone https://github.com/NVIDIA/nccl-tests.git /opt/nccl-tests \
     && cd /opt/nccl-tests \
-    && git checkout ${NCCL_TESTS_VERSION} \
+    && git checkout v${NCCL_TESTS_VERSION} \
     && make MPI=1 \
     MPI_HOME=/opt/amazon/openmpi \
     CUDA_HOME=/usr/local/cuda \
