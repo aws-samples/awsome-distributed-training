@@ -1,6 +1,6 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
-FROM nvidia/cuda:12.2.0-devel-ubuntu22.04
+FROM nvidia/cuda:12.2.2-devel-ubuntu22.04
 
 ARG GDRCOPY_VERSION=v2.4.1
 ARG EFA_INSTALLER_VERSION=1.31.0
@@ -88,6 +88,8 @@ RUN git clone -b ${NCCL_VERSION} https://github.com/NVIDIA/nccl.git  /opt/nccl \
 ###################################################
 ## Install AWS-OFI-NCCL plugin
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y libhwloc-dev
+#Switch from sh to bash to allow parameter expansion
+SHELL ["/bin/bash", "-c"]
 RUN curl -OL https://github.com/aws/aws-ofi-nccl/releases/download/${AWS_OFI_NCCL_VERSION}/aws-ofi-nccl-${AWS_OFI_NCCL_VERSION//v}.tar.gz \
     && tar -xf aws-ofi-nccl-${AWS_OFI_NCCL_VERSION//v}.tar.gz \
     && cd aws-ofi-nccl-${AWS_OFI_NCCL_VERSION//v} \
@@ -101,6 +103,8 @@ RUN curl -OL https://github.com/aws/aws-ofi-nccl/releases/download/${AWS_OFI_NCC
     && cd .. \
     && rm -rf aws-ofi-nccl-${AWS_OFI_NCCL_VERSION//v} \
     && rm aws-ofi-nccl-${AWS_OFI_NCCL_VERSION//v}.tar.gz
+
+SHELL ["/bin/sh", "-c"]
 
 ###################################################
 ## Install NCCL-tests
@@ -120,7 +124,7 @@ ENV OMPI_MCA_pml=^cm,ucx            \
     OMPI_MCA_btl=tcp,self           \
     OMPI_MCA_btl_tcp_if_exclude=lo,docker0,veth_def_agent\
     OPAL_PREFIX=/opt/amazon/openmpi \
-    NCCL_SOCKET_IFNAME=^docker,lo
+    NCCL_SOCKET_IFNAME=^docker,lo,veth_def_agent
 
 ## Turn off PMIx Error https://github.com/open-mpi/ompi/issues/7516
 ENV PMIX_MCA_gds=hash
