@@ -44,12 +44,11 @@ parse_args() {
             exit 0
             ;;
         -r|--region)
-            aws_cli_args+=(--region "$2")
             AWS_REGION="$2"
             shift 2
             ;;
         -p|--profile)
-            aws_cli_args+=(--profile "$2")
+            AWS_PROFILE="$2"
             shift 2
             ;;
         -s|--stack-id-vpc)
@@ -61,7 +60,7 @@ parse_args() {
             shift 2
             ;;
         -c|--instance-count)
-            INSTANCE_COUNTS="$2"
+            INSTANCE_COUNT="$2"
             shift 2
             ;;
         -d|--dry-run)
@@ -78,7 +77,8 @@ parse_args() {
 
 parse_args $@
 
-mkdir $CLUSTER_NAME && cd $CLUSTER_NAME
+mkdir -p $CLUSTER_NAME
+cd $CLUSTER_NAME
 
 # Check for AWS CLI
 if ! command -v aws &> /dev/null
@@ -100,21 +100,33 @@ if [ -z ${CLUSTER_NAME} ]; then
     echo "[WARNING] CLUSTER_NAME environment variable is not set, automatically set to ml-cluster"
     CLUSTER_NAME=ml-cluster
 fi
+echo "export CLUSTER_NAME=${CLUSTER_NAME}" > env_vars
 
 # Define stack name
 if [ -z ${STACK_ID_VPC} ]; then
     echo "[WARNING] STACK_ID_VPC environment variable is not set, automatically set to sagemaker-hyperpod"
     STACK_ID_VPC=sagemaker-hyperpod
 fi
+echo "export STACK_ID_VPC=${STACK_ID_VPC}" >> env_vars
 
 # Define AWS Region
 if [ -z ${AWS_REGION} ]; then
     echo "[WARNING] AWS_REGION environment variable is not set, automatically set depending on aws cli default region."
     export AWS_REGION=$(aws "${aws_cli_args[@]}" configure get region)
-    aws_cli_args+=(--region "${AWS_REGION}")
 fi
+aws_cli_args+=(--region "${AWS_REGION}")
 echo "export AWS_REGION=${AWS_REGION}" >> env_vars
 echo "[INFO] AWS_REGION = ${AWS_REGION}"
+
+# Define AWS Profile
+if [ -z ${AWS_PROFILE} ];
+then
+    echo "[WARNING] AWS_PROFILE environment variable is not set, ignore if you are using default profile."
+else
+    echo "export AWS_PROFILE=${AWS_PROFILE}" >> env_vars
+    echo "[INFO] AWS_PROFILE = ${AWS_PROFILE}"
+    aws_cli_args+=(--profile "${AWS_PROFILE}")
+fi
 
 # Define Instances seperated by ','.
 if [ -z ${INSTANCE} ]; then
@@ -275,7 +287,7 @@ cat > provisioning_parameters.json << EOL
   "worker_groups": [
     {
       "instance_group_name": "worker-group-1",
-      "partition_name": ${INSTANCE}
+      "partition_name": "${INSTANCE}"
     }
   ],
   "fsx_dns_name": "${FSX_ID}.fsx.${AWS_REGION}.amazonaws.com",
@@ -325,8 +337,8 @@ wget --no-clobber https://raw.githubusercontent.com/aws-samples/awsome-distribut
 # install boto3
 pip3 install boto3
 # check config for known issues
-python3 validate-config.py --cluster-config cluster-config.json --provisioning-parameters provisioning_parameters.json
+python3 validate-config.py --cluster-config cluster-config.json --provisioning-parameters provisioning_parameters.json ${aws_cli_args[@]}
 
-echo "aws ${aws_cli_args[@]} sagemaker create-cluster --cli-input-json file://cluster-config.json --region ${REGION}"
+echo "aws ${aws_cli_args[@]} sagemaker create-cluster --cli-input-json file://cluster-config.json"
 [[ DRY_RUN -eq 1 ]] && exit 0
-aws ${aws_cli_args[@]} sagemaker create-cluster --cli-input-json "file://cluster-config.json" --region ${REGION}
+aws ${aws_cli_args[@]} sagemaker create-cluster --cli-input-json "file://cluster-config.json"
