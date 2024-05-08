@@ -144,6 +144,8 @@ def validate_fsx_lustre(fsx_client, cluster_config, provisioning_parameters):
 
 def main():
     parser = argparse.ArgumentParser(description="Validate cluster config.")
+    parser.add_argument("--region", help="AWS Region where the cluster will be created", default=None)
+    parser.add_argument("--profile", help="AWS Profile to use for creating the cluster", default=None)
     parser.add_argument("--cluster-config", help="Path to the cluster config JSON file")
     parser.add_argument("--provisioning-parameters", help="Path to the provisioning parameters JSON file")
     args = parser.parse_args()
@@ -161,8 +163,10 @@ def main():
         except json.decoder.JSONDecodeError:
             print(f"❌ provisioning_parameters.json is invalid.")
             return False
+    
+    session = boto3.Session(profile_name=args.profile, region_name=args.region)
 
-    ec2_client = boto3.client('ec2')
+    ec2_client = session.client('ec2')
 
     # check instance group name
     valid = validate_instance_groups(cluster_config, provisioning_parameters)
@@ -174,7 +178,7 @@ def main():
     valid = validate_sg(ec2_client, cluster_config) and valid
 
     # Validate FSx Lustre
-    valid = validate_fsx_lustre(boto3.client('fsx'), cluster_config, provisioning_parameters) and valid
+    valid = validate_fsx_lustre(session.client('fsx'), cluster_config, provisioning_parameters) and valid
 
     # validate provisioning_parameters
     valid = validate_provisioning_parameters(provisioning_parameters)
