@@ -25,7 +25,6 @@ declare -a HELP=(
     "[-s|--stack-id-vpc]"
     "[-i|--instance-type]"
     "[-c|--instance-count]"
-    "[-a|--availability-zone]"
     "[-d|--dry-run]"
     "CLUSTER_NAME"
 )
@@ -63,10 +62,6 @@ parse_args() {
             ;;
         -c|--instance-count)
             INSTANCE_COUNTS="$2"
-            shift 2
-            ;;
-        -i|--availability-zone)
-            AZ="$2"
             shift 2
             ;;
         -d|--dry-run)
