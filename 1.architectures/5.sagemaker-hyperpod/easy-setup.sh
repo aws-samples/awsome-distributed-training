@@ -24,6 +24,7 @@ declare -a HELP=(
     "[-p|--profile]"
     "[-s|--stack-id-vpc]"
     "[-i|--instance-type]"
+    "[-c|--instance-count]"
     "[-a|--availability-zone]"
     "[-d|--dry-run]"
     "CLUSTER_NAME"
