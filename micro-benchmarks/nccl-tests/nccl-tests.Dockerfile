@@ -44,7 +44,8 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -y --allow-unauthenticated \
     openssh-server \
     pkg-config \
     python3-distutils \
-    vim
+    vim \
+    && apt-get install -y --upgrade ${NV_CUDA_COMPAT_PACKAGE}
 
 RUN mkdir -p /var/run/sshd
 RUN sed -i 's/[ #]\(.*StrictHostKeyChecking \).*/ \1no/g' /etc/ssh/ssh_config && \
@@ -60,6 +61,9 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py \
 
 #################################################
 ## Install NVIDIA GDRCopy
+##
+## NOTE: if `nccl-tests` or `/opt/gdrcopy/bin/sanity -v` crashes with incompatible version, ensure
+## that the cuda-compat-xx-x package is the latest.
 RUN git clone -b ${GDRCOPY_VERSION} https://github.com/NVIDIA/gdrcopy.git /tmp/gdrcopy \
     && cd /tmp/gdrcopy \
     && make prefix=/opt/gdrcopy install
