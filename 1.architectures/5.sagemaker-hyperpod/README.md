@@ -84,25 +84,30 @@ Lifecycle scripts tell SageMaker HyperPod how to setup your HyperPod cluster. Hy
 | Script                       | Description                                                                                                                                    |
 |------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------|
 | add_users.sh                 | [Optional] creates posix users specified in a file shared_users.txt                                                                            |
+| config.py                    | Configuration file for the lifecycle scripts.                                                                                                  |
 | lifecycle_script.py          | This is the main entrypoint, sets everything else up.                                                                                          |
 | mount_fsx.sh                 | Mounts an FSx for Lustre filesystem.                                                                                                           |
 | on_create.sh                 | Entrypoint for clusters. This script calls lifecycle_script.py                                                                                 |
 | provisioning_parameters.json | Defines scheduler type Slurm and sets the partitions up also specifies FSx for Lustre Filesystem to attach. We'll modify this in a later step. |
 | setup_mariadb_accounting.sh  | Sets up Slurm Accounting  with a local mariadb server running on the HeadNode.                                                                 |
 | setup_rds_accounting.sh      | Sets up Slurm Accounting  with a RDS endpoint.                                                                                                 |
+| setup_sssd.py                | Set up Active Directory/LDAP integration with SSSD.                                                                                            |
 | shared_users_sample.txt      | Sample of how to specify users for the add_users.sh script.                                                                                    |
 | start_slurm.sh               | Starts the Slurm scheduler daemon.                                                                                                             |
 
 
-Also note that there are two scripts in `utils` to install [Docker](https://www.docker.com/), [Enroot](https://github.com/NVIDIA/enroot), and [Pyxis](https://github.com/NVIDIA/pyxis). These scripts can be enabled by uncommenting these lines in `lifecycle_script.py`:
+If you want to use docker containers, you can install [Docker](https://www.docker.com/), [Enroot](https://github.com/NVIDIA/enroot), and [Pyxis](https://github.com/NVIDIA/pyxis) by setting `Config.enable_docker_enroot_pyxis` in `config.py` to `True` (True by default).
 
-```
-        # Note: Uncomment the below lines to install docker and enroot
-        # ExecuteBashScript("./utils/install_docker.sh").run()
-        # ExecuteBashScript("./utils/install_enroot_pyxis.sh").run(node_type)
+```python
+# Basic configuration parameters
+class Config:
+
+    # Set true if you want to install Docker/Enroot/Pyxis.
+    enable_docker_enroot_pyxis = True
 ```
 
-You can follow this same pattern for further customizations. For example, if you'd like to install Miniconda as part of your lifecycles scripts, you can add the script under `utils` and call it using `ExecuteBashScript` in `lifecycle_script.py`.
+
+You can edit `lifecycle_script.py` for further customizations. For example, if you'd like to install Miniconda as part of your lifecycles scripts, you can add the script under `utils` and call it using `ExecuteBashScript` in `lifecycle_script.py`.
 
 For now, let's just use the base configuration provided. Upload the scripts to the bucket you created earlier. This needs to be the same S3 bucket and prefix where we uploaded the other lifecycle scripts earlier.
 
