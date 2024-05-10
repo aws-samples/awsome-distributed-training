@@ -70,6 +70,7 @@ def train(
 
     start = time.time()
     loop_start = time.time()
+
     with torch.autograd.profiler.emit_nvtx():
         for batch_idx, batch in enumerate(train_loader, start=start_step + 1):
             nvtx.range_push("Batch " + str(batch_idx))
