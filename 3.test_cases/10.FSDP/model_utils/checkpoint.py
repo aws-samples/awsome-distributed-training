@@ -13,11 +13,12 @@ import torch
 import torch.distributed as dist
 
 # pylint: disable=import-error,no-name-in-module
-from torch.distributed import checkpoint
+import torch.distributed.checkpoint as dist_cp
 from torch.distributed.checkpoint.optimizer import load_sharded_optimizer_state_dict
 from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
-from torch.distributed.fsdp import StateDictType
+from torch.distributed.fsdp.fully_sharded_data_parallel import StateDictType
 from model_utils.train_utils import get_logger
+
 
 logger = get_logger()
 
@@ -25,22 +26,22 @@ def save_checkpoint(model, optimizer, scheduler, user_content, root_dir, sub_dir
     torch.cuda.empty_cache()
 
     save_dir = os.path.join(root_dir, sub_dir)
+    if dist.get_rank() == 0:
+        logger.info("Writing checkpoint to {0}.".format(save_dir))
     
     with FSDP.state_dict_type(
             model, 
             StateDictType.SHARDED_STATE_DICT):
         state_dict = {
             "model": model.state_dict(),
-            "optimizer": FSDP.optim_state_dict(model, optimizer),
+            "optim": FSDP.optim_state_dict(model, optimizer),
             "scheduler": scheduler.state_dict(),
             "total_steps": user_content["total_steps"],
             "start_batch_index": user_content["start_batch_index"],
         }
-        if dist.get_rank() == 0:
-            logger.info("Writing checkpoint to {0}.".format(save_dir))
-        checkpoint.save_state_dict(
+        dist_cp.save_state_dict(
                     state_dict=state_dict,
-                    storage_writer=checkpoint.FileSystemWriter(save_dir)
+                    storage_writer=dist_cp.FileSystemWriter(save_dir)
                 )
     dist.barrier()
     if dist.get_rank() == 0:
@@ -50,11 +51,21 @@ def get_last_checkpoint(checkpoint_paths, model_type):
     steps = [int(re.findall(r'\d+steps', checkpoint.stem)[0].replace('steps','')) \
          for checkpoint in checkpoint_paths]
     checkpoints = sorted([(step, path) for step,path in zip(steps, checkpoint_paths)])
-    return checkpoints[-1][1].as_posix()
+    
+    # find last checkpoint, skipping incomplete ones 
+    for step, path in reversed(checkpoints):
+        metadata_path = path.joinpath(".metadata")
+        if not metadata_path.exists():
+            logger.warn(f"{metadata_path} not found. Skipping this incomplete checkpoint")
+            continue
+        return path.as_posix()
+    else:
+        return None
     
 def load_checkpoint(model, optimizer, scheduler, checkpoint_dir, model_type, device):
-    checkpoint_paths = list(Path(checkpoint_dir).glob(f"{model_type}*"))
-    if len(checkpoint_paths)==0:
+    checkpoint_paths = list(Path(checkpoint_dir).glob(f"{model_type}-*steps"))
+    last_checkpoint = get_last_checkpoint(checkpoint_paths, model_type)
+    if last_checkpoint is None:
         if dist.get_rank() == 0:
             logger.info("No Checkpoints Found")
         return(
@@ -64,7 +75,6 @@ def load_checkpoint(model, optimizer, scheduler, checkpoint_dir, model_type, dev
             0,
             0,
         )
-    last_checkpoint = get_last_checkpoint(checkpoint_paths, model_type)
     if dist.get_rank() == 0:
         logger.info("Loading checkpoint from %s ...", last_checkpoint)
     with FSDP.state_dict_type(
@@ -78,9 +88,9 @@ def load_checkpoint(model, optimizer, scheduler, checkpoint_dir, model_type, dev
             "start_batch_index": 0,
             # cannot load the optimizer state_dict together with the model state_dict
         }
-        checkpoint.load_state_dict(
+        dist_cp.load_state_dict(
             state_dict=state_dict,
-            storage_reader=checkpoint.FileSystemReader(last_checkpoint),
+            storage_reader=dist_cp.FileSystemReader(last_checkpoint),
         )
         model.load_state_dict(state_dict["model"])
         scheduler.load_state_dict(state_dict["scheduler"])
@@ -89,8 +99,8 @@ def load_checkpoint(model, optimizer, scheduler, checkpoint_dir, model_type, dev
             logger.info("Loading optimizer state from disk")
         optim_state = load_sharded_optimizer_state_dict(
             model_state_dict=state_dict["model"],
-            optimizer_key="optimizer",
-            storage_reader=checkpoint.FileSystemReader(last_checkpoint),
+            optimizer_key="optim",
+            storage_reader=dist_cp.FileSystemReader(last_checkpoint),
         )
         if dist.get_rank() == 0:
             logger.info("Loaded and sharded optimizer state from disk")
@@ -98,7 +108,7 @@ def load_checkpoint(model, optimizer, scheduler, checkpoint_dir, model_type, dev
             warnings.simplefilter("ignore", UserWarning)
             # UserWarning to replace all_gather_base with all_gather_into_tensor floods the logs
             flattened_osd = FSDP.optim_state_dict_to_load(
-                optim_state["optimizer"], model, optimizer
+                model, optimizer, optim_state["optim"]
             )
 
         if dist.get_rank() == 0:
@@ -114,4 +124,3 @@ def load_checkpoint(model, optimizer, scheduler, checkpoint_dir, model_type, dev
         state_dict["total_steps"],
         state_dict["start_batch_index"],
     )
-

@@ -10,6 +10,8 @@ import sys
 import time
 from typing import Any, Dict, List, Optional, Tuple
 
+from config import Config
+
 
 SLURM_CONF = os.getenv("SLURM_CONF", "/opt/slurm/etc/slurm.conf")
 
@@ -96,7 +98,8 @@ def wait_for_slurm_conf(controllers: List[str]) -> bool:
     """
     SageMaker agents do a slurm configuration. Wait for a signal that slurm is ready to start.
     This means that we can start controller, or do additional setup
-    Function return True if walid slurm configuration found
+    Returns:
+        bool: True if valid slurm configuration found
     """
     sleep = 5 # sec
     timeout = 60  # sec
@@ -114,6 +117,30 @@ def wait_for_slurm_conf(controllers: List[str]) -> bool:
         time.sleep(sleep)
     return False
 
+def wait_for_scontrol():
+    """
+    Checks if 'scontrol show nodes' command returns output within specified time.
+    This means we can proceed with install scripts which require nodes to be registered with slurm.
+    Returns:
+        bool: True if the command returns output from scontrol within the specified time, False otherwise.
+    """
+    timeout = 120
+    sleep = 5
+    for i in range (timeout // sleep):
+        try:
+            output = subprocess.check_output(['scontrol', 'show', 'nodes'])
+            if output.strip():
+                print("Nodes registered with Slurm, Proceeding with install scripts.", output)
+                return True
+        except subprocess.CalledProcessError:
+            pass
+
+        print(f"Waiting for output. Retrying in {sleep} seconds...")
+        time.sleep(sleep)
+
+    print(f"Exceeded maximum wait time of {timeout} seconds. No output from scontrol.")
+    return False
+    
 
 def main(args):
     params = ProvisioningParameters(args.provisioning_parameters)
@@ -122,7 +149,7 @@ def main(args):
     fsx_dns_name, fsx_mountname = params.fsx_settings
     if fsx_dns_name and fsx_mountname:
         print(f"Mount fsx: {fsx_dns_name}. Mount point: {fsx_mountname}")
-        ExecuteBashScript("./mount_fsx.sh").run(fsx_dns_name, fsx_mountname)
+        ExecuteBashScript("./mount_fsx.sh").run(fsx_dns_name, fsx_mountname, "/fsx")
 
     ExecuteBashScript("./add_users.sh").run()
 
@@ -149,25 +176,33 @@ def main(args):
         if node_type == SlurmNodeType.HEAD_NODE:
             ExecuteBashScript("./setup_mariadb_accounting.sh").run()
 
+        ExecuteBashScript("./apply_hotfix.sh").run(node_type)
         ExecuteBashScript("./utils/motd.sh").run(node_type)
-        ExecuteBashScript("./utils/setup_timesync.sh").run()
         ExecuteBashScript("./utils/fsx_ubuntu.sh").run()
 
         ExecuteBashScript("./start_slurm.sh").run(node_type, ",".join(controllers))
 
-        ## Note: Uncomment the below lines to install docker and enroot.
-        ExecuteBashScript("./utils/install_docker.sh").run()
-        ExecuteBashScript("./utils/install_enroot_pyxis.sh").run(node_type)
+        # Install Docker/Enroot/Pyxis
+        if Config.enable_docker_enroot_pyxis:
+            ExecuteBashScript("./utils/install_docker.sh").run()
+            ExecuteBashScript("./utils/install_enroot_pyxis.sh").run(node_type)
 
-        # # Note: Uncomment the below lines to install DCGM Exporter and EFA Node Exporter and Cluster Nodes. (Docker must also be installed above)
-        # if node_type == SlurmNodeType.COMPUTE_NODE:
-        #     ExecuteBashScript("./utils/install_dcgm_exporter.sh").run()
-        #     ExecuteBashScript("./utils/install_efa_node_exporter.sh").run()
+        # Install metric exporting software and Prometheus for observability
+        if Config.enable_observability:
+            if node_type == SlurmNodeType.COMPUTE_NODE:
+                ExecuteBashScript("./utils/install_docker.sh").run()
+                ExecuteBashScript("./utils/install_dcgm_exporter.sh").run()
+                ExecuteBashScript("./utils/install_efa_node_exporter.sh").run()
 
-        # # Note: Uncomment the below lines to install Slurm Exporter and Prometheus on the Controller Node.
-        # if node_type == SlurmNodeType.HEAD_NODE:
-        #     ExecuteBashScript("./utils/install_slurm_exporter.sh").run()
-        #     ExecuteBashScript("./utils/install_prometheus.sh").run()
+            if node_type == SlurmNodeType.HEAD_NODE:
+                wait_for_scontrol()
+                ExecuteBashScript("./utils/install_docker.sh").run()
+                ExecuteBashScript("./utils/install_slurm_exporter.sh").run()
+                ExecuteBashScript("./utils/install_prometheus.sh").run()
+
+        # Install and configure SSSD for ActiveDirectory/LDAP integration
+        if Config.enable_sssd:
+            subprocess.run(["python3", "-u", "setup_sssd.py", "--node-type", node_type], check=True)
 
     print("[INFO]: Success: All provisioning scripts completed")
 
