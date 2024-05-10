@@ -22,7 +22,7 @@ conda activate ${ENV_PATH}
 
 
 # Install OFI nccl 
-conda install "aws-ofi-nccl==1.7.4" packaging --override-channels \
+conda install "aws-ofi-nccl==1.8.1-aws" packaging --override-channels \
   -c https://aws-ml-conda.s3.us-west-2.amazonaws.com \
   -c pytorch -c numba/label/dev \
   -c nvidia \
@@ -34,10 +34,10 @@ conda install "filelock==3.9.0"
 conda install "sympy==1.12"
 
 # Install SMP V2 pytorch. We will install SMP with pytorch 2.2
-conda install pytorch="2.2.0=sm_py3.10_cuda12.1_cudnn8.9.5_nccl_pt_2.2_tsm_2.3_cuda12.1_0" packaging --override-channels \
+conda install pytorch="2.2.0=sm_py3.10_cuda12.1*smp_2.3.1*" --override-channels \
   -c https://sagemaker-distributed-model-parallel.s3.us-west-2.amazonaws.com/smp-v2/ \
   -c pytorch -c numba/label/dev \
-  -c pytorch-nightly -c nvidia -c conda-forge
+  -c nvidia -c conda-forge
 
 
 # Install dependencies of the script as below
@@ -89,11 +89,11 @@ else
 fi
 
 # TransformerEngine installation
-export CUDA_HOME=/usr/local/cuda-$SMP_CUDA_VER
-export CUDNN_PATH=/usr/local/cuda-$SMP_CUDA_VER/lib
-export CUDNN_LIBRARY=/usr/local/cuda-$SMP_CUDA_VER/lib
-export CUDNN_INCLUDE_DIR=/usr/local/cuda-$SMP_CUDA_VER/include
-export PATH=/usr/local/cuda-$SMP_CUDA_VER/bin:$PATH
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-$SMP_CUDA_VER/lib
+export CUDA_HOME=/usr/local/cuda-12.1
+export CUDNN_PATH=/usr/local/cuda-12.1/lib
+export CUDNN_LIBRARY=/usr/local/cuda-12.1/lib
+export CUDNN_INCLUDE_DIR=/usr/local/cuda-12.1/include
+export PATH=/usr/local/cuda-12.1/bin:$PATH
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-12.1/lib
 
 pip install git+https://github.com/NVIDIA/TransformerEngine.git@v1.2.1
