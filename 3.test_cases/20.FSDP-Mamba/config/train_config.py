@@ -26,10 +26,11 @@ class training_config:
     batch_size: int = 1
     num_steps: int = 2000000
     learning_rate: float = 3e-4
-    grad_clip_thresh: float = 1.0
+    grad_clip_thresh: float = 4.0
 
-    # profiling and logging
-    use_profiler: bool = False
+   # profiling and logging
+    use_profiler: bool = True
+    use_nsight: bool = False
     use_wandb: bool = False
     wandb_dir: str = f"/fsx/wandb/{model_name}-fsdp"
     wandb_project_name = f"training-{model_name}"

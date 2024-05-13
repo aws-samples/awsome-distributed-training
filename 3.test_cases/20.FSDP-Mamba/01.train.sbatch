@@ -48,15 +48,22 @@ export TRAIN_SCRIPT=./training.py
 ##################################
 
 declare -a MODEL_ARGS=(
-    --load_ckpt_path=/fsx/llama2/pretrain/ckpt
-    --save_ckpt_path=/fsx/llama2/pretrain/ckpt
-    --data_path=/fsx/data/
+    --model_name=state-spaces/mamba-130m
+    --load_ckpt_path=/fsx/mamba/pretrain/ckpt
+    --save_ckpt_path=/fsx/mamba/pretrain/ckpt
+    --dataset_path=/fsx/data2/examples_datasets/wikicorpus_llama2_7B_tokenized_4k
     --fsdp_activation_checkpointing=True
     --selective_checkpointing=1
     --sharding_strategy=fsdp
     --batch_size=2
+    --learning_rate=3e-4
+    --grad_clip_thresh=4.0
+    --num_steps=1200
     --report_interval=200
     --checkpoint_interval=20000
+    --low_cpu_fsdp=True
+    --use_profiler=True
 )
+
 
 srun -l torchrun "${TORCHRUN_ARGS[@]}" $TRAIN_SCRIPT "${MODEL_ARGS[@]}"
