@@ -1,6 +1,6 @@
 from functools import partial
 
-from transformers.models.mamba.modeling_mamba import MambaBlock
+from mamba_ssm.modules.mamba_simple import Block
 from torch.distributed.algorithms._checkpoint.checkpoint_wrapper import (
     CheckpointImpl,
     apply_activation_checkpointing,
@@ -18,7 +18,7 @@ def apply_fsdp_checkpointing(model, every_xth_item):
     def selective_checkpointing(submodule):
         selective_checkpointing.__dict__.setdefault("_count", 0)
 
-        if isinstance(submodule, MambaBlock):
+        if isinstance(submodule, Block):
             selective_checkpointing._count += 1
             if (
                 not every_xth_item
