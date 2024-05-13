@@ -58,17 +58,20 @@ declare -a TORCHRUN_ARGS=(
 )
 
 declare -a TRAIN_ARGS=(
-    --model_name "meta-llama/Meta-Llama-3-8B" \
-    --dist_checkpoint_root_folder "/fsx/models/meta-llama/Meta-Llama-3-8B-tuned" \
+    --model_name "meta-llama/Meta-Llama-3-70B" \
+    --dist_checkpoint_root_folder "/fsx/models/Meta-Llama-3-70B-tuned" \
     --dist_checkpoint_folder fine-tuned \
     --dataset alpaca_dataset --data_path /fsx/data/alpaca_data.json \
     --enable_fsdp True \
     --low_cpu_fsdp \
     --fsdp_activation_checkpointing True \
-    --use_wandb \
     --pure_bf16 \
-    --run_validation False 
+    --use_wandb \
+    --num_epochs 1 \
+    --batching_strategy padding \
+    --run_validation True
 )
+#     --use_wandb \
 export PYTHONPATH=${PWD}/llama-recipes/src
 srun -l "${ARGS[@]}" torchrun  "${TORCHRUN_ARGS[@]}" \
     /fsx/awsome-distributed-training/3.test_cases/19.llama-recipes/llama-recipes/recipes/finetuning/finetuning.py \
