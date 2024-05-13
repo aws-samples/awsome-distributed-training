@@ -1,5 +1,4 @@
-pytorch==2.1.0 
-pytorch-cuda=11.8
+torch==2.1.0 
 mamba-ssm
 causal-conv1d>=1.2.0
 transformers==4.39.0
@@ -9,4 +8,3 @@ mosaicml-streaming
 bitsandbytes
 pynvml
 wandb
-pyarrow==15.0.0
