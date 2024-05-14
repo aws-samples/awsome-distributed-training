@@ -9,7 +9,7 @@ if [ -d "$REPO_DIR" ]; then
     echo "Repository already exists, skipping cloning."
 else
     # Clone the repository
-    git clone "$REPO_URL" || { echo "Failed to clone the repository"; exit 1; }
+    git clone --depth=1 "$REPO_URL" || { echo "Failed to clone the repository"; exit 1; }
 fi
 
 # Change directory to the desired location
