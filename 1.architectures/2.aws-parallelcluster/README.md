@@ -83,11 +83,11 @@ Alternatively you can refer to these architectures for more specific use cases:
 
 The `.yaml` templates contain placeholder variables that you need to replace before use.
 
-- `PLACEHOLDER_CUSTOM_AMI_ID`: if using a custom AMI then replace with the custom AMI ID (`ami-12356790abcd`).
-- `PLACEHOLDER_PUBLIC_SUBNET`: change to the id of a public subnet to host the head-node (`subnet-12356790abcd`).
-- `PLACEHOLDER_PRIVATE_SUBNET`: change to the id of a public subnet to host the compute nodes (`subnet-12356790abcd`).
+- `CUSTOM_AMI_ID`: if using a custom AMI then replace with the custom AMI ID (`ami-12356790abcd`).
+- `PUBLIC_SUBNET_ID`: change to the id of a public subnet to host the head-node (`subnet-12356790abcd`).
+- `PRIVATE_SUBNET_ID`: change to the id of a public subnet to host the compute nodes (`subnet-12356790abcd`).
 - `PLACEHOLDER_SSH_KEY`: ID of the SSH key you'd like to use to connect to the head-node, use the name of the key. You can also use AWS Systems Manager Session Manager (SSM).
-- `PLACEHOLDER_CAPACITY_RESERVATION_ID`: if using a capacity reservation put the ID here (`cr-12356790abcd`).
+- `CAPACITY_RESERVATION_ID`: if using a capacity reservation put the ID here (`cr-12356790abcd`).
 
 In some of the templates you may need to update these placeholders:
 
