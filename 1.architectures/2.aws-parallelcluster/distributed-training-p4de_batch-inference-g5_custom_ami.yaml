@@ -5,15 +5,11 @@ Imds:
   ImdsSupport: v2.0
 
 Image:
-  Os: alinux2
-  CustomAmi: PLACEHOLDER_CUSTOM_AMI_ID
-
+  Os: ubuntu2004
 HeadNode:
   InstanceType: m5.8xlarge
   Networking:
-    SubnetId: PLACEHOLDER_PUBLIC_SUBNET
-  Ssh:
-    KeyName: PLACEHOLDER_SSH_KEY
+    SubnetId: ${PUBLIC_SUBNET_ID}
   LocalStorage:
     RootVolume:
       Size: 500
@@ -44,13 +40,13 @@ Scheduling:
       CapacityType: ONDEMAND
       Networking:
         SubnetIds:
-          - PLACEHOLDER_PRIVATE_SUBNET
+          - ${PRIVATE_SUBNET_ID}
         PlacementGroup:
           Enabled: true
       ComputeSettings:
         LocalStorage:
           EphemeralVolume:
-            MountDir: /local_scratch # each instance has a local scratch on NVMe
+            MountDir: /scratch # each instance has a local scratch on NVMe
           RootVolume:
             Size: 200
       # The capacity reservation section is recommended if you use instances
@@ -58,7 +54,7 @@ Scheduling:
       # CapacityReservationResourceGroupArn if you want to regroup
       # multiple reservations
       CapacityReservationTarget:
-        CapacityReservationId: PLACEHOLDER_CAPACITY_RESERVATION_ID
+        CapacityReservationId: ${CAPACITY_RESERVATION_ID}
       JobExclusiveAllocation: true   # GenAI training likes to gobble all GPUs in an instance
       ComputeResources:
         - Name: distributed-ml
@@ -71,11 +67,11 @@ Scheduling:
       CapacityType: ONDEMAND
       Networking:
         SubnetIds:
-          - PLACEHOLDER_PRIVATE_SUBNET
+          - ${PRIVATE_SUBNET_ID}
       ComputeSettings:
         LocalStorage:
           EphemeralVolume:
-            MountDir: /local_scratch # each instance has a local scratch on NVMe
+            MountDir: /scratch # each instance has a local scratch on NVMe
           RootVolume:
             Size: 100
       ComputeResources:
@@ -92,15 +88,6 @@ SharedStorage:
       StorageCapacity: 4800 # size it to your storage and throughput needs
       PerUnitStorageThroughput: 250 # this can be increased to 500 and 100
       DeploymentType: PERSISTENT_2
-  - Name: SharedEBS
-    StorageType: Ebs
-    MountDir: /apps # Store your shared apps & scripts here
-    EbsSettings:
-      VolumeType: gp3
-      Size: 200
-      Throughput: 300
-      Iops: 6000
-
 Monitoring:
   DetailedMonitoring: true
   Logs:
@@ -108,4 +95,4 @@ Monitoring:
       Enabled: true # good for debug
   Dashboards:
     CloudWatch:
-      Enabled: false # provide basic dashboards
+      Enabled: true # provide basic dashboards
