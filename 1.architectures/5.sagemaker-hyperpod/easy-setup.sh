@@ -95,6 +95,13 @@ then
     exit 1
 fi
 
+# Check for wget
+if ! command -v wget &> /dev/null
+then
+    echo -e "please install wget...\nsudo yum install -y wget or brew install wget"
+    exit 1
+fi
+
 # Define cluster name
 if [ -z ${CLUSTER_NAME} ]; then
     echo "[WARNING] CLUSTER_NAME environment variable is not set, automatically set to ml-cluster"
