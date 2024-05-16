@@ -7,7 +7,6 @@
 #SBATCH --exclusive
 #SBATCH --wait-all-nodes=1
 #SBATCH --nodes 2
-#SBATCH --cpus-per-task=4
 #SBATCH --output=logs/%x_%j.out # logfile for stdout/stderr
 
 nodes=( $( scontrol show hostnames $SLURM_JOB_NODELIST ) )
