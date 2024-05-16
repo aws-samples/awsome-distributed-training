@@ -1,12 +1,20 @@
 # AWS SageMaker HyperPod Distributed Training Reference Architectures
 
+
+> [!IMPORTANT]  
+> 🚨 We recommend following the official [Amazon SageMaker HyperPod Workshop](https://catalog.workshops.aws/sagemaker-hyperpod/en-US) to deploy clusters, which contains detailed instructions and latest best-practices. The below deployment steps are no longer kept up-to-date with latest best practices
+
 ## 1. Architectures
 
 SageMaker HyperPod clusters provide the ability to create customized clusters, typically with one or more head and login nodes, and multiple compute nodes (typically P4/P5 or Trn1 instances), and optionally a shared FSX for Lustre file system. When configured with Slurm, SageMaker HyperPod provides resiliency tools to automatically identify and replace unhealthy compute nodes. Additionally, HyperPod has access to SageMaker training tools, such as SageMaker Model and Data Parallel packages, and are automatically configured for EFA.
 
 The example that follows describes the process of setting up a SageMaker HyperPod cluster with an attached FSX for Lustre volume.
 
+
 ## 2. Prerequisites
+
+> [!TIP]  
+> For the latests deployment instructions, follow the  [Amazon SageMaker HyperPod Workshop](https://catalog.workshops.aws/sagemaker-hyperpod/en-US). 
 
 Before creating a cluster, we need to install the latest [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html), and setup the appropriate IAM role, VPC, FSx for Lustre volume, and S3 bucket.
 
