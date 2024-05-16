@@ -2,8 +2,8 @@
 
 In this test case, you will learn how to:
 * finetune llama3 model
-* test llama3 model deployment using vLLM
 * evaluate llama3 model on lm-evaluation-harness
+* test llama3 model deployment using vLLM
 
 ## 1. Preparation
 
@@ -36,10 +36,9 @@ git clone https://github.com/aws-samples/awsome-distributed-training ${FSX_PATH}
 cd ${TEST_CASE_PATH}
 ```
 
-Clone two llama sample repositories
+Clone llama sample repository:
 
 ```bash
-git clone https://github.com/meta-llama/llama3.git
 git clone https://github.com/meta-llama/llama-recipes.git
 ```
 
