@@ -1,0 +1,266 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+ Setup a LDAP server
+ Author: maxhaws@amazon.com
+
+Parameters:
+  InstanceType:
+    Description: EC2 instance type
+    Type: String
+    Default: t3a.micro
+    AllowedValues:
+      - t3a.micro
+      - t3a.small
+      - t3a.medium
+      - t3a.large
+      - t2.small
+  LatestUbuntuAmiId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: '/aws/service/canonical/ubuntu/server/22.04/stable/current/amd64/hvm/ebs-gp2/ami-id'
+    Description: 'Ubuntu 22.04 AMI Id'
+  EBSBootSize:
+    Type: Number
+    Default: 20
+    Description: 'Size in GiB of EBS root volume'
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
+    Description: 'Subnet Id'
+  SecurityGroupId:
+    Type: List<AWS::EC2::SecurityGroup::Id>
+    Description: 'Security Group Ids'
+
+############################
+## LDAP Server
+Resources:
+  LdapKeyPair:
+    Type: AWS::EC2::KeyPair
+    Properties:
+      KeyName: !Sub '${AWS::StackName}-key'
+      KeyType: ed25519
+
+  LdapPassword:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      GenerateSecretString:
+        RequireEachIncludedType: True
+        PasswordLength: 32
+        ExcludePunctuation: True
+      Tags:
+        - Key: Name
+          Value: 'LDAP Server'
+
+  LdapSecretPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: MyPolicy
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - secretsmanager:GetSecretValue
+            Resource:
+              - !Ref LdapPassword
+      Roles:
+       - !Ref LdapInstanceRole
+
+  LdapInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+
+  LdapInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    DependsOn: LdapSecretPolicy
+    Properties:
+      Roles:
+        - !Ref LdapInstanceRole
+
+  LdapServer:
+    Type: 'AWS::EC2::Instance'
+    Metadata:
+      AWS::CloudFormation::Init:
+        configSets:
+          full_install:
+            - install_and_enable_cfn_hup
+        install_and_enable_cfn_hup:
+          files:
+            /etc/cfn/cfn-hup.conf:
+              content: !Sub |
+                [main]
+                stack=${AWS::StackId}
+                region=${AWS::Region}
+              mode: "000400"
+              owner: root
+              group: root
+            /etc/cfn/hooks.d/cfn-auto-reloader.conf:
+              content: !Sub |
+                [cfn-auto-reloader-hook]
+                triggers=post.update
+                path=Resources.EC2Instance.Metadata.AWS::CloudFormation::Init
+                action=/opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource LdapServer --configsets InstallAndRun --region ${AWS::Region}
+                runas=root
+              mode: "000400"
+              owner: root
+              group: root
+            /lib/systemd/system/cfn-hup.service:
+              content: |
+                [Unit]
+                Description=cfn-hup daemon
+                [Service]
+                Type=simple
+                ExecStart=/usr/local/bin/cfn-hup
+                Restart=always
+                [Install]
+                WantedBy=multi-user.target
+          commands:
+            01enable_cfn_hup:
+              command: systemctl enable cfn-hup.service
+            02start_cfn_hup:
+              command: systemctl start cfn-hup.service
+    Properties:
+      BlockDeviceMappings:
+      - DeviceName: '/dev/xvda'
+        Ebs:
+          DeleteOnTermination: false
+          Encrypted: true
+          Iops: 3000
+          VolumeSize: !Ref EBSBootSize
+          VolumeType: 'gp3'
+      KeyName: !Ref LdapKeyPair
+      IamInstanceProfile: !Ref LdapInstanceProfile
+      ImageId: !Ref LatestUbuntuAmiId
+      InstanceType: !Ref InstanceType
+      SecurityGroupIds: !Ref SecurityGroupId
+      SubnetId: !Ref SubnetId
+      Tags:
+        - Key: Name
+          Value: 'LDAP Server'
+      UserData:
+        Fn::Base64: !Sub
+          - |
+            MIME-Version: 1.0
+            Content-Type: multipart/mixed; boundary="==MYBOUNDARY=="
+
+            --==MYBOUNDARY==
+            Content-Type: text/x-shellscript; charset="us-ascii"
+
+            #!/bin/bash
+
+            export DEBIAN_FRONTEND='non-interactive'
+
+            apt-get update -y
+            apt-get -y install python3-pip awscli
+            mkdir -p /opt/aws/
+            pip3 install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz
+            ln -s /usr/local/init/ubuntu/cfn-hup /etc/init.d/cfn-hup
+
+            PASSWD=$(aws secretsmanager get-secret-value --secret-id ${SECRET} --query SecretString --output text --region ${AWS::Region})
+
+            debconf-set-selections <<EOF
+            slapd slapd/internal/generated_adminpw password $PASSWD
+            slapd slapd/password2 password $PASSWD
+            slapd slapd/internal/adminpw password $PASSWD
+            slapd slapd/password1 password $PASSWD
+            slapd slapd/domain string example.com
+            slapd shared/organization string example.com
+            EOF
+
+            apt-get install -y slapd ldap-utils phpldapadmin
+
+            wget http://archive.ubuntu.com/ubuntu/pool/universe/p/phpldapadmin/phpldapadmin_1.2.6.7-1_all.deb
+            dpkg -i ./phpldapadmin_1.2.6.7-1_all.deb
+
+
+            # Ldap conf
+            cat > /etc/ldap/ldap.conf << EOF
+            BASE dc=example,dc=com
+            URI  ldap://localhost
+            EOF
+
+            systemctl restart slapd
+
+            #Create schema for ldapPublicKey
+            cat > /tmp/openssh-lpk.ldif << EOF
+            dn: cn=openssh-lpk,cn=schema,cn=config
+            objectClass: olcSchemaConfig
+            cn: openssh-lpk
+            olcAttributeTypes: ( 1.3.6.1.4.1.24552.500.1.1.1.13 NAME 'sshPublicKey'
+              DESC 'MANDATORY: OpenSSH Public key'
+              EQUALITY octetStringMatch
+              SYNTAX 1.3.6.1.4.1.1466.115.121.1.40 )
+            olcObjectClasses: ( 1.3.6.1.4.1.24552.500.1.1.2.0 NAME 'ldapPublicKey' SUP top AUXILIARY
+              DESC 'MANDATORY: OpenSSH LPK objectclass'
+              MAY ( sshPublicKey $ uid )
+              )
+            EOF
+
+            # Add ldapPublicKey schema
+            ldapadd -Y EXTERNAL -H ldapi:/// -f /tmp/openssh-lpk.ldif
+
+            cat > /tmp/disable_anon.ldif << EOF
+            dn: cn=config
+            changetype: modify
+            add: olcDisallows
+            olcDisallows: bind_anon
+            EOF
+
+            ldapadd -Y EXTERNAL -H ldapi:/// -f /tmp/disable_anon.ldif
+
+            # Create cluster groups
+            cat > /tmp/groups.ldif << EOF
+            dn: cn=clusteradmins,dc=example,dc=com
+            objectClass: posixGroup
+            cn: clusteradmin
+            gidNumber: 2000
+
+            dn: cn=clusterusers,dc=example,dc=com
+            objectClass: posixGroup
+            cn: clusterusers
+            gidNumber: 3000
+            EOF
+
+            ldapadd -x -D cn=admin,dc=example,dc=com -f /tmp/groups.ldif -w "$PASSWD"
+
+            /usr/local/bin/cfn-init -v --stack ${AWS::StackName} \
+              --resource LdapServer \
+              --configsets full_install \
+              --region ${AWS::Region}
+
+            /usr/local/bin/cfn-signal \
+              -e $? \
+              --stack ${AWS::StackName} \
+              --region ${AWS::Region} \
+              --resource LdapServer
+
+            --==MYBOUNDARY==--
+          - {
+              SECRET: !Ref LdapPassword
+            }
+
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT10M
+
+#############
+## Outputs ##
+#############
+Outputs:
+  LdapServerPublicIp:
+    Value: !GetAtt LdapServer.PublicIp
+  LdapServerInstanceId:
+    Value: !GetAtt LdapServer.InstanceId
+  LdapUIUrl:
+    Value: !Join ['',[!GetAtt LdapServer.PublicIp,'/phpldapadmin']]
+  LdapPassword:
+    Value: !Ref LdapPassword
