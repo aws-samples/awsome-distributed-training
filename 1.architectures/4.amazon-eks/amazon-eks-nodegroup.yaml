@@ -283,6 +283,8 @@ Resources:
     Condition: isP5
     Properties:
       LaunchTemplateData:
+        InstanceMarketOptions:
+          MarketType: "capacity-block"
         CapacityReservationSpecification:
           CapacityReservationTarget:
             CapacityReservationId: !Ref CapacityBlockId
@@ -530,6 +532,8 @@ Resources:
     Condition: isP4d
     Properties:
       LaunchTemplateData:
+        InstanceMarketOptions:
+          MarketType: "capacity-block"
         CapacityReservationSpecification:
           CapacityReservationTarget:
             CapacityReservationId: !Ref CapacityBlockId
