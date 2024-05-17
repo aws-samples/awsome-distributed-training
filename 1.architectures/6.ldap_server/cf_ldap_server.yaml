@@ -25,7 +25,7 @@ Parameters:
   SubnetId:
     Type: AWS::EC2::Subnet::Id
     Description: 'Subnet Id'
-  SecurityGroupId:
+  SecurityGroupIds:
     Type: List<AWS::EC2::SecurityGroup::Id>
     Description: 'Security Group Ids'
 
@@ -141,7 +141,7 @@ Resources:
       IamInstanceProfile: !Ref LdapInstanceProfile
       ImageId: !Ref LatestUbuntuAmiId
       InstanceType: !Ref InstanceType
-      SecurityGroupIds: !Ref SecurityGroupId
+      SecurityGroupIds: !Ref SecurityGroupIds
       SubnetId: !Ref SubnetId
       Tags:
         - Key: Name
