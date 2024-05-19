@@ -11,7 +11,7 @@
 #SBATCH --error=logs/%x_%j.err # logfile for stderr, remove it to merge both outputs
 #SBATCH --wait-all-nodes=1
 #SBATCH --exclusive
-set -euo pipefail
+set -euxo pipefail
 
 ##################################################################
 ############# Load environment variables #########################
@@ -50,8 +50,18 @@ export NPROC=$SLURM_GPUS_PER_NODE
 export WORLD_SIZE=$(( $NNODES * $NPROC ))
 
 ##################################################################
+############### Create train config ##############################
+##################################################################
+
+if [ ! -d ${FSX_PATH}/tmp ]; then
+    mkdir -p ${FSX_PATH}/tmp
+fi
+cat ${PWD}/train_configs/pretrain_llama3_70b.toml | envsubst > ${FSX_PATH}/tmp/pretrain_llama3_70b.toml
+
+##################################################################
 ################# Set arguments ##################################
 ##################################################################
+
 : "${CONTAINER_MOUNT:=$FSX_PATH:$FSX_PATH}"
 declare -a SRUN_ARGS=(
     --container-image $ENROOT_IMAGE
@@ -59,18 +69,17 @@ declare -a SRUN_ARGS=(
 )
 declare -a TORCHRUN_ARGS=(
     # change this to match the number of gpus per node:
-    --master_addr $MASTER_ADDR \
-    --master_port $RANDOM \
-    --nproc_per_node=8 \
-    --nnodes $NNODES \
-    --nnodes=$SLURM_JOB_NUM_NODES \
-    --rdzv_backend=c10d \
+    --master_addr $MASTER_ADDR 
+    --master_port $RANDOM 
+    --nproc_per_node=8 
+    --nnodes $NNODES 
+    --nnodes=$SLURM_JOB_NUM_NODES 
+    --rdzv_backend=c10d 
     --rdzv_endpoint=$(hostname)
 )
 declare -a TRAIN_ARGS=(
-    --job.config_file ${CONFIG_FILE}
+    --job.config_file ${FSX_PATH}/tmp/pretrain_llama3_70b.toml
 )
 
 srun -l "${SRUN_ARGS[@]}" \
-    torchrun "{TORCHRUN_ARGS[@]}" \ 
-    ./torchtitan/train.py "{TRAIN_ARGS[@]}"
+    torchrun "${TORCHRUN_ARGS[@]}" ${PWD}/../torchtitan/train.py "${TRAIN_ARGS[@]}"
