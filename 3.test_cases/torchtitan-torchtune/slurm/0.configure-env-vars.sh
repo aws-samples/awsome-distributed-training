@@ -27,6 +27,8 @@ echo "export WANDB_CONFIG_DIR=${FSX_PATH}" >> .env
 source .env
 echo "export WANDB_API_KEY=${WANDB_API_KEY}" >> .env
 source .env
+echo "export HF_MODEL=meta-llama/Meta-Llama-3-70B" >> .env
+source .env
 
 echo ".env file created successfully"
 echo "Please run 'source .env' to set the environment variables"
