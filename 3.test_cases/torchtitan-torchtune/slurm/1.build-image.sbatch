@@ -26,5 +26,5 @@ if [ -f torchtitan-torchtune.sqsh ] ; then
     rm torchtitan-torchtune.sqsh
 fi
 enroot import -o torchtitan-torchtune.sqsh dockerd://torchtitan-torchtune:latest
-mv torchtitan-torchtune.sqsh ${IMAGE}
+mv torchtitan-torchtune.sqsh ${ENROOT_IMAGE}
 echo "Image built and saved as ${ENROOT_IMAGE}"

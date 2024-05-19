@@ -1,6 +1,3 @@
-checkponts
-models
-miniconda3
-pt_torchtune
 torchtune
-Miniconda3-latest-Linux-x86_64.sh
+torchtitan
+.env
