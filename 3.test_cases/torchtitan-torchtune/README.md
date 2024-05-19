@@ -34,6 +34,6 @@ Features of Torchtune encompass:
 * YAML configurations for simplifying the setup of training, evaluation, quantization, or inference recipes.
 * Comprehensive support for numerous popular dataset formats and prompt templates, ensuring a smooth start to training endeavors.
 
-This directory houses `0.torchtitan-torchtune.dockerfile` alongside this `README.md`. This case study provides examples for two schedulers, Slurm and Kubernetes, with detailed instructions available in the `slurm` or `kubernetes` subdirectories.
+This case study provides examples for two schedulers, Slurm and Kubernetes, with detailed instructions available in the `slurm` or `kubernetes` subdirectories.
 
 
