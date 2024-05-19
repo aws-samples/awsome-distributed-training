@@ -24,7 +24,6 @@ then
 else
     source .env
 fi
-: "${CONTAINER_MOUNT:=$FSX_PATH:$FSX_PATH}"
 
 ##################################################################
 ######### Define EFA/NCCL/Slurm environment variables ############
@@ -53,6 +52,7 @@ export WORLD_SIZE=$(( $NNODES * $NPROC ))
 ##################################################################
 ################# Set arguments ##################################
 ##################################################################
+: "${CONTAINER_MOUNT:=$FSX_PATH:$FSX_PATH}"
 declare -a SRUN_ARGS=(
     --container-image $ENROOT_IMAGE
     --container-mounts $CONTAINER_MOUNT

@@ -119,10 +119,18 @@ It will prompt you to input the token. Paste the token and answer to `n` to the 
 ```bash
 >> Add token as git credential? (Y/n) n
 >> Token is valid (permission: read).
->> Your token has been saved to /fsx/.cache/huggingface/token
+>> Your token has been saved to /fsx/.cache/token
 ```
 
-As you can see on the output, the access token stored under `/fsx/.cache/huggingface`.
+As you can see on the output, the access token stored under `/fsx/.cache`.
+
+Now fetch model weights and tokenizer with `2.download_hf_model.sbatch`:
+
+```bash
+sbatch 2.download_hf_model.sbatch
+```
+
+The model will be downloaded under ${}
 
 ## 4. Pretrain Llama3 model
 
