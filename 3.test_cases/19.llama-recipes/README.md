@@ -21,7 +21,7 @@ cat > .env << EOF
 export APPS_PATH=/fsx/apps
 export ENROOT_IMAGE=\$APPS_PATH/llama3.sqsh
 export FSX_PATH=/fsx
-export MODEL_PATH=$FSX_PATH/llama3
+export MODEL_PATH=\$FSX_PATH/llama3
 export TEST_CASE_PATH=${FSX_PATH}/awsome-distributed-training/3.test_cases/19.llama-recipes
 export HF_HOME=${FSX_PATH}/.cache
 export WANDB_CONFIG_DIR=${FSX_PATH}
