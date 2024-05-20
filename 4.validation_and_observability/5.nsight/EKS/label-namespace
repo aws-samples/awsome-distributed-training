@@ -1,0 +1,2 @@
+#!/bin/bash -x
+kubectl label namespaces ${example-ns} nvidia-devtools-sidecar-injector=enabled --overwrite=true
