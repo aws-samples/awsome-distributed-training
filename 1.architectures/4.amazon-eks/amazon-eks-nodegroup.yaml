@@ -39,7 +39,7 @@ Parameters:
 
   ClusterControlPlaneSecurityGroup:
     Type: "AWS::EC2::SecurityGroup::Id"
-    Description: The security group of the cluster control plane.
+    Description: Additional Security Group from the EKS Cluster, grab this from the EKS console > Networking > Additional Security group.
 
   ClusterName:
     Type: String
@@ -527,6 +527,42 @@ Resources:
             Groups:
               - !Ref NodeSecurityGroup
             InterfaceType: efa
+        UserData: !Base64
+          "Fn::Sub": |
+            Content-Type: multipart/mixed; boundary="==BOUNDARY=="
+            MIME-Version: 1.0
+
+            --==BOUNDARY==
+            Content-Type: text/cloud-boothook; charset="us-ascii"
+            cloud-init-per once yum_wget yum install -y wget
+            cloud-init-per once wget_efa wget -q --timeout=20 https://s3-us-west-2.amazonaws.com/aws-efa-installer/aws-efa-installer-latest.tar.gz -O /tmp/aws-efa-installer-latest.tar.gz
+
+            cloud-init-per once tar_efa tar -xf /tmp/aws-efa-installer-latest.tar.gz -C /tmp
+            pushd /tmp/aws-efa-installer
+            cloud-init-per once install_efa ./efa_installer.sh -y -g
+            pop /tmp/aws-efa-installer
+
+            cloud-init-per once efa_info /opt/amazon/efa/bin/fi_info -p efa
+
+            --==BOUNDARY==
+            Content-Type: text/x-shellscript; charset="us-ascii"
+
+            #!/bin/bash
+            set -o xtrace
+
+            /etc/eks/bootstrap.sh ${ClusterName} ${BootstrapArguments}
+            /opt/aws/bin/cfn-signal --exit-code $? \
+                     --stack  ${AWS::StackName} \
+                     --resource NodeGroup  \
+                     --region ${AWS::Region}
+            --==BOUNDARY==--
+        MetadataOptions:
+          HttpPutResponseHopLimit : 2
+          HttpEndpoint: enabled
+          HttpTokens: !If
+            - IMDSv1Disabled
+            - required
+            - optional
   NodeLaunchTemplateP4:
     Type: "AWS::EC2::LaunchTemplate"
     Condition: isP4d
