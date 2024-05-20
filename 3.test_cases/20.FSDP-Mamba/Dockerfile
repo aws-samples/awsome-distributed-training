@@ -163,6 +163,7 @@ ENV LD_LIBRARY_PATH="/usr/local/lib:/usr/local/cuda/lib64:${LD_LIBRARY_PATH}"
 #    NVCC_GENCODE="-gencode=arch=compute_90,code=sm_90 -gencode=arch=compute_80,code=sm_80"
 
 COPY requirements.txt /workspace/requirements.txt
+
 COPY cache.py /workspace/cache.py
 
 WORKDIR /workspace/
@@ -171,17 +172,21 @@ RUN pip install torch==2.2.2 torchvision==0.17.2 torchaudio==2.2.2 --index-url h
 
 RUN pip install -r requirements.txt
 
-RUN pip install ninja cmake wheel; # build-time dependencies
+RUN pip install triton==2.3.0
 
-RUN git clone https://github.com/triton-lang/triton.git;
-WORKDIR /workspace/triton/
-RUN ls
+#RUN pip install ninja cmake wheel; # build-time dependencies
 
-RUN pip install -e python
+#RUN git clone https://github.com/triton-lang/triton.git;
+
+#WORKDIR /workspace/triton/
+
+#RUN ls
+
+#RUN pip install -e python
+
+#WORKDIR /workspace/
 
 COPY cache.py /usr/local/lib/python3.10/dist-packages/triton/runtime/cache.py
-
-WORKDIR /workspace/
 
 ## Set Open MPI variables to exclude network interface and conduit.
 ENV OMPI_MCA_pml=^cm,ucx            \

@@ -121,7 +121,18 @@ class FileCacheManager(CacheManager):
         # we use the PID incase a bunch of these around so we can see what PID made it
         pid = os.getpid()
         # use tempfile to be robust against program interruptions
+        temp_path = f"{filepath}.tmp.pid_{pid}_{rnd_id}"
+        mode = "wb" if binary else "w"
+        with open(temp_path, mode) as f:
+            f.write(data)
+        # Replace is guaranteed to be atomic on POSIX systems if it succeeds
+        # so filepath cannot see a partial write
+        try:
+            os.replace(temp_path, filepath)
+        except:
+            pass
         # *** Rank 0 only ***
+        '''
         if torch_distributed.is_initialized() and torch_distributed.get_rank() == 0:
             temp_path = f"{filepath}.tmp.pid_{pid}_{rnd_id}"
             mode = "wb" if binary else "w"
@@ -141,7 +152,8 @@ class FileCacheManager(CacheManager):
         # *** Add a distributed barrier ***
         if torch_distributed.is_initialized():
             torch_distributed.barrier()
-            
+        '''
+          
         return filepath
 
 __cache_cls = FileCacheManager
