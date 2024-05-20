@@ -1,9 +1,9 @@
 import math
 import os
 
+import argparse
 import torch
 import torch.optim as optim
-from transformers import AutoModel
 from torch import distributed as dist
 from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 from torch.optim.lr_scheduler import LambdaLR
@@ -147,7 +147,7 @@ def main():
 
     if cfg.use_torch_compile:
         if rank ==0:
-            print(f"---> ysubg tircg cinouke...")
+            print(f"---> using torch compile ...")
         torch._dynamo.config.accumulated_cache_size_limit = 128
         model = torch.compile(model)
 

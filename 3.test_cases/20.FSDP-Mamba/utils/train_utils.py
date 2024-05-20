@@ -27,7 +27,11 @@ from torch.utils.data import DistributedSampler
 from transformers import set_seed
 
 from mamba_ssm.models.mixer_seq_simple import MambaLMHeadModel
-from transformers import AutoModelForCausalLM
+
+from transformers import AutoTokenizer
+from functools import partial
+from collections import namedtuple
+from torch.nn import CrossEntropyLoss
 
 def train(
     cfg,
@@ -76,24 +80,24 @@ def train(
         if batch_idx > cfg.num_steps:
             break
         input, label = batch['input_ids'], batch['labels']
-        input = input.to(local_rank)
-        label = label.to(local_rank)
+        inputs = {
+            "input_ids": batch["input_ids"].to(local_rank),
+            "labels": batch["labels"].to(local_rank),
+            }
 
-        optimizer.zero_grad()
-        logits = model(input).logits
-        loss = F.cross_entropy(logits.view(-1, logits.size(-1)), label.view(-1), ignore_index=0)
-        #output = model(input_ids=input, labels=label)
-        #ce_loss = torch.nn.CrossEntropyLoss()
-        #loss = ce_loss(output.view(-1, output.size(-1)), label.view(-1).long())
-        #loss = output["loss"]
-        scaler.scale(loss).backward()
+        outputs = model(**inputs)
+        loss = outputs.loss
+        loss.backward()
+
         ddp_stats[1] += model.clip_grad_norm_(cfg.grad_clip_thresh).item()
-        scaler.step(optimizer)
-        scaler.update()
+        optimizer.step()
         scheduler.step()
 
         ddp_stats[0] += loss.item()
         ddp_stats[2] += 1
+
+        optimizer.zero_grad(set_to_none=True)
+        loss = loss.detach()
 
         if profiler:
             profiler.step()
@@ -265,5 +269,41 @@ def create_pretraining_dataset(
     return train_dataloader
 
 def load_model(model_name):
-    model = MambaLMHeadModel.from_pretrained(model_name)
+
+    # monkey patch MambaLMHeadModel.forward 
+    def forward_with_loss(self, input_ids, position_ids=None, inference_params=None, num_last_tokens=0, labels = None):
+        """
+        "position_ids" is just to be compatible with Transformer generation. We don't use it.
+        num_last_tokens: if > 0, only return the logits for the last n tokens
+        """
+        hidden_states = self.backbone(input_ids, inference_params=inference_params)
+        if num_last_tokens > 0:
+            hidden_states = hidden_states[:, -num_last_tokens:]
+        lm_logits = self.lm_head(hidden_states)
+
+        if labels is not None:
+            logits = lm_logits
+            # Shift so that tokens < n predict n
+            shift_logits = logits[..., :-1, :].contiguous()
+            shift_labels = labels[..., 1:].contiguous()
+            # Flatten the tokens
+            loss_fct = CrossEntropyLoss()
+            # shift_logits = shift_logits.view(-1, self.config.vocab_size)
+            shift_logits = shift_logits.view(-1, self.backbone.embedding.weight.size()[0])
+            shift_labels = shift_labels.view(-1)
+            # Enable model parallelism
+            shift_labels = shift_labels.to(shift_logits.device)
+            loss = loss_fct(shift_logits, shift_labels)
+
+            CausalLMOutput = namedtuple("CausalLMOutput", ["loss"])
+            return CausalLMOutput(loss=loss)
+            # return (loss,)
+        else:
+            CausalLMOutput = namedtuple("CausalLMOutput", ["logits"])
+            return CausalLMOutput(logits=lm_logits)
+    MambaLMHeadModel.forward=forward_with_loss
+
+    model = MambaLMHeadModel.from_pretrained(
+        model_name,
+    )
     return model
