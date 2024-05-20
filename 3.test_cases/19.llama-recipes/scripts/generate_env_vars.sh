@@ -5,7 +5,7 @@
 
 cat > .env << EOF
 export APPS_PATH=/fsx/ubuntu
-export ENROOT_IMAGE=$APPS_PATH/llama3.sqsh
+export ENROOT_IMAGE=\$APPS_PATH/llama3.sqsh
 export FSX_PATH=/fsx
 export MODEL_PATH=$FSX_PATH/llama3
 export DATA_PATH=$FSX_PATH/data
