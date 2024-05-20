@@ -19,7 +19,7 @@ Modify the following snipet and prepare `.env` file. You can always load the var
 ```bash
 cat > .env << EOF
 export APPS_PATH=/fsx/apps
-export ENROOT_IMAGE=$APPS_PATH/llama3.sqsh
+export ENROOT_IMAGE=\$APPS_PATH/llama3.sqsh
 export FSX_PATH=/fsx
 export MODEL_PATH=$FSX_PATH/llama3
 export TEST_CASE_PATH=${FSX_PATH}/awsome-distributed-training/3.test_cases/19.llama-recipes
