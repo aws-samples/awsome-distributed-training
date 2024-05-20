@@ -134,17 +134,20 @@ The model will be downloaded under ${}
 
 ## 4. Pretrain Llama3 model
 
+In this step, you will author Llama3 model using c4 dataset with `torchtitan`.
 
+```bash
+sbatch 3.pretrain.sbatch
+```
 
 ## 4. Finetune Llama3 model
 
-In this step, you will fine tune llama model, using Alpaca dataset. Use curl command to download the dataset:
+In this step, you will fine tune llama model, using Alpaca dataset. 
 
 ```bash
-curl https://raw.githubusercontent.com/tatsu-lab/stanford_alpaca/main/alpaca_data.json
+sbatch 4.finetune.sbatch
 ```
 
-This example making use of W&B experiment tracking. 
 
 The training process will create the following FSDP checkponits.
 
