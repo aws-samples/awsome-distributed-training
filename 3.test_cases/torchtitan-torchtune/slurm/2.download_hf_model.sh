@@ -17,10 +17,16 @@ then
     mkdir -p ${MODEL_PATH}
 fi
 
-enroot start --env NVIDIA_VISIBLE_DEVICES=void \
+: "${CONTAINER_MOUNT:=$FSX_PATH:$FSX_PATH}"
+declare -a SRUN_ARGS=(
+    --container-image $ENROOT_IMAGE
+    --container-mounts $CONTAINER_MOUNT
+)
+export TORCHTUNE=${PWD}/torchtune/torchtune/_cli/tune.py
+
+enroot start --env NVIDIA_VISIBLE_DEVICES=void --env PYTHONPATH=${PWD}/torchtune --env HF_HOME=${HF_HOME} \
     --mount ${FSX_PATH}:${FSX_PATH} ${ENROOT_IMAGE} \
-    tune
-    download \
-    ${HF_MODEL} \
-    --hf-token ${HF_HOME}/token \
-    --output-dir ${MODEL_PATH}/${HF_MODEL} 
+    python ${TORCHTUNE} download \
+    --output-dir ${MODEL_PATH}/${HF_MODEL} ${HF_MODEL} \
+     --ignore-patterns "original/consolidated*"
+

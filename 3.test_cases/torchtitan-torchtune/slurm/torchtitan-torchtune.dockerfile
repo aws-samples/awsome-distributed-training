@@ -31,7 +31,7 @@ ARG NCCL_VERSION=2.20.3-1
 
 RUN apt-get update -y
 RUN apt-get remove -y --allow-change-held-packages \
-                      libmlx5-1 ibverbs-utils libibverbs-dev libibverbs1
+    libmlx5-1 ibverbs-utils libibverbs-dev libibverbs1
 
 # We noticed that since 23.09, we can't just delete the whole /opt/hpcx/, otherwise `import torch`
 # complains about missing libuc?.so.
@@ -108,13 +108,13 @@ ENV PATH=/opt/amazon/efa/bin:/opt/amazon/openmpi/bin:$PATH
 # aws-ofi-ccnl.
 ####################################################################################################
 RUN cd /tmp \
-   && git clone https://github.com/NVIDIA/nccl.git -b v${NCCL_VERSION} \
-   && cd nccl \
-   && make -j src.build BUILDDIR=/usr \
-   # Build for p4 & p5.
-   NVCC_GENCODE="-gencode=arch=compute_90,code=sm_90, -gencode=arch=compute_80,code=sm_80" \
-   && rm -rf /tmp/nccl \
-   && echo NCCL_SOCKET_IFNAME=^docker0,lo >> /etc/nccl.conf
+    && git clone https://github.com/NVIDIA/nccl.git -b v${NCCL_VERSION} \
+    && cd nccl \
+    && make -j src.build BUILDDIR=/usr \
+    # Build for p4 & p5.
+    NVCC_GENCODE="-gencode=arch=compute_90,code=sm_90, -gencode=arch=compute_80,code=sm_80" \
+    && rm -rf /tmp/nccl \
+    && echo NCCL_SOCKET_IFNAME=^docker0,lo >> /etc/nccl.conf
 
 
 ####################################################################################################
@@ -153,21 +153,21 @@ ENV PMIX_GDS_MODULE=^ds12 \
 # Rebuild openmpi with DLC style (which it remarks as "without libfabric"), with the above pmix.
 ENV OMPI_VERSION=4.1.6
 RUN rm -fr ${OPEN_MPI_PATH} \
- && mkdir /tmp/openmpi \
- && cd /tmp/openmpi \
- && wget --quiet https://download.open-mpi.org/release/open-mpi/v4.1/openmpi-${OMPI_VERSION}.tar.gz \
- && tar zxf openmpi-${OMPI_VERSION}.tar.gz \
- && rm openmpi-${OMPI_VERSION}.tar.gz \
- && cd openmpi-${OMPI_VERSION} \
- && ./configure --enable-orterun-prefix-by-default --prefix=$OPEN_MPI_PATH --with-cuda=${CUDA_HOME} --with-slurm --with-pmix=/opt/pmix \
- && make -j $(nproc) all \
- && make install \
- && ldconfig \
- && cd / \
- && rm -rf /tmp/openmpi \
- && ompi_info --parsable --all | grep mpi_built_with_cuda_support:value \
- # Verify pmix from /opt/pmix/
- && ldd /opt/amazon/openmpi/lib/openmpi/mca_pmix_ext3x.so | grep '/opt/pmix/lib/libpmix.so.* ' > /opt/amazon/openmpi-pmix.txt
+    && mkdir /tmp/openmpi \
+    && cd /tmp/openmpi \
+    && wget --quiet https://download.open-mpi.org/release/open-mpi/v4.1/openmpi-${OMPI_VERSION}.tar.gz \
+    && tar zxf openmpi-${OMPI_VERSION}.tar.gz \
+    && rm openmpi-${OMPI_VERSION}.tar.gz \
+    && cd openmpi-${OMPI_VERSION} \
+    && ./configure --enable-orterun-prefix-by-default --prefix=$OPEN_MPI_PATH --with-cuda=${CUDA_HOME} --with-slurm --with-pmix=/opt/pmix \
+    && make -j $(nproc) all \
+    && make install \
+    && ldconfig \
+    && cd / \
+    && rm -rf /tmp/openmpi \
+    && ompi_info --parsable --all | grep mpi_built_with_cuda_support:value \
+    # Verify pmix from /opt/pmix/
+    && ldd /opt/amazon/openmpi/lib/openmpi/mca_pmix_ext3x.so | grep '/opt/pmix/lib/libpmix.so.* ' > /opt/amazon/openmpi-pmix.txt
 ####################################################################################################
 
 
@@ -197,10 +197,10 @@ RUN export OPAL_PREFIX="" \
     && git checkout ${AWS_OFI_NCCL_VERSION} \
     && ./autogen.sh \
     && ./configure --prefix=/opt/aws-ofi-nccl/install \
-        --with-mpi=/opt/amazon/openmpi \
-        --with-libfabric=/opt/amazon/efa \
-        --with-cuda=/usr/local/cuda \
-        --enable-platform-aws \
+    --with-mpi=/opt/amazon/openmpi \
+    --with-libfabric=/opt/amazon/efa \
+    --with-cuda=/usr/local/cuda \
+    --enable-platform-aws \
     && make -j $(nproc) && make install
 
 
@@ -229,6 +229,5 @@ RUN git clone https://github.com/NVIDIA/nccl-tests.git /opt/nccl-tests \
     NVCC_GENCODE="-gencode=arch=compute_90,code=sm_90 -gencode=arch=compute_80,code=sm_80"
 
 
-RUN pip install accelerate appdirs loralib bitsandbytes datasets fire peft transformers>=4.40.0 sentencepiece wandb vllm gradio openai torchtune
-RUN pip uninstall -y transformer_engine flash_attn
-RUN FLASH_ATTENTION_FORCE_BUILD=TRUE FLASH_ATTENTION_FORCE_BUILD=TRUE pip install flash-attn
+RUN pip install accelerate appdirs loralib bitsandbytes datasets fire peft transformers>=4.40.0 sentencepiece wandb vllm gradio openai
+RUN pip install hydra-core huggingface_hub safetensors tiktoken blobfile>=2 tqdm torchao==0.1
