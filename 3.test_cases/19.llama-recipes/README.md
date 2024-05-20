@@ -24,7 +24,7 @@ export FSX_PATH=/fsx
 export MODEL_PATH=\$FSX_PATH/llama3
 export TEST_CASE_PATH=\${FSX_PATH}/awsome-distributed-training/3.test_cases/19.llama-recipes
 export HF_HOME=\${FSX_PATH}/.cache
-export WANDB_CONFIG_DIR=${FSX_PATH}
+export WANDB_CONFIG_DIR=\${FSX_PATH}
 export WANDB_API_KEY=PUT_YOUR_API_KEY_HERE # You need to place your WANDB_API_KEY here 
 EOF
 ```
