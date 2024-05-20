@@ -18,8 +18,7 @@ else
     source .env
 fi
 
-cd ..
-docker build -t ${IMAGE} -f 0.torchtitan-torchtune.dockerfile .
+docker build -t ${IMAGE} -f torchtitan-torchtune.dockerfile .
 
 # Remove old sqsh file if exists
 if [ -f torchtitan-torchtune.sqsh ] ; then
