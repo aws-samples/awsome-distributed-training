@@ -73,7 +73,7 @@ The above executable needs the following:
 1. DELAY-PERIOD: Collection start delay in seconds. Typically the multi-node workload takes a few seconds before collection of relevant metrics start. Typically for distributed training applications delaying by ~30sec avoids having empty gaps in the timeline view of the Nsight report. For the NCCL test a delay of less than 5 seconds works. You can also specify --duration in seconds to collect metrics.
 
 2. PATH-TO-SAVE-REPORT: One report is generated per GPU. Provide a path to save all reports.
-3. REPORT-NAME-TAG: Unique name tag to group all reports.
+3. REPORT-NAME-TAG: Unique name tag to group all reports. Use %q{} to include environment variables in report names.
 ```
 Here, we are running the Nsight profile with 2 p4de nodes where each node has 4 EFA devices and 8 GPUs. The `nic sampler` metrics from all 4 EFA devices show up in every report so it is okay to collect these metrics only for 1 rank.
 
@@ -112,29 +112,215 @@ You can generate the plot below using the python script `/nccl/plot_nccl.py`
 <center><img src="nccl/all_reduce_sum.png" width="80%"/> </br>
 </center>
 
-# 3. Multi-node training with Slurm and Pyxis
+# 4. Multi-node training with Slurm and Pyxis
 
-We will use the [BioNemo](https://github.com/aws-samples/awsome-distributed-training/tree/main/3.test_cases/14.bionemo) test case.
+In this section, we will show how to generate Nsight reports for a distributed training run with containers on Slurm. We will use the [NeMo launcher](https://github.com/NVIDIA/NeMo-Framework-Launcher/tree/main) to train the [Nemotron-15b](https://github.com/NVIDIA/NeMo-Framework-Launcher/blob/main/launcher_scripts/conf/training/nemotron/nemotron_15b.yaml) model on mock data. To setup NeMo launcher on Parallelcluster please refer to this [README](https://github.com/aws-samples/awsome-distributed-training/tree/main/3.test_cases/2.nemo-launcher). You can specify [nsys_profile.enabled:True](https://github.com/NVIDIA/NeMo-Framework-Launcher/blob/main/launcher_scripts/conf/training/nemotron/nemotron_15b.yaml#L162) in the model config and launch the training run. 
 
-Follow the BioNemo use case to make sure you can run the example. Then to profile the training run, execute
+You can either generate the Nsight profile either by turning on the nsys_profile flag or if you want to generate the nsys report with a different Nsight version, then you can use the run script `/nemotron/1.nemotron.sbatch`
+
+
+Below is a screenshot of the generated Nsight report:
+
+<center><img src="nemotron/nemotron-15B-P5-report.png" width="80%"/> </br>
+</center>
+
+# 5. Working with the report
+
+1. The Nsight Systems GUI offers to view the following. You can see these options by clicking on the Timeline View menu button.
+a.  Output and error logfiles from the training run
+b.  Analysis summary that gives a summary of the profiling session.
+c.  Timeline view of the report
+d.  Diagnostics summary view
+2.  You can right click and pin any row at the top. This helps in analyzing multiple rows simultaneously.
+3.  You can view start and execution times of any kernel by viewing them in the Events view.
+4.  From the Events View, you can zoom to that specific kernel event by right clicking. This provides an easy way to look into kernel events preceding and following a specific kernel even if their durations are in nanoseconds.
+5.  You can export the report in different formats such as sqllite and others as well for custom analysis.
+
+# 6. Nsight Recipes
+
+Once the report is generated, we can generate [recipes](https://docs.nvidia.com/nsight-systems/UserGuide/index.html#available-multi-report-recipes) to analyze the data in the report. We provide the script ` 2.generate_recipes.sh` which will generate multiple recipes for the report and upload to S3. Each recipe run will summarize the relevant data from the report and provide python scripts and jupyter notebooks to analyze the data.
+
+Next, we will show what kind of analysis can be generated from the recipes.
+
+To install requirements to generate recipes:
 
 ```bash
-sbatch 0.nsys_bionemo.slurm
+pip3 install -r ${Nsight_Path}/target-linux-x64/python/packages/nsys_recipe/requirements/common.txt
+pip3 install -r ${Nsight_Path}/target-linux-x64/python/packages/nsys_recipe/requirements/dask.txt
 
 ```
-
-You can modify the srun command:
+With Nsight 2024.3, the following recipes are available:
 
 ```bash
-srun -l "${ARGS[@]}" /usr/local/cuda/bin/nsys profile --output /fsx/nsys_profiles/ --stats true <PYTHON-CODE> --<PYTHON-CODE-ARGS>
+The following built-in recipes are available:
+
+  cuda_api_sum -- CUDA API Summary
+  cuda_api_sync -- CUDA Synchronization APIs
+  cuda_gpu_kern_pace -- CUDA GPU Kernel Pacing
+  cuda_gpu_kern_sum -- CUDA GPU Kernel Summary
+  cuda_gpu_mem_size_sum -- CUDA GPU MemOps Summary (by Size)
+  cuda_gpu_mem_time_sum -- CUDA GPU MemOps Summary (by Time)
+  cuda_gpu_time_util_map -- CUDA GPU Time Utilization Heatmap
+  cuda_memcpy_async -- CUDA Async Memcpy with Pageable Memory
+  cuda_memcpy_sync -- CUDA Synchronous Memcpy
+  cuda_memset_sync -- CUDA Synchronous Memset
+  diff -- Statistics Diff
+  dx12_mem_ops -- DX12 Memory Operations
+  gpu_gaps -- GPU Gaps
+  gpu_metric_util_map -- GPU Metric Utilization Heatmap
+  gpu_time_util -- GPU Time Utilization
+  mpi_gpu_time_util_map -- MPI and GPU Time Utilization Heatmap
+  mpi_sum -- MPI Summary
+  nccl_gpu_overlap_trace -- NCCL GPU Overlap Trace
+  nccl_gpu_proj_sum -- NCCL GPU Projection Summary
+  nccl_gpu_time_util_map -- NCCL GPU Time Utilization Heatmap
+  nccl_sum -- NCCL Summary
+  network_traffic_map -- Network Devices Traffic Heatmap
+  nvtx_gpu_proj_pace -- NVTX GPU Projection Pacing
+  nvtx_gpu_proj_sum -- NVTX GPU Projection Summary
+  nvtx_gpu_proj_trace -- NVTX GPU Projection Trace
+  nvtx_pace -- NVTX Pacing
+  nvtx_sum -- NVTX Range Summary
+  osrt_sum -- OS Runtime Summary
+  ucx_gpu_time_util_map -- UCX and GPU Time Utilization Heatmap
 ```
 
-# 4. Sample stats
+Please see the `2.generate_recipes.sh` to generate multiple recipes from a given report as below:
 
-Example slurm output file provided: `slurm-esm1nv-train-102.out`
+```bash
+# Do not include nsys-rep extension
+export NSIGHT_REPORT_NAME=
+./2.generate_recipes.sh
+```
 
-1. 'cuda_api_sum' stats report
-2. 'cuda_gpu_mem_time_sum' stats report
-3. 'osrt_sum' stats report
-4. 'cuda_gpu_kern_sum' stats report
-5. 'nvtx_sum' stats report
+# 7. Distributed training run with FSDP
+
+Next we will show how to profile the [10.FSDP](https://github.com/aws-samples/awsome-distributed-training/tree/main/3.test_cases/10.FSDP) test case. We will show explicitly how to generate a profile for specific training steps rather than providing `--delay` and `--duration` parameters. To this end, we provide the relevant files in the `fsdp-llama2` folder. To profile speciific training steps:
+
+1. Add `nsys_start_step` and `nsys_end_step` as input arguments to your train.py
+2. Add the following in the training loop to start collecting data from Cuda and OSRT traces:
+```python
+if batch_idx == args.nsys_start_step and global_rank == 0:
+    logger.info("====== Start nsys profiling ======")
+    torch.cuda.cudart().cudaProfilerStart()
+```
+3. Add to stop collection:
+```python
+if batch_idx == args.nsys_end_step and global_rank == 0:
+    logger.info("====== Stop nsys profiling ======")
+    torch.cuda.cudart().cudaProfilerStop()
+```
+4. Add `--capture-range=cudaProfilerApi --capture-range-end=stop` to the `nsys profile ...` command.
+
+Below is a screenshot of the generated Nsight report:
+
+<center><img src="fsdp-llama2/fsdp_rep_screenshot.png" width="80%"/> </br>
+</center>
+
+# 8. Nsight on EKS
+
+We will use the [Nvidia Devtools Sidecar Injector](https://catalog.ngc.nvidia.com/orgs/nvidia/teams/devtools/helm-charts/devtools-sidecar-injector) to profile containerized applications.
+
+Pull the Nsight docker image - This step will not be needed once the 2024.4 version is released.
+
+```bash
+docker pull nvcr.io/nvstaging/devtools/nsight-systems-cli:2024.4.1-ubuntu22.04
+
+# Push image to ECR
+```
+
+## 8.1 Make changes to the `custom_values.yaml`
+
+```bash
+# If we dont specify the Nsight image, 2024.2 version is used by default.
+# Will use 2024.4 version which is planned to be released by 5/24/2024
+devtoolBinariesImage:
+  image: ${REGISTRY}.dkr.ecr.${REGION}.amazonaws.com/nsight-systems-cli:2024.4.1-ubuntu22.04
+  imagePullPolicy: Always
+
+# Assuming EKS cluster has a FSx for Lustre filesystem mounted on it. Nsight reports will be saved in /fsx_shared
+profile:
+  volumes:
+    [
+      {
+        "name": "nsys-output-volume",
+        "persistentVolumeClaim": { "claimName": "fsx-pvc" }
+      }
+    ]
+  volumeMounts:
+    [
+      {
+        "name": "nsys-output-volume",
+        "mountPath": "/fsx_shared"
+      }
+    ]
+
+  # CLI options: https://docs.nvidia.com/nsight-systems/UserGuide/index.html#cli-command-switches
+  # delay and duration values in secs
+
+  # Use %{} to include environment variables in the Nsight report filename
+
+  # The arguments for the Nsight Systems. The placeholders will be replaced with the actual values.
+  devtoolArgs: "profile --force-overwrite true --trace nvtx,cuda  --delay 150 --duration 60 \
+  -o /fsx_shared/fsdp/auto_{PROCESS_NAME}_%{POD_FULLNAME}_%{CONTAINER_NAME}_{TIMESTAMP}_{UID}.nsys-rep"
+
+  injectionMatch: "^/usr/bin/python3 /usr/local/bin/torchrun.*$"
+  #injectionMatch: "^.*torchrun.*$"
+```
+
+## 8.2 Install injector
+
+Install helm chart for the sidecar injector as below:
+```bash
+helm install -f custom_values.yaml \
+    devtools-sidecar-injector https://helm.ngc.nvidia.com/nvidia/devtools/charts/devtools-sidecar-injector-1.0.0.tgz
+```
+
+## 8.3 Add label to training job manifest
+
+Add the following label:
+
+```bash
+pytorchReplicaSpecs:
+    Worker:
+      replicas: 2
+      restartPolicy: OnFailure
+      template:
+        metadata:
+          labels:
+            app: fsdp
+            nvidia-devtools-sidecar-injector: enabled
+```
+
+## 8.4 Run Training job
+
+Run the training job as:
+
+```bash
+kubectl apply -f fsdp.yaml
+```
+The report will get saved to `/fsx_shared`
+
+Below is a screenshot of the generated Nsight report:
+
+<center><img src="EKS/fsdp_eks_report_screenshot.png" width="80%"/> </br>
+</center>
+
+## 8.5 Uninstall injector
+
+To uninstall injector:
+
+```bash
+helm uninstall devtools-sidecar-injector
+
+kubectl delete namespace nvidia-devtools-sidecar-injector
+
+kubectl delete mutatingwebhookconfigurations sidecar-injector-webhook
+kubectl delete mutatingwebhookconfiguration nvidia-devtools-sidecar-injector-webhook
+
+kubectl delete cm -n example-ns nvidia-devtools-sidecar-injector
+kubectl delete cm -n example-ns nvidia-devtools-sidecar-injector-custom
+
+kubectl delete cm nvidia-devtools-sidecar-injector
+kubectl delete cm nvidia-devtools-sidecar-injector-custom
+```

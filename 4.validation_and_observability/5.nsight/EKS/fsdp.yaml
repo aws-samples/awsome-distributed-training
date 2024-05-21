@@ -1,0 +1,77 @@
+apiVersion: "kubeflow.org/v1"
+kind: PyTorchJob
+metadata:
+  name: fsdp
+spec:
+  elasticPolicy:
+    rdzvBackend: etcd
+    rdzvHost: etcd
+    rdzvPort: 2379
+    minReplicas: 1
+    maxReplicas: 96
+    maxRestarts: 100
+    #metrics:
+    #  - type: Resource
+    #    resource:
+    #      name: cpu
+    #      target:
+    #        type: Utilization
+    #        averageUtilization: 80
+  pytorchReplicaSpecs:
+    Worker:
+      replicas: 2
+      restartPolicy: OnFailure
+      template:
+        metadata:
+          labels:
+            app: fsdp
+            nvidia-devtools-sidecar-injector: enabled
+        spec:
+          volumes:
+            - name: shmem
+              #emptyDir:
+              #  medium: Memory
+              hostPath:
+                path: /dev/shm
+          #nodeSelector:
+          #  node.kubernetes.io/instance-type: "p5.48xlarge"
+          containers:
+            - name: pytorch
+              image: 159553542841.dkr.ecr.us-west-2.amazonaws.com/fsdp:llama2-efa-main-02-13
+              imagePullPolicy: Always
+              resources:
+                requests:
+                  nvidia.com/gpu:
+                  vpc.amazonaws.com/efa: 4
+                limits:
+                  nvidia.com/gpu:
+                  vpc.amazonaws.com/efa: 4
+              env:
+              # for P5 FI_* should be commented out
+              #- name: LOGLEVEL
+              #  value: "DEBUG"
+              - name: FI_PROVIDER
+                value: efa
+              - name: FI_EFA_USE_DEVICE_RDMA
+                value: "1"
+              - name: FI_EFA_FORK_SAFE
+                value: "1"
+              - name: FI_LOG_LEVEL
+                value: "1"
+              - name: FI_EFA_ENABLE_SHM_TRANSFER
+                value: "1"
+             #- name: NCCL_DEBUG
+             #   value: "INFO"
+              - name: NCCL_ASYNC_ERROR_HANDLING
+                value: "1"
+              #- name: NCCL_IGNORE_DISABLED_P2P
+              #  value: "1"
+              - name: HF_TOKEN
+                value: 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
+              command:
+                - bash
+                - -c
+                - "torchrun --nproc_per_node=8 --nnodes=2 examples/finetuning.py --num_epochs=1 --batch_size_training=3 --enable_fsdp --pure_bf16 --model_name meta-llama/Llama-2-7b-hf --output_dir ."
+              volumeMounts:
+                - name: shmem
+                  mountPath: /dev/shm
