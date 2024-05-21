@@ -67,7 +67,7 @@ spec:
               #- name: NCCL_IGNORE_DISABLED_P2P
               #  value: "1"
               - name: HF_TOKEN
-                value: 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
+                value: <HF_token>
               command:
                 - bash
                 - -c
