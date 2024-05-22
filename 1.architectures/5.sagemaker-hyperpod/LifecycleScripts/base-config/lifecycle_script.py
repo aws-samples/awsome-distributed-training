@@ -198,6 +198,7 @@ def main(args):
                 wait_for_scontrol()
                 ExecuteBashScript("./utils/install_docker.sh").run()
                 ExecuteBashScript("./utils/install_slurm_exporter.sh").run()
+                ExecuteBashScript("./utils/install_head_node_exporter.sh").run()
                 ExecuteBashScript("./utils/install_prometheus.sh").run()
 
         # Install and configure SSSD for ActiveDirectory/LDAP integration
