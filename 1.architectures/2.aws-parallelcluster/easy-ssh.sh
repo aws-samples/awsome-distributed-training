@@ -15,7 +15,7 @@ if [ "$os" = 'ubuntu2004' ]; then
 elif [ "$os" = 'ubuntu2204' ]; then 
     user='ubuntu'
 elif [ "$os" = 'alinux2' ]; then
-    user='XXXXXXXX'
+    user='ec2-user'
 fi
 
 echo -e "Instance Id: $instance_id"
