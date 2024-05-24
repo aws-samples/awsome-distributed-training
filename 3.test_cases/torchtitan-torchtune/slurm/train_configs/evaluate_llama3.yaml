@@ -1,0 +1,66 @@
+# Config for EleutherEvalRecipe in eleuther_eval.py
+#
+# To launch, run the following command from root torchtune directory:
+#    tune run eleuther_eval --config eleuther_evaluation tasks=["truthfulqa_mc2","hellaswag"]
+
+# Model Arguments
+model:
+  _component_: torchtune.models.llama3.llama3_70b
+
+checkpointer:
+  _component_: torchtune.utils.FullModelHFCheckpointer
+  checkpoint_dir: /fsx/models/torchtitan-torchtune/meta-llama/Meta-Llama-3-70B-tuned
+  checkpoint_files: [
+    hf_model_0001_0.pt,
+    hf_model_0002_0.pt,
+    hf_model_0003_0.pt,
+    hf_model_0004_0.pt,
+    hf_model_0005_0.pt,
+    hf_model_0006_0.pt,
+    hf_model_0007_0.pt,
+    hf_model_0007_0.pt,
+    hf_model_0008_0.pt,
+    hf_model_0009_0.pt,
+    hf_model_0010_0.pt,
+    hf_model_0011_0.pt,
+    hf_model_0012_0.pt,
+    hf_model_0013_0.pt,
+    hf_model_0014_0.pt,
+    hf_model_0015_0.pt,
+    hf_model_0016_0.pt,
+    hf_model_0017_0.pt,
+    hf_model_0018_0.pt,
+    hf_model_0019_0.pt,
+    hf_model_0020_0.pt,
+    hf_model_0021_0.pt,
+    hf_model_0022_0.pt,
+    hf_model_0023_0.pt,
+    hf_model_0024_0.pt,
+    hf_model_0025_0.pt,
+    hf_model_0026_0.pt,
+    hf_model_0027_0.pt,
+    hf_model_0028_0.pt,
+    hf_model_0029_0.pt,
+    hf_model_0030_0.pt,
+  ]
+  output_dir: /tmp/Llama3-70b-hf
+  model_type: LLAMA3
+
+# Tokenizer
+tokenizer:
+  _component_: torchtune.models.llama3.llama3_tokenizer
+  path: /fsx/models/torchtitan-torchtune/meta-llama/Meta-Llama-3-70B/original/tokenizer.model
+
+# Environment
+device: cuda
+dtype: bf16
+seed: 1234 # It is not recommended to change this seed, b/c it matches EleutherAI's default seed
+
+# EleutherAI specific eval args
+tasks: ["truthfulqa_mc2"]
+limit: null
+max_seq_length: 4096
+batch_size: 8
+
+# Quantization specific args
+quantizer: null
