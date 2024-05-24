@@ -148,44 +148,36 @@ In this step, you will fine tune llama model, using Alpaca dataset.
 sbatch 4.finetune.sbatch
 ```
 
-
-The training process will create the following FSDP checkponits.
-
-```bash
-$ ls /fsx/models/meta-llama/Meta-Llama-3-8B-tuned/fine-tuned-meta-llama/Meta-Llama-3-8B/
-__0_0.distcp   __12_0.distcp  __15_0.distcp  __3_0.distcp  __6_0.distcp  __9_0.distcp
-__10_0.distcp  __13_0.distcp  __1_0.distcp   __4_0.distcp  __7_0.distcp  train_params.yaml
-__11_0.distcp  __14_0.distcp  __2_0.distcp   __5_0.distcp  __8_0.distcp
-```
-
-
-Use the following command to convert the checkpoint into Huggingface format (change value for the arguments based on your setting).
-
-```bash
-sbatch 3.convert-checkpoints.sbatch \
-    --fsdp_checkpoint_path /fsx/models/Meta-Llama-3-70B-tuned/fine-tuned-meta-llama/Meta-Llama-3-70B \
-    --consolidated_model_path /fsx/models/meta-llama/Meta-Llama-3-70B-tuned/fine-tuned-meta-llama/Meta-Llama-3-70B-hf
-```
-
-Once the job has been completed you will see following outputs in the log:
+Once the job has been completed, you will see following outputs in the log:
 
 ```bash
 ==> logs/convert-checkpoint_560.out <==
-0: Model name: meta-llama/Meta-Llama-3-70B
-0: model is loaded from config
-0: Sharded state checkpoint loaded from /fsx/models/Meta-Llama-3-70B-tuned/fine-tuned-meta-llama/Meta-Llama-3-70B
-0: model is loaded from FSDP checkpoints
-0: debug:  meta-llama/Meta-Llama-3-70B <class 'str'>
-0: HuggingFace model checkpoints has been saved in /fsx/models/meta-llama/Meta-Llama-3-70B-tuned/fine-tuned-meta-llama/Meta-Llama-3-70B-hf
+0: INFO:torchtune.utils.logging:Model checkpoint of size 4.97 GB saved to /fsx/models/torchtitan-torchtune/meta-llama/Meta-Llama-3-70B-tuned/hf_model_0024_0.pt
+0: INFO:torchtune.utils.logging:Model checkpoint of size 4.66 GB saved to /fsx/models/torchtitan-torchtune/meta-llama/Meta-Llama-3-70B-tuned/hf_model_0025_0.pt
+0: INFO:torchtune.utils.logging:Model checkpoint of size 4.66 GB saved to /fsx/models/torchtitan-torchtune/meta-llama/Meta-Llama-3-70B-tuned/hf_model_0026_0.pt
+0: INFO:torchtune.utils.logging:Model checkpoint of size 4.66 GB saved to /fsx/models/torchtitan-torchtune/meta-llama/Meta-Llama-3-70B-tuned/hf_model_0027_0.pt
+0: INFO:torchtune.utils.logging:Model checkpoint of size 5.00 GB saved to /fsx/models/torchtitan-torchtune/meta-llama/Meta-Llama-3-70B-tuned/hf_model_0028_0.pt
+0: INFO:torchtune.utils.logging:Model checkpoint of size 4.97 GB saved to /fsx/models/torchtitan-torchtune/meta-llama/Meta-Llama-3-70B-tuned/hf_model_0029_0.pt
+0: INFO:torchtune.utils.logging:Model checkpoint of size 2.10 GB saved to /fsx/models/torchtitan-torchtune/meta-llama/Meta-Llama-3-70B-tuned/hf_model_0030_0.pt
+0: INFO:torchtune.utils.logging:Adapter checkpoint of size 0.09 GB saved to /fsx/models/torchtitan-torchtune/meta-llama/Meta-Llama-3-70B-tuned/adapter_0.pt
+0: ^M1|3251|Loss: 1.5955958366394043: 100%|██████████| 3251/3251 [2:07:13<00:00,  2.35s/it]
 ```
 
-and HF checkpoints under `consolidated_model_path`:
+checkpoints are saved as
 
 ```bash
-$ ls /fsx/models/meta-llama/Meta-Llama-3-8B-tuned/fine-tuned-meta-llama/Meta-Llama-3-8B-hf
-config.json             model-00001-of-00007.safetensors  model-00003-of-00007.safetensors  model-00005-of-00007.safetensors  model-00007-of-00007.safetensors  special_tokens_map.json  tokenizer_config.json
-generation_config.json  model-00002-of-00007.safetensors  model-00004-of-00007.safetensors  model-00006-of-00007.safetensors  model.safetensors.index.json      tokenizer.json
+$ ls /fsx/models/torchtitan-torchtune/meta-llama/Meta-Llama-3-70B-tuned/
+adapter_0.pt        hf_model_0002_0.pt  hf_model_0005_0.pt  hf_model_0008_0.pt  hf_model_0011_0.pt  hf_model_0014_0.pt  hf_model_0017_0.pt  hf_model_0020_0.pt  hf_model_0023_0.pt  hf_model_0026_0.pt  hf_model_0029_0.pt
+config.json         hf_model_0003_0.pt  hf_model_0006_0.pt  hf_model_0009_0.pt  hf_model_0012_0.pt  hf_model_0015_0.pt  hf_model_0018_0.pt  hf_model_0021_0.pt  hf_model_0024_0.pt  hf_model_0027_0.pt  hf_model_0030_0.pt
+hf_model_0001_0.pt  hf_model_0004_0.pt  hf_model_0007_0.pt  hf_model_0010_0.pt  hf_model_0013_0.pt  hf_model_0016_0.pt  hf_model_0019_0.pt  hf_model_0022_0.pt  hf_model_0025_0.pt  hf_model_0028_0.pt
 ```
+
+## 5. Evaluate Llama3 model with lm-evaluation harness
+
+In this step, you evaluate model with lm-evaluation harness.
+
+
+
 
 
 ## 5. Chat with Finetuned model
