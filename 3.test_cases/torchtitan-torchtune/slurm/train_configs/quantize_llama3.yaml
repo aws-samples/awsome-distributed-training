@@ -1,0 +1,56 @@
+# Config for QuantizationRecipe in quantize.py
+#
+# To launch, run the following command from root torchtune directory:
+#    tune run quantize --config quantization
+
+#
+# Model arguments
+model:
+  _component_: torchtune.models.llama3.llama3_70b
+
+checkpointer:
+  _component_: torchtune.utils.FullModelHFCheckpointer
+  checkpoint_dir:  ${MODEL_PATH}/${HF_MODEL}
+  checkpoint_files: [
+      model-00001-of-00030.safetensors,
+      model-00002-of-00030.safetensors,
+      model-00003-of-00030.safetensors,
+      model-00004-of-00030.safetensors,
+      model-00005-of-00030.safetensors,
+      model-00006-of-00030.safetensors,
+      model-00007-of-00030.safetensors,
+      model-00008-of-00030.safetensors,
+      model-00009-of-00030.safetensors,
+      model-00010-of-00030.safetensors,
+      model-00011-of-00030.safetensors,
+      model-00012-of-00030.safetensors,
+      model-00013-of-00030.safetensors,
+      model-00014-of-00030.safetensors,
+      model-00015-of-00030.safetensors,
+      model-00016-of-00030.safetensors,
+      model-00017-of-00030.safetensors,
+      model-00018-of-00030.safetensors,
+      model-00019-of-00030.safetensors,
+      model-00020-of-00030.safetensors,
+      model-00021-of-00030.safetensors,
+      model-00022-of-00030.safetensors,
+      model-00023-of-00030.safetensors,
+      model-00024-of-00030.safetensors,
+      model-00025-of-00030.safetensors,
+      model-00026-of-00030.safetensors,
+      model-00027-of-00030.safetensors,
+      model-00028-of-00030.safetensors,
+      model-00029-of-00030.safetensors,
+      model-00030-of-00030.safetensors,
+  ]
+  recipe_checkpoint: null
+  output_dir: ${MODEL_PATH}/${HF_MODEL}-quantized
+  model_type: LLAMA3
+
+device: cpu
+dtype: bf16
+seed: 1234
+
+quantizer:
+  _component_: torchtune.utils.quantization.Int4WeightOnlyQuantizer
+  groupsize: 256

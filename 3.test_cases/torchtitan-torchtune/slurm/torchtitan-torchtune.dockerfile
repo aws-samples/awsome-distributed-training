@@ -230,4 +230,5 @@ RUN git clone https://github.com/NVIDIA/nccl-tests.git /opt/nccl-tests \
 
 
 RUN pip install accelerate appdirs loralib bitsandbytes datasets fire peft transformers>=4.40.0 sentencepiece wandb vllm gradio openai
-RUN pip install hydra-core huggingface_hub safetensors tiktoken blobfile>=2 tqdm torchao==0.1
+RUN pip install hydra-core huggingface_hub safetensors tiktoken blobfile>=2 tqdm torchao==0.1 lm_eval==0.4.*
+RUN pip uninstall -y transformer-engine
