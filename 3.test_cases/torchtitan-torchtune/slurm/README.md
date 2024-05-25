@@ -20,36 +20,34 @@ We recommend that you set up a Slurm cluster using the templates in the architec
 
 To effectively monitor the model training process and computational resource usage, we will employ [Weights & Biases](https://wandb.ai/). You will need to create an account and obtain your `WANDB_API_KEY` from Weights & Biases [Settings](https://wandb.ai/settings). For detailed setup instructions, please refer to the Weights & Biases [Quickstart Guide](https://docs.wandb.ai/quickstart).
 
-Run `0.create-dot-env.sh` to create `.env` file. This file will be sourced by all the subsequent job files:
+Run `configure-env-vars.sh` to create `.env` file. This file will be sourced by all the subsequent job files:
 
 ```bash
-0.create-dot-env.sh
+cd /fsx
+
+bash configure-env-vars.sh
 ```
 
 The script will prompt you to input `WANDB_API_KEY`:
 
 ```bash
 Setting up environment variables
-Please enter your WANDB_API_KEY
-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx # Your API KEY 
+Please enter your WANDB_API_KEY xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx # Your API KEY 
 .env file created successfully
 Please run 'source .env' to set the environment variables
 ```
-
 
 
 The following environment variable will be on `.env` file. Feel free to modify `0.create-dot-env.sh` to customize.
 
 ```bash
 export FSX_PATH=/fsx
-export IMAGE=torchtitan-torchtune
 export APPS_PATH=/fsx/apps
-export ENROOT_IMAGE=/fsx/apps/torchtitan-torchtune.sqsh
-export MODEL_PATH=/fsx/models/torchtitan-torchtune
+export MODEL_PATH=/fsx/models
 export TEST_CASE_PATH=/fsx/awsome-distributed-training/3.test_cases/torchtitan-torchtune/slurm
 export HF_HOME=/fsx/.cache
 export WANDB_CONFIG_DIR=/fsx
-export WANDB_API_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+export WANDB_API_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx # You hav your access key here
 ```
 
 On the head/login node of the cluster, clone the repository, move to the test case directory.
@@ -63,8 +61,6 @@ cd ${TEST_CASE_PATH}
 Clone `torchtitan` and `torchtune`:
 
 ```bash
-source .env
-cd ${TEST_CASE_PATH}
 git clone https://github.com/pytorch/torchtitan.git torchtitan
 git clone https://github.com/pytorch/torchtune.git torchtune
 ```
@@ -73,16 +69,17 @@ git clone https://github.com/pytorch/torchtune.git torchtune
 
 Before running training jobs, you need to use a build docker container image. [Enroot](https://github.com/NVIDIA/enroot) will be used to turn the image into unprivileged sandbox for Slurm. 
 
-Submit `1.build-image.sbatch`:
+Submit `build-image.sbatch` and :
 
 ```bash
-sbatch 1.build-image.sbatch
+sbatch build-image.sbatch --image torchtune
+sbatch build-image.sbatch --image torchtitan
 ```
 
 You can check build progress through log files:
 
 ```bash
-tail -f logs/build-image_581.*
+tail -f logs/build-image_*
 ```
 
 The build process was successuful if you could see the following lines at the end of the log:
@@ -127,10 +124,13 @@ As you can see on the output, the access token stored under `/fsx/.cache`.
 Now fetch model weights and tokenizer with `2.download_hf_model.sbatch`:
 
 ```bash
-sbatch 2.download_hf_model.sbatch
+sbatch download_hf_model.sbatch --HF_MODEL=meta-llama/Meta-Llama-3-70B
 ```
 
 The model will be downloaded under ${}
+
+You are all set ! P
+
 
 ## 4. Pretrain Llama3 model
 
