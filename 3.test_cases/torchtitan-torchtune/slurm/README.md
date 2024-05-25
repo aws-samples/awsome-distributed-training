@@ -20,11 +20,17 @@ We recommend that you set up a Slurm cluster using the templates in the architec
 
 To effectively monitor the model training process and computational resource usage, we will employ [Weights & Biases](https://wandb.ai/). You will need to create an account and obtain your `WANDB_API_KEY` from Weights & Biases [Settings](https://wandb.ai/settings). For detailed setup instructions, please refer to the Weights & Biases [Quickstart Guide](https://docs.wandb.ai/quickstart).
 
-Run `configure-env-vars.sh` to create `.env` file. This file will be sourced by all the subsequent job files:
+On the head/login node of the cluster, clone the repository, move to the test case directory.
 
 ```bash
 cd /fsx
+git clone https://github.com/aws-samples/awsome-distributed-training ${FSX_PATH}/awsome-distributed-training
+cd /fsx/awsome-distributed-training/3.test_cases/torchtitan-torchtune/slurm
+```
 
+Run `configure-env-vars.sh` to create `.env` file. This file will be sourced by all the subsequent job files:
+
+```bash
 bash configure-env-vars.sh
 ```
 
@@ -37,8 +43,11 @@ Please enter your WANDB_API_KEY xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx # Your AP
 Please run 'source .env' to set the environment variables
 ```
 
-
 The following environment variable will be on `.env` file. Feel free to modify `0.create-dot-env.sh` to customize.
+
+```bash
+cat .env
+```
 
 ```bash
 export FSX_PATH=/fsx
@@ -48,14 +57,6 @@ export TEST_CASE_PATH=/fsx/awsome-distributed-training/3.test_cases/torchtitan-t
 export HF_HOME=/fsx/.cache
 export WANDB_CONFIG_DIR=/fsx
 export WANDB_API_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx # You hav your access key here
-```
-
-On the head/login node of the cluster, clone the repository, move to the test case directory.
-
-```bash
-source .env
-git clone https://github.com/aws-samples/awsome-distributed-training ${FSX_PATH}/awsome-distributed-training
-cd ${TEST_CASE_PATH}
 ```
 
 Clone `torchtitan` and `torchtune`:
