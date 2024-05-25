@@ -56,7 +56,7 @@ On the head/login node of the cluster, clone the repository, move to the test ca
 
 ```bash
 source .env
-git clone https://github.com/aws-samples/awsome-distributed-training ${FSX_PATH}
+git clone https://github.com/aws-samples/awsome-distributed-training ${FSX_PATH}/awsome-distributed-training
 cd ${TEST_CASE_PATH}
 ```
 
