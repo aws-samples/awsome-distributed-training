@@ -23,7 +23,7 @@ To effectively monitor the model training process and computational resource usa
 Run `0.create-dot-env.sh` to create `.env` file. This file will be sourced by all the subsequent job files:
 
 ```bash
-0.create-dot-env.sh
+./0.create-dot-env.sh
 ```
 
 The script will prompt you to input `WANDB_API_KEY`:
