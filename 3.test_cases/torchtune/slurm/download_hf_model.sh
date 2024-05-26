@@ -2,7 +2,7 @@
 
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
-set -euo pipefail
+set -eo pipefail
 
 if [ ! -f .env ]
 then
@@ -36,7 +36,7 @@ parse_args() {
                 HF_MODEL=$1
                 ;;
             *)
-                echo "Unknown argument: $1"
+                echo "[ERROR] Unknown argument: $1"
                 exit 1
                 ;;
         esac
@@ -44,6 +44,11 @@ parse_args() {
     done
 }
 parse_args "$@"
+
+if [ -z ${HF_MODEL} ]; then
+    echo "[ERROR] -m|--model not provided."
+    exit 1
+fi
 
 if [ ! -d ${MODEL_PATH} ]
 then
