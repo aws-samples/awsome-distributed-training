@@ -1,4 +1,4 @@
-# End-to-End LLM Model Development with Torchtitan and Torchtune <!-- omit in toc -->
+# End-to-End LLM Model Development with Torchtune <!-- omit in toc -->
 
 This guide demonstrates the comprehensive process of developing a Large Language Model (LLM) from start to finish using [Torchtune](https://github.com/pytorch/torchtune). The journey of creating an LLM encompasses five pivotal steps:
 
@@ -26,13 +26,3 @@ Features of Torchtune encompass:
 * Comprehensive support for numerous popular dataset formats and prompt templates, ensuring a smooth start to training endeavors.
 
 This case study provides examples for two schedulers, Slurm and Kubernetes, with detailed instructions available in the `slurm` or `kubernetes` subdirectories.
-
-
-
-**Torchtitan** is a pioneering library for large-scale LLM training utilizing native PyTorch. It highlights PyTorch's latest distributed training features through a clean, minimalistic codebase.
-
-Characteristics of Torchtitan include:
-
-* User-friendly design, making it easy to understand, use, and extend for various training purposes.
-* Minimal modifications required to the model code for applying 1D, 2D, or upcoming 3D parallelism.
-* A modular approach over a monolithic codebase, facilitating quick start-ups.
