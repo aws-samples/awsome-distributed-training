@@ -1,12 +1,7 @@
-# End-to-End LLM Model Development with Torchtitan and Torchtune on Slurm <!-- omit in toc -->
+# End-to-End LLM Model Development with Torchtune on Slurm <!-- omit in toc -->
 
-This example will go through how to
-* Pretrain Llama3 model using `torchtitan`
-* Finetune Llama3 model using `torchtune`
-* Model evaluation with `lm-evaluation-harness` with `torchtune`
-* Test model deployment with `vLLM`
-
-on Slurm. 
+This example illstrates how to set up toorchtune environment and run each of the step in LLMOps on Slurm. 
+For further examples see the respective sub-directories.
 
 ## 1. Preparation
 
@@ -25,7 +20,7 @@ On the head/login node of the cluster, clone the repository, move to the test ca
 ```bash
 cd /fsx
 git clone https://github.com/aws-samples/awsome-distributed-training ${FSX_PATH}/awsome-distributed-training
-cd /fsx/awsome-distributed-training/3.test_cases/torchtitan-torchtune/slurm
+cd /fsx/awsome-distributed-training/3.test_cases/torchtune/slurm
 ```
 
 Run `configure-env-vars.sh` to create `.env` file. This file will be sourced by all the subsequent job files:
