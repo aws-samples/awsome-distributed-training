@@ -6,7 +6,7 @@ This guide demonstrates the comprehensive process of developing a Large Language
 
 1. **Data Preparation**: The journey begins with the collection and preparation of data for training. This step is crucial as it involves exploring the data's characteristics, performing necessary cleaning, and applying preprocessing techniques to ensure the data is in the right shape for model training.
 
-2. **Pretraining the Language Model**: Next, the language model undergoes pretraining on a vast corpus of text data. This step can be bypassed if starting with an already pretrained model. Pretraining is essential for the model to learn the general patterns and structures of language. Refer `../torchtitan` test case for the large scale pretraining with the latest techniques such as 3D parallelism and `torch.compile`.
+2. **Pretraining the Language Model**: Next, the language model undergoes pretraining on a vast corpus of text data. This step can be bypassed if starting with an already pretrained model. Pretraining is essential for the model to learn the general patterns and structures of language. Refer `torchtitan` test case for the large scale pretraining with the latest techniques such as 3D parallelism and `torch.compile`.
 
 3. **Fine-Tuning**: The pretrained model is then fine-tuned to cater to specific tasks by updating its parameters with a new dataset. This process involves partially retraining the model with samples that exemplify the desired behavior, thus refining the model weights for the particular application.
 
@@ -26,3 +26,13 @@ Features of Torchtune encompass:
 * Comprehensive support for numerous popular dataset formats and prompt templates, ensuring a smooth start to training endeavors.
 
 This case study provides examples for two schedulers, Slurm and Kubernetes, with detailed instructions available in the `slurm` or `kubernetes` subdirectories.
+
+
+
+**Torchtitan** is a pioneering library for large-scale LLM training utilizing native PyTorch. It highlights PyTorch's latest distributed training features through a clean, minimalistic codebase.
+
+Characteristics of Torchtitan include:
+
+* User-friendly design, making it easy to understand, use, and extend for various training purposes.
+* Minimal modifications required to the model code for applying 1D, 2D, or upcoming 3D parallelism.
+* A modular approach over a monolithic codebase, facilitating quick start-ups.

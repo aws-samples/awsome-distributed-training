@@ -18,12 +18,12 @@ else
     source .env
 fi
 
-docker build -t ${IMAGE} -f torchtitan-torchtune.dockerfile .
+docker build -t ${IMAGE} -f torchtune.dockerfile .
 
 # Remove old sqsh file if exists
 if [ -f torchtitan-torchtune.sqsh ] ; then
-    rm torchtitan-torchtune.sqsh
+    rm torchtune.sqsh
 fi
-enroot import -o torchtitan-torchtune.sqsh dockerd://torchtitan-torchtune:latest
-mv torchtitan-torchtune.sqsh ${ENROOT_IMAGE}
+enroot import -o torchtune.sqsh dockerd://torchtune:latest
+mv torchtune.sqsh ${ENROOT_IMAGE}
 echo "Image built and saved as ${ENROOT_IMAGE}"
