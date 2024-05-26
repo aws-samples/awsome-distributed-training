@@ -27,7 +27,7 @@ To access Meta-Llama-3-70B, visit [Meta-Llama-3-70B](https://huggingface.co/meta
 
 For monitoring model training and computational resource usage, [Weights & Biases](https://wandb.ai/) will be utilized. Create an account and retrieve your `WANDB_API_KEY` from the Weights & Biases [Settings](https://wandb.ai/settings). For comprehensive setup instructions, consult the Weights & Biases [Quickstart Guide](https://docs.wandb.ai/quickstart).
 
-## 2. Preparation
+## 2. Environment Preparation
 
 This section illustartes how to fetch all the necessary code bases and set up development environment.
 
@@ -41,7 +41,7 @@ git clone https://github.com/aws-samples/awsome-distributed-training ${FSX_PATH}
 cd /fsx/${USER}/awsome-distributed-training/3.test_cases/torchtune/slurm
 ```
 
-Then clone `torchtune`:
+Then clone `torchtune` repository:
 
 ```bash
 git clone https://github.com/pytorch/torchtune.git torchtune
@@ -86,7 +86,7 @@ export WANDB_DIR=/fsx/ubuntu/models/torchtune/wandb
 export WANDB_API_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
-## 3. Build the container
+## 3. Build torchtune container
 
 Before running training jobs, you need to use a build docker container image. [Enroot](https://github.com/NVIDIA/enroot) will be used to turn the image into unprivileged sandbox for Slurm.  
 
