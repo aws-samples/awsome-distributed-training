@@ -14,6 +14,11 @@ echo "export FSX_PATH=/fsx/${USER}" > .env
 source .env
 echo "export APPS_PATH=${FSX_PATH}/apps" >> .env
 source .env
+if [ ! -d "${APPS_PATH}" ]; then
+    mkdir -p ${APPS_PATH}
+fi
+echo "export ENROOT_IMAGE=${APPS_PATH}/torchtune.sqsh" >> .env
+source .env
 echo "export MODEL_PATH=${FSX_PATH}/models/torchtune" >> .env
 source .env
 echo "export TEST_CASE_PATH=${FSX_PATH}/awsome-distributed-training/3.test_cases/torchtune/slurm" >> .env

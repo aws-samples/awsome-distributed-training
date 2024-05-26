@@ -1,27 +1,55 @@
 # End-to-End LLM Model Development with Torchtune on Slurm <!-- omit in toc -->
 
-This example illstrates how to set up toorchtune environment and run each of the step in LLMOps on Slurm. 
-For further examples see the respective sub-directories.
+This test case illustrates the setup and execution of each step in LLMOps on Slurm using the Torchtune environment. This README provides a detailed guide for configuring the necessary environment. For hands-on LLMOps examples, refer to the [tutorials](./tutorials) section.
 
-## 1. Preparation
+## 1. Prerequisites
 
-This guide assumes that you have the following:
+Before proceeding with each step of this test case, ensure you have the following prerequisites:
 
-* A functional Slurm cluster on AWS.
-* Docker, [Pyxis](https://github.com/NVIDIA/pyxis) and [Enroot](https://github.com/NVIDIA/enroot) installed.
-* An FSx for Lustre filesystem mounted on `/fsx`.
+* A Slurm cluster configured as specified
+* Access tokens and keys for Hugging Face and Weights & Biases (W&B)
 
-We recommend that you set up a Slurm cluster using the templates in the architectures [directory](../../../1.architectures). You need to set the following environment variables to run this test case.
+Further setup details are provided below.
 
-To effectively monitor the model training process and computational resource usage, we will employ [Weights & Biases](https://wandb.ai/). You will need to create an account and obtain your `WANDB_API_KEY` from Weights & Biases [Settings](https://wandb.ai/settings). For detailed setup instructions, please refer to the Weights & Biases [Quickstart Guide](https://docs.wandb.ai/quickstart).
+### Slurm Cluster
+
+For this guide, you should have:
+
+* An operational Slurm cluster on AWS.
+* Docker, [Pyxis](https://github.com/NVIDIA/pyxis), and [Enroot](https://github.com/NVIDIA/enroot) installed.
+* An FSx for Lustre filesystem mounted at `/fsx`.
+
+It's recommended to establish your Slurm cluster using the templates found in the [architectures directory](../../../1.architectures).
+
+### Token and Access Key
+
+To access Meta-Llama-3-70B, visit [Meta-Llama-3-70B](https://huggingface.co/meta-llama/Meta-Llama-3-70B) and request access. Subsequently, create an access token at [Hugging Face Tokens](https://huggingface.co/settings/tokens) (`HF_TOKEN`).
+
+For monitoring model training and computational resource usage, [Weights & Biases](https://wandb.ai/) will be utilized. Create an account and retrieve your `WANDB_API_KEY` from the Weights & Biases [Settings](https://wandb.ai/settings). For comprehensive setup instructions, consult the Weights & Biases [Quickstart Guide](https://docs.wandb.ai/quickstart).
+
+## 2. Preparation
+
+This section illustartes how to fetch all the necessary code bases and set up development environment.
+
+### Clone repository
 
 On the head/login node of the cluster, clone the repository, move to the test case directory.
 
 ```bash
-cd /fsx
-git clone https://github.com/aws-samples/awsome-distributed-training ${FSX_PATH}/awsome-distributed-training
-cd /fsx/awsome-distributed-training/3.test_cases/torchtune/slurm
+cd /fsx/${USER}
+git clone https://github.com/aws-samples/awsome-distributed-training ${FSX_PATH}/${USER}/awsome-distributed-training
+cd /fsx/${USER}/awsome-distributed-training/3.test_cases/torchtune/slurm
 ```
+
+Then clone `torchtune`:
+
+```bash
+git clone https://github.com/pytorch/torchtune.git torchtune
+```
+
+The remaining contents use `USER=ubuntu` for the sake of illustration.
+
+### Configure environment variables
 
 Run `configure-env-vars.sh` to create `.env` file. This file will be sourced by all the subsequent job files:
 
@@ -29,47 +57,43 @@ Run `configure-env-vars.sh` to create `.env` file. This file will be sourced by 
 bash configure-env-vars.sh
 ```
 
-The script will prompt you to input `WANDB_API_KEY`:
+The script will prompt you to input `WANDB_API_KEY` and `HF_KEY`:
 
 ```bash
 Setting up environment variables
-Please enter your WANDB_API_KEY xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx # Your API KEY 
+Please enter your WANDB_API_KEY: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+Please enter your HF_KEY: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 .env file created successfully
-Please run 'source .env' to set the environment variables
+Please run the following command to set the environment variables
+source .env
 ```
 
-The following environment variable will be on `.env` file. Feel free to modify `0.create-dot-env.sh` to customize.
+The following environment variable will be on `.env` file. Feel free to modify `configure-env-vars.sh` to customize.
 
 ```bash
 cat .env
 ```
 
 ```bash
-export FSX_PATH=/fsx
-export APPS_PATH=/fsx/apps
-export MODEL_PATH=/fsx/models
-export TEST_CASE_PATH=/fsx/awsome-distributed-training/3.test_cases/torchtitan-torchtune/slurm
-export HF_HOME=/fsx/.cache
-export WANDB_CONFIG_DIR=/fsx
-export WANDB_API_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx # You hav your access key here
+export FSX_PATH=/fsx/ubuntu
+export APPS_PATH=/fsx/ubuntu/apps
+export ENROOT_IMAGE=/fsx/ubuntu/apps/torchtune.sqsh
+export MODEL_PATH=/fsx/ubuntu/models/torchtune
+export TEST_CASE_PATH=/fsx/ubuntu/awsome-distributed-training/3.test_cases/torchtune/slurm
+export HF_HOME=/fsx/ubuntu/.cache/huggingface
+export WANDB_CACHE_DIR=/fsx/ubuntu/.cache/wandb
+export WANDB_DIR=/fsx/ubuntu/models/torchtune/wandb
+export WANDB_API_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
-Clone `torchtitan` and `torchtune`:
+## 3. Build the container
+
+Before running training jobs, you need to use a build docker container image. [Enroot](https://github.com/NVIDIA/enroot) will be used to turn the image into unprivileged sandbox for Slurm.  
+
+Submit `build-image.sbatch`:
 
 ```bash
-git clone https://github.com/pytorch/torchtitan.git torchtitan
-git clone https://github.com/pytorch/torchtune.git torchtune
-```
-
-## 2. Build the container
-
-Before running training jobs, you need to use a build docker container image. [Enroot](https://github.com/NVIDIA/enroot) will be used to turn the image into unprivileged sandbox for Slurm. 
-
-Submit `build-image.sbatch` and :
-
-```bash
-sbatch build-image.sbatch --image torchtune
-sbatch build-image.sbatch --image torchtitan
+sbatch build-image.sbatch
 ```
 
 You can check build progress through log files:
@@ -91,132 +115,10 @@ Number of gids 1
         root (0)
 
 ==> logs/build-image_xxx.out <==
-Image built and saved as /fsx/apps/torchtitan-torchtune.sqsh
+Image built and saved as /fsx/ubuntu/apps/torchtune.sqsh
 ```
 
-## 3. Get access to the Llama3 model
+## 4. Next steps
 
-Go to [Meta-Llama-3-70B](https://huggingface.co/meta-llama/Meta-Llama-3-70B) and apply for access. Then, go to [Hugging Face Tokens](https://huggingface.co/settings/tokens) to create an access token.
+Now that you are ready to move on to actual experiments. Go to `tutorials` directory for respective examples.
 
-On the login node, launch a Python process and call `huggingface_hub.login()` as follows:
-
-```bash
-source .env
-enroot start --env NVIDIA_VISIBLE_DEVICES=void \
-    --mount ${FSX_PATH}:${FSX_PATH} ${ENROOT_IMAGE} \
-    python -c "from huggingface_hub import login; login()"
-```
-
-It will prompt you to input the token. Paste the token and answer to `n` to the following question:
-
-```bash
->> Add token as git credential? (Y/n) n
->> Token is valid (permission: read).
->> Your token has been saved to /fsx/.cache/token
-```
-
-As you can see on the output, the access token stored under `/fsx/.cache`.
-
-Now fetch model weights and tokenizer with `2.download_hf_model.sbatch`:
-
-```bash
-sbatch download_hf_model.sbatch --HF_MODEL=meta-llama/Meta-Llama-3-70B
-```
-
-The model will be downloaded under ${}
-
-You are all set ! P
-
-
-## 4. Pretrain Llama3 model
-
-In this step, you will author Llama3 model using c4 dataset with `torchtitan`.
-
-```bash
-sbatch 3.pretrain.sbatch
-```
-
-## 4. Finetune Llama3 model
-
-In this step, you will fine tune llama model, using Alpaca dataset. 
-
-```bash
-sbatch 4.finetune.sbatch
-```
-
-Once the job has been completed, you will see following outputs in the log:
-
-```bash
-==> logs/convert-checkpoint_560.out <==
-0: INFO:torchtune.utils.logging:Model checkpoint of size 4.97 GB saved to /fsx/models/torchtitan-torchtune/meta-llama/Meta-Llama-3-70B-tuned/hf_model_0024_0.pt
-0: INFO:torchtune.utils.logging:Model checkpoint of size 4.66 GB saved to /fsx/models/torchtitan-torchtune/meta-llama/Meta-Llama-3-70B-tuned/hf_model_0025_0.pt
-0: INFO:torchtune.utils.logging:Model checkpoint of size 4.66 GB saved to /fsx/models/torchtitan-torchtune/meta-llama/Meta-Llama-3-70B-tuned/hf_model_0026_0.pt
-0: INFO:torchtune.utils.logging:Model checkpoint of size 4.66 GB saved to /fsx/models/torchtitan-torchtune/meta-llama/Meta-Llama-3-70B-tuned/hf_model_0027_0.pt
-0: INFO:torchtune.utils.logging:Model checkpoint of size 5.00 GB saved to /fsx/models/torchtitan-torchtune/meta-llama/Meta-Llama-3-70B-tuned/hf_model_0028_0.pt
-0: INFO:torchtune.utils.logging:Model checkpoint of size 4.97 GB saved to /fsx/models/torchtitan-torchtune/meta-llama/Meta-Llama-3-70B-tuned/hf_model_0029_0.pt
-0: INFO:torchtune.utils.logging:Model checkpoint of size 2.10 GB saved to /fsx/models/torchtitan-torchtune/meta-llama/Meta-Llama-3-70B-tuned/hf_model_0030_0.pt
-0: INFO:torchtune.utils.logging:Adapter checkpoint of size 0.09 GB saved to /fsx/models/torchtitan-torchtune/meta-llama/Meta-Llama-3-70B-tuned/adapter_0.pt
-0: ^M1|3251|Loss: 1.5955958366394043: 100%|██████████| 3251/3251 [2:07:13<00:00,  2.35s/it]
-```
-
-checkpoints are saved as
-
-```bash
-$ ls /fsx/models/torchtitan-torchtune/meta-llama/Meta-Llama-3-70B-tuned/
-adapter_0.pt        hf_model_0002_0.pt  hf_model_0005_0.pt  hf_model_0008_0.pt  hf_model_0011_0.pt  hf_model_0014_0.pt  hf_model_0017_0.pt  hf_model_0020_0.pt  hf_model_0023_0.pt  hf_model_0026_0.pt  hf_model_0029_0.pt
-config.json         hf_model_0003_0.pt  hf_model_0006_0.pt  hf_model_0009_0.pt  hf_model_0012_0.pt  hf_model_0015_0.pt  hf_model_0018_0.pt  hf_model_0021_0.pt  hf_model_0024_0.pt  hf_model_0027_0.pt  hf_model_0030_0.pt
-hf_model_0001_0.pt  hf_model_0004_0.pt  hf_model_0007_0.pt  hf_model_0010_0.pt  hf_model_0013_0.pt  hf_model_0016_0.pt  hf_model_0019_0.pt  hf_model_0022_0.pt  hf_model_0025_0.pt  hf_model_0028_0.pt
-```
-
-## 5. Evaluate Llama3 model with lm-evaluation harness
-
-In this last section, you will evaluate Llama models. It will make use of [lm-evaluation-harness](https://github.com/EleutherAI/lm-evaluation-harness). 
-
-You can submit sample evaluation job by:
-
-```bash
-sbatch 5.evaluate.sbatch
-```
-
-You will see:
-
-```
-Running loglikelihood requests:   6%|▋         | 23/400 [00:01<00:18, 20.53it/s]
-Running loglikelihood requests:  16%|█▌        | 62/400 [00:02<00:15, 22.65it/s]
-Running loglikelihood requests:  24%|██▍       | 98/400 [00:04<00:13, 22.50it/s]
-Running loglikelihood requests:  33%|███▎      | 131/400 [00:06<00:12, 22.28it/s]
-Running loglikelihood requests:  42%|████▏     | 164/400 [00:07<00:10, 22.40it/s]
-Running loglikelihood requests:  50%|█████     | 200/400 [00:09<00:08, 22.60it/s]
-Running loglikelihood requests:  58%|█████▊    | 233/400 [00:10<00:07, 22.46it/s]
-Running loglikelihood requests:  66%|██████▌   | 263/400 [00:11<00:06, 22.51it/s]
-Running loglikelihood requests:  74%|███████▍  | 296/400 [00:13<00:04, 22.45it/s]
-Running loglikelihood requests:  82%|█�██████▏ | 326/400 [00:14<00:03, 22.63it/s]/s]
-Running loglikelihood requests:  90%|████████▉ | 356/400 [00:16<00:01, 22.82it/s]
-Running loglikelihood requests:  97%|█████████▋| 389/400 [00:17<00:00, 23.11it/s]
-Running loglikelihood requests: 100%|██████████| 400/400 [00:17<00:00, 22.27it/s]
-0: fatal: not a git repository (or any of the parent directories): .git
-0: 2024-05-07:01:12:39,479 INFO     [eval.py:69] vllm (pretrained=meta-llama/Meta-Llama-3-70B,tensor_parallel_size=8,dtype=auto,gpu_memory_utilization=0.8,data_parallel_size=1), gen_kwargs: (None), limit: 100.0, num_fewshot: None, batch_size: 1
-0: 2024-05-07:01:12:39,536 INFO     [eval.py:70] |  Tasks  |Version|Filter|n-shot| Metric |Value|   |Stderr|
-0: |---------|------:|------|-----:|--------|----:|---|-----:|
-0: |hellaswag|      1|none  |     0|acc     | 0.56|±  |0.0499|
-0: |         |       |none  |     0|acc_norm| 0.75|±  |0.0435|
-0: 
-```
-
-
-
-## 5. Chat with Finetuned model
-
-Now that you can test the finetuned-model deployment using vLLM. 
-
-```bash
-sbatch 7.generate.sbatch --config configs/generate_llama3.yaml --prompt "Hello, my name is"
-```
-
-```
-[generate.py:122] Hello, my name is Sarah and I am a busy working mum of two young children, living in the North East of England.
-...
-[generate.py:135] Time for inference: 10.88 sec total, 18.94 tokens/sec
-[generate.py:138] Bandwidth achieved: 346.09 GB/s
-[generate.py:139] Memory used: 18.31 GB
-```
