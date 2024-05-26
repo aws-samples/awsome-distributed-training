@@ -18,10 +18,10 @@ else
     source .env
 fi
 
-docker build -t ${IMAGE} -f torchtune.dockerfile .
+docker build -t torchtune -f torchtune.dockerfile .
 
 # Remove old sqsh file if exists
-if [ -f torchtitan-torchtune.sqsh ] ; then
+if [ -f torchtune.sqsh ] ; then
     rm torchtune.sqsh
 fi
 enroot import -o torchtune.sqsh dockerd://torchtune:latest
