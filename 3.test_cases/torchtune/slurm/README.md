@@ -27,13 +27,13 @@ To access Meta-Llama-3-70B, visit [Meta-Llama-3-70B](https://huggingface.co/meta
 
 For monitoring model training and computational resource usage, [Weights & Biases](https://wandb.ai/) will be utilized. Create an account and retrieve your `WANDB_API_KEY` from the Weights & Biases [Settings](https://wandb.ai/settings). For comprehensive setup instructions, consult the Weights & Biases [Quickstart Guide](https://docs.wandb.ai/quickstart).
 
-## 2. Environment Preparation
+## 2. Preparing the Environment
 
-This section illustartes how to fetch all the necessary code bases and set up development environment.
+This section outlines the steps to acquire the necessary codebases and configure your development environment.
 
-### Clone repository
+### Cloning Repositories
 
-On the head/login node of the cluster, clone the repository, move to the test case directory.
+Start by cloning the required repository on the cluster's head/login node, then navigate to the specific test case directory:
 
 ```bash
 cd /fsx/${USER}
@@ -41,23 +41,23 @@ git clone https://github.com/aws-samples/awsome-distributed-training ${FSX_PATH}
 cd /fsx/${USER}/awsome-distributed-training/3.test_cases/torchtune/slurm
 ```
 
-Then clone `torchtune` repository:
+For demonstration purposes, we will proceed with `USER=ubuntu`.
+
+Following that, clone the torchtune repository:
 
 ```bash
 git clone https://github.com/pytorch/torchtune.git torchtune
 ```
 
-The remaining contents use `USER=ubuntu` for the sake of illustration.
+### Setting Up Environment Variables
 
-### Configure environment variables
-
-Run `configure-env-vars.sh` to create `.env` file. This file will be sourced by all the subsequent job files:
+Initiate the configuration of your environment by executing the `configure-env-vars.sh` script. This action generates a `.env` file, which is crucial for defining the environment variables needed by all subsequent job files:
 
 ```bash
 bash configure-env-vars.sh
 ```
 
-The script will prompt you to input `WANDB_API_KEY` and `HF_KEY`:
+During this setup, you'll be prompted to provide your `WANDB_API_KEY` and `HF_KEY`. These keys are essential for integrating with the Weights & Biases and Hugging Face platforms, respectively:
 
 ```bash
 Setting up environment variables
@@ -68,7 +68,7 @@ Please run the following command to set the environment variables
 source .env
 ```
 
-The following environment variable will be on `.env` file. Feel free to modify `configure-env-vars.sh` to customize.
+The `.env` file will include the following predefined variables. You have the flexibility to modify the `configure-env-vars.sh` script to better suit your project's specific needs:
 
 ```bash
 cat .env
@@ -86,23 +86,27 @@ export WANDB_DIR=/fsx/ubuntu/models/torchtune/wandb
 export WANDB_API_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
-## 3. Build torchtune container
+## 3. Building the Torchtune Container
 
-Before running training jobs, you need to use a build docker container image. [Enroot](https://github.com/NVIDIA/enroot) will be used to turn the image into unprivileged sandbox for Slurm.  
+Before initiating any training jobs, it's essential to prepare a Docker container image. We'll utilize [Enroot](https://github.com/NVIDIA/enroot), a tool designed to convert Docker images into unprivileged sandboxes. This is particularly useful for running containers within Slurm-managed clusters.
 
-Submit `build-image.sbatch`:
+### Submitting the Build Job
+
+To start the build process, submit the `build-image.sbatch` script to Slurm:
 
 ```bash
 sbatch build-image.sbatch
 ```
 
-You can check build progress through log files:
+#### Monitoring the Build Progress
+
+Keep an eye on the build progress by tailing the log files:
 
 ```bash
 tail -f logs/build-image_*
 ```
 
-The build process was successuful if you could see the following lines at the end of the log:
+A successful build process is indicated by the following lines at the end of the log file:
 
 ```bash
 Number of fifo nodes 0
@@ -117,8 +121,12 @@ Number of gids 1
 ==> logs/build-image_xxx.out <==
 Image built and saved as /fsx/ubuntu/apps/torchtune.sqsh
 ```
+These lines confirm that the image has been successfully built and is now stored at the specified location, ready for use.
 
-## 4. Next steps
+## 4. Proceeding to Experiments
 
-Now that you are ready to move on to actual experiments. Go to `tutorials` directory for respective examples.
+With the torchtune container now built and ready, you're all set to dive into the actual experiments. Navigate to the [tutorials](./tutorials) directory to explore various examples.
+
+
+
 
