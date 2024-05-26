@@ -12,10 +12,9 @@ echo "export FSX_PATH=/fsx" > .env
 source .env
 echo "export APPS_PATH=${FSX_PATH}/apps" >> .env
 source .env
-echo "export MODEL_PATH=$FSX_PATH/models
-torchtitan-torchtune" >> .env
+echo "export MODEL_PATH=$FSX_PATH/models/torchtune" >> .env
 source .env
-echo "export TEST_CASE_PATH=${FSX_PATH}/awsome-distributed-training/3.test_cases/torchtitan-torchtune/slurm" >> .env
+echo "export TEST_CASE_PATH=${FSX_PATH}/awsome-distributed-training/3.test_cases/torchtune/slurm" >> .env
 source .env
 echo "export HF_HOME=${FSX_PATH}/.cache" >> .env
 source .env
