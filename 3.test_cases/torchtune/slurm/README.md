@@ -23,7 +23,7 @@ It's recommended to establish your Slurm cluster using the templates found in th
 
 ### Token and Access Key
 
-To access Meta-Llama-3-70B, visit [Meta-Llama-3-70B](https://huggingface.co/meta-llama/Meta-Llama-3-70B) and request access. Subsequently, create an access token at [Hugging Face Tokens](https://huggingface.co/settings/tokens) (`HF_TOKEN`).
+Create an access token at [Hugging Face Tokens](https://huggingface.co/settings/tokens) (`HF_TOKEN`).
 
 For monitoring model training and computational resource usage, [Weights & Biases](https://wandb.ai/) will be utilized. Create an account and retrieve your `WANDB_API_KEY` from the Weights & Biases [Settings](https://wandb.ai/settings). For comprehensive setup instructions, consult the Weights & Biases [Quickstart Guide](https://docs.wandb.ai/quickstart).
 
