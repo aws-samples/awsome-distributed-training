@@ -14,6 +14,14 @@
 set -euxo pipefail
 
 ##################################################################
+########### Check current working directory ######################
+##################################################################
+if [ $(basename $(pwd)) != "slurm" ]
+then
+    echo "Please run this script from the slurm directory"
+    exit 1
+fi
+##################################################################
 ############# Load environment variables #########################
 ##################################################################
 # Load environment variables
@@ -50,16 +58,9 @@ export NPROC=$SLURM_GPUS_PER_NODE
 export WORLD_SIZE=$(( $NNODES * $NPROC ))
 
 ##################################################################
-############### Create train config ##############################
+############# Set training arguments #############################
 ##################################################################
-if [ ! -d ${FSX_PATH}/tmp ]; then
-    mkdir -p ${FSX_PATH}/tmp
-fi
-cat ${PWD}/train_configs/finetune_llama3_70b_lora.yaml | envsubst > ${FSX_PATH}/tmp/finetune_llama3_70b_lora.yaml
-
-##################################################################
-################# Set arguments ##################################
-##################################################################
+export HF_MODEL="meta-llama/Meta-Llama-3-70B"
 : "${CONTAINER_MOUNT:=$FSX_PATH:$FSX_PATH}"
 declare -a SRUN_ARGS=(
     --container-image $ENROOT_IMAGE
@@ -76,10 +77,19 @@ declare -a TORCHRUN_ARGS=(
     --rdzv_endpoint=$(hostname)
 )
 declare -a TRAIN_ARGS=(
-    --config ${FSX_PATH}/tmp/finetune_llama3_70b_lora.yaml
+    --config  ${PWD}/tutorials/e2e-llama3-70b-development/configs/lora_finetune_distributed.yaml
+    tokenizer.path=${MODEL_PATH}/${HF_MODEL}/original/tokenizer.model
+    checkpointer.checkpoint_dir=${MODEL_PATH}/${HF_MODEL}
+    checkpointer.output_dir=${MODEL_PATH}/${HF_MODEL}-tuned
+    output_dir=${MODEL_PATH}/${HF_MODEL}-tuned/log
+    metric_logger.log_dir=${MODEL_PATH}/${HF_MODEL}-tuned/log/metrics
 )
-
-export TORCHTUNE=${PWD}/torchtune/torchtune/_cli/tune.py
+##################################################################
+################# Run torchtune ##################################
+##################################################################
 export PYTHONPATH=${PWD}/torchtune
-
-srun -l "${SRUN_ARGS[@]}" python ${TORCHTUNE} run  "${TORCHRUN_ARGS[@]}" lora_finetune_distributed "${TRAIN_ARGS[@]}"
+export TORCHTUNE=${PWD}/torchtune/torchtune/_cli/tune.py
+export TORCHTUNE_COMMAND="lora_finetune_distributed"
+echo "Executing following command:"
+echo "torchtune" "run" "${TORCHRUN_ARGS[@]}" "${TORCHTUNE_COMMAND}" "${TORCHTUNE_ARGS[@]}"
+srun -l "${SRUN_ARGS[@]}" python ${TORCHTUNE} run "${TORCHRUN_ARGS[@]}" "${TORCHTUNE_COMMAND}" "${TRAIN_ARGS[@]}"
