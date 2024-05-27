@@ -20,11 +20,11 @@ model:
 
 tokenizer:
   _component_: torchtune.models.llama3.llama3_tokenizer
-  path: ${MODEL_PATH}/${HF_MODEL}/original/tokenizer.model
+  path: None
 
 checkpointer:
   _component_: torchtune.utils.FullModelHFCheckpointer
-  checkpoint_dir:  ${MODEL_PATH}/${HF_MODEL}
+  checkpoint_dir:  None
   checkpoint_files: [
       model-00001-of-00030.safetensors,
       model-00002-of-00030.safetensors,
@@ -58,7 +58,7 @@ checkpointer:
       model-00030-of-00030.safetensors,
   ]
   recipe_checkpoint: null
-  output_dir: ${MODEL_PATH}/${HF_MODEL}-tuned
+  output_dir: None
   model_type: LLAMA3
 resume_from_checkpoint: False
 
@@ -88,10 +88,10 @@ max_steps_per_epoch: null
 gradient_accumulation_steps: 1
 
 # Logging
-output_dir: ${MODEL_PATH}/${HF_MODEL}/lora_finetune_output
+output_dir: None
 metric_logger:
-  _component_: torchtune.utils.metric_logging.DiskLogger
-  log_dir: ${MODEL_PATH}/${HF_MODEL}/lora_finetune_output
+  _component_: torchtune.utils.metric_logging.WandBLogger
+  log_dir: None
 log_every_n_steps: 1
 log_peak_memory_stats: False
 
