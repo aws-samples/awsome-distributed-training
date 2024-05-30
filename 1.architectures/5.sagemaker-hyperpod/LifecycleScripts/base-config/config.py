@@ -6,7 +6,7 @@ class Config:
     enable_docker_enroot_pyxis = True
 
     # Set true if you want to install metric exporter software and Prometheus for observability
-    # DCGM Exporter and EFA Node Exporter are installed on compute nodes, 
+    # DCGM Exporter and EFA Node Exporter are installed on compute nodes,
     # Slurm Exporter and Prometheus are installed on controller node.
     enable_observability = False
 
@@ -14,6 +14,8 @@ class Config:
     # You need to configure parameters in SssdConfig as well.
     enable_sssd = False
 
+    # Set true to install quality-of-live improvements
+    enable_initsmhp = False
 
 # Configuration parameters for ActiveDirectory/LDAP/SSSD
 class SssdConfig:
@@ -29,7 +31,7 @@ class SssdConfig:
 
     # The default bind DN to use for performing LDAP operations
     ldap_default_bind_dn = "CN=ReadOnly,OU=Users,OU=hyperpod,DC=hyperpod,DC=abc123,DC=com"
-    
+
     # "password" or "obfuscated_password". Obfuscated password is recommended.
     ldap_default_authtok_type = "obfuscated_password"
 
