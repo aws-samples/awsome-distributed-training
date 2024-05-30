@@ -140,7 +140,7 @@ def wait_for_scontrol():
 
     print(f"Exceeded maximum wait time of {timeout} seconds. No output from scontrol.")
     return False
-    
+
 
 def main(args):
     params = ProvisioningParameters(args.provisioning_parameters)
@@ -204,6 +204,9 @@ def main(args):
         # Install and configure SSSD for ActiveDirectory/LDAP integration
         if Config.enable_sssd:
             subprocess.run(["python3", "-u", "setup_sssd.py", "--node-type", node_type], check=True)
+
+        if Config.enable_initsmhp:
+            ExecuteBashScript("./initsmhp.sh").run(node_type)
 
     print("[INFO]: Success: All provisioning scripts completed")
 
