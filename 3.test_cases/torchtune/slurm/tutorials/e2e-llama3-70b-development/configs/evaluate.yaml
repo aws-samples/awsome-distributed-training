@@ -9,7 +9,7 @@ model:
 
 checkpointer:
   _component_: torchtune.utils.FullModelHFCheckpointer
-  checkpoint_dir: /fsx/models/torchtitan-torchtune/meta-llama/Meta-Llama-3-70B-tuned
+  checkpoint_dir: None
   checkpoint_files: [
     hf_model_0001_0.pt,
     hf_model_0002_0.pt,
@@ -52,7 +52,7 @@ tokenizer:
   path: /fsx/models/torchtitan-torchtune/meta-llama/Meta-Llama-3-70B/original/tokenizer.model
 
 # Environment
-device: cuda
+device: cpu
 dtype: bf16
 seed: 1234 # It is not recommended to change this seed, b/c it matches EleutherAI's default seed
 
