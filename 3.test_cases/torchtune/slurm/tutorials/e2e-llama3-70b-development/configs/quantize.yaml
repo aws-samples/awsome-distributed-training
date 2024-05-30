@@ -47,7 +47,7 @@ checkpointer:
   output_dir: ${MODEL_PATH}/${HF_MODEL}-quantized
   model_type: LLAMA3
 
-device: cpu
+device: cuda
 dtype: bf16
 seed: 1234
 
