@@ -210,9 +210,30 @@ Running loglikelihood requests: 100%|██████████| 400/400 [00
 
 
 
-## 5. Chat with Finetuned model
+## 6. Quantization
 
-Now that you can test the finetuned-model deployment using vLLM. 
+In the production setting, it is often not feasible to deploy large model as it is, this requires 
+
+`torchao` is a PyTorch library focused on architecture optimization, specifically targeting quantization and sparsity to enhance model performance. 
+* __Quantization__: Provides tools to reduce model size and improve inference speed, with settings to optimize performance using PyTorch's torch.compile function.
+* __Sparsity__: Supports the identification and utilization of sparse subnetworks within models, leading to more efficient computations by reducing active parameters. Tools like WeightNormSparsifier are included to facilitate this process.
+
+In this example we use quantization feature of `torchao`.  In the config file:
+
+```yaml
+quantizer:
+  _component_: torchtune.utils.quantization.Int4WeightOnlyQuantizer
+  groupsize: 256
+```
+
+`Int4WeightOnlyQuantizer` performs per-axis group quantization, which means it quantizes weights in groups rather than individually. This helps maintain a balance between compression and model accuracy.
+
+```bash
+sbatch quentize.sbatch
+```
+
+
+## 7. Generation
 
 ```bash
 sbatch 7.generate.sbatch --config configs/generate_llama3.yaml --prompt "Hello, my name is"
