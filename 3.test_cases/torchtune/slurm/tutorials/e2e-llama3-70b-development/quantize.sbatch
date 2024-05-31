@@ -14,6 +14,14 @@
 set -euxo pipefail
 
 ##################################################################
+########### Check current working directory ######################
+##################################################################
+if [ $(basename $(pwd)) != "slurm" ]
+then
+    echo "Please run this script from the slurm directory"
+    exit 1
+fi
+##################################################################
 ############# Load environment variables #########################
 ##################################################################
 # Load environment variables
@@ -50,26 +58,26 @@ export NPROC=$SLURM_GPUS_PER_NODE
 export WORLD_SIZE=$(( $NNODES * $NPROC ))
 
 ##################################################################
-############### Create train config ##############################
+############# Set training arguments #############################
 ##################################################################
-if [ ! -d ${FSX_PATH}/tmp ]; then
-    mkdir -p ${FSX_PATH}/tmp
-fi
-cat ${PWD}/train_configs/quantize_llama3.yaml | envsubst > ${FSX_PATH}/tmp/quantize_llama3.yaml
-##################################################################
-################# Set arguments ##################################
-##################################################################
+export HF_MODEL="meta-llama/Meta-Llama-3-70B"
 : "${CONTAINER_MOUNT:=$FSX_PATH:$FSX_PATH}"
 declare -a SRUN_ARGS=(
     --container-image $ENROOT_IMAGE
     --container-mounts $CONTAINER_MOUNT
 )
 declare -a TRAIN_ARGS=(
-    --config ${FSX_PATH}/tmp/quantize_llama3.yaml
+    --config  ${PWD}/tutorials/e2e-llama3-70b-development/configs/quantize.yaml
+    tokenizer.path=${MODEL_PATH}/${HF_MODEL}/original/tokenizer.model
+    checkpointer.checkpoint_dir=${MODEL_PATH}/${HF_MODEL}-tuned
+    checkpointer.output_dir=${MODEL_PATH}/${HF_MODEL}-quantized
 )
-
-export TORCHTUNE=${PWD}/torchtune/torchtune/_cli/tune.py
+##################################################################
+################# Run torchtune ##################################
+##################################################################
 export PYTHONPATH=${PWD}/torchtune
-
-#srun -l "${SRUN_ARGS[@]}" python ${TORCHTUNE} cp generation /fsx/tmp/generate_llama3.yaml
-srun -l "${SRUN_ARGS[@]}" python ${TORCHTUNE} run quantize  "${TRAIN_ARGS[@]}"
+export TORCHTUNE=${PWD}/torchtune/torchtune/_cli/tune.py
+export TORCHTUNE_COMMAND="quantize"
+echo "Executing following command:"
+echo "torchtune" "run" "${TORCHTUNE_COMMAND}" "${TRAIN_ARGS[@]}"
+srun -l "${SRUN_ARGS[@]}" python ${TORCHTUNE} run "${TORCHTUNE_COMMAND}" "${TRAIN_ARGS[@]}"
