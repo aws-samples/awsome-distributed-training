@@ -1,10 +1,11 @@
 # End-to-End LLama3-70B model development with Torchtune  <!-- omit in toc -->
 
 In this tutorial, you will see how to:
-* Pretrain
-* Finetune
-* Evaluate
-* Deploy
+* Contious Pretraining
+* Instruction Finetuning
+* Alignment
+* Evaluation
+* Deployment
 
 ## 1. Prerequisites
 Before starting, ensure you have requested access to Meta-Llama-3-70B by visiting [Meta-Llama-3-70B](https://huggingface.co/meta-llama/Meta-Llama-3-70B) on Hugging Face and following the access request instructions. Additionally, make sure all prerequisites described in the [slurm](..) directory are set up.
@@ -64,16 +65,16 @@ This output confirms that the `torchtune download` command has been executed wit
 By following these steps, you ensure that the necessary model components are in place, setting the stage for subsequent tasks such as pretraining, finetuning, evaluation, and deployment.
 
 
-## 3. Full-parameter finetuning
+## 3. Continuous Pretraining
 
-WIP In this step, you will author Llama3 model using c4 dataset. 
+In this step, you will fine-tune the Llama model. Specifically, the finetune process in this step is called Full-parameter finetuning, which will update all the parameters in the original model. 
 
 ```bash
 sbatch tutorials/e2e-llama3-70b-development/pretrain.sbatch
 ```
 
 
-## 4. Lora parameter efficient finetuning
+## 4. Instruction-tuning
 
 In this step, you will fine-tune the LLaMA model using Low-Rank Adaptation (LoRA) with the Alpaca dataset. We will first cover the basic concepts and relevant configurations found in the [config file](configs/lora_finetune_distributed.yaml), followed by a detailed fine-tuning tutorial.
 
@@ -110,6 +111,10 @@ dataset:
 ```
 
 As the config suggests, we use a predefined dataset class prepared in torchtune.
+
+## 5. Alignment
+
+
 
 ### Submit Finetuning job
 
@@ -226,14 +231,32 @@ quantizer:
   groupsize: 256
 ```
 
-`Int4WeightOnlyQuantizer` performs per-axis group quantization, which means it quantizes weights in groups rather than individually. This helps maintain a balance between compression and model accuracy.
+`Int4WeightOnlyQuantizer` performs per-axis group quantization, which means it quantizes weights in groups rather than individually. By adjusting the `groupsize`, one can control the trade-off between compression ratio and accuracy. Smaller group sizes typically lead to higher accuracy but lower compression, while larger group sizes achieve higher compression at the potential cost of accuracy.
 
 ```bash
 sbatch quentize.sbatch
 ```
 
 
+```bash
+Executing following command:
+torchtune run quantize --config /fsx/ubuntu/awsome-distributed-training/3.test_cases/torchtune/slurm/tutorials/e2e-llama3-70b-development/configs/quantize.yaml tokenizer.path=/fsx/ubuntu/models/torchtune/meta-llama/Meta-Llama-3-70B/original/tokenizer.model checkpointer.checkpoint_dir=/fsx/ubuntu/models/torchtune/meta-llama/Meta-Llama-3-70B-tuned checkpointer.output_dir=/fsx/ubuntu/models/torchtune/meta-llama/Meta-Llama-3-70B-quantized
+```
+
+The resultant quantized weights is saved as follows:
+
+```bash
+0: 2024-05-31:02:10:46,964 DEBUG    [seed.py:60] Setting manual seed to local seed 1234. Local seed is seed + rank = 1234 + 0
+0: 2024-05-31:02:18:17,728 INFO     [quantize.py:90] Model is initialized with precision torch.bfloat16.
+0: 2024-05-31:02:20:33,576 INFO     [quantize.py:98] Time for quantization: 133.08 sec
+0: 2024-05-31:02:20:33,577 INFO     [quantize.py:99] Memory used: 40.03 GB
+0: 2024-05-31:02:21:18,609 INFO     [quantize.py:112] Model checkpoint of size 37.94 GB saved to /fsx/ubuntu/models/torchtune/meta-llama/Meta-Llama-3-70B-quantized/hf_model_0001_0-4w.pt
+```
+
+
 ## 7. Generation
+
+Now that you have production-ready quantized model. This last step test text generation using the model.
 
 ```bash
 sbatch 7.generate.sbatch --config configs/generate_llama3.yaml --prompt "Hello, my name is"
