@@ -1,11 +1,14 @@
 # End-to-End LLama3-70B model development with Torchtune  <!-- omit in toc -->
 
-In this tutorial, you will see how to:
+This tutorial guide you through each following LLM model development steps using Llama3-70B: 
+
 * Contious Pretraining
 * Instruction Finetuning
 * Alignment
 * Evaluation
 * Deployment
+
+for details of each step, refer the [overview documentation](../../README.md).
 
 ## 1. Prerequisites
 Before starting, ensure you have requested access to Meta-Llama-3-70B by visiting [Meta-Llama-3-70B](https://huggingface.co/meta-llama/Meta-Llama-3-70B) on Hugging Face and following the access request instructions. Additionally, make sure all prerequisites described in the [slurm](..) directory are set up.
@@ -21,8 +24,6 @@ Navigate to the [test case path](..) and prepare your environment by sourcing th
 ```bash
 source .env
 ```
-
-This step is crucial for configuring the necessary paths and credentials for accessing and working with the Llama3-70B model.
 
 ### Fetching the Model Weights and Tokenizer
 
@@ -67,11 +68,13 @@ By following these steps, you ensure that the necessary model components are in 
 
 ## 3. Continuous Pretraining
 
-In this step, you will fine-tune the Llama model. Specifically, the finetune process in this step is called Full-parameter finetuning, which will update all the parameters in the original model. 
+In this step, you will fine-tune Llama3 model from the orinal checkpoint. Specifically, the finetune process in this step is called Full-parameter finetuning, which will update all the parameters in the original model. One of the problem we encounter in such training is memory consumption. A typical model trained in mixed precision with AdamW requires 18 bytes per model parameter plus activation memory (6 bytes for parameters for mixed precision training, 8 bytes for AdamW, 4 bytes).For more details of the anatomy, see [huggingface blog post](https://huggingface.co/docs/transformers/model_memory_anatomy). This means that 70B parameter model training would require more than 1.12 TB of accelerated memory, which is way bigger than 80 GB of H100 accelerated memory size. To tackle the problem, `torchtune` integrates PyTorch Fully Distributed Data Parallel (FSDP). In this framework.  PyTorch Fully Sharded Data Parallel (FSDP) is a distributed training feature designed to efficiently handle large model training by sharding model parameters, gradients, and optimizer states across multiple devices. This approach significantly reduces memory consumption and optimizes resource utilization, making it possible to train models that are too large to fit on a single GPU.
 
 ```bash
-sbatch tutorials/e2e-llama3-70b-development/pretrain.sbatch
+sbatch tutorials/e2e-llama3-70b-development/full_finetune_distributed.sbatch
 ```
+
+
 
 
 ## 4. Instruction-tuning
@@ -82,7 +85,7 @@ In this step, you will fine-tune the LLaMA model using Low-Rank Adaptation (LoRA
 ### Basic Concepts and Relevant Configurations
 
 **Low-Rank Adaptation (LoRA)** is a method for fine-tuning large language models efficiently. It is a Parameter-efficient Fine-tuning (PEFT) technique that modifies a small, low-rank subset of a model's parameters, significantly reducing the computational cost and time required for fine-tuning. LoRA operates on the principle that large models, despite their size, inherently possess a low-dimensional structure, allowing significant changes to be represented with fewer parameters. This method involves decomposing large weight matrices into smaller matrices, drastically reducing the number of trainable parameters and making the adaptation process faster and less resource-intensive. It leverages the concept of lower-rank matrices to efficiently train models, making it a cost-effective solution for fine-tuning large language models. 
-
+![lora](./docs/lora.png)
 In the config we have following relevant section:
 
 ```yaml
