@@ -1,0 +1,4 @@
+#!/bin/bash -x
+
+helm install -f custom_values.yaml \
+    devtools-sidecar-injector https://helm.ngc.nvidia.com/nvidia/devtools/charts/devtools-sidecar-injector-1.0.0.tgz
