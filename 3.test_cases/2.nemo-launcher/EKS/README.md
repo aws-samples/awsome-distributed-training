@@ -112,7 +112,7 @@ ROLE_NAME=$(aws iam get-instance-profile --instance-profile-name ${INSTANCE_PROF
 aws iam attach-role-policy --policy-arn ${POLICY_ARN} --role-name ${ROLE_NAME}
 ```
 
-### 2.2 Create Security Grouo
+### 2.2 Create Security Group
 
 Next we can use the script below to create a security group that allows EKS nodes to access the filesystem:
 
