@@ -77,7 +77,7 @@ declare -a TORCHRUN_ARGS=(
     --rdzv_endpoint=$(hostname)
 )
 declare -a TRAIN_ARGS=(
-    --config  ${PWD}/tutorials/e2e-llama3-70b-development/configs/lora_finetune_distributed.yaml
+    --config  ${PWD}/tutorials/e2e-llama3-70b-development/configs/full_finetune_distributed.yaml
     tokenizer.path=${MODEL_PATH}/${HF_MODEL}/original/tokenizer.model
     checkpointer.checkpoint_dir=${MODEL_PATH}/${HF_MODEL}
     checkpointer.output_dir=${MODEL_PATH}/${HF_MODEL}-tuned
