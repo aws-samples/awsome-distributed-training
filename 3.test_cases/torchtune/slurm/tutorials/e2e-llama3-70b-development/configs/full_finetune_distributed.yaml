@@ -25,10 +25,9 @@ tokenizer:
 
 # Dataset
 dataset:
-  _component_: torchtune.datasets.wiki_text
-  train_on_input: True
+  _component_: torchtune.datasets.wikitext_dataset
 seed: null
-shuffle: True
+shuffle: False
 
 # Model Arguments
 model:
@@ -75,8 +74,8 @@ checkpointer:
 resume_from_checkpoint: False
 
 # Fine-tuning arguments
-batch_size: 2
-epochs: 3
+batch_size: 1
+epochs: 1
 
 optimizer:
   _component_: torch.optim.AdamW
@@ -95,6 +94,7 @@ device: cuda
 # Memory management
 enable_activation_checkpointing: True
 memory_efficient_fsdp_wrap: True
+fsdp_cpu_offload: True
 
 # Reduced precision
 dtype: bf16
