@@ -59,7 +59,7 @@ You can also adjust the training parameters in `TRAINING_ARGS` (for example, to 
 ```
 declare -a TRAINING_ARGS=(
     --num_key_value_heads=32 \
-    --llama_intermediate_size=11008 \
+    --intermediate_size=11008 \
     --max_context_width=4096 \
     --hidden_width=4096 \
     --num_layers=32 \
@@ -84,7 +84,7 @@ You'll find a new file in the FSDP directory of the form `slurm-[job-number].out
 + TORCHRUN=./pt_fsdp/bin/torchrun
 + export TRAIN_SCRIPT=./train.py
 + TRAIN_SCRIPT=./train.py
-+ TRAINING_ARGS=(--max_context_width=4096 --num_key_value_heads=32 \ # 7b: 32 13b: 40 70b: 8 --llama_intermediate_size=11008 \ # 7b: 11008 13b: 13824 70b: 28672 --hidden_width=4096 \ # 7b: 4096 13b: 5120 70b: 8192 --num_layers=32 \ # 7b: 32 13b: 40 70b: 80 --num_heads=32 \ # 7b: 32 13b: 40 70b: 64 --model_type=llama_v2 --checkpoint_freq=50 --validation_freq=500 --checkpoint_dir=./checkpoints --resume_from_checkpoint=./checkpoints)
++ TRAINING_ARGS=(--max_context_width=4096 --num_key_value_heads=32 \ # 7b: 32 13b: 40 70b: 8 --intermediate_size=11008 \ # 7b: 11008 13b: 13824 70b: 28672 --hidden_width=4096 \ # 7b: 4096 13b: 5120 70b: 8192 --num_layers=32 \ # 7b: 32 13b: 40 70b: 80 --num_heads=32 \ # 7b: 32 13b: 40 70b: 64 --model_type=llama_v2 --checkpoint_freq=50 --validation_freq=500 --checkpoint_dir=./checkpoints --resume_from_checkpoint=./checkpoints)
 ...
 0: 2023-11-29 04:17:52 I [train.py:175] Creating Model
 0: 2023-11-29 04:19:17 I [train.py:182] Created model with total parameters: 6889410560 (6.89 B)
@@ -109,7 +109,7 @@ To modify training for a 13 or 70B Llama 2 model, just change the corresponding 
 
 | Param                    |     7B      |     13B     |     70B     |
 | ------------------------ | ----------- | ----------- | ----------- |
-| llama_intermediate_size  | 11008       | 13824       | 28672       |
+| intermediate_size        | 11008       | 13824       | 28672       |
 | num_key_value_heads      | 32          | 40          | 8           |
 | hidden_width             | 4096        | 5120        | 8192        |
 | num_layers               | 32          | 40          | 80          |

@@ -1,12 +1,20 @@
 # AWS SageMaker HyperPod Distributed Training Reference Architectures
 
+
+> [!IMPORTANT]  
+> 🚨 We recommend following the official [Amazon SageMaker HyperPod Workshop](https://catalog.workshops.aws/sagemaker-hyperpod/en-US) to deploy clusters, which contains detailed instructions and latest best-practices. The below deployment steps are no longer kept up-to-date with latest best practices
+
 ## 1. Architectures
 
 SageMaker HyperPod clusters provide the ability to create customized clusters, typically with one or more head and login nodes, and multiple compute nodes (typically P4/P5 or Trn1 instances), and optionally a shared FSX for Lustre file system. When configured with Slurm, SageMaker HyperPod provides resiliency tools to automatically identify and replace unhealthy compute nodes. Additionally, HyperPod has access to SageMaker training tools, such as SageMaker Model and Data Parallel packages, and are automatically configured for EFA.
 
 The example that follows describes the process of setting up a SageMaker HyperPod cluster with an attached FSX for Lustre volume.
 
+
 ## 2. Prerequisites
+
+> [!TIP]  
+> For the latests deployment instructions, follow the  [Amazon SageMaker HyperPod Workshop](https://catalog.workshops.aws/sagemaker-hyperpod/en-US). 
 
 Before creating a cluster, we need to install the latest [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html), and setup the appropriate IAM role, VPC, FSx for Lustre volume, and S3 bucket.
 
@@ -84,25 +92,30 @@ Lifecycle scripts tell SageMaker HyperPod how to setup your HyperPod cluster. Hy
 | Script                       | Description                                                                                                                                    |
 |------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------|
 | add_users.sh                 | [Optional] creates posix users specified in a file shared_users.txt                                                                            |
+| config.py                    | Configuration file for the lifecycle scripts.                                                                                                  |
 | lifecycle_script.py          | This is the main entrypoint, sets everything else up.                                                                                          |
 | mount_fsx.sh                 | Mounts an FSx for Lustre filesystem.                                                                                                           |
 | on_create.sh                 | Entrypoint for clusters. This script calls lifecycle_script.py                                                                                 |
 | provisioning_parameters.json | Defines scheduler type Slurm and sets the partitions up also specifies FSx for Lustre Filesystem to attach. We'll modify this in a later step. |
 | setup_mariadb_accounting.sh  | Sets up Slurm Accounting  with a local mariadb server running on the HeadNode.                                                                 |
 | setup_rds_accounting.sh      | Sets up Slurm Accounting  with a RDS endpoint.                                                                                                 |
+| setup_sssd.py                | Set up Active Directory/LDAP integration with SSSD.                                                                                            |
 | shared_users_sample.txt      | Sample of how to specify users for the add_users.sh script.                                                                                    |
 | start_slurm.sh               | Starts the Slurm scheduler daemon.                                                                                                             |
 
 
-Also note that there are two scripts in `utils` to install [Docker](https://www.docker.com/), [Enroot](https://github.com/NVIDIA/enroot), and [Pyxis](https://github.com/NVIDIA/pyxis). These scripts can be enabled by uncommenting these lines in `lifecycle_script.py`:
+If you want to use docker containers, you can install [Docker](https://www.docker.com/), [Enroot](https://github.com/NVIDIA/enroot), and [Pyxis](https://github.com/NVIDIA/pyxis) by setting `Config.enable_docker_enroot_pyxis` in `config.py` to `True` (True by default).
 
-```
-        # Note: Uncomment the below lines to install docker and enroot
-        # ExecuteBashScript("./utils/install_docker.sh").run()
-        # ExecuteBashScript("./utils/install_enroot_pyxis.sh").run(node_type)
+```python
+# Basic configuration parameters
+class Config:
+
+    # Set true if you want to install Docker/Enroot/Pyxis.
+    enable_docker_enroot_pyxis = True
 ```
 
-You can follow this same pattern for further customizations. For example, if you'd like to install Miniconda as part of your lifecycles scripts, you can add the script under `utils` and call it using `ExecuteBashScript` in `lifecycle_script.py`.
+
+You can edit `lifecycle_script.py` for further customizations. For example, if you'd like to install Miniconda as part of your lifecycles scripts, you can add the script under `utils` and call it using `ExecuteBashScript` in `lifecycle_script.py`.
 
 For now, let's just use the base configuration provided. Upload the scripts to the bucket you created earlier. This needs to be the same S3 bucket and prefix where we uploaded the other lifecycle scripts earlier.
 

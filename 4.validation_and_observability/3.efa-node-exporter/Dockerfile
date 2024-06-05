@@ -1,4 +1,4 @@
-FROM ubuntu:20.04
+FROM public.ecr.aws/docker/library/ubuntu:20.04
 
 ARG EFA_INSTALLER_VERSION=1.30.0
 ARG NODE_EXPORTER_VERSION=v1.6.1
