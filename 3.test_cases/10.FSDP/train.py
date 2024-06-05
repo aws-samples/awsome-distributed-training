@@ -155,7 +155,16 @@ def main(args):
         logger.info(
             "Creating Model"
         )
-    model = AutoModelForCausalLM.from_config(model_config)
+    # Instantiate model on CPU on rank=0 only to prevent CPU OOM
+    # (e.g. 70B * 4 bytes * 8 processes > 2T RAM available on P5)
+    if global_rank == 0:
+        model = AutoModelForCausalLM.from_config(model_config)
+    else:
+        with torch.device("meta"):
+            # Instantiating model on `meta` device doesn't consume CPU memory,
+            # but requires specifing `param_init_fn=...`
+            # and `sync_module_states=True` in FSDP c-tor.
+            model = AutoModelForCausalLM.from_config(model_config)
     
     num_params = compute_num_params(model)
     if global_rank == 0:
@@ -191,6 +200,9 @@ def main(args):
         device_id=torch.cuda.current_device(),
         use_orig_params=False,
         sharding_strategy=sharding_strategy,
+        sync_module_states=True,
+        param_init_fn=(lambda module: module.to_empty(device=torch.device("cuda"), recurse=False))
+        if global_rank != 0 else None,
     )
 
     if global_rank == 0:

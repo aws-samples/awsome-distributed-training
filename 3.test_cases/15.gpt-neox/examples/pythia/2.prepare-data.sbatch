@@ -24,5 +24,5 @@ declare -a ARGS=(
     --container-image $IMAGE
     --container-mounts $CONTAINER_MOUNT
 )
-srun -l "${ARGS[@]}" python c4_prepare_data.py -d ${DATA_PATH} -t HFTokenizer \
+srun -l "${ARGS[@]}" python ${PWD}/src/c4_prepare_data.py -d ${DATA_PATH} -t HFTokenizer \
         --vocab-file ${MODEL_PATH}/tokenizers/20B_tokenizer.json ${DATASET}

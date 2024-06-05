@@ -1,0 +1,17 @@
+#!/bin/bash -x
+
+
+helm uninstall devtools-sidecar-injector
+
+kubectl delete namespace nvidia-devtools-sidecar-injector
+
+kubectl delete mutatingwebhookconfigurations sidecar-injector-webhook
+kubectl delete mutatingwebhookconfiguration nvidia-devtools-sidecar-injector-webhook
+
+kubectl delete cm -n example-ns nvidia-devtools-sidecar-injector
+kubectl delete cm -n example-ns nvidia-devtools-sidecar-injector-custom
+
+kubectl delete cm nvidia-devtools-sidecar-injector
+kubectl delete cm nvidia-devtools-sidecar-injector-custom
+
+#kubectl get all --all-namespaces -l nvidia-devtools-sidecar-injector=enabled -o custom-columns=:.metadata.name,NS:.metadata.namespace,KIND:.kind --no-headers | while read name namespace >

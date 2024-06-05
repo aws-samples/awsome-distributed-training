@@ -8,7 +8,7 @@ To create the docker image run:
 
 ```bash
 git clone https://github.com/aws-samples/awsome-distributed-training.git
-cd awsome-distributed-training/4.validation_scripts/3.efa-node-exporter
+cd awsome-distributed-training/4.validation_and_observability/3.efa-node-exporter
 make
 ```
 

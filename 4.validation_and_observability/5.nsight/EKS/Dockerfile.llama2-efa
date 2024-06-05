@@ -1,0 +1,198 @@
+apiVersion: "kubeflow.org/v1"
+kind: PyTorchJob
+metadata:
+  name: fsdp
+spec:
+  elasticPolicy:
+    rdzvBackend: etcd
+    rdzvHost: etcd
+    rdzvPort: 2379
+    minReplicas: 1
+    maxReplicas: 96
+    maxRestarts: 100
+    #metrics:
+    #  - type: Resource
+    #    resource:
+    #      name: cpu
+    #      target:
+    #        type: Utilization
+    #        averageUtilization: 80
+  pytorchReplicaSpecs:
+    Worker:
+      replicas: 2
+      restartPolicy: OnFailure
+      template:
+        metadata:
+          labels:
+            app: fsdp
+            nvidia-devtools-sidecar-injector: enabled
+        spec:
+          volumes:
+            - name: shmem
+              #emptyDir:
+              #  medium: Memory
+              hostPath:
+                path: /dev/shm
+          #nodeSelector:
+          #  node.kubernetes.io/instance-type: "p5.48xlarge"
+          containers:
+            - name: pytorch
+              image: 159553542841.dkr.ecr.us-west-2.amazonaws.com/fsdp:llama2-efa-main-02-13
+              imagePullPolicy: Always
+              resources:
+                requests:
+                  nvidia.com/gpu:
+                  vpc.amazonaws.com/efa: 4
+                limits:
+                  nvidia.com/gpu:
+                  vpc.amazonaws.com/efa: 4
+              env:
+              # for P5 FI_* should be commented out
+              #- name: LOGLEVEL
+              #  value: "DEBUG"
+              - name: FI_PROVIDER
+                value: efa
+              - name: FI_EFA_USE_DEVICE_RDMA
+                value: "1"
+              - name: FI_EFA_FORK_SAFE
+                value: "1"
+              - name: FI_LOG_LEVEL
+                value: "1"
+              - name: FI_EFA_ENABLE_SHM_TRANSFER
+                value: "1"
+             #- name: NCCL_DEBUG
+             #   value: "INFO"
+              - name: NCCL_ASYNC_ERROR_HANDLING
+                value: "1"
+              #- name: NCCL_IGNORE_DISABLED_P2P
+              #  value: "1"
+              - name: HF_TOKEN
+                value: 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
+              command:
+                - bash
+                - -c
+                - "torchrun --nproc_per_node=8 --nnodes=2 examples/finetuning.py --num_epochs=1 --batch_size_training=3 --enable_fsdp --pure_bf16 --model_name meta-llama/Llama-2-7b-hf --output_dir ."
+              volumeMounts:
+                - name: shmem
+                  mountPath: /dev/shm
+root@cb9511473ccc:/eks/deployment/distributed-training/pytorch/pytorchjob/fsdp# cat Dockerfile.llama2-efa
+FROM nvidia/cuda:12.2.2-devel-ubuntu22.04
+
+ARG EFA_INSTALLER_VERSION=1.29.1
+ARG AWS_OFI_NCCL_VERSION=v1.7.3-aws
+ARG NCCL_TESTS_VERSION=master
+ARG NCCL_VERSION=2.18.5
+
+RUN apt-get update -y
+RUN apt-get remove -y --allow-change-held-packages \
+    libmlx5-1 ibverbs-utils libibverbs-dev libibverbs1 libnccl2 libnccl-dev
+
+RUN rm -rf /opt/hpcx \
+    && rm -rf /usr/local/mpi \
+    && rm -f /etc/ld.so.conf.d/hpcx.conf \
+    && ldconfig
+ENV OPAL_PREFIX=
+
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y --allow-unauthenticated \
+    git \
+    gcc \
+    vim \
+    kmod \
+    openssh-client \
+    openssh-server \
+    build-essential \
+    curl \
+    autoconf \
+    libtool \
+    gdb \
+    automake \
+    python3-distutils \
+    cmake \
+    apt-utils \
+    devscripts \
+    debhelper \
+    libsubunit-dev \
+    check \
+    pkg-config
+
+RUN mkdir -p /var/run/sshd
+RUN sed -i 's/[ #]\(.*StrictHostKeyChecking \).*/ \1no/g' /etc/ssh/ssh_config && \
+    echo "    UserKnownHostsFile /dev/null" >> /etc/ssh/ssh_config && \
+    sed -i 's/#\(StrictModes \).*/\1no/g' /etc/ssh/sshd_config
+ENV LD_LIBRARY_PATH /usr/local/cuda/extras/CUPTI/lib64:/opt/amazon/openmpi/lib:/opt/nccl/build/lib:/opt/amazon/efa/lib:/opt/aws-ofi-nccl/install/lib:/usr/local/lib:$LD_LIBRARY_PATH
+ENV PATH /opt/amazon/openmpi/bin/:/opt/amazon/efa/bin:/usr/bin:/usr/local/bin:$PATH
+
+RUN curl https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py \
+    && python3 /tmp/get-pip.py \
+    && pip3 install awscli pynvml
+
+#################################################
+## Install NVIDIA GDRCopy
+#RUN git clone https://github.com/NVIDIA/gdrcopy.git /opt/gdrcopy \
+#    && cd /opt/gdrcopy \
+#    && make lib_install install \
+#    && cd /opt/gdrcopy/tests \
+#    && make \
+#    && mv copylat copybw sanity apiperf /usr/bin/
+
+#################################################
+## Install EFA installer
+RUN cd $HOME \
+    && curl -O https://efa-installer.amazonaws.com/aws-efa-installer-${EFA_INSTALLER_VERSION}.tar.gz \
+    && tar -xf $HOME/aws-efa-installer-${EFA_INSTALLER_VERSION}.tar.gz \
+    && cd aws-efa-installer \
+    && ./efa_installer.sh -y -g -d --skip-kmod --skip-limit-conf --no-verify \
+    && rm -rf $HOME/aws-efa-installer
+
+###################################################
+## Install NCCL
+RUN git clone https://github.com/NVIDIA/nccl -b v${NCCL_VERSION}-1 /opt/nccl \
+    && cd /opt/nccl \
+    && make -j $(nproc) src.build CUDA_HOME=/usr/local/cuda \
+    NVCC_GENCODE="-gencode=arch=compute_80,code=sm_80 -gencode=arch=compute_86,code=sm_86 -gencode=arch=compute_90,code=sm_90"
+
+###################################################
+## Install AWS-OFI-NCCL plugin
+RUN apt-get install libtool autoconf cmake nasm unzip pigz parallel nfs-common build-essential hwloc libhwloc-dev libjemalloc2 libnuma-dev numactl libjemalloc-dev preload htop iftop liblapack-dev libgfortran5 ipcalc wget curl devscripts debhelper check libsubunit-dev fakeroot pkg-config dkms -y
+RUN export OPAL_PREFIX="" \
+    && git clone https://github.com/aws/aws-ofi-nccl.git /opt/aws-ofi-nccl \
+    && cd /opt/aws-ofi-nccl \
+    && git checkout ${AWS_OFI_NCCL_VERSION} \
+    && ./autogen.sh \
+    && ./configure --prefix=/opt/aws-ofi-nccl/install \
+    --with-libfabric=/opt/amazon/efa/ \
+    --with-cuda=/usr/local/cuda \
+    --with-nccl=/opt/nccl/build \
+    --with-mpi=/opt/amazon/openmpi/ \
+    && make -j $(nproc) && make install
+###################################################
+## Install fsdp
+
+RUN mkdir -p /workspace/
+
+WORKDIR /workspace
+
+#RUN git clone -b flop_counter https://github.com/facebookresearch/llama-recipes.git
+#RUN git clone -b flop_counter_gc https://github.com/facebookresearch/llama-recipes.git
+RUN git clone https://github.com/facebookresearch/llama-recipes.git
+
+WORKDIR /workspace/llama-recipes
+
+RUN pip3 install -U pip setuptools
+
+RUN pip3 install fsspec==2023.1.0
+RUN pip3 install huggingface_hub==0.17.0
+RUN pip3 install -r requirements.txt
+
+RUN pip3 install -e .
+
+RUN pip3 install tabulate
+
+RUN pip3 install protobuf
+
+RUN pip3 install python-etcd
+
+#RUN pip3 uninstall -y torch
+#RUN pip3 install --pre torch --index-url https://download.pytorch.org/whl/nightly/cu121
+
+ENV PYTHONPATH="${PYTHONPATH}:/workspace/llama-recipes/src"
