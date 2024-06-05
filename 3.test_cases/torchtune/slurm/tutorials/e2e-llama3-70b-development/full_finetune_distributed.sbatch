@@ -4,8 +4,8 @@
 # SPDX-License-Identifier: MIT-0
 
 #SBATCH --job-name=full-finetuning
-#SBATCH --nodes=2
-#SBATCH --ntasks=2
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
 #SBATCH --gpus-per-node=8 # Number of GPU per node
 #SBATCH --output=logs/%x_%j.out # logfile for stdout
 #SBATCH --error=logs/%x_%j.err # logfile for stderr, remove it to merge both outputs
@@ -91,5 +91,5 @@ export PYTHONPATH=${PWD}/torchtune
 export TORCHTUNE=${PWD}/torchtune/torchtune/_cli/tune.py
 export TORCHTUNE_COMMAND="full_finetune_distributed"
 echo "Executing following command:"
-echo "torchtune" "run" "${TORCHRUN_ARGS[@]}" "${TORCHTUNE_COMMAND}" "${TORCHTUNE_ARGS[@]}"
+echo "tune" "run" "${TORCHRUN_ARGS[@]}" "${TORCHTUNE_COMMAND}" "${TORCHTUNE_ARGS[@]}" "${TRAIN_ARGS[@]}"
 srun -l "${SRUN_ARGS[@]}" python ${TORCHTUNE} run "${TORCHRUN_ARGS[@]}" "${TORCHTUNE_COMMAND}" "${TRAIN_ARGS[@]}"

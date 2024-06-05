@@ -19,7 +19,7 @@
 #     # Load image to local docker registry -> on head node, or new compute/build node.
 #     docker load < /fsx/nvidia-pt-od__latest.tar
 ####################################################################################################
-FROM nvcr.io/nvidia/pytorch:24.04-py3
+FROM nvcr.io/nvidia/pytorch:24.05-py3
 ENV DEBIAN_FRONTEND=noninteractive
 
 # The three must-be-built packages.
