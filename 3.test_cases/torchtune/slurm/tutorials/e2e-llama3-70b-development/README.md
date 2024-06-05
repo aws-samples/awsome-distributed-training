@@ -68,18 +68,62 @@ By following these steps, you ensure that the necessary model components are in 
 
 ## 3. Continuous Pretraining
 
-In this step, you will fine-tune Llama3 model from the orinal checkpoint. Specifically, the finetune process in this step is called Full-parameter finetuning, which will update all the parameters in the original model. One of the problem we encounter in such training is memory consumption. A typical model trained in mixed precision with AdamW requires 18 bytes per model parameter plus activation memory (6 bytes for parameters for mixed precision training, 8 bytes for AdamW, 4 bytes).For more details of the anatomy, see [huggingface blog post](https://huggingface.co/docs/transformers/model_memory_anatomy). This means that 70B parameter model training would require more than 1.12 TB of accelerated memory, which is way bigger than 80 GB of H100 accelerated memory size. To tackle the problem, `torchtune` integrates PyTorch Fully Distributed Data Parallel (FSDP). In this framework.  PyTorch Fully Sharded Data Parallel (FSDP) is a distributed training feature designed to efficiently handle large model training by sharding model parameters, gradients, and optimizer states across multiple devices. This approach significantly reduces memory consumption and optimizes resource utilization, making it possible to train models that are too large to fit on a single GPU.
+In this step, you will fine-tune the Llama3 model starting from the original checkpoint using the WikiText dataset. This process, known as Full-Parameter Finetuning, updates all the parameters in the original model. The configuration file used for this process is `./tutorials/e2e-llama3-70b-development/full_finetune_distributed.yaml`.
+
+### Memory Consumption Challenges
+One of the primary challenges during such training is memory consumption. A typical model trained in mixed precision with AdamW requires 18 bytes per model parameter plus activation memory (6 bytes for parameters in mixed precision training, 8 bytes for AdamW, and 4 bytes for other overheads). For more details on the anatomy, see the [Hugging Face blog post](https://huggingface.co/docs/transformers/model_memory_anatomy) blog post. This means that training a 70B parameter model would require more than 1.12 TB of accelerated memory, which far exceeds the 80 GB capacity of H100 accelerated memory. To address this issue, torchtune integrates PyTorch Fully Sharded Data Parallel (FSDP).
+
+### Basic concepts and relevant configuration
+
+**FSDP** is a distributed training feature designed to efficiently handle large model training by sharding model parameters, gradients, and optimizer states across multiple devices. This approach significantly reduces memory consumption and optimizes resource utilization, making it possible to train models that are too large to fit on a single GPU. In `torchtune` users can launch FSDP training job with command `tune run full_finetune_distributed`.  
+
+**The WikiText language modeling dataset**  is a collection of over 100 million tokens extracted from the set of verified Good and Featured articles on Wikipedia. `torchtune` has a module preconfigured for this dataset. The configuration file preconfigures the WikiText dataset as follows:
+
+```yaml
+dataset:
+  _component_: torchtune.datasets.wikitext_dataset
+```
+
+### Submit the training job
+
+Submit the job with the following command:
 
 ```bash
 sbatch tutorials/e2e-llama3-70b-development/full_finetune_distributed.sbatch
 ```
 
+By default, this script launches the FSDP training job with two instances. Once the job has been scheduled, you will see the following outputs in the log file named `logs/full-finetuning*`:
 
+```bash
+# tail -f logs/full-finetuning*
+Executing following command:
+tune run --master_addr 10.1.62.14 --master_port 28415 --nproc_per_node=8 --nnodes 2 --rdzv_backend=c10d --rdzv_endpoint=p5-st-p5-1 full_finetune_distributed --config /fsx/ubuntu/awsome-distributed-training/3.test_cases/torchtune/slurm/tutorials/e2e-llama3-70b-development/configs/full_finetune_distributed.yaml tokenizer.path=/fsx/ubuntu/models/torchtune/meta-llama/Meta-Llama-3-70B/original/tokenizer.model checkpointer.checkpoint_dir=/fsx/ubuntu/models/torchtune/meta-llama/Meta-Llama-3-70B checkpointer.output_dir=/fsx/ubuntu/models/torchtune/meta-llama/Meta-Llama-3-70B-tuned output_dir=/fsx/ubuntu/models/torchtune/meta-llama/Meta-Llama-3-70B-tuned/log metric_logger.log_dir=/fsx/ubuntu/models/torchtune/meta-llama/Meta-Llama-3-70B-tuned/log/metrics
+...
+0: wandb: Currently logged in as: <YOURUSERNAME>. Use `wandb login --relogin` to force relogin
+0: wandb: Tracking run with wandb version 0.17.0
+0: wandb: Run data is saved locally in /fsx/ubuntu/models/torchtune/meta-llama/Meta-Llama-3-70B-tuned/log/metrics/wandb/run-20240527_001350-oziekm6j
+0: wandb: Run `wandb offline` to turn off syncing.
+0: wandb: Syncing run helpful-surf-1
+0: wandb: ⭐️ View project at https://wandb.ai/<YOURUSERNAME>/torchtune
+0: wandb: 🚀 View run at https://wandb.ai/<YOURUSERNAME>/torchtune/runs/oziekm6j
+0: 2024-05-27:00:13:50,919 INFO     [metric_logging.py:225] Logging /fsx/ubuntu/models/torchtune/meta-llama/Meta-Llama-3-70B/torchtune_config.yaml to W&B under Files
+...
+```
+
+Notice that the job is being tracked by WANDB because of the following section in the config file:
+
+```yaml
+metric_logger:
+  _component_: torchtune.utils.metric_logging.WandBLogger
+  log_dir: None
+```
+
+On the WANDB dashboard (`https://wandb.ai/<YOURUSERNAME>/torchtune`), you can monitor the learning curve, compute resource utilization, log outputs, and more. 
 
 
 ## 4. Instruction-tuning
 
-In this step, you will fine-tune the LLaMA model using Low-Rank Adaptation (LoRA) with the Alpaca dataset. We will first cover the basic concepts and relevant configurations found in the [config file](configs/lora_finetune_distributed.yaml), followed by a detailed fine-tuning tutorial.
+In this step, you will fine-tune the Llama model using Low-Rank Adaptation (LoRA) with the Alpaca dataset. We will first cover the basic concepts and relevant configurations found in the [config file](configs/lora_finetune_distributed.yaml), followed by a detailed fine-tuning tutorial.
 
 
 ### Basic Concepts and Relevant Configurations
@@ -115,9 +159,6 @@ dataset:
 
 As the config suggests, we use a predefined dataset class prepared in torchtune.
 
-## 5. Alignment
-
-
 
 ### Submit Finetuning job
 
@@ -128,13 +169,12 @@ You can submit the finetuning job with the following command:
 sbatch tutorials/e2e-llama3-70b-development/lora_finetune_distributed.sbatch
 ```
 
-Once the job has been scheduled, you will see following outputs in the log:
-
+Once the job has been scheduled, you will see following outputs in the logo output named `logs/:
 
 ```bash
 ...
 Executing following command:
-torchtune run --master_addr 10.1.28.89 --master_port 14280 --nproc_per_node=8 --nnodes 1 --nnodes=1 --rdzv_backend=c10d --rdzv_endpoint=p5-st-p5-2 lora_finetune_distributed
+tune run --master_addr 10.1.28.89 --master_port 14280 --nproc_per_node=8 --nnodes 1 --nnodes=1 --rdzv_backend=c10d --rdzv_endpoint=p5-st-p5-2 lora_finetune_distributed
 ...
 0: wandb: Currently logged in as: <YOURUSERNAME>. Use `wandb login --relogin` to force relogin
 0: wandb: Tracking run with wandb version 0.17.0
@@ -149,7 +189,7 @@ torchtune run --master_addr 10.1.28.89 --master_port 14280 --nproc_per_node=8 --
 As the output indicates, we run a single-node distributed training job with 8 GPUs here.
 
 ```bash
-torchtune run --master_addr 10.1.28.89 --master_port 14280 --nproc_per_node=8 --nnodes 1 --nnodes=1 --rdzv_backend=c10d --rdzv_endpoint=p5-st-p5-2 lora_finetune_distributed
+tune run --master_addr 10.1.28.89 --master_port 14280 --nproc_per_node=8 --nnodes 1 --nnodes=1 --rdzv_backend=c10d --rdzv_endpoint=p5-st-p5-2 lora_finetune_distributed
 ```
 
 
@@ -190,33 +230,6 @@ You can submit sample evaluation job by:
 ```bash
 sbatch evaluate.sbatch
 ```
-
-You will see:
-
-```
-Running loglikelihood requests:   6%|▋         | 23/400 [00:01<00:18, 20.53it/s]
-Running loglikelihood requests:  16%|█▌        | 62/400 [00:02<00:15, 22.65it/s]
-Running loglikelihood requests:  24%|██▍       | 98/400 [00:04<00:13, 22.50it/s]
-Running loglikelihood requests:  33%|███▎      | 131/400 [00:06<00:12, 22.28it/s]
-Running loglikelihood requests:  42%|████▏     | 164/400 [00:07<00:10, 22.40it/s]
-Running loglikelihood requests:  50%|█████     | 200/400 [00:09<00:08, 22.60it/s]
-Running loglikelihood requests:  58%|█████▊    | 233/400 [00:10<00:07, 22.46it/s]
-Running loglikelihood requests:  66%|██████▌   | 263/400 [00:11<00:06, 22.51it/s]
-Running loglikelihood requests:  74%|███████▍  | 296/400 [00:13<00:04, 22.45it/s]
-Running loglikelihood requests:  82%|█�██████▏ | 326/400 [00:14<00:03, 22.63it/s]/s]
-Running loglikelihood requests:  90%|████████▉ | 356/400 [00:16<00:01, 22.82it/s]
-Running loglikelihood requests:  97%|█████████▋| 389/400 [00:17<00:00, 23.11it/s]
-Running loglikelihood requests: 100%|██████████| 400/400 [00:17<00:00, 22.27it/s]
-0: fatal: not a git repository (or any of the parent directories): .git
-0: 2024-05-07:01:12:39,479 INFO     [eval.py:69] vllm (pretrained=meta-llama/Meta-Llama-3-70B,tensor_parallel_size=8,dtype=auto,gpu_memory_utilization=0.8,data_parallel_size=1), gen_kwargs: (None), limit: 100.0, num_fewshot: None, batch_size: 1
-0: 2024-05-07:01:12:39,536 INFO     [eval.py:70] |  Tasks  |Version|Filter|n-shot| Metric |Value|   |Stderr|
-0: |---------|------:|------|-----:|--------|----:|---|-----:|
-0: |hellaswag|      1|none  |     0|acc     | 0.56|±  |0.0499|
-0: |         |       |none  |     0|acc_norm| 0.75|±  |0.0435|
-0: 
-```
-
-
 
 ## 6. Quantization
 

@@ -78,5 +78,5 @@ export PYTHONPATH=${PWD}/torchtune
 export TORCHTUNE=${PWD}/torchtune/torchtune/_cli/tune.py
 export TORCHTUNE_COMMAND="eleuther_eval"
 echo "Executing following command:"
-echo "torchtune" "run" "${TORCHTUNE_COMMAND}" "${TRAIN_ARGS[@]}"
+echo "tune" "run" "${TORCHTUNE_COMMAND}" "${TRAIN_ARGS[@]}"
 srun -l "${SRUN_ARGS[@]}" python ${TORCHTUNE} run "${TORCHTUNE_COMMAND}" "${TRAIN_ARGS[@]}"
