@@ -2,7 +2,8 @@
 
 #SBATCH -N 1 # number of nodes to use
 #SBATCH --job-name=c4-preprocess # name of your job
-#SBATCH --output=%x_%j.out # stdout output
+#SBATCH --output=logs/%x_%j.out # logfile for stdout
+#SBATCH --error=logs/%x_%j.err # logfile for stderr, remove it to merge both outputs
 #SBATCH --ntasks-per-node 8 # Number of processes per node
 #SBATCH --exclusive
 

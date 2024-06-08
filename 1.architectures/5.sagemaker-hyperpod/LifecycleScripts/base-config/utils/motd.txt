@@ -1,0 +1,12 @@
+   ____              __  ___     __             __ __                  ___          __
+  / __/__ ____ ____ /  |/  /__ _/ /_____ ____  / // /_ _____  ___ ____/ _ \___  ___/ /
+ _\ \/ _ `/ _ `/ -_) /|_/ / _ `/  '_/ -_) __/ / _  / // / _ \/ -_) __/ ___/ _ \/ _  /
+/___/\_,_/\_, /\__/_/  /_/\_,_/_/\_\\__/_/   /_//_/\_, / .__/\__/_/ /_/   \___/\_,_/
+         /___/                                    /___/_/
+
+To replace an instance run:
+   sudo scontrol update node=<hostname> state=fail reason="Action:Replace"
+
+To automatically resume jobs, please add the following in your job submission script:
+   srun --auto-resume=1
+

@@ -45,5 +45,5 @@ which nvidia-smi
 nvidia-smi
 which python
 python --version
-python ${SCREEN_PT_SCRIPT_PATH}/screen-pytorch.py
+python ${SCREEN_PT_SCRIPT_PATH}/pytorch-screen.py
 "

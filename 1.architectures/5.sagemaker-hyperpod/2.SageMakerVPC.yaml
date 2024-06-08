@@ -170,6 +170,14 @@ Resources:
     Properties:
       Domain: vpc
 
+  # NOTE: when you create additional security groups, you must ensure that every
+  # security group has ingress/egress from/to its own security group id. Failure
+  # to do so may cause trn1/p4d/p4de/p5 SMHP cluster creation to fail:
+  #
+  #     Instance i-aaaabbbbccccddddf failed to provision with the following
+  #     error: "EFA health checks did not run successfully. Ensure that your
+  #     VPC and security groups are properly configured before attempting to
+  #     create a new cluster." Note that multiple instances may be impacted."
   SecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:

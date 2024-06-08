@@ -1,0 +1,35 @@
+# If we dont specify the Nsight image, 2024.2 version is used by default. 
+# Will use 2024.4 version which is planned to be released by 5/24/2024
+devtoolBinariesImage:
+  image: ${REGISTRY}.dkr.ecr.${REGION}.amazonaws.com/nsight-systems-cli:2024.4.1-ubuntu22.04
+  imagePullPolicy: Always
+
+# Assuming EKS cluster has a FSx for Lustre filesystem mounted on it. Nsight reports will be saved in /fsx_shared
+profile:
+  volumes:
+    [
+      {
+        "name": "nsys-output-volume",
+        "persistentVolumeClaim": { "claimName": "fsx-pvc" }
+      }
+    ]
+  volumeMounts:
+    [
+      {
+        "name": "nsys-output-volume",
+        "mountPath": "/fsx_shared"
+      }
+    ]
+
+  # CLI options: https://docs.nvidia.com/nsight-systems/UserGuide/index.html#cli-command-switches
+  # delay and duration values in secs
+
+  # Use %{} to include environment variables in the Nsight report filename
+
+  # The arguments for the Nsight Systems. The placeholders will be replaced with the actual values.
+  devtoolArgs: "profile --force-overwrite true --trace nvtx,cuda  --delay 150 --duration 60 \
+  -o /fsx_shared/fsdp/auto_{PROCESS_NAME}_%{POD_FULLNAME}_%{CONTAINER_NAME}_{TIMESTAMP}_{UID}.nsys-rep"
+
+  injectionMatch: "^/usr/bin/python3 /usr/local/bin/torchrun.*$"
+  #injectionMatch: "^.*torchrun.*$"
+

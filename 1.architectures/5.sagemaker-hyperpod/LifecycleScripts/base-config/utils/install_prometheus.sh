@@ -48,7 +48,7 @@ DOWNLOAD_URL="https://github.com/prometheus/prometheus/releases/download/v$LATES
 
 # Download the latest Prometheus release tarball
 echo "Downloading Prometheus version $LATEST_VERSION from $DOWNLOAD_URL ..."
-wget "$DOWNLOAD_URL"
+wget --progress=dot:giga "$DOWNLOAD_URL"
 
 # Extract Prometheus
 echo "Extracting Prometheus"
@@ -79,6 +79,10 @@ global:
   scrape_timeout: 15s
 
 scrape_configs:
+  - job_name: 'head_node_metrics'
+    static_configs:
+      - targets:
+          - 'localhost:9100'
   - job_name: 'slurm_exporter'
     static_configs:
       - targets:
@@ -110,7 +114,7 @@ Description=Prometheus Exporter
 
 [Service]
 Environment=PATH=/opt/slurm/bin:\$PATH
-ExecStart=/usr/bin/prometheus --config.file=/etc/prometheus/prometheus.yml
+ExecStart=/usr/bin/prometheus --config.file=/etc/prometheus/prometheus.yml --enable-feature=agent --storage.agent.path="/opt/prometheus/data-agent"
 Restart=on-failure
 RestartSec=15
 Type=simple
