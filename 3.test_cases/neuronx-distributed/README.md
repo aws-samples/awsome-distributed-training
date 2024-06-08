@@ -1,4 +1,6 @@
-# Mosaic Pretrained Transformers (MPT) Test Case <!-- omit in toc -->
+# NeuronX distributed test cases <!-- omit in toc -->
+
+
 
 MPT are GPT-style models in [llm-foundry](https://github.com/mosaicml/llm-foundry/tree/main) with some special features -- [Flash Attention](https://arxiv.org/abs/2205.14135) for efficiency, [ALiBi](https://arxiv.org/abs/2108.12409) for context length extrapolation, and stability improvements to mitigate loss spikes.
 
