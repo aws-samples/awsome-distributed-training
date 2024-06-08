@@ -1,0 +1,10 @@
+#!/bin/bash -x
+
+# kubectl cp -n <namespace> <pod-name>:<path> <destination-on-local-system>
+
+FILE=auto_python3_default_fsdp-worker-1_pytorch_1715996702335_5a061871.nsys-rep
+
+kubectl cp fsx-share-test:fsx_shared/fsdp/$FILE /eks/deployment/distributed-training/pytorch/pytorchjob/fsdp/$FILE
+
+aws s3 cp $FILE s3://${S3_BUCKET}
+

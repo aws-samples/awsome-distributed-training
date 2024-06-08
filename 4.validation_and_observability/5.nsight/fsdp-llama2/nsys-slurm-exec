@@ -1,0 +1,9 @@
+#! /bin/bash -x
+
+NSYS_EXTRAS=""
+if [ "$SLURM_LOCALID" == "0" ]; then
+NSYS_EXTRAS="--enable nic_sampler,-mode:counters,-struct:true,-efa:true"
+fi
+
+/fsx/nsight-efa/target-linux-x64/nsys profile $NSYS_EXTRAS --sample none -t cuda,nvtx --capture-range=cudaProfilerApi --capture-range-end=stop --force-overwrite true --output /fsx/nsight-reports/fsdp/report_fsdp_efa_job%q{SLURM_JOB_ID}_rank%q{SLURM_PROCID}_on_%q{HOSTNAME}.nsys-rep \
+   "$@"

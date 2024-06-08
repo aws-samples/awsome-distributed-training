@@ -1,12 +1,20 @@
 # AWS SageMaker HyperPod Distributed Training Reference Architectures
 
+
+> [!IMPORTANT]  
+> 🚨 We recommend following the official [Amazon SageMaker HyperPod Workshop](https://catalog.workshops.aws/sagemaker-hyperpod/en-US) to deploy clusters, which contains detailed instructions and latest best-practices. The below deployment steps are no longer kept up-to-date with latest best practices
+
 ## 1. Architectures
 
 SageMaker HyperPod clusters provide the ability to create customized clusters, typically with one or more head and login nodes, and multiple compute nodes (typically P4/P5 or Trn1 instances), and optionally a shared FSX for Lustre file system. When configured with Slurm, SageMaker HyperPod provides resiliency tools to automatically identify and replace unhealthy compute nodes. Additionally, HyperPod has access to SageMaker training tools, such as SageMaker Model and Data Parallel packages, and are automatically configured for EFA.
 
 The example that follows describes the process of setting up a SageMaker HyperPod cluster with an attached FSX for Lustre volume.
 
+
 ## 2. Prerequisites
+
+> [!TIP]  
+> For the latests deployment instructions, follow the  [Amazon SageMaker HyperPod Workshop](https://catalog.workshops.aws/sagemaker-hyperpod/en-US). 
 
 Before creating a cluster, we need to install the latest [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html), and setup the appropriate IAM role, VPC, FSx for Lustre volume, and S3 bucket.
 
@@ -81,32 +89,38 @@ Now that we have all our infrastructure in place, we can create a cluster.
 
 Lifecycle scripts tell SageMaker HyperPod how to setup your HyperPod cluster. HyperPod clusters can be launched as plain EC2 clusters with nothing installed, or can be created with configurations and users customized to fit a particular machine learning development workflow. We provide a [base configuration](./LifecycleScripts/base-config) to get started, which creates a basic Slurm cluster. Below is a brief description of what each script is doing.
 
-| Script      | Description |
-| ----------- | ----------- |
-| add_users.sh      | [Optional] creates posix users specified in a file shared_users.txt       |
-| lifecycle_script.py | This is the main entrypoint, sets everything else up. |
-| mount_fsx.sh | Mounts an FSx for Lustre filesystem. |
-| on_create.sh | Entrypoint for clusters. This script calls lifecycle_script.py |
+| Script                       | Description                                                                                                                                    |
+|------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------|
+| add_users.sh                 | [Optional] creates posix users specified in a file shared_users.txt                                                                            |
+| config.py                    | Configuration file for the lifecycle scripts.                                                                                                  |
+| lifecycle_script.py          | This is the main entrypoint, sets everything else up.                                                                                          |
+| mount_fsx.sh                 | Mounts an FSx for Lustre filesystem.                                                                                                           |
+| on_create.sh                 | Entrypoint for clusters. This script calls lifecycle_script.py                                                                                 |
 | provisioning_parameters.json | Defines scheduler type Slurm and sets the partitions up also specifies FSx for Lustre Filesystem to attach. We'll modify this in a later step. |
-| setup_mariadb_accounting.sh | Sets up Slurm Accounting  with a local mariadb server running on the HeadNode. |
-| setup_rds_accounting.sh | Sets up Slurm Accounting  with a RDS endpoint. |
-| shared_users_sample.txt | Sample of how to specify users for the add_users.sh script. |
-| start_slurm.sh | Starts the Slurm scheduler daemon. |
+| setup_mariadb_accounting.sh  | Sets up Slurm Accounting  with a local mariadb server running on the HeadNode.                                                                 |
+| setup_rds_accounting.sh      | Sets up Slurm Accounting  with a RDS endpoint.                                                                                                 |
+| setup_sssd.py                | Set up Active Directory/LDAP integration with SSSD.                                                                                            |
+| shared_users_sample.txt      | Sample of how to specify users for the add_users.sh script.                                                                                    |
+| start_slurm.sh               | Starts the Slurm scheduler daemon.                                                                                                             |
 
-Also note that there are two scripts in `utils` to install [Docker](https://www.docker.com/), [Enroot](https://github.com/NVIDIA/enroot), and [Pyxis](https://github.com/NVIDIA/pyxis). These scripts can be enabled by uncommenting these lines in `lifecycle_script.py`:
 
+If you want to use docker containers, you can install [Docker](https://www.docker.com/), [Enroot](https://github.com/NVIDIA/enroot), and [Pyxis](https://github.com/NVIDIA/pyxis) by setting `Config.enable_docker_enroot_pyxis` in `config.py` to `True` (True by default).
+
+```python
+# Basic configuration parameters
+class Config:
+
+    # Set true if you want to install Docker/Enroot/Pyxis.
+    enable_docker_enroot_pyxis = True
 ```
-        # Note: Uncomment the below lines to install docker and enroot
-        # ExecuteBashScript("./utils/install_docker.sh").run()
-        # ExecuteBashScript("./utils/install_enroot_pyxis.sh").run(node_type)
-```
 
-You can follow this same pattern for further customizations. For example, if you'd like to install Miniconda as part of your lifecycles scripts, you can add the script under `utils` and call it using `ExecuteBashScript` in `lifecycle_script.py`.
+
+You can edit `lifecycle_script.py` for further customizations. For example, if you'd like to install Miniconda as part of your lifecycles scripts, you can add the script under `utils` and call it using `ExecuteBashScript` in `lifecycle_script.py`.
 
 For now, let's just use the base configuration provided. Upload the scripts to the bucket you created earlier. This needs to be the same S3 bucket and prefix where we uploaded the other lifecycle scripts earlier.
 
 ```
-aws s3 cp --recursive LifeCycleScripts/base-config s3://${BUCKET}/LifeCycleScripts/base-config
+aws s3 cp --recursive LifecycleScripts/base-config s3://${BUCKET}/LifecycleScripts/base-config
 ```
 
 If you created an FSx for Lustre volume in the previous section, we'll need to update one file in the lifecycle scripts to attach it to our cluster.
@@ -141,7 +155,7 @@ Make sure the `instance_group_name` matches the instance group name `InstanceGro
 Copy the updated `provisioning_parameters.json` to S3:
 
 ```
-aws s3 cp LifeCycleScripts/base-config/provisioning_parameters.json s3://${BUCKET}/LifeCycleScripts/base-config/
+aws s3 cp LifecycleScripts/base-config/provisioning_parameters.json s3://${BUCKET}/LifecycleScripts/base-config/
 ```
 
 Lifecycle scripts can be reused across multiple cluster. This can be handy particularly if you want to move the work saved on your FSx for Lustre volume to a new cluster.
@@ -161,7 +175,7 @@ cat > cluster-config.json << EOL
     "InstanceType": "ml.c5.xlarge",
     "InstanceCount": 1,
     "LifeCycleConfig": {
-      "SourceS3Uri": "s3://${BUCKET}/LifeCycleScripts/base-config/",
+      "SourceS3Uri": "s3://${BUCKET}/LifecycleScripts/base-config/",
       "OnCreate": "on_create.sh"
     },
     "ExecutionRole": "${ROLE}",
@@ -172,7 +186,7 @@ cat > cluster-config.json << EOL
     "InstanceType": "ml.trn1.32xlarge",
     "InstanceCount": 4,
     "LifeCycleConfig": {
-      "SourceS3Uri": "s3://${BUCKET}/LifeCycleScripts/base-config/",
+      "SourceS3Uri": "s3://${BUCKET}/LifecycleScripts/base-config/",
       "OnCreate": "on_create.sh"
     },
     "ExecutionRole": "${ROLE}",
@@ -182,18 +196,18 @@ cat > cluster-config.json << EOL
 EOL
 ```
 
-And finally, if you created a VPC and FSx for Lustre volume, we need to create a configuration to make sure your HyperPod cluster is created in the correct VPC. 
+And finally, if you created a VPC and FSx for Lustre volume, we need to create a configuration to make sure your HyperPod cluster is created in the correct VPC.
 
 ```
 cat > vpc-config.json << EOL
-{ 
+{
   "SecurityGroupIds": ["$SECURITY_GROUP"],
-  "Subnets":["$SUBNET_ID"] 
+  "Subnets":["$SUBNET_ID"]
 }
 EOL
 ```
 
-Your `SUBNET_ID` can be found using 
+Your `SUBNET_ID` can be found using
 
 ```
 aws fsx describe-file-systems
@@ -234,7 +248,7 @@ aws sagemaker create-cluster \
 You can see the current state of the cluster with
 
 ```
-aws sagemaker describe-cluster --cluster-name ml-cluster --region us-west-2 
+aws sagemaker describe-cluster --cluster-name ml-cluster --region us-west-2
 ```
 
 Or list all your HyperPod cluster with
@@ -243,10 +257,10 @@ Or list all your HyperPod cluster with
 aws sagemaker list-clusters
 ```
 
-You can see information on all your HyperPod cluster nodes with 
+You can see information on all your HyperPod cluster nodes with
 
 ```
-aws sagemaker list-cluster-nodes --cluster-name ml-cluster --region us-west-2 
+aws sagemaker list-cluster-nodes --cluster-name ml-cluster --region us-west-2
 ```
 
 ### 3.4 SSH into your HyperPod cluster
@@ -266,7 +280,7 @@ In this case, the cluster ID is `2hd31rmi9mde`
 Get your controller machine instance ID with
 
 ```
-aws sagemaker list-cluster-nodes --cluster-name ml-cluster --region us-west-2 
+aws sagemaker list-cluster-nodes --cluster-name ml-cluster --region us-west-2
 
 {
     "NextToken": "",
@@ -283,7 +297,7 @@ aws sagemaker list-cluster-nodes --cluster-name ml-cluster --region us-west-2
         },
 ```
 
-And login with 
+And login with
 
 ```
 CLUSTER_ID=2hd31rmi9mde
@@ -311,7 +325,40 @@ dev*         up   infinite      4   idle ip-10-1-4-190,ip-10-1-5-138,ip-10-1-18-
 
 You'll also find your FSx for Lustre volume mounted at `/fsx`.
 
-### 3.5 Patching your HyperPod cluster
+### 3.5 Runtime validation before running workloads
+
+We've included a runtime validation script `hyperpod-precheck.py` which lets you check the runtime before running any production workloads.
+
+In order to run the script on multiple nodes at once use `srun`
+
+```bash
+# this runs on 8 nodes
+srun -N 8 python3 hyperpod-precheck.py
+```
+
+Follow the mitigations listed in this table if one of the checks fails:
+
+| Test                           | 	Description	                                                                                                               | Failure  mitigation                                                                                                                                                                                                                                                                                                                                                      |
+|--------------------------------|-----------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| check_if_docker_installed	     | Life-cycle scripts ensure that docker is installed on all nodes<br/>This checks if docker is available on all compute nodes | Run life-cycle scripts manually<br/>`cd /tmp/sagemaker-lifecycle-* && cd src/utils/ && srun -N <no of nodes> bash install_docker.sh`                                                                                                                                                                                                                                     |
+| check_enroot_runtime_path      | Make sure the `ENROOT_RUNTIME_PATH` is pointed to the right directory                                                       | Follow [these steps](https://catalog.workshops.aws/sagemaker-hyperpod/en-US/01-cluster/08-docker-setup#enroot) in the workshop (Cluster Setup > Docker Setup > Enroot)                                                                                                                                                                                                   |
+| check_docker_data_root         | Docker data root should be at `/opt/dlami/nvme/data-root`                                                                   | Run life-cycle scripts manually```cd /tmp/sagemaker-lifecycle-* && cd src/utils/ && srun -N <no of nodes> bash install_docker.sh```                                                                                                                                                                                                                                      |
+| check_if_fsx_mounted           | `df -h` should show /fsx as mounted                                                                                         | Speak to AWS; We have ensured provisioning parameters include this. So if it's not mounted, we need to investigate this issue.                                                                                                                                                                                                                                           |
+| check_if_pyxis_installed       | Pyxis is a container plugin for Slurm. Should be installed by default through life-cycle scripts when provisioning cluster  | Run life-cycle scripts manually ```cd /tmp/sagemaker-lifecycle-* && cd src/utils/ && srun -N <no of nodes> bash install_enroot_pyxis.sh```                                                                                                                                                                                                                               |
+| check_slurmd_service_status    | Check if `slrumd` is running across all compute instances                                                                   | Sometimes slurm can fail due to an underlying error. If this check fails, ssh into the specific host and run `sudo systemctl status slurmd` and find the reason. Then restart it using `sudo systemctl start slurmd`. If it fails again check `sudo journalctl -xe` to see what has gone wrong                                                                           |
+| check_if_user_directory_on_fsx | This checks if users are sharing /fsx file system mount                                                                     | Multi user setup will create /fsx/<user> mounts. Follow [those steps here](https://catalog.workshops.aws/sagemaker-hyperpod/en-US/04-advanced/01-multi-user)<br />If the user directory doesn't exist for nodes that have been replaced<br />Run a variant of this command for your nodes<br>`srun -N 2 usermod -d /fsx/ubuntu ubuntu`<br>(Replace ubuntu with username) |
+| nvidia_cli_installed           | Nvidia Container CLI is installed via docker life cycle scripts. It's unlikely this will be an issue.                       | Go to [this page](https://catalog.workshops.aws/sagemaker-hyperpod/en-US/03-megatron-lm/01-pre-process) and look for the command that runs the nvidia-container-cli installation.<br /> Create a script from those steps and either use sbatch or srun to execute across all compute nodes                                                                               |
+
+
+You can also run validation on the scripts you wish to run. This ensures you’re not using unsupported operations in the script.
+
+```
+# Run a check on a specific sbatch script that launches training
+python3 hyperpod-precheck.py -f ../../3.test_cases/1.megatron-lm/2.distributed-training.sbatch
+```
+
+
+### 3.6 Patching your HyperPod cluster
 
 Run `update-cluster-software` to update existing HyperPod clusters with software and security patches provided by the SageMaker HyperPod service. For more details, see [Update the SageMaker HyperPod platform software of a cluster](https://docs.aws.amazon.com/sagemaker/latest/dg/sagemaker-hyperpod-operate.html#sagemaker-hyperpod-operate-cli-command-update-cluster-software) in the *Amazon SageMaker Developer Guide*.
 
@@ -328,7 +375,7 @@ sudo bash patching-backup.sh --create <s3-buckup-bucket-path>
 sudo bash patching-backup.sh --restore <s3-buckup-bucket-path>
 ```
 
-### 3.6 Deleting your HyperPod cluster
+### 3.7 Deleting your HyperPod cluster
 
 When you're done with your HyperPod cluster, you can delete it down with
 
