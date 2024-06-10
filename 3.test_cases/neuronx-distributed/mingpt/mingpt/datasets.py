@@ -3,6 +3,51 @@ import pickle
 import torch
 from torch.utils.data import Dataset
 
+
+class IdentityDataset(Dataset):
+    def __init__(self, split, ndim=4):
+        """
+        Args:
+            split (str): The dataset split, e.g., 'train', 'val', 'test'.
+            ndim (int): The number of dimensions for the one-hot encoded tensor.
+        """
+        self.split = split
+        self.ndim = ndim
+
+    def __len__(self):
+        # You can define the length of the dataset based on the split
+        # For simplicity, let's assume a fixed length for each split
+        if self.split == 'train':
+            return 1000
+        elif self.split == 'val':
+            return 200
+        elif self.split == 'test':
+            return 200
+        else:
+            raise ValueError("Invalid split name")
+
+    def get_vocab_size(self):
+        return self.ndim 
+
+    def __getitem__(self, idx):
+        """
+        Args:
+            idx (int): Index of the data point.
+        
+        Returns:
+            tuple: (x, y) where x and y are one-hot encoded tensors.
+        """
+        # Generate a random index for the one-hot encoding
+        random_index = torch.randint(0, self.ndim, (1,)).item()
+        
+        # Create a one-hot encoded tensor for x and y
+        x = torch.zeros(self.ndim)
+        y = torch.zeros(self.ndim)
+        x[random_index] = 1
+        y[random_index] = 1
+        return x, y
+
+
 class AdditionDataset(Dataset):
     """
     Creates n-digit addition problems. For example, if n=2, then an example
