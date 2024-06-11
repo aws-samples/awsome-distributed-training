@@ -11,13 +11,6 @@ from mingpt.datasets import SortDataset
 from mingpt.trainer import Trainer
 from mingpt.configs import TrainConfig
 
-import os
-#os.environ['NEURON_CC_FLAGS'] = "--log_level=INFO"
-#os.environ["NEURON_USE_EAGER_DEBUG_MODE"] = "1"
-#os.environ["NEURON_FRAMEWORK_DEBUG"] = "1"
-#os.environ["NEURON_RT_LOG_LEVEL"]="DEBUG"
-#os.environ["NEURON_RT_LOG_LEVEL_NRT"]="DEBUG"
-#os.environ["NEURON_DUMP_HLO_SNAPSHOT"] = "1"
 
 
 device = 'xla'
@@ -44,8 +37,8 @@ optimizer = model.configure_optimizers(train_config)
 
 
 model.train()
-pbar = tqdm(enumerate(train_loader))
-for idx, (x, y) in pbar:
+pbar = tqdm(train_loader)
+for idx, (x, y) in enumerate(pbar):
     optimizer.zero_grad()
     # forward the model
     logits = model(x)
@@ -55,11 +48,6 @@ for idx, (x, y) in pbar:
         ignore_index=-1
     )
     # backprop and update the parameters
-    #model.zero_grad(set_to_none=True)
     loss.backward()
     xm.optimizer_step(optimizer) # XLA MP: performs grad allreduce and optimizer step
-    #torch.nn.utils.clip_grad_norm_(model.parameters(), train_config.grad_norm_clip)
-    #pbar.set_description(f"Iteration: {idx}, train loss: {loss.item():.5f}")
-    pbar.set_description(f"Iteration: {idx}") #, train loss: {loss.item():.5f}")
-    if idx == 500:
-        break
+    pbar.set_description(f"Iteration: {idx}, train loss: {loss.item():.5f}")

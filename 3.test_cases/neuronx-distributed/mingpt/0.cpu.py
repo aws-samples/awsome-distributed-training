@@ -2,6 +2,7 @@ import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
+from torch.nn import functional as F
 from mingpt.model import GPT
 from mingpt.datasets import SortDataset 
 from mingpt.trainer import Trainer
@@ -25,13 +26,17 @@ model = GPT(model_config)
 optimizer = model.configure_optimizers(train_config)
 
 model.train()
-pbar = tqdm(enumerate(train_loader))
-for idx, (x, y) in pbar:
+pbar = tqdm(train_loader)
+for idx, (x, y) in enumerate(pbar):
+    optimizer.zero_grad()
     # forward the model
-    logits, loss = model(x, y)
+    logits = model(x)
+    loss = F.cross_entropy(
+        logits.view(-1, logits.size(-1)),
+        y.view(-1),
+        ignore_index=-1
+    )
     # backprop and update the parameters
-    model.zero_grad(set_to_none=True)
     loss.backward()
-    torch.nn.utils.clip_grad_norm_(model.parameters(), train_config.grad_norm_clip)
     optimizer.step()
     pbar.set_description(f"Iteration: {idx}, train loss: {loss.item():.5f}")
