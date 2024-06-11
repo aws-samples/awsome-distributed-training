@@ -37,7 +37,7 @@ Start by cloning the required repository on the cluster's head/login node, then 
 
 ```bash
 cd /fsx/${USER}
-git clone https://github.com/aws-samples/awsome-distributed-training ${FSX_PATH}/${USER}/awsome-distributed-training
+git clone https://github.com/aws-samples/awsome-distributed-training /fsx/${USER}/awsome-distributed-training
 cd /fsx/${USER}/awsome-distributed-training/3.test_cases/torchtune/slurm
 ```
 
