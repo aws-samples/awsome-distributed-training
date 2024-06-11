@@ -36,7 +36,6 @@ This section outlines the steps to acquire the necessary codebases and configure
 Start by cloning the required repository on the cluster's head/login node, then navigate to the specific test case directory:
 
 ```bash
-cd /fsx/${USER}
 git clone https://github.com/aws-samples/awsome-distributed-training /fsx/${USER}/awsome-distributed-training
 cd /fsx/${USER}/awsome-distributed-training/3.test_cases/torchtune/slurm
 ```
