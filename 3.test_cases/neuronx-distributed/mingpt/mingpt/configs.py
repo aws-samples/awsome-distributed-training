@@ -9,7 +9,7 @@ class TrainConfig:
         # dataloder parameters
         C.num_workers = 0
         # optimizer parameters
-        C.batch_size = 32
+        C.batch_size = 8
         C.learning_rate = 3e-4
         C.betas = (0.9, 0.95)
         C.max_iters = 8000
