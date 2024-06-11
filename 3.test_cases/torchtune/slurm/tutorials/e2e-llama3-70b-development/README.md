@@ -2,7 +2,7 @@
 
 This tutorial guide you through each following LLM model development steps using Llama3-70B: 
 
-* Contious Pretraining
+* Continual Pretraining
 * Instruction Finetuning
 * Alignment
 * Evaluation
