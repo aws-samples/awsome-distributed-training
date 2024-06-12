@@ -64,13 +64,13 @@ aws ecr get-login-password | docker login --username AWS --password-stdin $REGIS
 docker image push ${REGISTRY}fsdp:pytorch2.2
 ```
 
-## 2. Data
+## 3. Data
 
 For this example, we'll be using the [C4 dataset](https://huggingface.co/datasets/allenai/c4), which is several hundred gigabytes. Instead of downloading the whole thing, the `create_streaming_dataloaders` function will stream the dataset from [HuggingFace](https://huggingface.co/datasets), so there's no data prep required for running this training. 
 
 If you'd like to instead use your own dataset, you can do so by [formatting it as a HuggingFace dataset](https://huggingface.co/docs/datasets/create_dataset), and passing its location to the `--dataset_path` argument.
 
-## 3. Launch training job
+## 4. Launch training job
 
 Generate the Kubernetes manifest and apply it to the cluster.
 
@@ -92,7 +92,7 @@ Uncomment FI_* values for P4d instances
 
 You can also adjust the training parameters in `TRAINING_ARGS` (for example, to train Llama 2 70b). Additional parameters can be found in `model/arguments.py`. Note that we use the same directory for both `--checkpoint_dir` and `--resume_from_checkpoint`. If there are multiple checkpoints, `--resume_from_checkpoint` will automatically select the most recent one. This way if our training is interupted for any reason, it will automatically pick up the most recent checkpoint.
 
-## 4. Monitor training job
+## 5. Monitor training job
 
 To see the status of your job, use the commands below
 
@@ -141,7 +141,7 @@ kubectl logs -f fsdp-worker-1
 2024-06-12 00:09:21 I [train.py:102] Batch 982 Loss: 5.45894, Speed: 0.43 samples/sec, lr: 0.000091
 ```
 
-## 5. Stop training job
+## 6. Stop training job
 
 To stop the current training job, use the following command.
 
