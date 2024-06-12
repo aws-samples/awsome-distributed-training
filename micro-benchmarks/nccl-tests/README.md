@@ -216,7 +216,7 @@ To change the type of collective to test, modify the line with `srun` in the fil
 
    - `slotsPerWorker: 8`: set to the number of GPUs per node in your cluster
    - `image: <account>.dkr.ecr.<region>.amazonaws.com/<image>:<tag>`: set to your container image URI. Note: change both locations in the file. You may use `echo ${REGISTRY}${IMAGE}${TAG}` to print the image URI.
-   - `-np 16`: set -np option in mpirun to (number_of_worker_nodes * number_of_gpus_per_node), other mpirun parameters if needed for your instance type, please refer to [aws-ofi-nccl](https://github.com/aws/aws-ofi-nccl/blob/master/doc/efa-env-var.md)
+   - `-np 16`: set -np option in mpirun to (*`number_of_worker_nodes`* * *`number_of_gpus_per_node`*), other mpirun parameters if needed for your instance type, please refer to [aws-ofi-nccl](https://github.com/aws/aws-ofi-nccl/blob/master/doc/efa-env-var.md)
    - `replicas: 2`: set to number of worker pods you would like the test to run on. This must be less than or eaqual to the number of nodes in your cluster.
    - `node.kubernetes.io/instance-type: "p5.48xlarge"`: set to the instance type of the nodes in your cluster against which you would like the nccl test to be run
    - `nvidia.com/gpu: 8`: set to the number of GPUs per node in your cluster, adjust in both the limits and requests section
