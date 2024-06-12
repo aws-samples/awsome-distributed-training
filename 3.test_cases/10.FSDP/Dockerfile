@@ -1,0 +1,24 @@
+# To build the base image, run the commands below.
+# pushd ../../micro-benchmarks/nccl-tests
+# docker build -t nccl-tests:cuda12 -f nccl-tests.Dockerfile .
+# popd
+
+FROM nccl-tests:cuda12
+
+RUN apt update && apt install -y nvtop
+
+RUN pip install torchvision torchaudio transformers datasets fsspec==2023.9.2 python-etcd
+RUN pip install torch==2.2.0+cu121 --index-url https://download.pytorch.org/whl/cu121
+
+RUN mkdir /checkpoints
+
+RUN mkdir /fsdp
+
+RUN ln -s /usr/bin/python3 /usr/bin/python
+
+COPY ./train.py /fsdp/train.py
+
+COPY /model_utils /fsdp/model_utils
+
+WORKDIR /fsdp
+
