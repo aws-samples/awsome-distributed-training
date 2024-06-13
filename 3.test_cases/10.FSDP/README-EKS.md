@@ -41,7 +41,7 @@ Build a container image for this example using the code below:
 ```bash
 export AWS_REGION=$(aws ec2 describe-availability-zones --output text --query 'AvailabilityZones[0].[RegionName]')
 export ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
-export REGISTRY=${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/
+export REGISTRY=${ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com/
 docker build -t ${REGISTRY}fsdp:pytorch2.2 .
 ```
 
