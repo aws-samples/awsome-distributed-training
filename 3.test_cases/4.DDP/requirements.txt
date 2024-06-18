@@ -7,7 +7,7 @@ pandas==1.5.0
 Pillow==10.3.0
 PyYAML==6.0
 scikit_image==0.19.2
-scikit_learn==1.2.1
+scikit_learn==1.5.0
 seaborn==0.12.2
 tifffile==2021.11.2
 topo==0.1.1
