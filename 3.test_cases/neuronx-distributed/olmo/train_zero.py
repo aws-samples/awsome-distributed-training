@@ -21,7 +21,7 @@ os.environ["XLA_USE_BF16"] = "1"
 device = "xla"
 olmo_config = TrainConfig.load("./configs/OLMo-1B.yaml")
 olmo_config.model.init_device = "cpu"
-tokenizer = Tokenizer.from_train_config(olmo_config)
+#tokenizer = Tokenizer.from_train_config(olmo_config)
 model = OLMo(olmo_config.model)
 model = model.to(device)
 print("Loaded olmo model")
@@ -40,7 +40,7 @@ train_loader = pl.MpDeviceLoader(train_loader, device)
 #optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
 optimizer = ZeroRedundancyOptimizer(
     model.parameters(), torch.optim.Adam,
-    lr=1e-4
+    lr=1e-4, pin_layout=False
 )
 model.train()
 

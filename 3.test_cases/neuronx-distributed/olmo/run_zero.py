@@ -25,7 +25,7 @@ torch.distributed.init_process_group('xla')
 device = "xla"
 # XLA MP: get world size
 world_size = xm.xrt_world_size()
-olmo_config = TrainConfig.load("./configs/OLMo-1B.yaml")
+olmo_config = TrainConfig.load("./configs/OLMo-7B.yaml")
 olmo_config.model.init_device = "cpu"
 tokenizer = Tokenizer.from_train_config(olmo_config)
 model = OLMo(olmo_config.model)
