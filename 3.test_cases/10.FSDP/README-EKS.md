@@ -1,6 +1,6 @@
 # Run Distributed Training of Llama 2 with PyTorch FSDP on Amazon EKS
 
-These scripts provide an easy way to get started with multinode [FSDP](https://pytorch.org/tutorials/intermediate/FSDP_tutorial.html) training on EKS. It is designed to be as simple as possible, requires no data preparation, and uses a container image. 
+These scripts provide an easy way to get started with multinode [FSDP](https://pytorch.org/tutorials/intermediate/FSDP_tutorial.html) training on EKS. It is designed to be as simple as possible, requires no data preparation, and uses a container image. If you would like to run FSDP with SLURM, please refer to [README.md](README.md).
 
 ## 0. Prerequisites
 
