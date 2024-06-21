@@ -8,7 +8,7 @@ ARG AWS_OFI_NCCL_VERSION=v1.8.1-aws
 ARG NCCL_VERSION=v2.20.3-1
 ARG NCCL_TESTS_VERSION=v2.13.9
 
-RUN apt-get update -y
+RUN apt-get update -y && apt-get upgrade -y
 RUN apt-get remove -y --allow-change-held-packages \
     ibverbs-utils \
     libibverbs-dev \
