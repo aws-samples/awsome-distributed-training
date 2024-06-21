@@ -1,9 +1,5 @@
-# To build the base image, run the commands below.
-# pushd ../../micro-benchmarks/nccl-tests
-# docker build -t nccl-tests:cuda12 -f nccl-tests.Dockerfile .
-# popd
 
-FROM nccl-tests:cuda12
+FROM public.ecr.aws/nccl-tests:latest
 
 RUN apt update && apt install -y nvtop
 

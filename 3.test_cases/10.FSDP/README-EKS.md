@@ -16,13 +16,23 @@ cd awsome-distributed-training/3.test_cases/10.FSDP
 ```
 
 ### 0.3. Base image
-The example requires building a container. We are going to use the [nccl-tests](github.com/aws-samples/awsome-distributed-training/micro-benchmarks/nccl-tests/nccl-tests.Dockerfile) container as base. The nccl-tests container is a prerequisite and can be built using the code below.
+The example requires building a container. We are going to use the [nccl-tests](github.com/aws-samples/awsome-distributed-training/micro-benchmarks/nccl-tests/nccl-tests.Dockerfile) container as base. The [nccl-tests](https://gallery.ecr.aws/hpc-cloud/nccl-tests) container image is a prerequisite. 
+
+It can either be pulled from [gallery.ecr.aws/hpc-cloud](https://gallery.ecr.aws/hpc-cloud) 
+
+```bash
+aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/hpc-cloud
+docker pull public.ecr.aws/hpc-cloud/nccl-tests:latest
+```
+
+or it can be built using the code below.
 
 ```bash
 pushd ../../micro-benchmarks/nccl-tests
-docker build -t nccl-tests:cuda12 -f nccl-tests.Dockerfile .
+docker build -t nccl-tests:latest -f nccl-tests.Dockerfile .
 popd
 ```
+It is recommended to use the public image as base. Building the base image from source can take longer than 30 min. If you decide to build your base image from source, then please change the `FROM` line in the [Dockerfile](Dockerfile) to your local base image, prior to building the `fsdp` image.
 
 ### 0.4. Envsubst
 If the [envsubst](https://github.com/a8m/envsubst) utility is not available in your environment, please install it, following the instructions appropriate for your operating system.
