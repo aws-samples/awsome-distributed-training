@@ -96,4 +96,24 @@ sbatch --exclusive \
 --wrap="srun bash $(pwd)/run_llama_8B_tp_pp.sh"
 ```
 
+## Running the 70B model
 
+If you would like to compile and train the 70B model instead, run the `run_llama_70B_tp_pp.sh` script instead as below:
+
+- Model Compilation
+
+``` bash
+sbatch --exclusive \ 
+--nodes 4 \
+--cpus-per-task 64 \
+--wrap="srun neuron_parallel_compile bash $(pwd)/run_llama_70B_tp_pp.sh"
+```
+
+- Model Training
+
+``` bash
+sbatch --exclusive \
+--nodes 4 \
+--cpus-per-task 64 \
+--wrap="srun bash $(pwd)/run_llama_70B_tp_pp.sh"
+```
