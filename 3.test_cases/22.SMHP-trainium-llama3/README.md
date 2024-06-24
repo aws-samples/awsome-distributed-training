@@ -113,11 +113,9 @@ srun --job-name=get_dataset_job --output=get_dataset_output.log --nodes=1 python
 
 >[!IMPORTANT] 
 >The `get_dataset.py` job will take several minutes to execute, do not proceed until this job is completed. You can monitor the job logs with the following command:
-
-```bash
-tail -f get_dataset_output.log 
-```
-
+>```bash
+>tail -f get_dataset_output.log 
+>```
 > Once `squeue` shows the job is completed and `sinfo` shows all nodes as idle, you can proceed to the next section, **Compiling the Model**.
 
 
