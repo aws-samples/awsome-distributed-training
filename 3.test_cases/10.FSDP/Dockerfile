@@ -1,5 +1,5 @@
 
-FROM public.ecr.aws/nccl-tests:latest
+FROM public.ecr.aws/hpc-cloud/nccl-tests:latest
 
 RUN apt update && apt install -y nvtop
 
