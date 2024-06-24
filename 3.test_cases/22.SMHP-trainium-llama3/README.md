@@ -91,16 +91,15 @@ pip install huggingface-hub
 ```bash
 huggingface-cli login
 ```
-3. Download the Meta-Llama-3-8B repo:
+3. Download the [Meta-Llama-3-8B](https://huggingface.co/meta-llama/Meta-Llama-3-8B) repo from HuggingFace:
 > [!NOTE]  
 > Note we are passing the `--include "*"` flag to ensure that we clone the entire repo, including the sub-directory `/original` which contains the `tokenizer.model` file we will copy in the next step.
 ```bash
 huggingface-cli download meta-llama/Meta-Llama-3-8B --include "*" --local-dir Meta-Llama-3-8B cp Meta-Llama-3-8B/original/* .
 ```
 
-Note we are passing the `--include "*"` flag to ensure that we clone the entire repo, including the sub-directory `/original` which contains the `tokenizer.model` file we will copy in the next step.
 
-4. Once you have downloaded the tokenizer and model weights, lets copy the `config.json`, `tokenizer_config.json`, `tokenizer.json`, and `original/tokenizer.model` files from the downloaded HuggingFace directory and sub directories `Meta-Llama-3-8B` to our working directory `22.SMHP-trainium-llama3` to ensure they are recognized in our training scripts:
+4. Within the current working directory `22.SMHP-trainium-llama3`, lets copy some files from the cloned repo (`/Meta-Llama-3-8B`) to our local working directory. In particular, we will copy `config.json`, `tokenizer_config.json`, `tokenizer.json`, and `original/tokenizer.model` files from the cloned HuggingFace directory `/Meta-Llama-3-8B` to our current working directory `22.SMHP-trainium-llama3` so they can be picked up by our scripts:
 
 ```bash
 cp /Meta-Llama-3-8B/tokenizer_config.json /Meta-Llama-3-8B/config.json /Meta-Llama-3-8B/tokenizer.json /Meta-Llama-3-8B/original/tokenizer.model .
