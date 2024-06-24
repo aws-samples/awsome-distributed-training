@@ -4,7 +4,7 @@ The Amazon SageMaker model parallelism library (SMP) is a capability of SageMake
 
 The latest release of Amazon SageMaker model parallelism (SMP v2) aligns the library’s APIs and methods with open source PyTorch Fully Sharded Data Parallelism ([FSDP](https://pytorch.org/docs/stable/fsdp.html)), allowing users to easily enable SMP’s performance optimizations with minimal code change. Now, you can achieve state-of-the-art large model training performance on SageMaker in minutes by migrating your existing FSDP training scripts to SMP. We added support for FP8 training for Llama2 and GPT-NeoX Hugging Face transformer models on P5 instances with Transformer Engine integration.
 
-In this directory, we have example scripts for training with SMP Pytorch. We assume you have already setup a Hyperpod instance. Below we first describe the files in this directory, and then go over how to run some jobs.
+In this directory, we have example scripts for training with SMP Pytorch. We assume you have already setup a Hyperpod cluster. Below we first describe the files in this directory, and then go over how to run some jobs on Slurm or EKS.
 
 ### Files
 
@@ -33,7 +33,7 @@ All source files are located in the scripts directory
 
 #### The repository allows users to run training using either enroot pyxis or a conda environment chooose the option according to your requirement.
 
-## Option 1 -  Run Training using Conda Environment
+## Option 1 -  Run Training using Conda Environment on Slurm
 
 ### Build conda environment
 
@@ -90,7 +90,7 @@ sbatch launch_training_conda.sh
 ```
 
 
-## Option 2 -  Run Training using Docker and Enroot
+## Option 2 -  Run Training using Docker and Enroot on Slurm
 
 
 ### Prerequisities
@@ -155,4 +155,133 @@ sbatch launch_training_enroot.sh
 Modify the launch_training_enroot.sh to add `--resume_from_checkpoint` arg to the srun command with the path of the checkpoint. Then the job is started same as before.
 ```
 sbatch launch_training_enroot.sh
+```
+
+## Option 3 -  Run Training using Docker image on EKS
+
+### Pull the SageMaker Distributed Model-parallel image locally
+
+Login to ECR and pull the `smdistributed-modelparallel` image
+
+```sh
+region=us-west-2
+dlc_account_id=658645717510
+aws ecr get-login-password --region $region | docker login --username AWS --password-stdin $dlc_account_id.dkr.ecr.$region.amazonaws.com
+
+docker pull 658645717510.dkr.ecr.us-west-2.amazonaws.com/smdistributed-modelparallel:2.2.0-gpu-py310-cu121
+```
+
+### Build Docker Image and push to ECR
+
+We will build docker image using the [Dockerfile](Dockerfile) in this directory.  
+
+```sh
+export AWS_REGION=$(aws ec2 describe-availability-zones --output text --query 'AvailabilityZones[0].[RegionName]')
+export ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
+export REGISTRY=${ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com/
+export IMAGE=smpv2
+export TAG=:latest
+docker build -t ${REGISTRY}${IMAGE}${TAG} .
+```
+
+Then push the image to your private registry
+
+```sh
+# Create registry if needed
+export REGISTRY_COUNT=$(aws ecr describe-repositories | grep \"${IMAGE}\" | wc -l)
+if [ "${REGISTRY_COUNT//[!0-9]/}" == "0" ]; then
+    echo "Creating repository ${REGISTRY}${IMAGE} ..."
+    aws ecr create-repository --repository-name ${IMAGE}
+else
+    echo "Repository ${REGISTRY}${IMAGE} already exists"
+fi
+
+# Login to registry
+echo "Logging in to $REGISTRY ..."
+aws ecr get-login-password | docker login --username AWS --password-stdin $REGISTRY
+
+# Push image to registry
+docker image push ${REGISTRY}${IMAGE}${TAG}
+```
+
+### Launch training job
+
+The default config in the script launches a 7B Llama model with synthetic data.
+Please edit the `./generate-pytorchjob.sh` script with your desired environment settings.
+
+```bash
+./generate-pytorchjob.sh
+kubectl apply -f ./smpv2.yaml
+```
+
+To launch with your own data, please create a FSxL volume and add it to [smpv2.yaml-template](smpv2.yaml-template), mounting it in the worker pods. Then modify [generate-pytorchjob.sh](generate-pytorchjob.sh) specifying `TRAINING_DIR` and `TEST_DIR` to the location of the data in your fsx volume. 
+To resume the job from a checkping, add `--resume_from_checkpoint` arg to the `train_external.py` call in [smpv2.yaml-template](smpv2.yaml-template) specifying a `CHECKPOINT_DIR`. 
+
+If you'd like to learn what other arguments are available, you could exec into a running worker pod and show the help of `train_external.py`.
+```bash
+kubectl exec -it $(kubectl get pods | grep worker-0 | cut -d ' ' -f 1) -- python /workspace/train_external.py --help
+```
+
+### Monitor trainnig job
+
+To list your training jobs and their status, execute:
+
+```bash
+kubectl get pytorchjob -A
+```
+
+```logs
+NAMESPACE   NAME           STATE     AGE
+default     smpv2-llama2   Running   4m
+```
+
+and 
+
+```bash
+kubectl get pods
+```
+
+```logs
+NAME                    READY   STATUS    RESTARTS      AGE
+etcd-7787559c74-g4s9n   1/1     Running   0              5m
+smpv2-llama2-worker-0   1/1     Running   1 (5m ago)     5m
+smpv2-llama2-worker-1   1/1     Running   1 (5m ago)     5m
+smpv2-llama2-worker-2   1/1     Running   1 (5m ago)     5m
+smpv2-llama2-worker-3   1/1     Running   1 (5m ago)     5m
+smpv2-llama2-worker-4   1/1     Running   1 (5m ago)     5m
+smpv2-llama2-worker-5   1/1     Running   1 (5m ago)     5m
+smpv2-llama2-worker-6   1/1     Running   1 (5m ago)     5m
+smpv2-llama2-worker-7   1/1     Running   1 (5m ago)     5m
+```
+
+This job is distributing the workload against 8 workers. One of these workers is the master pod and it contains the job progress logs.
+To find out which worker is the master, look for keyword `master_addr` in any of the worker pod logs`.
+
+```bash
+kubectl logs $(kubectl get pods | grep worker-0 | cut -d ' ' -f 1) | grep master_addr
+```
+
+```logs
+[2024-06-24 20:58:51,232] torch.distributed.elastic.agent.server.api: [INFO]   master_addr=smpv2-llama2-worker-4
+```
+
+Then to see the job progress logs, follow the logs of the master worker:
+
+```bash
+master_worker=$(kubectl logs $(kubectl get pods | grep worker-0 | cut -d ' ' -f 1) | grep master_addr | cut -d '=' -f 2)
+kubectl logs -f $master_worker
+```
+
+```logs
+...
+2024-06-24 21:07:40 I [logging_utils.py:135] Batch 21 Loss: 11.625, Speed: 1.31 samples/sec, Model TFLOPS/GPU: 27.80, lr: 0.000014, gradnorm: 12.4601
+...
+```
+
+### Remove training job
+
+When you wish to remove the training job and free up its resources, regardless of the job state, use the command below:
+
+```bash
+kubectl delete -f ./smpv2.yaml
 ```
