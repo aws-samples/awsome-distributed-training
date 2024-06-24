@@ -10,10 +10,12 @@ You will need to set up a SageMaker Hyperpod cluster using 4 [trn1.32xlarge](htt
 
 ## 1. Create Environment 
 
-1. Once the cluster is set up, SSH into the cluster and switch to the `ubuntu` user:
+1. Once the cluster is set up, SSH into the cluster head/controller node and switch to the `ubuntu` user:
 ``` bash
 sudo su - ubuntu
 ```
+> [!NOTE]  
+> You will run the following steps from the head/controller node of your cluster.
 
 2. Make sure the home directory is set up to `/fsx/ubuntu` as this will allow us to install the required dependencies only once on the head node:
 
@@ -29,7 +31,10 @@ sudo apt-get install -y python3.8-venv g++
 
 # Create Python venv
 python3.8 -m venv aws_neuron_venv_pytorch 
+```
 
+Now lets activate the Virtual Environment:
+```bash
 # Activate Python venv 
 source aws_neuron_venv_pytorch/bin/activate 
 python -m pip install -U pip 
@@ -56,22 +61,55 @@ python -m pip install neuronx-cc==2.* torch-neuronx torchvision
 python -m pip install neuronx_distributed --extra-index-url https://pip.repos.neuron.amazonaws.com
 ```
 
+
 On your cluster head node, clone this repo 
 ``` bash
 git clone https://github.com/aws-samples/awsome-distributed-training/
 cd awsome-distributed-training/3.test_cases/22.SMHP-trainium-llama3
 ```
 
+With the repo installed, lets install the libraries defined in our `requirements.txt` file:
+
+```bash
+# Install requirements.txt 
+pip install -r requirements.txt
+```
+
 ## 2. Prepare Dataset
 
 Next, we need to tokenize our dataset. To tokenize the data, you must request the tokenizer from HuggingFace and Meta by following the instructions at the following link: [HuggingFace Llama 3 8B Model](https://huggingface.co/meta-llama/Meta-Llama-3-8B) . Use of the Llama 3 model is governed by the Meta license. In order to download the model weights and tokenizer, please visit the above website and accept their License before requesting access. After access has been granted, you may use the download scripts provided by Meta to download the model weights and tokenizer to your cluster.
 
-Once you have downloaded the tokenizer and model weights, you can copy the tokenizer.model, config.json and tokenizer.json files from the Llama 3 repo to the working directory (22.SMHP-trainium-llama3)
+1. Install the huggingface CLI and download the model:
 
-Run the 'get_dataset.py' script to prepare the dataset for training:
+```bash
+pip install huggingface-hub 
+```
+
+2. Authenticate with your [HuggingFace Access Token](https://huggingface.co/settings/tokens). 
+> [!IMPORTANT]  
+> Ensure your HuggingFace Access Token has permissions to public gated repos. You can configure your token to access public gated repos with: (*Edit Acces Token Permissions* > Check the Box: *Read access to contents of all public gated repos you can access* > Save).
+```bash
+huggingface-cli login
+```
+3. Download the Meta-Llama-3-8B repo:
+> [!NOTE]  
+> Note we are passing the `--include "*"` flag to ensure that we clone the entire repo, including the sub-directory `/original` which contains the `tokenizer.model` file we will copy in the next step.
+```bash
+huggingface-cli download meta-llama/Meta-Llama-3-8B --include "*" --local-dir Meta-Llama-3-8B cp Meta-Llama-3-8B/original/* .
+```
+
+Note we are passing the `--include "*"` flag to ensure that we clone the entire repo, including the sub-directory `/original` which contains the `tokenizer.model` file we will copy in the next step.
+
+4. Once you have downloaded the tokenizer and model weights, lets copy the `config.json`, `tokenizer_config.json`, `tokenizer.json`, and `original/tokenizer.model` files from the downloaded HuggingFace directory and sub directories `Meta-Llama-3-8B` to our working directory `22.SMHP-trainium-llama3` to ensure they are recognized in our training scripts:
+
+```bash
+cp /Meta-Llama-3-8B/tokenizer_config.json /Meta-Llama-3-8B/config.json /Meta-Llama-3-8B/tokenizer.json /Meta-Llama-3-8B/original/tokenizer.model .
+```
+
+5. Run the 'get_dataset.py' script to prepare the dataset for training. We will run this script via `srun` to ensure it runs on a compute (trn1) node:
 
 ``` bash
-python3 get_dataset.py
+srun --job-name=get_dataset_job --output=get_dataset_output.log --nodes=1 python get_dataset.py
 ```
 
 ## 3. Compile Model
@@ -117,3 +155,4 @@ sbatch --exclusive \
 --cpus-per-task 64 \
 --wrap="srun bash $(pwd)/run_llama_70B_tp_pp.sh"
 ```
+
