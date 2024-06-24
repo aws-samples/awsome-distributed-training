@@ -97,8 +97,8 @@ spec:
                   nvidia.com/gpu: $GPU_PER_NODE
                   vpc.amazonaws.com/efa: $EFA_PER_NODE
                 limits:
-                  nvidia.com/gpu: 1
-                  vpc.amazonaws.com/efa: 1
+                  nvidia.com/gpu: $GPU_PER_NODE
+                  vpc.amazonaws.com/efa: $EFA_PER_NODE
               env:
               # for P5 FI_* should be commented out
               - name: LOGLEVEL
