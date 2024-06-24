@@ -95,20 +95,33 @@ huggingface-cli login
 > [!NOTE]  
 > Note we are passing the `--include "*"` flag to ensure that we clone the entire repo, including the sub-directory `/original` which contains the `tokenizer.model` file we will copy in the next step.
 ```bash
-huggingface-cli download meta-llama/Meta-Llama-3-8B --include "*" --local-dir Meta-Llama-3-8B cp Meta-Llama-3-8B/original/* .
+huggingface-cli download meta-llama/Meta-Llama-3-8B --include "*" --local-dir Meta-Llama-3-8B .
 ```
 
 
-4. Within the current working directory `22.SMHP-trainium-llama3`, lets copy some files from the cloned repo (`/Meta-Llama-3-8B`) to our local working directory. In particular, we will copy `config.json`, `tokenizer_config.json`, `tokenizer.json`, and `original/tokenizer.model` files from the cloned HuggingFace directory `/Meta-Llama-3-8B` to our current working directory `22.SMHP-trainium-llama3` so they can be picked up by our scripts:
+4. Within the current working directory `22.SMHP-trainium-llama3`, lets copy some files from the cloned repo (`/Meta-Llama-3-8B`) to our local working directory. In particular, we will copy `config.json`, `tokenizer_config.json`, `tokenizer.json`, and `original/tokenizer.model` files from the cloned HuggingFace directory we named `/Meta-Llama-3-8B` to our current working directory `22.SMHP-trainium-llama3` so they can be picked up by our scripts:
 
 ```bash
-cp /Meta-Llama-3-8B/tokenizer_config.json /Meta-Llama-3-8B/config.json /Meta-Llama-3-8B/tokenizer.json /Meta-Llama-3-8B/original/tokenizer.model .
+cp Meta-Llama-3-8B/tokenizer_config.json Meta-Llama-3-8B/config.json Meta-Llama-3-8B/tokenizer.json Meta-Llama-3-8B/original/tokenizer.model .
 ```
 
 5. Run the 'get_dataset.py' script to prepare the dataset for training. We will run this script via `srun` to ensure it runs on a compute (trn1) node:
 
 ``` bash
-srun --job-name=get_dataset_job --output=get_dataset_output.log --nodes=1 python get_dataset.py
+srun --job-name=get_dataset_job --output=get_dataset_output.log --nodes=1 python get_dataset.py &
+```
+
+>[!IMPORTANT] 
+>The `get_dataset,py` job will take several minutes to execute, do not proceed until this job is completed. You can monitor the job logs with the following command:
+```bash
+tail -f get_dataset_output.log 
+```
+
+and verify completion with:
+
+```bash
+squeue
+#should show no jobs running
 ```
 
 ## 3. Compile Model
