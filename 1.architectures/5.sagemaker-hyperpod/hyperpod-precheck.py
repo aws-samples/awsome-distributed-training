@@ -109,7 +109,7 @@ def check_enroot_runtime_path() -> bool:
             for line in file:
                 # Check if "ENROOT_RUNTIME_PATH" is in the line
                 if re.search("ENROOT_RUNTIME_PATH", line):
-                    return "/opt/dlami/nvme/tmp/enroot/user-$(id -u)" in line.strip()
+                    return ("/opt/sagemaker/tmp/enroot/user-$(id -u)" in line.strip() or "/opt/dlami/nvme/tmp/enroot/user-$(id -u)" in line.strip())
                     print(line.strip())  # Print the matching line
     except FileNotFoundError:
         print(f"The file {file_path} was not found.")
@@ -193,7 +193,7 @@ def check_docker_data_root():
 
     try:
         json_data = json.loads(pathlib.Path(file_path).open().read())
-        if not json_data["data-root"] == "/opt/dlami/nvme/docker/data-root":
+        if not (json_data["data-root"] == "/opt/dlami/nvme/docker/data-root" or json_data["data-root"] == "/opt/sagemaker/docker/data-root"):
             print("Resolution: cd /tmp/sagemaker-lifecycle-* && cd src/utils/ && srun -N <no of nodes> bash install_docker.sh")
             return False
         else:
