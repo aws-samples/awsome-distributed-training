@@ -2,3 +2,4 @@ miniconda3
 pt_fsdp
 checkpoints
 Miniconda3-latest-Linux-x86_64.sh
+fsdp.yaml
