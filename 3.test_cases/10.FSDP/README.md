@@ -1,6 +1,6 @@
 # Get Started Training Llama 2 and Mixtral with PyTorch FSDP in 5 Minutes
 
-These scripts provide an easy way to get started with multinode [FSDP](https://pytorch.org/tutorials/intermediate/FSDP_tutorial.html) training on Slurm. It is designed to be as simple as possible, requires no data preparation, and uses a simple Conda environment. 
+These scripts provide an easy way to get started with multinode [FSDP](https://pytorch.org/tutorials/intermediate/FSDP_tutorial.html) training on Slurm. It is designed to be as simple as possible, requires no data preparation, and uses a simple Conda environment. If you would like to run FSDP on EKS, please refer to [README-EKS.md](README-EKS.md).
 
 ## 0. Prerequisites
 
