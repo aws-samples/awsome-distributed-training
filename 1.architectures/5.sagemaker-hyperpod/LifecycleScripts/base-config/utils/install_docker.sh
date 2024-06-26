@@ -43,11 +43,21 @@ sudo apt-get install -y -o DPkg::Lock::Timeout=120 nvidia-container-toolkit
 sudo usermod -aG docker ubuntu
 
 
-# Opportunistically use /opt/dlami/nvme if present. Let's be extra careful in the probe.
+# Opportunistically use /opt/sagemaker or /opt/dlami/nvme if present. Let's be extra careful in the probe.
 # See: https://github.com/aws-samples/awsome-distributed-training/issues/127
 #
 # Docker workdir doesn't like Lustre. Tried with storage driver overlay2, fuse-overlayfs, & vfs.
-if [[ $(mount | grep /opt/dlami/nvme) ]]; then
+if [[ $(mount | grep /opt/sagemaker) ]]; then
+    cat <<EOL >> /etc/docker/daemon.json
+{
+    "data-root": "/opt/sagemaker/docker/data-root"
+}
+EOL
+
+    sed -i \
+        's|^\[Service\]$|[Service]\nEnvironment="DOCKER_TMPDIR=/opt/sagemaker/docker/tmp"|' \
+        /usr/lib/systemd/system/docker.service
+elif [[ $(mount | grep /opt/dlami/nvme) ]]; then
     cat <<EOL >> /etc/docker/daemon.json
 {
     "data-root": "/opt/dlami/nvme/docker/data-root"
