@@ -7,7 +7,11 @@ run:
 
 dataset_repo_id: ${HUGGINGFACE_DATASET_REPO_ID}  # huggingface dataset repo id, in the format of {user_or_company}/{dataset_name}
 #  See https://huggingface.co/datasets?task_categories=task_categories:text-to-image&sort=downloads
+<<<<<<< HEAD:3.test_cases/9.nemo-multimodal/nemo_configs/3.download_multimodal.yaml
 dataset_output_root: ${DATASET_PATH}
+=======
+dataset_output_root: /fsx/laion-art-data
+>>>>>>> adea2bd (Updated training and data preparation configs):3.test_cases/8.nemo-multimodal/download_multimodal.yaml
 
 download_parquet:
   enable: True
