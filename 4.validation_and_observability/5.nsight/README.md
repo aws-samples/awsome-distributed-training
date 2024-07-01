@@ -21,9 +21,9 @@ Export the following variables to setup the profiling:
 
 ```bash
 # Nsight Version
-export Nsight_version=2024.3.1
-export Nsight_cli_installer=NsightSystems-linux-cli-public-2024.3.1.75-3419530.deb
-export Nsight_download_url=https://developer.nvidia.com/downloads/assets/tools/secure/nsight-systems/2024_3/NsightSystems-linux-cli-public-2024.3.1.75-3419530.deb
+export Nsight_version=2024.4.1
+export Nsight_download_url=https://developer.nvidia.com/downloads/assets/tools/secure/nsight-systems/2024_4/NsightSystems-linux-cli-public-2024.4.1.61-3431596.deb
+export Nsight_cli_installer=$(basename "$Nsight_download_url")
 export Nsight_Path=/fsx/nsight-efa
 ```
 
@@ -42,12 +42,12 @@ sudo dpkg -i ${Nsight_cli_installer}
 
 # This would place the nsys binay at /opt/nvidia/nsight-systems-cli/2024.3.1/target-linux-x64/nsys
 # Move to FSx filesystem
+mkdir -p ${Nsight_Path}
 cp -r /opt/nvidia/nsight-systems-cli/${Nsight_version}/* ${Nsight_Path}
 ```
 
 The `nsight-efa`folder will have the necessary dependencies for the `host` which is the head node in a Slurm cluster from which the user works and controls the profiling session and `target` which refers to the GPU on which profiling happens. This latest version also has the `nic_sampler` in `/nsight-efa/target-linux-x64/plugins/` which collects the EFA metrics.
 
-Note, the 2024.4 versionof Nsight will be released by 5/24/2024.
 
 # 3. Profiling NCCL tests
 In this section we will show how to generate Nsight reports for NCCL tests. Follow the instructions [here](https://github.com/aws-samples/awsome-distributed-training/tree/main/4.validation_and_observability/0.nccl-tests) to setup NCCL tests and generate the Enroot image `nccl.sqsh`. The `0.nsight_nccl.sbatch` script shows an example on how to profile the NCCL run with Nsight and collect EFA metrics. Key differences between `0.nsight_nccl.sbatch` and [this](https://github.com/aws-samples/awsome-distributed-training/blob/main/4.validation_and_observability/0.nccl-tests/1.nccl-tests.sbatch) are:
