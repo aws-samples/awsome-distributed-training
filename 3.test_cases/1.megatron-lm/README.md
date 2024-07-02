@@ -12,17 +12,17 @@ To run a test case you will go through a series of steps described below:
 3. Build the container for distributed training
 4. Train!
 
-We describe the steps below for Slurm users. EKS users may follow the sequence but details will vary.
+We describe the steps below for Slurm and EKS users.
 
 ## 1. Preparation
 
 This guide assumes that you have the following:
 
-- A functional Slurm cluster on AWS.
-- Docker, [Pyxis](https://github.com/NVIDIA/pyxis) and [Enroot](https://github.com/NVIDIA/enroot) installed.
-- An FSx for Lustre filesystem mounted on `/fsx`.
+- A functional Slurm or EKS cluster on AWS.
+- Docker, for Slurm [Pyxis](https://github.com/NVIDIA/pyxis) and [Enroot](https://github.com/NVIDIA/enroot) need to be installed as well.
+- An FSx for Lustre filesystem mounted on `/fsx` in all Slurm nodes or a persistent volume claim that can be mounted on `/fsx` in pods running on EKS. An example of setting up FSx on EKS is available [here](https://github.com/aws-samples/aws-do-eks/tree/main/Container-Root/eks/deployment/csi/fsx). 
 
-It is recommended that you use the templates in the architectures [directory](../../1.architectures)
+It is recommended that you use the templates in the architectures [directory](../../1.architectures) for Parallel Cluster
 
 You will also setup the following variables in your terminal environment.
 
