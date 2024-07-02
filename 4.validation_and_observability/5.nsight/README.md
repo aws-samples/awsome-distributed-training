@@ -20,18 +20,19 @@ We will show how to profile and analyze:
 Export the following variables to setup the profiling:
 
 ```bash
-# Nsight Version
-export Nsight_version=2024.4.1
+export Nsight_version=2024.4.1 # Nsight Version
 export Nsight_download_url=https://developer.nvidia.com/downloads/assets/tools/secure/nsight-systems/2024_4/NsightSystems-linux-cli-public-2024.4.1.61-3431596.deb
 export Nsight_cli_installer=$(basename "$Nsight_download_url")
 export Nsight_Path=/fsx/nsight-efa
+export Nsight_Report_Path=/fsx/nsight-reports
+mkdir -p ${Nsight_Report_Path}
 ```
 
 # 2. Installation
 
 If you created the cluster with DLAMI or are using the default ParallelCluster base image, Nsight comes pre-installed. You can check the version in the `/usr/local/cuda/` folder you should see `nsight-systems-202x.x.x` folder. ParallelCluster 3.8.0 has the version 2023.2 version pre-installed. 
 
-To get the latest Nsight 2024.3 version from [here](https://developer.nvidia.com/nsight-systems/get-started). If you are installing it on a remote cluster, then the CLI version would suffice. To install it on a Ubuntu based OS node:
+To get the latest Nsight 2024.4 version from [here](https://developer.nvidia.com/nsight-systems/get-started). If you are installing it on a remote cluster, then the CLI version would suffice. To install it on a Ubuntu based OS node:
 
 ```bash
 # Download Nsight CLI
@@ -48,8 +49,101 @@ cp -r /opt/nvidia/nsight-systems-cli/${Nsight_version}/* ${Nsight_Path}
 
 The `nsight-efa`folder will have the necessary dependencies for the `host` which is the head node in a Slurm cluster from which the user works and controls the profiling session and `target` which refers to the GPU on which profiling happens. This latest version also has the `nic_sampler` in `/nsight-efa/target-linux-x64/plugins/` which collects the EFA metrics.
 
+# 3. How to generate reports
 
-# 3. Profiling NCCL tests
+Nsight 2024.4 version supports EFA metrics. In this section we will walkthrough how to generate reports with EFA metrics on a Slurm cluster. 
+
+## 3.1 Modify slurm submission script
+
+For a containerized distributed training run, the srun command in the slurm submission script looks like:
+
+```bash
+srun -u -l --container-image <enroot-image.sqsh> --container-mounts /fsx:/fsx,<other-mounts> <training-cli> <training-args>
+```
+
+In the above schema <training-cli> could be `torchrun`, `python3`, `mpirun` etc
+
+We need to inject a `nsys-slurm-exec` executable like below assuming `nsys-slurm-exec` resides in `/fsx`:
+
+```bash
+srun -u -l --container-image <enroot-image.sqsh> --container-mounts /fsx:/fsx,<other-mounts> /fsx/nccl-slurm-exec <training-cli> <training-args>
+```
+
+## 3.2 nsys-slurm-exec
+
+Here is a template for `nsys-slurm-exec`:
+
+```bash
+#! /bin/bash -x
+
+NSYS_EXTRAS=""
+if [ "$SLURM_LOCALID" == "0" ]; then
+        NSYS_EXTRAS="--enable efa_metrics"
+fi
+
+${Nsight_Path}/target-linux-x64/nsys profile $NSYS_EXTRAS --sample none --output ${Nsight_Report_Path}/profile_%q{SLURM_JOB_ID}_node_%q{SLURM_NODEID}_rank_%q{SLURM_PROCID}_on_%q{HOSTNAME}.nsys-rep --force-overwrite true \
+   "$@"
+```
+
+A few key points:
+1. This slurm executable will generate 1 report for each GPU if SLURM_NTASKS_PER_NODE is equal to the number of GPUs. If SLURM_NTASKS_PER_NODE=1, one report will get generated for all 8 GPUs.
+2. --sample none argument disables CPU sampling. For a detailed list of CLI switches see [here](https://docs.nvidia.com/nsight-systems/UserGuide/index.html#cli-command-switches)
+3. EFA metrics are shared across all GPUs on the same node so it needs to be enabled only on 1 GPU
+
+> [!TIP]
+> To include any SLURM environment variables in the report name, you can include them with %q{SLURM_ENV_VAR}
+
+> [!TIP]
+> Make sure to run chmod 777 /fsx/nsys-slurm-exec
+
+## 3.3 Tailoring the report with --duration and --delay
+
+You can control the training period where you want the report to focus on with `--duration` and `--delay` parameters in seconds. The `--delay` parameter specifies when to start metrics collection from all kernels and `--duration` parameter specifies how long to collect data. These variables are typically collected in an ad-hoc manner.
+
+## 3.4 Controlling number of reports with SLURM environment variables
+
+When running training with 100's of nodes, it is not often desirable to generate a report for each node let along each GPU. You can control it as follows:
+
+```bash
+#! /bin/bash -x
+
+NSYS_EXTRAS=""
+if [ "$SLURM_LOCALID" == "0" ]; then
+        NSYS_EXTRAS="--enable efa_metrics"
+fi
+
+if [ "$SLURM_PROCID" == "0" ]; then
+        ${Nsight_Path}/target-linux-x64/nsys profile $NSYS_EXTRAS --sample none --delay 330 --duration 50 -o ${Nsight_Report_Path}/profile_%q{SLURM_JOB_ID}_node_%q{SLURM_NODEID}_rank_%q{SLURM_PROCID}_on_%q{HOSTNAME}.nsys-rep --force-overwrite true \
+   "$@"
+else
+        "$@"
+fi
+```
+
+## 3.5 Controlling the report with start and stop profiling calls
+
+We need a more convinient way to generate reports with start and stop training step user inputs. You can:
+
+
+1. Add `nsys_start_step` and `nsys_end_step` as input arguments to your train.py
+2. Add the following in the training loop to start collecting data from Cuda and OSRT traces:
+```python
+if batch_idx == args.nsys_start_step and global_rank == 0:
+    logger.info("====== Start nsys profiling ======")
+    torch.cuda.cudart().cudaProfilerStart()
+```
+3. Add to stop collection:
+```python
+if batch_idx == args.nsys_end_step and global_rank == 0:
+    logger.info("====== Stop nsys profiling ======")
+    torch.cuda.cudart().cudaProfilerStop()
+```
+4. Add `--capture-range=cudaProfilerApi --capture-range-end=stop` to the `nsys profile ...` command.
+
+
+
+
+# 4. Profiling NCCL tests
 In this section we will show how to generate Nsight reports for NCCL tests. Follow the instructions [here](https://github.com/aws-samples/awsome-distributed-training/tree/main/4.validation_and_observability/0.nccl-tests) to setup NCCL tests and generate the Enroot image `nccl.sqsh`. The `0.nsight_nccl.sbatch` script shows an example on how to profile the NCCL run with Nsight and collect EFA metrics. Key differences between `0.nsight_nccl.sbatch` and [this](https://github.com/aws-samples/awsome-distributed-training/blob/main/4.validation_and_observability/0.nccl-tests/1.nccl-tests.sbatch) are:
 
 1. `/fsx` needs to be mounted to the container as this is where our Nsight binaries are located.
@@ -95,7 +189,7 @@ Here there are the following things to note:
 ```
 
 
-## 3.1 NCCL All Reduce Test
+## 4.1 NCCL All Reduce Test
 
 Following the steps above, you can generate a similar result for NCCL All Reduce Test also see NCCL test output in the logs. Here we will visualize the spread in NCCL All Reduce communication for 1GB and 2GB message sizes. To do so you can:
 1. Run NCCL test and generate report. Save the result for 1GB and 2GB message sizes.
@@ -112,17 +206,6 @@ You can generate the plot below using the python script `/nccl/plot_nccl.py`
 <center><img src="nccl/all_reduce_sum.png" width="80%"/> </br>
 </center>
 
-# 4. Multi-node training with Slurm and Pyxis
-
-In this section, we will show how to generate Nsight reports for a distributed training run with containers on Slurm. We will use the [NeMo launcher](https://github.com/NVIDIA/NeMo-Framework-Launcher/tree/main) to train the [Nemotron-15b](https://github.com/NVIDIA/NeMo-Framework-Launcher/blob/main/launcher_scripts/conf/training/nemotron/nemotron_15b.yaml) model on mock data. To setup NeMo launcher on Parallelcluster please refer to this [README](https://github.com/aws-samples/awsome-distributed-training/tree/main/3.test_cases/2.nemo-launcher). You can specify [nsys_profile.enabled:True](https://github.com/NVIDIA/NeMo-Framework-Launcher/blob/main/launcher_scripts/conf/training/nemotron/nemotron_15b.yaml#L162) in the model config and launch the training run. 
-
-You can either generate the Nsight profile either by turning on the nsys_profile flag or if you want to generate the nsys report with a different Nsight version, then you can use the run script `/nemotron/1.nemotron.sbatch`
-
-
-Below is a screenshot of the generated Nsight report:
-
-<center><img src="nemotron/nemotron-15B-P5-report.png" width="80%"/> </br>
-</center>
 
 # 5. Working with the report
 
@@ -149,7 +232,7 @@ pip3 install -r ${Nsight_Path}/target-linux-x64/python/packages/nsys_recipe/requ
 pip3 install -r ${Nsight_Path}/target-linux-x64/python/packages/nsys_recipe/requirements/dask.txt
 
 ```
-With Nsight 2024.3, the following recipes are available:
+With Nsight 2024.4, the following recipes are available:
 
 ```bash
 The following built-in recipes are available:
@@ -193,31 +276,7 @@ export NSIGHT_REPORT_NAME=
 ./2.generate_recipes.sh
 ```
 
-# 7. Distributed training run with FSDP
-
-Next we will show how to profile the [10.FSDP](https://github.com/aws-samples/awsome-distributed-training/tree/main/3.test_cases/10.FSDP) test case. We will show explicitly how to generate a profile for specific training steps rather than providing `--delay` and `--duration` parameters. To this end, we provide the relevant files in the `fsdp-llama2` folder. To profile speciific training steps:
-
-1. Add `nsys_start_step` and `nsys_end_step` as input arguments to your train.py
-2. Add the following in the training loop to start collecting data from Cuda and OSRT traces:
-```python
-if batch_idx == args.nsys_start_step and global_rank == 0:
-    logger.info("====== Start nsys profiling ======")
-    torch.cuda.cudart().cudaProfilerStart()
-```
-3. Add to stop collection:
-```python
-if batch_idx == args.nsys_end_step and global_rank == 0:
-    logger.info("====== Stop nsys profiling ======")
-    torch.cuda.cudart().cudaProfilerStop()
-```
-4. Add `--capture-range=cudaProfilerApi --capture-range-end=stop` to the `nsys profile ...` command.
-
-Below is a screenshot of the generated Nsight report:
-
-<center><img src="fsdp-llama2/fsdp_rep_screenshot.png" width="80%"/> </br>
-</center>
-
-# 8. Nsight on EKS
+# 7. Nsight on EKS
 
 We will use the [Nvidia Devtools Sidecar Injector](https://catalog.ngc.nvidia.com/orgs/nvidia/teams/devtools/helm-charts/devtools-sidecar-injector) to profile containerized applications.
 
@@ -229,7 +288,7 @@ docker pull nvcr.io/nvstaging/devtools/nsight-systems-cli:2024.4.1-ubuntu22.04
 # Push image to ECR
 ```
 
-## 8.1 Make changes to the `custom_values.yaml`
+## 7.1 Make changes to the `custom_values.yaml`
 
 ```bash
 # If we dont specify the Nsight image, 2024.2 version is used by default.
@@ -268,7 +327,7 @@ profile:
   #injectionMatch: "^.*torchrun.*$"
 ```
 
-## 8.2 Install injector
+## 7.2 Install injector
 
 Install helm chart for the sidecar injector as below:
 ```bash
@@ -276,7 +335,7 @@ helm install -f custom_values.yaml \
     devtools-sidecar-injector https://helm.ngc.nvidia.com/nvidia/devtools/charts/devtools-sidecar-injector-1.0.0.tgz
 ```
 
-## 8.3 Add label to training job manifest
+## 7.3 Add label to training job manifest
 
 Add the following label:
 
@@ -292,7 +351,7 @@ pytorchReplicaSpecs:
             nvidia-devtools-sidecar-injector: enabled
 ```
 
-## 8.4 Run Training job
+## 7.4 Run Training job
 
 Run the training job as:
 
@@ -306,7 +365,7 @@ Below is a screenshot of the generated Nsight report:
 <center><img src="EKS/fsdp_eks_report_screenshot.png" width="80%"/> </br>
 </center>
 
-## 8.5 Uninstall injector
+## 7.5 Uninstall injector
 
 To uninstall injector:
 
