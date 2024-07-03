@@ -57,11 +57,28 @@ chmod 777 -R /tmp/enroot /opt/enroot
 ################################################################################
 
 
-# Opportunistically use /opt/dlami/nvme if present. Let's be extra careful in the probe.
+# Opportunistically use /opt/sagemaker or /opt/dlami/nvme if present. Let's be extra careful in the probe.
 #
 # Note: ENROOT_TEMP_PATH on Lustre throws "Unrecognised xattr prefix lustre.lov".
 # See: https://github.com/aws-samples/awsome-distributed-training/issues/127
-if [[ $(mount | grep /opt/dlami/nvme) ]]; then
+if [[ $(mount | grep /opt/sagemaker) ]]; then
+    sed -i \
+        -e 's|^\(ENROOT_RUNTIME_PATH  *\).*$|\1/opt/sagemaker/tmp/enroot/user-$(id -u)|' \
+        -e 's|^\(ENROOT_CACHE_PATH  *\).*$|\1/opt/sagemaker/enroot|' \
+        -e 's|^\(ENROOT_DATA_PATH  *\).*$|\1/opt/sagemaker/tmp/enroot/data/user-$(id -u)|' \
+        -e 's|^#\(ENROOT_TEMP_PATH  *\).*$|\1/opt/sagemaker/tmp|' \
+        /etc/enroot/enroot.conf
+
+    mkdir -p /opt/sagemaker/tmp/enroot/
+    chmod 1777 /opt/sagemaker/tmp
+    chmod 1777 /opt/sagemaker/tmp/enroot/
+
+    mkdir -p /opt/sagemaker/tmp/enroot/data/
+    chmod 1777 /opt/sagemaker/tmp/enroot/data/
+
+     mkdir -p /opt/sagemaker/enroot
+     chmod 1777 /opt/sagemaker/enroot
+elif [[ $(mount | grep /opt/dlami/nvme) ]]; then
     sed -i \
         -e 's|^\(ENROOT_RUNTIME_PATH  *\).*$|\1/opt/dlami/nvme/tmp/enroot/user-$(id -u)|' \
         -e 's|^\(ENROOT_CACHE_PATH  *\).*$|\1/opt/dlami/nvme/enroot|' \
