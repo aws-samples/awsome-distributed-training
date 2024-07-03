@@ -312,6 +312,13 @@ cat > cluster-config.json << EOL
       {
         "InstanceGroupName": "controller-machine",
         "InstanceType": "ml.m5.12xlarge",
+        "InstanceStorageConfigs": [
+          {
+            "EbsVolumeConfig": {
+              "VolumeSizeInGB": 500
+            }
+          }
+        ],        
         "InstanceCount": 1,
         "LifeCycleConfig": {
           "SourceS3Uri": "s3://${BUCKET}/src",
