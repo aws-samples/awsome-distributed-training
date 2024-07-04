@@ -38,7 +38,7 @@ Before running training jobs you need to retrieve input data and preprocess it. 
 
 Below are the steps you need to follow:
 
-1. Copy the file `0.distributed-training.Dockerfile` or its content to your head-node.
+1. Copy the file `0.distributed-training.Dockerfile` or its content to your head-node or any instance where you have the [Docker](https://docs.docker.com/get-docker/) cli available.
 2. Build the container image with the command below
 
    ```bash
@@ -53,8 +53,10 @@ Below are the steps you need to follow:
    megatron-training           latest      a33c9d5bcb6e   9 seconds ago    20.7GB
    ```
 
-4. Create the squash file with the command below.
+4. Prepare the image for your target environment.
 
+   If you are using SLURM - create the squash file with the command below.
+ 
    ```bash
    enroot import -o megatron-training.sqsh  dockerd://megatron-training:latest
    ```
@@ -79,9 +81,31 @@ Below are the steps you need to follow:
        duplicates are not removed
     ...
     ```
+    
+   If you are using EKS, tag and push the image to your container registry.
+   
+   ```bash
+   # Tag image
+   export AWS_REGION=$(aws ec2 describe-availability-zones --output text --query 'AvailabilityZones[0].[RegionName]')
+   export ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
+   export REGISTRY=${ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com/
+   docker tag megatron-training:latest ${REGISTRY}megatron-training:latest
+   # Create repository if needed
+   REGISTRY_COUNT=$(aws ecr describe-repositories | grep \"megatron-training\" | wc -l)
+   if [ "$REGISTRY_COUNT" == "0" ]; then
+      aws ecr create-repository --repository-name megatron-training
+   fi
+   # Login to registry
+   echo "Logging in to $REGISTRY ..."
+   aws ecr get-login-password | docker login --username AWS --password-stdin $REGISTRY
+   # Push image to registry
+   docker image push ${REGISTRY}megatron-training:latest
+   ```
 
 5. Run the code below to retrieve the input datasets and vocabulary.
-
+    
+   SLURM: 
+   
     ```bash
     #!/bin/bash
     mkdir -p gpt2
@@ -93,10 +117,57 @@ Below are the steps you need to follow:
     xz -d oscar-1GB.jsonl.xz
     ```
 
-6. Now you copy the file `1.data-preprocessing.sbatch` or its content on your cluster then submit a preprocessing jobs with the command below:
+   EKS:
+   
+   Run the following snippet to crete a job container that mounts the fsx volume
+   and downloads the data on it.
+   
+   ```bash
+   cat getdata-job.yaml-template | envsubst > getdata-job.yaml
+   kubectl apply -f ./getdata-job.yaml
+   ```
+   
+   Monitor the job progress
+   
+   ```bash
+   kubectl logs -f $(kubectl get pods | grep getdata | cut -d ' ' -f 1)
+   ```
+   
+   When status is `Completed`, delete the job pod:
+   
+   ```bash
+   kubectl delete -f ./getdata-job.yaml
+   ```
+
+6. Preprocess the data
+
+   SLURM:
+   Copy the file `1.data-preprocessing.sbatch` or its content on your SLURM cluster then submit a preprocessing jobs with the command below:
 
     ```bash
     sbatch 1.data-preprocessing.sbatch
+    ```
+    
+    EKS:
+    
+    Launch a job pod that preprocesses the data.
+    
+    ```bash
+    export DATA_PATH=/fsx/gpt2
+    cat prepdata-job.yaml-template | envsubst > prepdata-job.yaml
+    kubectl apply -f ./prepdata-job.yaml
+    ```
+    
+    Monitor the job progress.
+    
+    ```bash
+    kubectl logs -f $(kubectl get pods | grep prepdata | cut -d ' ' -f 1)
+    ```
+    
+    When the job status is `Completed`, clean up the job pod.
+    
+    ```bash
+    kubectl delete -f ./prepdata-job.yaml
     ```
 
 7. You will see a new file in your current working directory called `slurm-XY.out` where `XY` is a number. This is your output file and will capture the `STDOUT` and `STDERR` from your job. You can check how it progresses via the command `tail -f slurm-XY.out` but with the relevant filename. The file content will be similar to the below:
