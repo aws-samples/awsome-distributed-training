@@ -34,6 +34,8 @@ export NCCL_DEBUG=INFO
 ## https://docs.nvidia.com/cuda/cuda-driver-api/group__CUDA__UNIFIED.html
 export FI_EFA_SET_CUDA_SYNC_MEMOPS=0
 
+
+
 ###########################
 ####### Torch Dist  #######
 ###########################
