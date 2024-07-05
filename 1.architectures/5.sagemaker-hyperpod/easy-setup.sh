@@ -25,6 +25,7 @@ declare -a HELP=(
     "[-s|--stack-id-vpc]"
     "[-i|--instance-type]"
     "[-c|--instance-count]"
+    "[-e|--head-node-ebs-volume-size]"
     "[-d|--dry-run]"
     "CLUSTER_NAME"
 )
@@ -63,6 +64,10 @@ parse_args() {
             INSTANCE_COUNT="$2"
             shift 2
             ;;
+        -e|--head-node-ebs-volume-size)
+            EBS_VOLUME_SIZE="$2"
+            shift 2
+            ;;            
         -d|--dry-run)
             DRY_RUN=1
             shift
@@ -147,6 +152,12 @@ echo "[INFO] INSTANCE = ${INSTANCE}"
 if [ -z ${INSTANCE_COUNT} ]; then
     echo "[WARNING] INSTANCE_COUNTS environment variable is not set, automatically set to 2."
     export INSTANCE_COUNT=2
+fi
+
+# Define EBS_VOLUME_SIZE
+if [ -z ${EBS_VOLUME_SIZE} ]; then
+    echo "[WARNING] EBS_VOLUME_SIZE environment variable is not set, automatically set to 500GB."
+    export EBS_VOLUME_SIZE=500
 fi
 
 # Retrieve VPC ID
@@ -315,7 +326,7 @@ cat > cluster-config.json << EOL
         "InstanceStorageConfigs": [
           {
             "EbsVolumeConfig": {
-              "VolumeSizeInGB": 500
+              "VolumeSizeInGB": ${EBS_VOLUME_SIZE}
             }
           }
         ],        
