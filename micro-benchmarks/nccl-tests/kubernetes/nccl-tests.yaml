@@ -88,12 +88,12 @@ spec:
                 nvidia.com/gpu: 8
                 hugepages-2Mi: 5120Mi
                 vpc.amazonaws.com/efa: 32
-                memory: 8000Mi
+                memory: 32000Mi
               requests:
                 nvidia.com/gpu: 8
                 hugepages-2Mi: 5120Mi
                 vpc.amazonaws.com/efa: 32
-                memory: 8000Mi
+                memory: 32000Mi
           volumes:
           - name: shmem
             hostPath:

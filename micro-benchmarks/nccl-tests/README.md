@@ -36,17 +36,17 @@ The NCCL tests are packaged in a container.
 > | Variable              | Default     | Repository                                                                                  |
 > |-----------------------|-------------|---------------------------------------------------------------------------------------------|
 > |`GDRCOPY_VERSION`      | `v2.4.1`    | [link](https://github.com/NVIDIA/gdrcopy)                                                   |
-> |`EFA_INSTALLER_VERSION`| `1.31.0`    | [link](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa-start.html#efa-start-enable) |
-> |`AWS_OFI_NCCL_VERSION` | `v1.8.1-aws`| [link](https://github.com/aws/aws-ofi-nccl)                                                 |
-> |`NCCL_VERSION`         | `v2.20.3-1` | [link](https://github.com/NVIDIA/nccl)                                                      |
+> |`EFA_INSTALLER_VERSION`| `1.33.0`    | [link](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa-start.html#efa-start-enable) |
+> |`AWS_OFI_NCCL_VERSION` | `v1.9.2-aws`| [link](https://github.com/aws/aws-ofi-nccl)                                                 |
+> |`NCCL_VERSION`         | `v2.21.5-1` | [link](https://github.com/NVIDIA/nccl)                                                      |
 > |`NCCL_TESTS_VERSION`   | `v2.13.9`   | [link](https://github.com/NVIDIA/nccl-tests)                                                |
 
 ### Build the container
 1. Build the container image with the command below:
    ```bash
-   EFA_INSTALLER_VERSION=1.31.0
-   AWS_OFI_NCCL_VERSION=v1.8.1-aws
-   NCCL_VERSION=v2.20.3-1
+   EFA_INSTALLER_VERSION=1.33.0
+   AWS_OFI_NCCL_VERSION=v1.9.2-aws
+   NCCL_VERSION=v2.21.5-1
    NCCL_TESTS_VERSION=v2.13.9
    docker build  -f nccl-tests.Dockerfile \
           --build-arg="EFA_INSTALLER_VERSION=${EFA_INSTALLER_VERSION}" \
@@ -81,9 +81,9 @@ To run the NCCL tests on EKS, you will need to build the container image, then p
 
 1. Create the ECR repository if it does not exist
    ```bash
-   EFA_INSTALLER_VERSION=1.31.0
-   AWS_OFI_NCCL_VERSION=v1.8.1-aws
-   NCCL_VERSION=v2.20.3-1
+   EFA_INSTALLER_VERSION=1.33.0
+   AWS_OFI_NCCL_VERSION=v1.9.2-aws
+   NCCL_VERSION=v2.21.5-1
    NCCL_TESTS_VERSION=v2.13.9
    ECR_REPOSITORY_NAME="nccl-tests"
    TAG="${EFA_INSTALLER_VERSION}-${AWS_OFI_NCCL_VERSION}-${NCCL_VERSION}-${NCCL_TESTS_VERSION}"
