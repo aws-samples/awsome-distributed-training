@@ -19,13 +19,16 @@
 #     # Load image to local docker registry -> on head node, or new compute/build node.
 #     docker load < /fsx/nvidia-pt-od__latest.tar
 ####################################################################################################
-FROM nvcr.io/nvidia/pytorch:23.12-py3
+# Check https://docs.nvidia.com/deeplearning/frameworks/pytorch-release-notes/index.html for the base image contents 
+# 24.06 comes with NCCL 2.21.5
+FROM nvcr.io/nvidia/pytorch:24.06-py3
 ENV DEBIAN_FRONTEND=noninteractive
 
 # The three must-be-built packages.
 # Efa-installer>=1.29.1 required for nccl>=2.19.0 to avoid libfabric NCCL error.
-ENV EFA_INSTALLER_VERSION=1.30.0
-ENV AWS_OFI_NCCL_VERSION=1.8.1-aws
+ENV EFA_INSTALLER_VERSION=1.33.0
+ENV AWS_OFI_NCCL_VERSION=v1.9.2-aws
+ENV NCCL_VERSION=v2.21.5-1
 ENV NCCL_TESTS_VERSION=master
 
 ## Uncomment below when this Dockerfile builds a container image with efa-installer<1.29.1 and
@@ -111,16 +114,15 @@ ENV PATH=/opt/amazon/efa/bin:/opt/amazon/openmpi/bin:$PATH
 # NCCL EFA plugin (aws-ofi-nccl) depends on mpi, hence we must rebuild openmpi before building the
 # aws-ofi-ccnl.
 ####################################################################################################
-ENV NCCL_VERSION=2.19.3-1
-RUN apt-get remove -y libnccl2 libnccl-dev \
-   && cd /tmp \
-   && git clone https://github.com/NVIDIA/nccl.git -b v${NCCL_VERSION} \
-   && cd nccl \
-   && make -j src.build BUILDDIR=/usr \
-   # Build for p4 & p5.
-   NVCC_GENCODE="-gencode=arch=compute_90,code=sm_90, -gencode=arch=compute_80,code=sm_80" \
-   && rm -rf /tmp/nccl \
-   && echo NCCL_SOCKET_IFNAME=^docker0,lo >> /etc/nccl.conf
+#RUN apt-get remove -y libnccl2 libnccl-dev \
+#   && cd /tmp \
+#   && git clone https://github.com/NVIDIA/nccl.git -b v${NCCL_VERSION} \
+#   && cd nccl \
+#   && make -j src.build BUILDDIR=/usr \
+#   # Build for p4 & p5.
+#   NVCC_GENCODE="-gencode=arch=compute_90,code=sm_90, -gencode=arch=compute_80,code=sm_80" \
+#   && rm -rf /tmp/nccl \
+#   && echo NCCL_SOCKET_IFNAME=^docker0,lo >> /etc/nccl.conf
 
 
 ####################################################################################################
@@ -180,8 +182,8 @@ RUN rm -fr ${OPEN_MPI_PATH} \
 # NCCL EFA Plugin
 RUN mkdir -p /tmp && \
     cd /tmp && \
-    curl -LO https://github.com/aws/aws-ofi-nccl/archive/refs/tags/v${AWS_OFI_NCCL_VERSION}.tar.gz && \
-    tar -xzf /tmp/v${AWS_OFI_NCCL_VERSION}.tar.gz && \
+    curl -LO https://github.com/aws/aws-ofi-nccl/archive/refs/tags/${AWS_OFI_NCCL_VERSION}.tar.gz && \
+    tar -xzf /tmp/${AWS_OFI_NCCL_VERSION}.tar.gz && \
     rm /tmp/v${AWS_OFI_NCCL_VERSION}.tar.gz && \
     mv aws-ofi-nccl-${AWS_OFI_NCCL_VERSION} aws-ofi-nccl && \
     cd /tmp/aws-ofi-nccl && \
@@ -228,14 +230,14 @@ RUN git clone https://github.com/NVIDIA/nccl-tests.git /opt/nccl-tests \
 # its own pt + cuda.
 #
 # Pre-requisite: build node has enough memory to compile xformers. More info on the stanza.
-RUN export TORCH_CUDA_ARCH_LIST="8.0;9.0+PTX" && \
-    # On p4de.24xlarge:
-    # - MAX_JOBS=16 => 145GB memory
-    # - MAX_JOBS=32 => 241GB memory
-    # - MAX_JOBS=48 => 243GB memory, 542.5s
-    #
-    # NOTE: must export MAX_JOBS. For some reason, `MAX_JOBS=16 pip install ...` doesn't seem to
-    #       work to prevent OOM.
-    export MAX_JOBS=32 && \
-    export NVCC_PREPEND_FLAGS="-t 32" && \
-    pip install -v -U git+https://github.com/facebookresearch/xformers.git@main#egg=xformers
+#RUN export TORCH_CUDA_ARCH_LIST="8.0;9.0+PTX" && \
+#    # On p4de.24xlarge:
+#    # - MAX_JOBS=16 => 145GB memory
+#    # - MAX_JOBS=32 => 241GB memory
+#    # - MAX_JOBS=48 => 243GB memory, 542.5s
+#    #
+#    # NOTE: must export MAX_JOBS. For some reason, `MAX_JOBS=16 pip install ...` doesn't seem to
+#    #       work to prevent OOM.
+#    export MAX_JOBS=32 && \
+#    export NVCC_PREPEND_FLAGS="-t 32" && \
+#    pip install -v -U git+https://github.com/facebookresearch/xformers.git@main#egg=xformers
