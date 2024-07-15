@@ -1,5 +1,4 @@
-# Mosaic Pretrained Transformers (MPT) Test Case <!-- omit in toc -->
-
+# LLM Foundry Mosaic Pretrained Transformers (MPT) Test Case <!-- omit in toc -->
 MPT are GPT-style models in [llm-foundry](https://github.com/mosaicml/llm-foundry/tree/main) with some special features -- [Flash Attention](https://arxiv.org/abs/2205.14135) for efficiency, [ALiBi](https://arxiv.org/abs/2108.12409) for context length extrapolation, and stability improvements to mitigate loss spikes.
 
 This project contains:
@@ -7,75 +6,19 @@ This project contains:
 * AWS optimized [llm-foundry](https://github.com/mosaicml/llm-foundry/tree/main) container image.
 * Slurm scripts for the [c4 dataset](https://huggingface.co/datasets/c4) preparation and multi-node distributed training.
 
-## 1. Preparation
-
-This guide assumes that you have the following:
-
-* A functional Slurm cluster on AWS.
-* Docker, [Pyxis](https://github.com/NVIDIA/pyxis) and [Enroot](https://github.com/NVIDIA/enroot) installed.
-* An FSx for Lustre filesystem mounted on `/fsx`.
-
-We recommend that you setup a Slurm cluster using the templates in the architectures [directory](../../1.architectures). Before creating the Slurm cluster, you need to setup the following environment variables:
-
 ```bash
-export APPS_PATH=/apps
-export ENROOT_IMAGE=$APPS_PATH/llm-foundry.sqsh
+export APPS_PATH=/fsx/apps
+export ENROOT_IMAGE=$APPS_PATH/composer.sqsh
 export FSX_PATH=/fsx
 export DATA_PATH=$FSX_PATH/c4-dataset
-export TEST_CASE_PATH=${HOME}/3.MPT  # where you copy the test case or set to your test case path
-cd $TEST_CASE_PATH
+export LLM_FOUNDRY_VER=v0.10.0
 ```
 
-then follow the detailed instructions [here](../../1.architectures/2.aws-parallelcluster/README.md).
 
-## 2. Build the container
+```bash
+git clone git clone  --single-branch --branch ${LLM_FOUNDRY_VER} https://github.com/mosaicml/llm-foundry.git
+```
 
-Before running training jobs, you need to use an [Enroot](https://github.com/NVIDIA/enroot) container to retrieve and preprocess the input data. Below are the steps you need to follow:
-
-1. Copy the test case files to your cluster. You will need `0.llm-foundry.Dockerfile`,
-2. Build the Docker image with the command below in this directory.
-
-   ```bash
-   docker build -t llm-foundry -f 0.llm-foundry.Dockerfile .
-   ```
-
-3. Once the Docker image is built, you can check if it is present with `docker images`. You should see an output similar to this one:
-
-   ```bash
-   REPOSITORY         TAG                                  IMAGE ID       CREATED       SIZE
-   llm-foundry        latest                               a964fb32cd53   2 weeks ago   23.6GB
-   ...
-   ```
-
-4. Convert the Docker image to a squash file with the command below.
-
-   ```bash
-   enroot import -o ${ENROOT_IMAGE} dockerd://llm-foundry:latest
-   ```
-
-   The file will be stored in the `/apps` directory (default). The output should look as below.
-
-    ```bash
-    [INFO] Fetching image
-
-    36a8c752c28a2db543d2a632a3fc1fcbd5789a6f3d45b9d3a24632420dedcfa8
-
-    [INFO] Extracting image content...
-    [INFO] Creating squashfs filesystem...
-
-    Parallel mksquashfs: Using 32 processors
-    Creating 4.0 filesystem on /apps/llm-foundry.sqsh, block size 131072.
-    [========================================================================================================================================================================================================================-] 291068/291068 100%
-
-    Exportable Squashfs 4.0 filesystem, gzip compressed, data block size 131072
-            uncompressed data, uncompressed metadata, uncompressed fragments, uncompressed xattrs
-            duplicates are not removed
-    ...
-    ```
-
-It will take around 5 minutes to convert the container image from Docker to the Enroot format. Once done proceed to the next stage.
-
-For ease of testing we've included a `Makefile` that automatically builds and imports the latest image. To run this, execute `make` or you can individually specify `make build` to build the Docker image, `make clean` to remove the squash file and `make import` to import the Dockerfile into enroot squash file.
 
 ## 3. Run the processing job
 
@@ -163,9 +106,3 @@ by default it runs `mpt-7b` model. You can specify model to be trained as:
 0:       Train time/val: 0.0000
 ...
 ```
-
-## 5. Authors / Reviewers
-
-* [A] Keita Watanabe - mlkeita@
-* [R] Pierre-Yves Aquilanti - pierreya@
-* [R] Verdi March - marcverd@
