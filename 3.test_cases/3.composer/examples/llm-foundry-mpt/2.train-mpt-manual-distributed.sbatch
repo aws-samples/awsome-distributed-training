@@ -1,6 +1,6 @@
 #!/bin/bash
-#SBATCH --nodes=2 # number of nodes to use, 24 p4d(e) = 192 A100 GPUs
-#SBATCH --ntasks=2
+#SBATCH --nodes=8 # number of nodes to use, 24 p4d(e) = 192 A100 GPUs
+#SBATCH --ntasks=8
 #SBATCH --job-name=train-mpt # name of your job
 #SBATCH --output=logs/%x_%j.out # logfile for stdout
 #SBATCH --error=logs/%x_%j.err # logfile for stderr, remove it to merge both outputs
@@ -16,20 +16,17 @@ set -euxo pipefail
 MODEL=${1:-mpt-7b}
 
 # default variables for Enroot
-: "${APPS_PATH:=/apps}"
-: "${IMAGE:=$APPS_PATH/llm-foundry.sqsh}"
+: "${APPS_PATH:=/fsx/apps}"
+: "${IMAGE:=$APPS_PATH/composer.sqsh}"
 : "${DATA_PATH:=/fsx}"
 : "${FSX_MOUNT:=$DATA_PATH:$DATA_PATH}"
 : "${APPS_MOUNT:=$APPS_PATH:$APPS_PATH}"
 
 ## EFA settings
+export FI_PROVIDER=efa # change to eth if you want to use ENA for comparisons
+export FI_EFA_USE_HUGE_PAGE=0
 export FI_EFA_USE_DEVICE_RDMA=1 # use for p4d
 export FI_EFA_FORK_SAFE=1
-# export NCCL_ALGO=Ring
-export FI_LOG_LEVEL=1
-export FI_PROVIDER=efa # change to eth if you want to use ENA for comparisons
-export FI_EFA_ENABLE_SHM_TRANSFER=1
-export FI_EFA_USE_HUGE_PAGE=0
 # https://discuss.pytorch.org/t/nccl-network-is-unreachable-connection-refused-when-initializing-ddp/137352
 # https://github.com/pytorch/pytorch/issues/68893
 #export NCCL_SOCKET_IFNAME=ens
