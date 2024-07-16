@@ -27,6 +27,7 @@ export FI_EFA_USE_DEVICE_RDMA=1 # use for p4d
 export FI_EFA_FORK_SAFE=1
 export FI_LOG_LEVEL=1
 export FI_PROVIDER=efa
+export FI_EFA_USE_HUGE_PAGE=0    #Use for p4, p5. Comment out for others
 export NCCL_DEBUG=INFO
 ## Switching SYNC_MEMOPS to zero can boost throughput with FSDP
 ## Disables CU_POINTER_ATTRIBUTE_SYNC_MEMOPS
