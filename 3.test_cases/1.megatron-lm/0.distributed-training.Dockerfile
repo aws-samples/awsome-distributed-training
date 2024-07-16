@@ -94,7 +94,7 @@ RUN mv $OPEN_MPI_PATH/bin/mpirun $OPEN_MPI_PATH/bin/mpirun.real \
 ######################
 # Transformers dependencies used in the model
 ######################
-RUN pip install transformers==4.21.0 sentencepiece
+RUN pip install transformers==4.21.0 sentencepiece python-etcd
 
 #####################
 # Install megatron-lm

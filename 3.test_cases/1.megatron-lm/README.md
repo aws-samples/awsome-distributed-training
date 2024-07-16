@@ -147,6 +147,22 @@ Below are the steps you need to follow:
     ```bash
     sbatch 1.data-preprocessing.sbatch
     ```
+
+    You will see a new file in your current working directory called `slurm-XY.out` where `XY` is a number.
+    This is your output file and will capture the `STDOUT` and `STDERR` from your job.
+    You can check how it progresses via the command `tail -f slurm-XY.out` but with the relevant filename.
+    The file content will be similar to the below:
+
+    ```logs
+    0: Opening /fsx/oscar-1GB.jsonl
+    0: Time to startup: 0.9956498146057129
+    0: Processed 1000 documents (101.28050670002645 docs/s, 1.258563987556778 MB/s).
+    0: Processed 2000 documents (188.07992853480727 docs/s, 2.3571624257619614 MB/s).
+    ...
+    0: Processed 78000 documents (1293.9967304914383 docs/s, 16.67556064420713 MB/s).
+    0: Processed 79000 documents (1298.6715286585202 docs/s, 16.763634765830606 MB/s).
+    ```
+    
     
     EKS:
     
@@ -170,38 +186,112 @@ Below are the steps you need to follow:
     kubectl delete -f ./prepdata-job.yaml
     ```
 
-7. You will see a new file in your current working directory called `slurm-XY.out` where `XY` is a number. This is your output file and will capture the `STDOUT` and `STDERR` from your job. You can check how it progresses via the command `tail -f slurm-XY.out` but with the relevant filename. The file content will be similar to the below:
 
-    ```
-    0: Opening /fsx/oscar-1GB.jsonl
-    0: Time to startup: 0.9956498146057129
-    0: Processed 1000 documents (101.28050670002645 docs/s, 1.258563987556778 MB/s).
-    0: Processed 2000 documents (188.07992853480727 docs/s, 2.3571624257619614 MB/s).
-    ...
-    0: Processed 78000 documents (1293.9967304914383 docs/s, 16.67556064420713 MB/s).
-    0: Processed 79000 documents (1298.6715286585202 docs/s, 16.763634765830606 MB/s).
-    ```
-
-Voilà! You have executed the preprocessing job. You will go through the steps to run your training job.
+    Voilà! You have executed the preprocessing job. Next, you will go through the steps to run your training job.
 
 ## 3. Distributed training
 
 Now that the data is preprocessed, we will pretrain a GPT3 model MegatronLM.
 
-1. Copy the file `2.distributed-training.sbatch` to your cluster then submit a training jobs with the command below:
+For SLURM: 
+    Copy the file `2.distributed-training.sbatch` to your cluster then submit a training jobs with the command below:
 
     ```bash
     sbatch 2.distributed-training.sbatch
     ```
 
-5. The training starts running and should produce an output similar to below if successful.
+    The training starts running and should produce an output similar to below if successful.
 
-```
-1:  iteration       25/73242187 | consumed samples:           50 | elapsed time per iteration (ms): 87.0 | learning rate: 1.638E-08 | global batch size:     2 | lm loss: 1.086954E+01 | loss scale: 4294967296.0 | grad norm: 0.000 | number of skipped iterations:   0 | number of nan iterations:   0 |
-1:  iteration       26/73242187 | consumed samples:           52 | elapsed time per iteration (ms): 86.5 | learning rate: 1.704E-08 | global batch size:     2 | lm loss: 1.086217E+01 | loss scale: 4294967296.0 | grad norm: 0.000 | number of skipped iterations:   0 | number of nan iterations:   0 |
-1:  iteration       27/73242187 | consumed samples:           54 | elapsed time per iteration (ms): 88.4 | learning rate: 1.769E-08 | global batch size:     2 | lm loss: 1.087129E+01 | loss scale: 4294967296.0 | grad norm: 0.000 | number of skipped iterations:   0 | number of nan iterations:   0 |
-```
+    ```
+    1:  iteration       25/73242187 | consumed samples:           50 | elapsed time per iteration (ms): 87.0 | learning rate: 1.638E-08 | global batch size:     2 | lm loss: 1.086954E+01 | loss scale: 4294967296.0 | grad norm: 0.000 | number of skipped iterations:   0 | number of nan iterations:   0 |
+    1:  iteration       26/73242187 | consumed samples:           52 | elapsed time per iteration (ms): 86.5 | learning rate: 1.704E-08 | global batch size:     2 | lm loss: 1.086217E+01 | loss scale: 4294967296.0 | grad norm: 0.000 | number of skipped iterations:   0 | number of nan iterations:   0 |
+    1:  iteration       27/73242187 | consumed samples:           54 | elapsed time per iteration (ms): 88.4 | learning rate: 1.769E-08 | global batch size:     2 | lm loss: 1.087129E+01 | loss scale: 4294967296.0 | grad norm: 0.000 | number of skipped iterations:   0 | number of nan iterations:   0 |
+    ```
 
+For EKS:
+
+    Launch a PyTorchJob
+    
+     ```bash
+    export DATA_PATH=/fsx
+    export NUM_NODES=1
+    export INSTANCE_TYPE=p5.48xlarge
+    export IMAGE_URI=${REGISTRY}megatron-training:latest
+    export GPU_PER_NODE=8
+    export EFA_PER_NODE=32
+    export TENSOR_PARALLEL=8
+    export PIPELINE_PARALLEL=1
+    export NUM_LAYERS=36
+    export HIDDEN_SIZE=4096
+    export NUM_ATTENTION_HEADS=32
+    export SEQ_LENGTH=2048
+    export MAX_POSITION_EMBEDDINGS=2048
+    export MICRO_BATCH_SIZE=1
+    export GLOBAL_BATCH_SIZE=288
+    cat pytorchjob.yaml-template | envsubst > pytorchjob.yaml
+    kubectl apply -f ./pytorchjob.yaml
+    ```
+
+    The training starts running:
+    
+    ```bash
+    kubectl get pods
+    ```
+    
+    ```log
+    NAME                    READY   STATUS      RESTARTS   AGE
+    etcd-7787559c74-wpcb9   1/1     Running     0          3m10s
+    megatron-worker-0       1/1     Running     0          3m10s
+    ```
+    
+    Log lines describing the iterations show that the training is working properly.
+    
+    ```bash
+    kubectl logs -f megatron-worker-0
+    ```
+    
+    ```log
+    ...
+    using torch.float16 for parameters ...
+    ------------------------ arguments ------------------------
+    accumulate_allreduce_grads_in_fp32 .............. False
+    adam_beta1 ...................................... 0.9
+    adam_beta2 ...................................... 0.95
+    ...
+    -------------------- end of arguments ---------------------
+    setting number of micro-batches to constant 288
+    > building GPT2BPETokenizer tokenizer ...
+    > padded vocab (size: 50257) with 943 dummy tokens (new size: 51200)
+    > initializing torch distributed ...
+    > initialized tensor model parallel with size 8
+    > initialized pipeline model parallel with size 1
+    > setting random seeds to 1234 ...
+    > compiling dataset index builder ...
+    make: Entering directory '/workspace/Megatron-LM/megatron/core/datasets'
+    ...
+    time to initialize megatron (seconds): 15.424
+    [after megatron is initialized] datetime: 2024-07-16 22:14:01
+    building GPT model ...
+    > number of parameters on (tensor, pipeline) model parallel rank (4, 0): 941594624
+    ...
+    > building train, validation, and test datasets ...
+    > datasets target sizes (minimum size):
+        train:      146484375
+        validation: 5863680
+        test:       11520
+    ...
+    iteration        1/  508626 | consumed samples:          288 | elapsed time per iteration (ms): 255940.5 | learning rate: 0.000E+00 | global batch size:   288 | loss scale: 4294967296.0 | number of skipped iterations:   1 | number of nan iterations:   0 |
+    iteration        2/  508626 | consumed samples:          576 | elapsed time per iteration (ms): 243438.3 | learning rate: 0.000E+00 | global batch size:   288 | loss scale: 2147483648.0 | number of skipped iterations:   1 | number of nan iterations:   0 |
+    iteration        3/  508626 | consumed samples:          864 | elapsed time per iteration (ms): 243344.4 | learning rate: 0.000E+00 | global batch size:   288 | loss scale: 1073741824.0 | number of skipped iterations:   1 | number of nan iterations:   0 |
+    ...
+    ```
+    
+    You can stop the training job by executing:
+    
+    ```bash
+    kubectl delete -f ./pytorchjob.yaml
+    ```
+    
 ## 4. What's next?
 
 The example is based on the GPT3 example from MegatronLM's [repository](https://github.com/NVIDIA/Megatron-LM/blob/main/examples/pretrain_gpt.sh). You can modify `NUM_ATTENTION_HEADS`, `NUM_LAYERS`, and `HIDDEN_SIZE`  based on the Table 1 (Page 8) of the document [Efficient Large-Scale Language Model Training on GPU Clusters Using Megatron-LM](https://arxiv.org/abs/2104.04473) to change the model size. You can also run the following commands to launch training for different model sizes before submitting a job as follows: `NUM_LAYERS=64 HIDDEN_SIZE=8192 NUM_ATTENTION_HEADS=48 sbatch  3.distributed-training.sbatch`
@@ -217,7 +307,12 @@ The example is based on the GPT3 example from MegatronLM's [repository](https://
 | 145.6B     | `NUM_ATTENTION_HEADS=96 HIDDEN_SIZE=12288 NUM_LAYERS=80`  |
 | 310.1B     | `NUM_ATTENTION_HEADS=128 HIDDEN_SIZE=16384 NUM_LAYERS=96` |
 
-## 5. Appendix: Llama2
+
+Following the same pattern, you can train other models. Pretraining scripts for models like 
+bert, ict, and t5 are already included in the Megatron-LM container. 
+Please refer to the following section if you wish to train Llama2.
+
+## 5. Appendix: Llama2 on Slurm
 
 To pretrain Llama2, you must visit <https://huggingface.co/meta-llama/Llama-2-7b-hf> to download the tokenizers files (i.e., `tokenizer.json` and `tokenizer.model`). Registration required. Alternatively, you may train your own tokenizer but this is beyond the scope for this document. Either way, once you have the tokenizer files, you need to upload them to the FSx Lustre that your Slurm cluster mounts.
 
