@@ -196,6 +196,7 @@ Now that the data is preprocessed, we will pretrain a GPT3 model MegatronLM.
    
    Copy the file `2.distributed-training.sbatch` to your cluster then submit a training jobs with the command below:
 
+
     ```bash
     sbatch 2.distributed-training.sbatch
     ```
@@ -208,9 +209,11 @@ Now that the data is preprocessed, we will pretrain a GPT3 model MegatronLM.
     1:  iteration       27/73242187 | consumed samples:           54 | elapsed time per iteration (ms): 88.4 | learning rate: 1.769E-08 | global batch size:     2 | lm loss: 1.087129E+01 | loss scale: 4294967296.0 | grad norm: 0.000 | number of skipped iterations:   0 | number of nan iterations:   0 |
     ```
 
+
    EKS:
 
    Launch a PyTorchJob
+    
     
     ```bash
     export DATA_PATH=/fsx
@@ -238,17 +241,21 @@ Now that the data is preprocessed, we will pretrain a GPT3 model MegatronLM.
     kubectl get pods
     ```
     
+   You should see one etcd and one worker pod.
+    
     ```text
     NAME                    READY   STATUS      RESTARTS   AGE
     etcd-7787559c74-wpcb9   1/1     Running     0          3m10s
     megatron-worker-0       1/1     Running     0          3m10s
     ```
     
-    Log lines describing the iterations show that the training is working properly.
+   Log lines describing the iterations show that the training is working properly.
     
     ```bash
     kubectl logs -f megatron-worker-0
     ```
+   
+   An abbreviated sample log is shown below:
     
     ```text
     ...
@@ -286,7 +293,7 @@ Now that the data is preprocessed, we will pretrain a GPT3 model MegatronLM.
     ...
     ```
     
-    You can stop the training job by executing:
+   You can stop the training job by executing:
     
     ```bash
     kubectl delete -f ./pytorchjob.yaml
