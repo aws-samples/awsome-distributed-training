@@ -1,6 +1,6 @@
 #!/bin/bash
-#SBATCH --nodes=8 # number of nodes to use, 24 p4d(e) = 192 A100 GPUs
-#SBATCH --ntasks=8
+#SBATCH --nodes=1 # number of nodes to use, 24 p4d(e) = 192 A100 GPUs
+#SBATCH --ntasks=1
 #SBATCH --job-name=train-mpt # name of your job
 #SBATCH --output=logs/%x_%j.out # logfile for stdout
 #SBATCH --error=logs/%x_%j.err # logfile for stderr, remove it to merge both outputs
@@ -32,6 +32,13 @@ export FI_EFA_FORK_SAFE=1
 #export NCCL_SOCKET_IFNAME=ens
 export TORCH_NCCL_ASYNC_ERROR_HANDLING=1
 export NCCL_DEBUG=INFO
+### Increase the send queue depth and can turn NCCL communications into non-blocking.
+### https://www.usenix.org/system/files/atc23-choi.pdf
+export NCCL_BUFFSIZE=8388608
+### Improve performance by increasing buffer size for Send/Recv, Gather, Scatter and Alltoall communications
+### https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/usage/p2p.html
+export NCCL_P2P_NET_CHUNKSIZE=524288
+export NCCL_SOCKET_IFNAME=en
 
 # variables for Enroot
 declare -a ARGS=(
@@ -64,9 +71,10 @@ function run_compose() {
         --node_rank ${NODE_RANK} \
         --master_addr ${MASTER_ADDR} \
         --master_port ${MASTER_PORT} \
-        --verbose /llm-foundry/scripts/train/train.py \
-        /llm-foundry/scripts/train/yamls/pretrain/${MODEL}.yaml \
-        data_local=${DATA_PATH}/c4-dataset \
+        --verbose ${PWD}/llm-foundry/scripts/train/train.py \
+        ${PWD}/llm-foundry/scripts/train/yamls/pretrain/${MODEL}.yaml \
+        variables.data_local=${DATA_PATH}/c4-dataset \
+        model.loss_fn=torch_crossentropy \
         train_loader.dataset.split=train_small \
         eval_loader.dataset.split=val_small \
         max_duration=3ba \
