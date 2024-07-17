@@ -228,14 +228,15 @@ RUN git clone https://github.com/NVIDIA/nccl-tests.git /opt/nccl-tests \
 # its own pt + cuda.
 #
 # Pre-requisite: build node has enough memory to compile xformers. More info on the stanza.
-RUN export TORCH_CUDA_ARCH_LIST="8.0;9.0+PTX" && \
-    # On p4de.24xlarge:
-    # - MAX_JOBS=16 => 145GB memory
-    # - MAX_JOBS=32 => 241GB memory
-    # - MAX_JOBS=48 => 243GB memory, 542.5s
-    #
-    # NOTE: must export MAX_JOBS. For some reason, `MAX_JOBS=16 pip install ...` doesn't seem to
-    #       work to prevent OOM.
-    export MAX_JOBS=32 && \
-    export NVCC_PREPEND_FLAGS="-t 32" && \
-    pip install -v -U git+https://github.com/facebookresearch/xformers.git@main#egg=xformers
+#RUN export TORCH_CUDA_ARCH_LIST="8.0;9.0+PTX" && \
+#    # On p4de.24xlarge:
+    #    # - MAX_JOBS=16 => 145GB memory
+#    # - MAX_JOBS=32 => 241GB memory
+#    # - MAX_JOBS=48 => 243GB memory, 542.5s
+#    #
+#    # NOTE: must export MAX_JOBS. For some reason, `MAX_JOBS=16 pip install ...` doesn't seem to
+#    #       work to prevent OOM.
+#    export MAX_JOBS=32 && \
+#    export NVCC_PREPEND_FLAGS="-t 32" && \
+#    pip install -v -U git+https://github.com/facebookresearch/xformers.git@main#egg=xformers
+#
