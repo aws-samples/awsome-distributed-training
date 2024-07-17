@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: MIT-0
 
 #SBATCH --job-name=nccl-all_reduce_perf # name of your job
-#SBATCH --nodes=2 # number of nodes to use, 24 p4d(e) = 192 A100 GPUs
+#SBATCH --nodes=8 # number of nodes to use, 24 p4d(e) = 192 A100 GPUs
 #SBATCH --ntasks-per-node 8 # Number of GPU per node
 #SBATCH --output %x_%j.out
 #SBATCH --error %x_%j.err
@@ -13,8 +13,8 @@ set -ex
 
 # This script is designed to run by default on the Deep Learning AMI, Ubuntu 20.04
 # See https://aws.amazon.com/releasenotes/aws-deep-learning-base-gpu-ami-ubuntu-20-04/
-ALL_REDUCE_BINARY=${1:-/usr/local/cuda-12.3/efa/test-cuda-12.3/all_reduce_perf}
-ADDITIONAL_LD_LIBRARY_PATH=${2:-/usr/local/cuda-12.3/lib}
+ALL_REDUCE_BINARY=${1:-/usr/local/cuda-12.1/efa/test-cuda-12.1/all_reduce_perf}
+ADDITIONAL_LD_LIBRARY_PATH=${2:-/usr/local/cuda-12.1/lib}
 
 # Get Hostname to Instance ID mapping
 mpirun -N 1 bash -c 'echo $(hostname) ➡️ $(cat /sys/devices/virtual/dmi/id/board_asset_tag | tr -d " ")'
