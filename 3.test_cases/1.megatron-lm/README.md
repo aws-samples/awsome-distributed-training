@@ -7,10 +7,9 @@
 
 To run a test case you will go through a series of steps described below:
 
-1. Build the data preprocessing container.
-2. Pre-process the data using a tokenizer and the preprocessing container.
-3. Build the container for distributed training
-4. Train!
+1. Prepare your environment
+2. Build a container, download, and pre-process the data
+3. Train!
 
 We describe the steps below for Slurm and EKS users.
 
@@ -197,17 +196,17 @@ Now that the data is preprocessed, we will pretrain a GPT3 model MegatronLM.
    Copy the file `2.distributed-training.sbatch` to your cluster then submit a training jobs with the command below:
 
 
-    ```bash
-    sbatch 2.distributed-training.sbatch
-    ```
+   ```bash
+   sbatch 2.distributed-training.sbatch
+   ```
 
    The training starts running and should produce an output similar to below if successful.
 
-    ```text
-    1:  iteration       25/73242187 | consumed samples:           50 | elapsed time per iteration (ms): 87.0 | learning rate: 1.638E-08 | global batch size:     2 | lm loss: 1.086954E+01 | loss scale: 4294967296.0 | grad norm: 0.000 | number of skipped iterations:   0 | number of nan iterations:   0 |
-    1:  iteration       26/73242187 | consumed samples:           52 | elapsed time per iteration (ms): 86.5 | learning rate: 1.704E-08 | global batch size:     2 | lm loss: 1.086217E+01 | loss scale: 4294967296.0 | grad norm: 0.000 | number of skipped iterations:   0 | number of nan iterations:   0 |
-    1:  iteration       27/73242187 | consumed samples:           54 | elapsed time per iteration (ms): 88.4 | learning rate: 1.769E-08 | global batch size:     2 | lm loss: 1.087129E+01 | loss scale: 4294967296.0 | grad norm: 0.000 | number of skipped iterations:   0 | number of nan iterations:   0 |
-    ```
+   ```text
+   1:  iteration       25/73242187 | consumed samples:           50 | elapsed time per iteration (ms): 87.0 | learning rate: 1.638E-08 | global batch size:     2 | lm loss: 1.086954E+01 | loss scale: 4294967296.0 | grad norm: 0.000 | number of skipped iterations:   0 | number of nan iterations:   0 |
+   1:  iteration       26/73242187 | consumed samples:           52 | elapsed time per iteration (ms): 86.5 | learning rate: 1.704E-08 | global batch size:     2 | lm loss: 1.086217E+01 | loss scale: 4294967296.0 | grad norm: 0.000 | number of skipped iterations:   0 | number of nan iterations:   0 |
+   1:  iteration       27/73242187 | consumed samples:           54 | elapsed time per iteration (ms): 88.4 | learning rate: 1.769E-08 | global batch size:     2 | lm loss: 1.087129E+01 | loss scale: 4294967296.0 | grad norm: 0.000 | number of skipped iterations:   0 | number of nan iterations:   0 |
+   ```
 
 
    EKS:
@@ -215,89 +214,89 @@ Now that the data is preprocessed, we will pretrain a GPT3 model MegatronLM.
    Launch a PyTorchJob
     
     
-    ```bash
-    export DATA_PATH=/fsx
-    export NUM_NODES=1
-    export INSTANCE_TYPE=p5.48xlarge
-    export IMAGE_URI=${REGISTRY}megatron-training:latest
-    export GPU_PER_NODE=8
-    export EFA_PER_NODE=32
-    export TENSOR_PARALLEL=8
-    export PIPELINE_PARALLEL=1
-    export NUM_LAYERS=36
-    export HIDDEN_SIZE=4096
-    export NUM_ATTENTION_HEADS=32
-    export SEQ_LENGTH=2048
-    export MAX_POSITION_EMBEDDINGS=2048
-    export MICRO_BATCH_SIZE=1
-    export GLOBAL_BATCH_SIZE=288
-    cat pytorchjob.yaml-template | envsubst > pytorchjob.yaml
-    kubectl apply -f ./pytorchjob.yaml
-    ```
+   ```bash
+   export DATA_PATH=/fsx
+   export NUM_NODES=1
+   export INSTANCE_TYPE=p5.48xlarge
+   export IMAGE_URI=${REGISTRY}megatron-training:latest
+   export GPU_PER_NODE=8
+   export EFA_PER_NODE=32
+   export TENSOR_PARALLEL=8
+   export PIPELINE_PARALLEL=1
+   export NUM_LAYERS=36
+   export HIDDEN_SIZE=4096
+   export NUM_ATTENTION_HEADS=32
+   export SEQ_LENGTH=2048
+   export MAX_POSITION_EMBEDDINGS=2048
+   export MICRO_BATCH_SIZE=1
+   export GLOBAL_BATCH_SIZE=288
+   cat pytorchjob.yaml-template | envsubst > pytorchjob.yaml
+   kubectl apply -f ./pytorchjob.yaml
+   ```
 
    The training starts running:
     
-    ```bash
-    kubectl get pods
-    ```
+   ```bash
+   kubectl get pods
+   ```
     
    You should see one etcd and one worker pod.
     
-    ```text
-    NAME                    READY   STATUS      RESTARTS   AGE
-    etcd-7787559c74-wpcb9   1/1     Running     0          3m10s
-    megatron-worker-0       1/1     Running     0          3m10s
-    ```
+   ```text
+   NAME                    READY   STATUS      RESTARTS   AGE
+   etcd-7787559c74-wpcb9   1/1     Running     0          3m10s
+   megatron-worker-0       1/1     Running     0          3m10s
+   ```
     
    Log lines describing the iterations show that the training is working properly.
     
-    ```bash
-    kubectl logs -f megatron-worker-0
-    ```
+   ```bash
+   kubectl logs -f megatron-worker-0
+   ```
    
    An abbreviated sample log is shown below:
     
-    ```text
-    ...
-    using torch.float16 for parameters ...
-    ------------------------ arguments ------------------------
-    accumulate_allreduce_grads_in_fp32 .............. False
-    adam_beta1 ...................................... 0.9
-    adam_beta2 ...................................... 0.95
-    ...
-    -------------------- end of arguments ---------------------
-    setting number of micro-batches to constant 288
-    > building GPT2BPETokenizer tokenizer ...
-    > padded vocab (size: 50257) with 943 dummy tokens (new size: 51200)
-    > initializing torch distributed ...
-    > initialized tensor model parallel with size 8
-    > initialized pipeline model parallel with size 1
-    > setting random seeds to 1234 ...
-    > compiling dataset index builder ...
-    make: Entering directory '/workspace/Megatron-LM/megatron/core/datasets'
-    ...
-    time to initialize megatron (seconds): 15.424
-    [after megatron is initialized] datetime: 2024-07-16 22:14:01
-    building GPT model ...
-    > number of parameters on (tensor, pipeline) model parallel rank (4, 0): 941594624
-    ...
-    > building train, validation, and test datasets ...
-    > datasets target sizes (minimum size):
-        train:      146484375
-        validation: 5863680
-        test:       11520
-    ...
-    iteration        1/  508626 | consumed samples:          288 | elapsed time per iteration (ms): 255940.5 | learning rate: 0.000E+00 | global batch size:   288 | loss scale: 4294967296.0 | number of skipped iterations:   1 | number of nan iterations:   0 |
-    iteration        2/  508626 | consumed samples:          576 | elapsed time per iteration (ms): 243438.3 | learning rate: 0.000E+00 | global batch size:   288 | loss scale: 2147483648.0 | number of skipped iterations:   1 | number of nan iterations:   0 |
-    iteration        3/  508626 | consumed samples:          864 | elapsed time per iteration (ms): 243344.4 | learning rate: 0.000E+00 | global batch size:   288 | loss scale: 1073741824.0 | number of skipped iterations:   1 | number of nan iterations:   0 |
-    ...
-    ```
+   ```text
+   ...
+   using torch.float16 for parameters ...
+   ------------------------ arguments ------------------------
+   accumulate_allreduce_grads_in_fp32 .............. False
+   adam_beta1 ...................................... 0.9
+   adam_beta2 ...................................... 0.95
+   ...
+   -------------------- end of arguments ---------------------
+   setting number of micro-batches to constant 288
+   > building GPT2BPETokenizer tokenizer ...
+   > padded vocab (size: 50257) with 943 dummy tokens (new size: 51200)
+   > initializing torch distributed ...
+   > initialized tensor model parallel with size 8
+   > initialized pipeline model parallel with size 1
+   > setting random seeds to 1234 ...
+   > compiling dataset index builder ...
+   make: Entering directory '/workspace/Megatron-LM/megatron/core/datasets'
+   ...
+   time to initialize megatron (seconds): 15.424
+   [after megatron is initialized] datetime: 2024-07-16 22:14:01
+   building GPT model ...
+   > number of parameters on (tensor, pipeline) model parallel rank (4, 0): 941594624
+   ...
+   > building train, validation, and test datasets ...
+   > datasets target sizes (minimum size):
+       train:      146484375
+       validation: 5863680
+       test:       11520
+   ...
+   iteration        1/  508626 | consumed samples:          288 | elapsed time per iteration (ms): 255940.5 | learning rate: 0.000E+00 | global batch size:   288 | loss scale: 4294967296.0 | number of skipped iterations:   1 | number of nan iterations:   0 |
+   iteration        2/  508626 | consumed samples:          576 | elapsed time per iteration (ms): 243438.3 | learning rate: 0.000E+00 | global batch size:   288 | loss scale: 2147483648.0 | number of skipped iterations:   1 | number of nan iterations:   0 |
+   iteration        3/  508626 | consumed samples:          864 | elapsed time per iteration (ms): 243344.4 | learning rate: 0.000E+00 | global batch size:   288 | loss scale: 1073741824.0 | number of skipped iterations:   1 | number of nan iterations:   0 |
+   ...
+   ```
     
    You can stop the training job by executing:
     
-    ```bash
-    kubectl delete -f ./pytorchjob.yaml
-    ```
+   ```bash
+   kubectl delete -f ./pytorchjob.yaml
+   ```
     
 ## 4. What's next?
 
