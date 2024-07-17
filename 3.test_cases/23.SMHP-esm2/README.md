@@ -30,6 +30,7 @@ You can create conda environment as follows:
 ```bash
  conda create --name esm python=3.10
  conda activate esm
+ conda install pytorch torchvision torchaudio pytorch-cuda=12.1 -c pytorch -c nvidia
  pip3 install -r requirements.txt
 ```
 
@@ -99,7 +100,43 @@ Saving the dataset (1/1 shards): 100%|██████████████
 Saving the dataset (1/1 shards): 100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 50000/50000 [00:00<00:00, 182452.27 examples/s]
 ```
 
+## 5. Submit training job
 
+Once data is processed, we are ready to train the ESM2 model.
+
+```
+sbatch submit_train_g5.sh
+```
+
+```
+1: [INFO|trainer.py:2128] 2024-07-17 00:18:20,620 >> ***** Running training *****
+1: [INFO|trainer.py:2129] 2024-07-17 00:18:20,620 >>   Num examples = 100,000
+1: [INFO|trainer.py:2130] 2024-07-17 00:18:20,620 >>   Num Epochs = 1
+1: [INFO|trainer.py:2131] 2024-07-17 00:18:20,620 >>   Instantaneous batch size per device = 8
+1: [INFO|trainer.py:2134] 2024-07-17 00:18:20,620 >>   Total train batch size (w. parallel, distributed & accumulation) = 1,024
+1: [INFO|trainer.py:2135] 2024-07-17 00:18:20,620 >>   Gradient Accumulation steps = 16
+1: [INFO|trainer.py:2136] 2024-07-17 00:18:20,620 >>   Total optimization steps = 97
+1: [INFO|trainer.py:2137] 2024-07-17 00:18:20,622 >>   Number of trainable parameters = 148,796,794
+0: [INFO|trainer.py:2128] 2024-07-17 00:18:20,685 >> ***** Running training *****
+0: [INFO|trainer.py:2129] 2024-07-17 00:18:20,685 >>   Num examples = 100,000
+0: [INFO|trainer.py:2130] 2024-07-17 00:18:20,685 >>   Num Epochs = 1
+0: [INFO|trainer.py:2131] 2024-07-17 00:18:20,685 >>   Instantaneous batch size per device = 8
+0: [INFO|trainer.py:2134] 2024-07-17 00:18:20,685 >>   Total train batch size (w. parallel, distributed & accumulation) = 1,024
+0: [INFO|trainer.py:2135] 2024-07-17 00:18:20,685 >>   Gradient Accumulation steps = 16
+0: [INFO|trainer.py:2136] 2024-07-17 00:18:20,685 >>   Total optimization steps = 97
+0: [INFO|trainer.py:2137] 2024-07-17 00:18:20,687 >>   Number of trainable parameters = 148,796,794
+0: {'loss': 2.9859, 'grad_norm': 0.9704080820083618, 'learning_rate': 4.175257731958763e-05, 'epoch': 0.16}
+ 19%|█▊        | 18/97 [01:50<08:31,  6.39s/it]
+0: {'loss': 2.8209, 'grad_norm': 2.9741921424865723, 'learning_rate': 3.3505154639175256e-05, 'epoch': 0.33}
+ 36%|███▌      | 35/97 [03:39<06:42,  6.39s/it]
+0: {'loss': 2.716, 'grad_norm': 2.2170701026916504, 'learning_rate': 2.5257731958762887e-05, 'epoch': 0.49}
+ 53%|█████▎    | 50/97 [05:21<05:00,  6.39s/it]
+0: {'loss': 2.6697, 'grad_norm': 0.8555800318717957, 'learning_rate': 1.7010309278350517e-05, 'epoch': 0.66}
+ 68%|██████▊   | 65/97 [06:57<03:24,  6.38s/it]
+0: {'loss': 2.6591, 'grad_norm': 0.5596509575843811, 'learning_rate': 8.762886597938144e-06, 'epoch': 0.82}
+ 82%|████████▏ | 80/97 [08:32<
+
+```
 
 
 

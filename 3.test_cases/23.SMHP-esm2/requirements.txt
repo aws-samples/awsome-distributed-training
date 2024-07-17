@@ -1,4 +1,9 @@
-accelerate==0.25.0
-datasets==2.16.1
-pyfastx==2.0.2
-transformers==4.37.2
+accelerate
+datasets==2.20.0
+pyfastx
+transformers
+boto3
+huggingface_hub==0.23.4
+chardet
+evaluate
+scikit-learn
