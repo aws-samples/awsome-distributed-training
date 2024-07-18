@@ -462,5 +462,6 @@ def create_streaming_dataloader(dataset,
                                        batch_size=batch_size,
                                        num_workers=workers,
                                        pin_memory=True,
-                                       prefetch_factor=4)
+                                       prefetch_factor=4,
+                                       timeout=600)
     return train_dataloader
