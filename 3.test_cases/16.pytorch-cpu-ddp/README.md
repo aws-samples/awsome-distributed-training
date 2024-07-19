@@ -4,23 +4,32 @@ Isolated environments are crucial for reproducible machine learning because they
 
 [Anaconda](https://www.anaconda.com/) leverages conda environments to create distinct spaces for projects, allowing different Python versions and libraries to coexist without conflicts by isolating updates to their respective environments. [Docker](https://www.docker.com/), a containerization platform, packages applications and their dependencies into containers, ensuring they run seamlessly across any Linux server by providing OS-level virtualization and encapsulating the entire runtime environment.
 
-This example showcases CPU [PyTorch DDP](https://pytorch.org/tutorials/beginner/ddp_series_theory.html) environment setups utilizing these approaches for efficient environments management.
+This example showcases CPU [PyTorch DDP](https://pytorch.org/tutorials/beginner/ddp_series_theory.html) environment setup utilizing these approaches for efficient environment management.
 
 
 ## 1. Preparation
 
-This guide assumes that you have the following:
+This guide is compatible with both Slurm and EKS clusters. Please follow 
+the sections corresponding to the type of cluster you use.
+The guide assumes that you have the following:
 
+**Slurm:**
 * A functional Slurm cluster on AWS, whose compute instances are based on DeepLearning AMI.
 * An FSx for Lustre filesystem mounted on `/fsx`.
 * `enroot` if you want to run the container example.
 
-We recommend that you setup a Slurm cluster using the templates in the architectures [directory](../../1.architectures). 
+**EKS:**
+* An EKS cluster on AWS with x86-based CPU nodes, accessible via `kubectl`.
+* An FSx for Lustre persistent volume claim named `fsx-pv`, you can use an example from [here](https://github.com/aws-samples/aws-do-eks/tree/main/Container-Root/eks/deployment/csi/fsx), if you need to create one.
+* Docker 
 
+We recommend that you setup a Slurm or EKS cluster using the templates in the architectures [directory](../../1.architectures). 
 
-## 2. Submit training job using conda environment
+## 2. Submit training job using conda environment on Slurm
 
-In this step, you will create PyTorch virtual environment using conda. 
+In this step, you will create PyTorch virtual environment using conda.
+This method is only available on Slurm because it runs the training job without
+using a container.
 
 ```bash
 bash 0.create-conda-env.sh
@@ -73,16 +82,24 @@ Node IP: 10.1.96.108
 [2024-03-12 08:22:56,575] torch.distributed.elastic.agent.server.api: [INFO] Done waiting for other agents. Elapsed: 0.0005395412445068359 seconds
 ```
 
-## 3. Submit training job using docker container
+## 3. Submit training job using Docker container
 
-In this example, you'll learn how to use the official PyTorch Docker image and execute the container within the Slurm scheduler using Enroot. 
+In this example, you'll learn how to use the official PyTorch Docker image 
+and execute the container within the Slurm scheduler using Enroot or EKS using
+kubeflow training operator. 
 
-[Enroot](https://github.com/NVIDIA/enroot) uses the same underlying technologies as containers but removes much of the isolation they inherently provide while preserving filesystem separation. This approach is generally preferred in high-performance environments or virtualized environments where portability and reproducibility is important, but extra isolation is not warranted.
+
+**Slurm:**
+[Enroot](https://github.com/NVIDIA/enroot) uses the same underlying technologies 
+as containers but removes much of the isolation they inherently provide 
+while preserving filesystem separation. This approach is generally preferred 
+in high-performance environments or virtualized environments where portability 
+and reproducibility is important, but extra isolation is not warranted.
 
 Create Enroot container images:
 
 ```bash
-bash 3.container-train.sbatch
+bash 2.create-enroot-image.sh
 ```
 
 It will pull `pytorch/pytorch` container, then create [squashfs](https://www.kernel.org/doc/Documentation/filesystems/squashfs.txt) image named `pytorch.sqsh`.
@@ -129,4 +146,98 @@ Node IP: 10.1.96.108
 [2024-03-12 08:22:56,575] torch.distributed.elastic.agent.server.api: [INFO] Local worker group finished (WorkerState.SUCCEEDED). Waiting 300 seconds for other agents to finish
 [2024-03-12 08:22:56,575] torch.distributed.elastic.agent.server.api: [INFO] Done waiting for other agents. Elapsed: 0.0010929107666015625 seconds
 [2024-03-12 08:22:56,575] torch.distributed.elastic.agent.server.api: [INFO] Done waiting for other agents. Elapsed: 0.0005395412445068359 seconds
+```
+
+**EKS:**
+
+Make sure kubeflow training operator is deployed to your cluster:
+```bash
+kubectl apply -k "github.com/kubeflow/training-operator/manifests/overlays/standalone?ref=v1.7.0"
+```
+
+Build the container image:
+
+```bash
+export AWS_REGION=$(aws ec2 describe-availability-zones --output text --query 'AvailabilityZones[0].[RegionName]')
+export ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
+export REGISTRY=${ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com/
+docker build -t ${REGISTRY}fsdp:pytorch2.2-cpu .
+```
+
+Push the container image to the Elastic Container Registry in your account:
+```bash
+# Create registry if needed
+REGISTRY_COUNT=$(aws ecr describe-repositories | grep \"fsdp\" | wc -l)
+if [ "$REGISTRY_COUNT" == "0" ]; then
+        aws ecr create-repository --repository-name fsdp
+fi
+
+# Login to registry
+echo "Logging in to $REGISTRY ..."
+aws ecr get-login-password | docker login --username AWS --password-stdin $REGISTRY
+
+# Push image to registry
+docker image push ${REGISTRY}fsdp:pytorch2.2-cpu
+```
+
+Create manifest and launch PyTorchJob:
+```bash
+export IMAGE_URI=${REGISTRY}fsdp:pytorch2.2-cpu
+export INSTANCE_TYPE=
+export NUM_NODES=2
+export CPU_PER_NODE=4
+cat fsdp.yaml-template | envsubst > fsdp.yaml
+
+kubectl apply -f ./fsdp.yaml
+```
+
+Check the status of your training job:
+```bash
+kubectl get pytorchjob 
+kubectl get pods 
+```
+
+```text
+NAME   STATE     AGE
+fsdp   Running   16s
+
+NAME                    READY   STATUS    RESTARTS   AGE
+etcd-7787559c74-w9gwx   1/1     Running   0          18s
+fsdp-worker-0           1/1     Running   0          18s
+fsdp-worker-1           1/1     Running   0          18s
+```
+
+Each of the pods produces job logs. 
+```bash
+kubectl logs fsdp-worker-0
+```
+
+```text
+2024-07-19 04:39:07,890] torch.distributed.run: [WARNING] *****************************************
+INFO 2024-07-19 04:39:07,958 Etcd machines: ['http://0.0.0.0:2379']
+INFO 2024-07-19 04:39:07,964 Attempting to join next rendezvous
+INFO 2024-07-19 04:39:07,965 Observed existing rendezvous state: {'status': 'joinable', 'version': '1', 'participants': [0]}
+INFO 2024-07-19 04:39:08,062 Joined rendezvous version 1 as rank 1. Full state: {'status': 'frozen', 'version': '1', 'participants': [0, 1], 'keep_alives': []}
+INFO 2024-07-19 04:39:08,062 Waiting for remaining peers.
+INFO 2024-07-19 04:39:08,063 All peers arrived. Confirming membership.
+INFO 2024-07-19 04:39:08,149 Waiting for confirmations from all peers.
+INFO 2024-07-19 04:39:08,161 Rendezvous version 1 is complete. Final state: {'status': 'final', 'version': '1', 'participants': [0, 1], 'keep_alives': ['/torchelastic/p2p/run_none/rdzv/v_1/rank_1', '/torchelastic/p2p/run_none/rdzv/v_1/rank_0'], 'num_workers_waiting': 0}
+INFO 2024-07-19 04:39:08,161 Creating EtcdStore as the c10d::Store implementation
+...
+[RANK 1] Epoch 4991 | Batchsize: 32 | Steps: 8
+Epoch 4990 | Training snapshot saved at /fsx/snapshot.pt
+[RANK 0] Epoch 4991 | Batchsize: 32 | Steps: 8
+[RANK 1] Epoch 4992 | Batchsize: 32 | Steps: 8
+[RANK 0] Epoch 4992 | Batchsize: 32 | Steps: 8
+[RANK 3] Epoch 4992 | Batchsize: 32 | Steps: 8
+[RANK 2] Epoch 4992 | Batchsize: 32 | Steps: 8
+[RANK 1] Epoch 4993 | Batchsize: 32 | Steps: 8
+[RANK 2] Epoch 4993 | Batchsize: 32 | Steps: 8
+...
+```
+
+
+Stop the training job:
+```bash
+kubectl delete -f ./fsdp.yaml
 ```
