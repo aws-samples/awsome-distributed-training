@@ -90,6 +90,7 @@ kubeflow training operator.
 
 
 **Slurm:**
+
 [Enroot](https://github.com/NVIDIA/enroot) uses the same underlying technologies 
 as containers but removes much of the isolation they inherently provide 
 while preserving filesystem separation. This approach is generally preferred 
@@ -147,6 +148,7 @@ Node IP: 10.1.96.108
 [2024-03-12 08:22:56,575] torch.distributed.elastic.agent.server.api: [INFO] Done waiting for other agents. Elapsed: 0.0010929107666015625 seconds
 [2024-03-12 08:22:56,575] torch.distributed.elastic.agent.server.api: [INFO] Done waiting for other agents. Elapsed: 0.0005395412445068359 seconds
 ```
+
 
 **EKS:**
 
@@ -241,3 +243,5 @@ Stop the training job:
 ```bash
 kubectl delete -f ./fsdp.yaml
 ```
+
+Note: Prior to running a new job, please stop any currently running or completed fsdp job.
