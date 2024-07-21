@@ -1,6 +1,7 @@
 import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+
 from torch.nn import functional as F
 import torch_xla.core.xla_model as xm
 # XLA imports for parallel loader and multi-processing
@@ -8,23 +9,33 @@ import torch_xla.distributed.parallel_loader as pl
 
 from mingpt.model import GPT
 from mingpt.datasets import SortDataset 
-from mingpt.trainer import Trainer
 from mingpt.configs import TrainConfig
+from mingpt.utils import evaluate
 
+torch.distributed.init_process_group('xla')
+device = xm.xla_device()
+rank = xm.get_ordinal()
+world_size = xm.xrt_world_size()
 
-
-device = 'xla'
+print(f'rank: {rank}, world size {world_size}')
 # create train and test dataset
-train_dataset = SortDataset('train')
-test_dataset = SortDataset('test')
+length = 6
+num_digits = 3
+train_dataset = SortDataset('train', length, num_digits)
+test_dataset = SortDataset('test', length, num_digits)
 train_config = TrainConfig.get_default_config()
 train_loader = DataLoader(
     train_dataset,
     batch_size=train_config.batch_size,
-    )
+)
+test_loader = DataLoader(
+    test_dataset,
+    batch_size=train_config.batch_size,
+)
 # We wrap the dataloader with MpDeviceLoader. This dataloader should take
 # care of copying the tensors to device
 train_loader = pl.MpDeviceLoader(train_loader, device)
+test_loader = pl.MpDeviceLoader(test_loader, device)
 
 # create a GPT instance
 model_config = GPT.get_default_config()
@@ -51,3 +62,9 @@ for idx, (x, y) in enumerate(pbar):
     loss.backward()
     xm.optimizer_step(optimizer) # XLA MP: performs grad allreduce and optimizer step
     pbar.set_description(f"Iteration: {idx}, train loss: {loss.item():.5f}")
+
+model.eval()
+print("Evaluate performance with train_loader")
+evaluate(model, train_loader, length, max_batches=50)
+print("Evaluate performance with test_loader")
+evaluate(model, test_loader, length, max_batches=50)
