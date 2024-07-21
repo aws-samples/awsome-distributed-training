@@ -84,7 +84,7 @@ class SortDataset(Dataset):
     where I is "ignore", as the transformer is reading the input sequence
     """
 
-    def __init__(self, split, length=6, num_digits=3):
+    def __init__(self, split, length=8, num_digits=4):
         assert split in {'train', 'test'}
         self.split = split
         self.length = length
