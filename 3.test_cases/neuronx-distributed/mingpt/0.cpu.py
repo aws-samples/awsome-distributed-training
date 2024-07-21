@@ -47,7 +47,7 @@ for idx, (x, y) in enumerate(pbar):
     optimizer.step()
     pbar.set_description(f"Iteration: {idx}, train loss: {loss.item():.5f}")
 
-model = model.eval()
+model.eval()
 print("Evaluate performance with train_loader")
 evaluate(model, train_loader, length, max_batches=50)
 print("Evaluate performance with test_loader")
