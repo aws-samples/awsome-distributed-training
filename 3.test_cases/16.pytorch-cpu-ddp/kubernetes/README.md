@@ -1,7 +1,7 @@
 ## 1. Preparation
 The guide assumes that you have the following:
 
-* An EKS cluster on AWS with x86-based CPU nodes, accessible via `kubectl`.
+* An Amazon EKS cluster on AWS with x86-based CPU nodes, accessible via `kubectl`.
 * An FSx for Lustre persistent volume claim named `fsx-pv`, you can use an example from [here](https://github.com/aws-samples/aws-do-eks/tree/main/Container-Root/eks/deployment/csi/fsx), if you need to create one.
 * Docker 
 
