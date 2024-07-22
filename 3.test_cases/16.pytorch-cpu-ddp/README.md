@@ -6,4 +6,4 @@ Isolated environments are crucial for reproducible machine learning because they
 
 This example showcases CPU [PyTorch DDP](https://pytorch.org/tutorials/beginner/ddp_series_theory.html) environment setup utilizing these approaches for efficient environment management.
 
- We will provide guides for both Slurm and Kubernetes. However, please note that the Conda example is only compatible with Slurm. For detailed instructions, proceed to the `slurm` or `kubernetes` subdirectory. ```
+ We provide guides for both Slurm and Kubernetes. However, please note that the Conda example is only compatible with Slurm. For detailed instructions, proceed to the `slurm` or `kubernetes` subdirectory. ```
