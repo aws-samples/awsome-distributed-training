@@ -119,6 +119,7 @@ RUN git clone -b ${NCCL_TESTS_VERSION} https://github.com/NVIDIA/nccl-tests.git 
 RUN echo "/opt/amazon/openmpi/lib" > /etc/ld.so.conf.d/openmpi.conf \
     && echo "/opt/nccl/build/lib" > /etc/ld.so.conf.d/000_nccl.conf \
     && echo "/opt/aws-ofi-nccl/install/lib" > /etc/ld.so.conf.d/000-aws-ofi-nccl.conf \
+    && echo "/opt/nccl/build/lib/libnccl.so" >> /etc/ld.so.preload \
     && ldconfig
 
 RUN rm -rf /var/lib/apt/lists/*
