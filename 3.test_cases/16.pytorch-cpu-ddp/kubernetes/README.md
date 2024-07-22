@@ -8,7 +8,7 @@ The guide assumes that you have the following:
 We recommend that you setup a Kubernetes cluster using the templates in the architectures [directory](../../1.architectures). 
 
 
-## 3. Submit training job using Docker container
+## 3. Submit training job using container
 
 In this example, you'll learn how to use the official PyTorch Docker image 
 and execute the container within Kubernetes using kubeflow training operator. 
