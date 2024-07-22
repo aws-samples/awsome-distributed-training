@@ -20,8 +20,6 @@ spec:
             env:
              - name: PATH
                value: $PATH:/opt/amazon/efa/bin:/usr/bin
-             - name: LD_LIBRARY_PATH
-               value: /opt/amazon/openmpi/lib:/opt/nccl/build/lib:/opt/amazon/efa/lib:/opt/aws-ofi-nccl/install/lib:/usr/local/nvidia/lib:$LD_LIBRARY_PATH
              - name: NCCL_DEBUG
                value: INFO
              - name: NCCL_BUFFSIZE
@@ -42,8 +40,6 @@ spec:
             - none
             - -x
             - PATH
-            - -x
-            - LD_LIBRARY_PATH
             - -x
             - NCCL_DEBUG=INFO
             - -x
