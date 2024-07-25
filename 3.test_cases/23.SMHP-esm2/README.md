@@ -105,7 +105,7 @@ Saving the dataset (1/1 shards): 100%|██████████████
 Once data is processed, we are ready to train the ESM2 model. To run distributed data parallel (DDP) training, we provide the `train_ddp.sh` script which you can submt as below and training should start:
 
 ```
-sbatch train_ddp.sh
+sbatch 2.train_ddp.sh
 ```
 
 ```
@@ -155,10 +155,13 @@ A disadvantage of DDP training is that it requires the entire model to fit in th
 We use the [HuggingFace Accelerate](https://github.com/huggingface/accelerate) repo to setup FSDP with ESM2 on a slurm multinode cluster. To this end, we provide the `train_fsd.sh` script that you can submit as below:
 
 ```bash
-sbatch train_fsdp.sh
+sbatch 3.train_fsdp.sh
 ```
 
-
+|  Model | device_batch_size | num_nodes | Strategy |     Instance   |   Throughput   |
+|:------:|:-----------------:|:---------:|:--------:| :------------: | :------------: |
+|  ESM2  |        14         |     2     |    DDP   |  g5.12xlarge   |  253 samples/s | 
+|  ESM2  |        14         |     2     |    FSDP  |  g5.12xlarge   |  162 samples/s |
 
 
 
