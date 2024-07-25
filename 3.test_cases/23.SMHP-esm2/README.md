@@ -39,7 +39,7 @@ You can create conda environment as follows:
 Next we need to download the Uniref50 training data. You can do so by running:
 
 ```bash
-python3 download_data.py
+python3 0.download_data.py
 ```
 It would download the data and partitions the data in 50 .csv files in `/fsx/ubuntu/csv` folder. The whole process should take less than 30 mins.
 
@@ -68,7 +68,7 @@ Reading FASTA file
 Next we need to tokenize the dataset. This will split the data in training, test and validation folders, tokenize them and save the arrow files in `processed` folder.
 
 ```bash
-(esm) (CONTROLLER) ubuntu@ip-10-1-71-160:~$ python3 tokenize_uniref_csv.py
+(esm) (CONTROLLER) ubuntu@ip-10-1-71-160:~$ python3 1.tokenize_uniref_csv.py
 07/03/2024 23:07:49 - INFO - Parsing arguments
 07/03/2024 23:07:49 - INFO - Loading csv files from /fsx/ubuntu/csv
 Resolving data files: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 132/132 [00:00<00:00, 356272.93it/s]
@@ -102,10 +102,10 @@ Saving the dataset (1/1 shards): 100%|██████████████
 
 ## 5. Submit training job
 
-Once data is processed, we are ready to train the ESM2 model.
+Once data is processed, we are ready to train the ESM2 model. To run distributed data parallel (DDP) training, we provide the `train_ddp.sh` script which you can submt as below and training should start:
 
 ```
-sbatch submit_train_g5.sh
+sbatch train_ddp.sh
 ```
 
 ```
@@ -138,7 +138,25 @@ sbatch submit_train_g5.sh
 
 ```
 
+### 5.1 Accelerate training with torch.compile
 
+HuggingFace provides an easy to use [Trainer](https://huggingface.co/docs/transformers/en/main_classes/trainer) class that also provides an option to compile the model graph. For more details on torch.compile, follow this [blog](https://pytorch.org/blog/maximizing-training-throughput/) We notice a speedup of 43% when pre-training ESM2 with torch.compile:
+
+|  Model | device_batch_size | num_nodes | torch.compile |     Instance   |   Throughput   |
+|:------:|:-----------------:|:---------:|:-------------:| :------------: | :------------: |
+|  ESM2  |         8         |     2     |       No      |  g5.12xlarge   |  160 samples/s | 
+|  ESM2  |         8         |     2     |      Yes      |  g5.12xlarge   |  229 samples/s |
+
+
+### 5.2 Train larger models with Fully Sharded Data Parallel (FSDP)
+
+A disadvantage of DDP training is that it requires the entire model to fit in the GPU memory. The ESM2 150M parameter model easily fits in the A10G GPU of g5.12xlarge instances. However, as models get bigger that may not be possible. For such situations, [PyTorch FSDP](https://pytorch.org/blog/introducing-pytorch-fully-sharded-data-parallel-api/) api is an effective way to shard model parameters which includes optimizer states, gradients and model parameters. However, as model is sharded more, the communication burden between the GPUs also increases. So the best practice is to use FSDP only when DDP is not sufficient. 
+
+We use the [HuggingFace Accelerate](https://github.com/huggingface/accelerate) repo to setup FSDP with ESM2 on a slurm multinode cluster. To this end, we provide the `train_fsd.sh` script that you can submit as below:
+
+```bash
+sbatch train_fsdp.sh
+```
 
 
 
