@@ -103,7 +103,7 @@ def prepare_dataloader(dataset: Dataset, batch_size: int):
     )
 
 
-def main(save_every: int, total_epochs: int, batch_size: int, snapshot_path: str = "snapshot.pt"):
+def main(save_every: int, total_epochs: int, batch_size: int, snapshot_path: str):
     ddp_setup()
     dataset, model, optimizer = load_train_objs()
     train_data = prepare_dataloader(dataset, batch_size)
@@ -118,6 +118,7 @@ if __name__ == "__main__":
     parser.add_argument('total_epochs', type=int, help='Total epochs to train the model')
     parser.add_argument('save_every', type=int, help='How often to save a snapshot')
     parser.add_argument('--batch_size', default=32, type=int, help='Input batch size on each device (default: 32)')
+    parser.add_argument('--checkpoint_path', default="./snapshot.pt", type=str, help='Full path to checkpoint file')
     args = parser.parse_args()
     
-    main(args.save_every, args.total_epochs, args.batch_size)
+    main(args.save_every, args.total_epochs, args.batch_size, args.checkpoint_path)
