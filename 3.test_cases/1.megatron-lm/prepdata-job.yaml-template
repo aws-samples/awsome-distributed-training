@@ -1,0 +1,36 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: prepdata-job
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: prepdata-job
+        image: ${REGISTRY}megatron-training:latest
+        command: ["/bin/bash", "-c"]
+        args: 
+          - cd ${DATA_PATH};
+            pwd;
+            ls -alh .;
+            python3 /workspace/Megatron-LM/tools/preprocess_data.py  
+            --input ${DATA_PATH}/oscar-1GB.jsonl 
+            --output-prefix ${DATA_PATH}/my-gpt2 
+            --vocab-file ${DATA_PATH}/gpt2-vocab.json 
+            --tokenizer-type GPT2BPETokenizer 
+            --merge-file ${DATA_PATH}/gpt2-merges.txt 
+            --append-eod 
+            --workers 64;
+            ls -alh .;
+            echo "Data preprocessing completed."
+        volumeMounts:
+        - name: fsx-pv
+          mountPath: /fsx
+        resources:
+          limits:
+            nvidia.com/gpu: 1
+      volumes:
+      - name: fsx-pv
+        persistentVolumeClaim:
+          claimName: fsx-pvc
