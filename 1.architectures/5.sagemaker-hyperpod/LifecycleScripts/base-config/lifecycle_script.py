@@ -192,6 +192,7 @@ def main(args):
             if node_type == SlurmNodeType.COMPUTE_NODE:
                 ExecuteBashScript("./utils/install_docker.sh").run()
                 ExecuteBashScript("./utils/install_dcgm_exporter.sh").run()
+                ExecuteBashScript("./utils/update_neuron_sdk.sh").run()
                 ExecuteBashScript("./utils/install_efa_node_exporter.sh").run()
 
             if node_type == SlurmNodeType.HEAD_NODE:
