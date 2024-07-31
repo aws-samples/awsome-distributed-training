@@ -108,7 +108,7 @@ huggingface-cli download meta-llama/Meta-Llama-3-70B --local-dir /fsx/ubuntu/Met
 Once the download process is completed, you will see the following structure:
 
 ```
-/fsx/Meta-Llama-3-70B/
+/fsx/ubuntu/Meta-Llama-3-70B/
 ├── LICENSE
 ├── README.md
 ├── USE_POLICY.md
