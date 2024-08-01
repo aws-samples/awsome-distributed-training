@@ -130,7 +130,7 @@ Resources:
               command: systemctl start cfn-hup.service
     Properties:
       BlockDeviceMappings:
-      - DeviceName: '/dev/xvda'
+      - DeviceName: '/dev/sda1'
         Ebs:
           DeleteOnTermination: false
           Encrypted: true
