@@ -59,7 +59,6 @@ declare -a TRAINING_ARGS=(
     --val_batch_size=1 \
     --max_steps=5000 \
     --seed=42 \
-    # torch.get_default_dtype() returns fp32
     --grad_clip=1.0 \
     --weight_decay=0.2 \
     --beta1=0.9 \
