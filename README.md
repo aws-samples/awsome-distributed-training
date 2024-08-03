@@ -57,7 +57,6 @@ All test cases are under `3.test_cases/`. You can go in each test case directory
 | [`5.param-benchmark`](./3.test_cases/5.param-benchmark)                       |  ✅   | ❓          | ❓         |
 | [`6.stable-diffusion`](./3.test_cases/6.stable-diffusion)                     |  ✅   | ✅          | ❓         |
 | [`7.tensorflow-distributed`](./3.test_cases/7.tensorflow-distributed)         |  ✅   | ❓          | ❓         |
-| [`8.neuronx-nemo-megatron`](./3.test_cases/8.neuronx-nemo-megatron)           |  ✅   | ❓          | ❓         |
 | [`10.FSDP`](./3.test_cases/10.FSDP)                                           |  ✅   | ❓          | ❓         |
 | [`11.modelparallel`](./3.test_cases/11.modelparallel)                         |  ✅   | ❓          | ❓         |
 | [`12.SM-dataparallel-FSDP`](./3.test_cases/12.SM-dataparallel-FSDP)           |  ✅   | ❓          | ❓         |
