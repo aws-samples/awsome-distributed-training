@@ -1,9 +1,9 @@
 FROM nvcr.io/nvidia/tensorflow:23.10-tf2-py3
 
-ARG EFA_INSTALLER_VERSION=1.30.0
-ARG AWS_OFI_NCCL_VERSION=1.8.1-aws
-ARG NCCL_TESTS_VERSION=master
-ARG NCCL_VERSION=v2.18.6-1
+ARG EFA_INSTALLER_VERSION=1.33.0
+ARG AWS_OFI_NCCL_VERSION=v1.9.2-aws
+ARG NCCL_TESTS_VERSION=v2.13.9
+ARG NCCL_VERSION=v2.21.3-1
 ARG OPEN_MPI_PATH=/opt/amazon/openmpi
 
 RUN apt-get update -y
@@ -53,7 +53,7 @@ RUN cd $HOME \
 ###################################################
 ## Install NCCL
 RUN cd /tmp \
-    && git clone https://github.com/NVIDIA/nccl.git -b v${NCCL_VERSION} \
+    && git clone https://github.com/NVIDIA/nccl.git -b ${NCCL_VERSION} \
     && cd nccl \
     && make -j src.build BUILDDIR=/usr/local \
     # nvcc to target p5 and p4 instances
