@@ -51,7 +51,7 @@ export TORCHRUN=./pt_fsdp/bin/torchrun
 export TRAIN_SCRIPT=./train.py
 
 ############################
-# Mixtral Training Params ##
+# Mistral Training Params ##
 ############################
 
 declare -a TRAINING_ARGS=(
