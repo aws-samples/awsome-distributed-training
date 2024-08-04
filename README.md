@@ -50,20 +50,20 @@ All test cases are under `3.test_cases/`. You can go in each test case directory
 
 | Test cases                                                                    | Slurm | Kubernetes  | AWS Batch  |
 | ----------------------------------------------------------------------------- | ----- | ----------- | ---------- |
-| [`1.megatron-lm`](./3.test_cases/1.megatron-lm)                               |  ✅   | ❓          | ❓         |
-| [`2.nemo-launcher`](./3.test_cases/2.nemo-launcher)                           |  ✅   | ❌          | ❌         |
+| [`1.megatron-lm`](./3.test_cases/1.megatron-lm)                               |  ✅   | ✅          | ❓         |
+| [`2.nemo-launcher`](./3.test_cases/2.nemo-launcher)                           |  ✅   | ✅          | ❌         |
 | [`3.MPT`](./3.test_cases/3.MPT)                                               |  ✅   | ❓          | ❓         |
 | [`4.DDP`](./3.test_cases/4.DDP)                                               |  ✅   | ❓          | ❓         |
 | [`5.param-benchmark`](./3.test_cases/5.param-benchmark)                       |  ✅   | ❓          | ❓         |
 | [`6.stable-diffusion`](./3.test_cases/6.stable-diffusion)                     |  ✅   | ✅          | ❓         |
 | [`7.tensorflow-distributed`](./3.test_cases/7.tensorflow-distributed)         |  ✅   | ❓          | ❓         |
-| [`10.FSDP`](./3.test_cases/10.FSDP)                                           |  ✅   | ❓          | ❓         |
+| [`10.FSDP`](./3.test_cases/10.FSDP)                                           |  ✅   | ✅          | ❓         |
 | [`11.modelparallel`](./3.test_cases/11.modelparallel)                         |  ✅   | ❓          | ❓         |
 | [`12.SM-dataparallel-FSDP`](./3.test_cases/12.SM-dataparallel-FSDP)           |  ✅   | ❓          | ❓         |
 | [`13.SM-dataparallel-deepspeed`](./3.test_cases/13.SM-dataparallel-deepspeed) |  ✅   | ❓          | ❓         |
 | [`14.bionemo`](./3.test_cases/14.bionemo)                                     |  ✅   | ❓          | ❓         |
 | [`15.gpt-neox`](./3.test_cases/15.gpt-neox)                                   |  ✅   | ❓          | ❓         |
-| [`16.pytorch-cpu-ddp`](./3.test_cases/16.pytorch-cpu-ddp)                     |  ✅   | ❓          | ❓         |
+| [`16.pytorch-cpu-ddp`](./3.test_cases/16.pytorch-cpu-ddp)                     |  ✅   | ✅          | ❓         |
 | [`17.SM-modelparallelv2`](./3.test_cases/17.SM-modelparallelv2)               |  ✅   | ❓          | ❓         |
 | [`18.deepspeed`](./3.test_cases/18.deepspeed)                                 |  ✅   | ❓          | ❓         |
 | [`jax`](./3.test_cases/jax)                                                   |  ✅   | ❓          | ❓         |
