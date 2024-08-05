@@ -4,7 +4,7 @@
 #SBATCH --output logs/%x_%j.out
 #SBATCH --exclusive
 set -euxo pipefail
-export FI_LOG_LEVEL=1
+export FI_LOG_LEVEL=Warn
 export FI_PROVIDER=efa
 NODES=( $( scontrol show hostnames $SLURM_JOB_NODELIST ) )
 NODES_ARRAY=($NODES)
