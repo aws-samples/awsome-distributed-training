@@ -97,3 +97,8 @@ RUN mkdir -p /var/run/sshd \
     && sed -i 's/#\(StrictModes \).*/\1no/g' /etc/ssh/sshd_config
 
 COPY run_paxml.sh /run_paxml.sh
+RUN pip install scipy==1.12.0
+RUN pip install protobuf==3.20.3
+RUN cp /usr/local/lib/python3.10/dist-packages/google/protobuf/internal/builder.py .
+RUN pip3 install protobuf==3.19.6
+RUN cp /builder.py /usr/local/lib/python3.10/dist-packages/google/protobuf/internal/builder.py
