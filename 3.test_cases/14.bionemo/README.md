@@ -20,3 +20,10 @@ This project provides a guide to run [Nvidia's BioNemo](https://docs.nvidia.com/
 ## Prerequisites
 
 You must have access to the bionemo container. To get the access to BioNeMo, visit the [information website](https://www.nvidia.com/en-us/clara/bionemo/).
+
+## Build container
+
+
+```bash
+docker build -t bionemo:latest -f bionemo.Dockerfile .
+```

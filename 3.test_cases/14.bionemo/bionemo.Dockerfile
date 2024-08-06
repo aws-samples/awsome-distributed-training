@@ -43,20 +43,6 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py \
     && pip3 install awscli pynvml
 
 #################################################
-## Install NVIDIA GDRCopy
-##
-## NOTE: if `nccl-tests` or `/opt/gdrcopy/bin/sanity -v` crashes with incompatible version, ensure
-## that the cuda-compat-xx-x package is the latest.
-RUN git clone -b ${GDRCOPY_VERSION} https://github.com/NVIDIA/gdrcopy.git /tmp/gdrcopy \
-    && cd /tmp/gdrcopy \
-    && make prefix=/opt/gdrcopy install
-
-ENV LD_LIBRARY_PATH=/opt/gdrcopy/lib:/usr/local/cuda/compat:$LD_LIBRARY_PATH
-ENV LIBRARY_PATH=/opt/gdrcopy/lib:/usr/local/cuda/compat/:$LIBRARY_PATH
-ENV CPATH=/opt/gdrcopy/include:$CPATH
-ENV PATH=/opt/gdrcopy/bin:$PATH
-
-#################################################
 ## Install EFA installer
 RUN cd $HOME \
     && curl -O https://efa-installer.amazonaws.com/aws-efa-installer-${EFA_INSTALLER_VERSION}.tar.gz \

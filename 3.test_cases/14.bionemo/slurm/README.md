@@ -6,7 +6,7 @@ The guide assumes that you have the following:
 * An FSx for Lustre filesystem mounted on `/fsx`.
 * `enroot` if you want to run the container example.
 
-We recommend that you setup a Slurm cluster using the templates in the architectures [directory](../../1.architectures). 
+We recommend that you setup a Slurm cluster using the templates in the architectures [directory](../../1.architectures).  The following instruction describes how to run bionemo using conda environment or docker container.
 
 
 ```
