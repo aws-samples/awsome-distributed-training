@@ -11,7 +11,10 @@ Here we describes how to run distributed training with MaxText on Slurm cluster.
 Convert the Docker container image to an [Enroot](https://github.com/NVIDIA/enroot) squash file that will be stored in `/fsx/ubuntu/images`. This step takes a few minutes.
 
 ```bash
-enroot import -o /fsx/ubuntu/images/maxtext-jetstream-v0.2.2.sqsh dockerd://maxtext:jetstream-v0.2.2
+DOCKER_IMAGE=maxtext:jetstream-v0.2.2
+ENROOT_IMAGE=/fsx/ubuntu/images/maxtext-jetstream-v0.2.2.sqsh
+[ ! -e ${ENROOT_IMAGE} ] || rm ${ENROOT_IMAGE}
+enroot import -o ${ENROOT_IMAGE} dockerd://${DOCKER_IMAGE}
 ```
 
 ```text
