@@ -10,16 +10,25 @@ First, determine which MaxText for example we use `jetstream-v0.2.2` then identi
 The MaxText container image is based on the [JAX base image](..). Go to the directory and build the specific version of the image with the following command:
 
 ```bash
+pushd ..
 DOCKER_BUILDKIT=1 docker build --progress=plain \
-    -f jax_paxml.Dockerfile -t jax:0.4.25 .
-    --build-arg JAX_VERISON=0.4.25
+    -f jax_paxml.Dockerfile -t jax:0.4.25 . \
+    --build-arg JAX_VERSION=0.4.25
+popd
 ```
 
 then build the MaxText container image:
+Check TE version in https://github.com/google/maxtext/blob/jetstream-v0.2.2/setup.sh.
 
 ```bash
-DOCKER_BUILDKIT=1 docker build --progress=plain -f maxtext.Dockerfile -t maxtext:jetstream-v0.2.2 .
-    --build-arg JAX_VERISON=0.4.25
+DOCKER_BUILDKIT=1 docker build --progress=plain -f maxtext.Dockerfile -t maxtext:jetstream-v0.2.2 . \
+    --build-arg JAX_VERISON=0.4.25 \
     --build-arg MAXTEXT_VERSION=jetstream-v0.2.2
 ```
 
+```
+$ docker images
+REPOSITORY   TAG                IMAGE ID       CREATED          SIZE
+maxtext      jetstream-v0.2.2   e35080ddb59d   6 minutes ago    22.3GB
+jax          0.4.25             043ad43d6933   16 minutes ago   21.5GB
+``
