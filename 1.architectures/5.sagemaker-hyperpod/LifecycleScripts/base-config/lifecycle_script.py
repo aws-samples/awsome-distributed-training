@@ -200,6 +200,11 @@ def main(args):
                 ExecuteBashScript("./utils/install_slurm_exporter.sh").run()
                 ExecuteBashScript("./utils/install_head_node_exporter.sh").run()
                 ExecuteBashScript("./utils/install_prometheus.sh").run()
+        
+        # Update Neuron SDK version to the version defined in update_neuron_sdk.sh
+        if Config.enable_observability:
+            if node_type == SlurmNodeType.COMPUTE_NODE:
+                ExecuteBashScript("./utils/update_neuron_sdk.sh").run()
 
         # Install and configure SSSD for ActiveDirectory/LDAP integration
         if Config.enable_sssd:
