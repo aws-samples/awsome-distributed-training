@@ -38,7 +38,7 @@ Architectures are located in `1.architectures` and consists of utilities and ser
 | [`4.amazon-eks`](./1.architectures/4.amazon-eks)                   | Compute  | Manifest files to train with Amazon EKS             |
 | [`5.sagemaker-hyperpod`](./1.architectures/5.sagemaker-hyperpod)   | Compute  | SageMaker HyperPod template for distributed training|
 
-More will come, feel free to add new ones (EKS, Ray?). You will also find [documentation](./1.architectures/efa-cheatsheet.md) for EFA and the recommended environment variables.
+More will come, feel free to add new ones (ex. Ray?). You will also find [documentation](./1.architectures/efa-cheatsheet.md) for EFA and the recommended environment variables.
 
 ## 2. Custom Amazon Machine Images
 
