@@ -1,10 +1,10 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 
-FROM nvcr.io/nvidia/pytorch:23.09-py3
-
-ARG EFA_INSTALLER_VERSION=1.30.0
-ARG AWS_OFI_NCCL_VERSION=v1.7.4-aws
+FROM nvcr.io/nvidia/pytorch:24.07-py3
+# 20.07 includes NCCL 2.22.3
+ARG EFA_INSTALLER_VERSION=1.34.0
+ARG AWS_OFI_NCCL_VERSION=v1.10.0-aws
 ARG OPEN_MPI_PATH=/opt/amazon/openmpi
 
 ######################
