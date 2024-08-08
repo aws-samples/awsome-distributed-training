@@ -3,10 +3,10 @@
 FROM nvidia/cuda:12.2.2-devel-ubuntu22.04
 
 ARG GDRCOPY_VERSION=v2.4.1
-ARG EFA_INSTALLER_VERSION=1.33.0
-ARG AWS_OFI_NCCL_VERSION=v1.9.2-aws
-ARG NCCL_VERSION=v2.21.5-1
-ARG NCCL_TESTS_VERSION=v2.13.9
+ARG EFA_INSTALLER_VERSION=1.34.0
+ARG AWS_OFI_NCCL_VERSION=v1.10.0-aws
+ARG NCCL_VERSION=v2.22.3-1
+ARG NCCL_TESTS_VERSION=v2.13.10
 
 RUN apt-get update -y && apt-get upgrade -y
 RUN apt-get remove -y --allow-change-held-packages \
