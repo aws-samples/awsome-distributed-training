@@ -162,6 +162,22 @@ def get_model_config(args):
             num_experts_per_tok=2,
             num_local_experts=8,
         )
+    elif "mistral" in args.model_type:
+        from transformers import MistralConfig
+        model_config = MistralConfig(
+                vocab_size=args.vocab_size,
+                hidden_size=args.hidden_width,
+                intermediate_size=args.intermediate_size,
+                num_hidden_layers=args.num_layers,
+                num_attention_heads=args.num_heads,
+                num_key_value_heads=args.num_key_value_heads,
+                hidden_act="silu",
+                max_position_embeddings=args.max_context_width,
+                initializer_range=args.initializer_range,
+                rms_norm_eps=1e-5,
+                use_cache=False,
+                tie_word_embeddings=False
+        )
     else:
         raise NotImplementedError(f"Model {args.model_type} not implemented")
     return model_config
@@ -230,6 +246,11 @@ def get_transformer_layer(model_type="gpt2"):
         from transformers.models.mixtral.modeling_mixtral import MixtralDecoderLayer
 
         transformer_layer = MixtralDecoderLayer
+
+    elif model_type == "mistral":
+        from transformers.models.mistral.modeling_mistral import MistralDecoderLayer
+
+        transformer_layer = MistralDecoderLayer
 
     else:
         raise NotImplementedError(f"Model type {model_type} not implemented")
