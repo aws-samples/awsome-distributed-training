@@ -25,4 +25,4 @@ srun ${AUTO_RESUME} ./pt_cpu/bin/torchrun \
 --rdzv_id $RANDOM \
 --rdzv_backend c10d \
 --rdzv_endpoint $head_node_ip:29500 \
-ddp.py 5000000 10
+$(dirname "$PWD")/ddp.py 5000000 10
