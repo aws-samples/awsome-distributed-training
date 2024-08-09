@@ -86,6 +86,11 @@ def parse_args():  # pylint: disable=too-many-statements
         choices=["full", "hybrid"],
         help="FSDP sharding strategy https://pytorch.org/docs/stable/fsdp.html",
     )
+    fsdp_grp.add_argument(
+        "--cpu_offload",
+        type=int, defalut=0
+        help="CPU offloading https://pytorch.org/docs/stable/fsdp.html#torch.distributed.fsdp.StateDictConfig"
+    )
     
     # learning rate
     lr_grp = parser.add_argument_group(
