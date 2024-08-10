@@ -89,7 +89,7 @@ def parse_args():  # pylint: disable=too-many-statements
     fsdp_grp.add_argument(
         "--cpu_offload",
         type=int, defalut=0
-        help="CPU offloading https://pytorch.org/docs/stable/fsdp.html#torch.distributed.fsdp.StateDictConfig"
+        help="CPU offloading https://pytorch.org/docs/stable/fsdp.html#torch.distributed.fsdp.CPUOffload"
     )
     
     # learning rate
