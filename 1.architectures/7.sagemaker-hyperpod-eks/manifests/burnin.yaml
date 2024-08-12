@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: burnin-test
+  namespace: hyperpod
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: burnin-test
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+    verbs:
+      - get
+      - list
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+    verbs:
+      - get
+      - list
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: burnin-role-binding
+subjects:
+  - kind: ServiceAccount
+    name: burnin-test
+    namespace: hyperpod
+roleRef:
+  kind: ClusterRole
+  name: burnin-test
+  apiGroup: rbac.authorization.k8s.io

@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+
+set -e
+set -o pipefail
+
+#!/usr/bin/env bash
+
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+
+set -eo pipefail
+
+declare -a HELP=(
+    "[-r|--region]"
+    "[-h|--help]"
+    "[-p|--profile]"
+    "[-d|--dry-run]"
+    "[-s|--stack-name]"
+    "[-o|--output-name]"
+    "[<PARAMETERS>]"
+)
+
+DRY_RUN=0
+declare -a aws_cli_args=()
+declare -a cfn_args=()
+parse_args() {
+    local key
+    while [[ $# -gt 0 ]]; do
+        key="$1"
+        case $key in
+        -h|--help)
+            echo "Deploy Cloudformation stack"
+            echo "Usage: $(basename ${BASH_SOURCE[0]}) ${HELP[@]}"
+            exit 0
+            ;;
+        -r|--region)
+            aws_cli_args+=(--region "$2")
+            shift 2
+            ;;
+        -p|--profile)
+            aws_cli_args+=(--profile "$2")
+            shift 2
+            ;;
+        -s|--stack-name)
+            STACK_NAME=$2
+            cfn_args+=(--stack-name ${STACK_NAME})
+            shift 2
+            ;;    
+        -t|--template-file)
+            TEMPLATE_FILE=$2
+            cfn_args+=(--template-body file://${TEMPLATE_FILE})
+            shift 2
+            ;;
+        -t|--output-name)
+            OUTPUT_NAME=$2
+            shift 2
+            ;;
+        -d|--dry-run)
+            DRY_RUN=1
+            shift
+            ;;
+        esac
+    done
+}
+parse_args $@
+if [ -z ${STACK_NAME} ]; then
+    echo "[WARNING] Must define a stack name"
+    exit 1;
+fi
+if [ -z ${OUTPUT_NAME} ]; then
+    echo "[WARNING] Must define an output name"
+    exit 1;
+fi
+# Check for AWS CLI
+if ! command -v aws &> /dev/null
+then
+    echo -e "please install aws..."
+    echo -e "see https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html for the installation guide"
+    exit 1
+fi
+
+if [[ DRY_RUN -eq 1 ]]; 
+then
+    echo aws "${aws_cli_args[@]}" cloudformation describe-stacks \
+        --stack-name $STACK_NAME \
+        --query "Stacks[0].Outputs[?OutputKey=='$OUTPUT_NAME'].OutputValue" \
+        --output text
+else
+    aws "${aws_cli_args[@]}" cloudformation describe-stacks \
+        --stack-name $STACK_NAME \
+        --query "Stacks[0].Outputs[?OutputKey=='$OUTPUT_NAME'].OutputValue" \
+        --output text
+fi

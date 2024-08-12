@@ -1,0 +1,75 @@
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: hyperpod-node-manager-role
+rules:
+- resources: ["nodes"]
+  verbs: ["get", "list", "watch", "patch", "update", "delete"]
+  apiGroups: [""]
+- apiGroups: [""]
+  resources: ["nodes/status"]
+  verbs: ["patch"]
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["create"]
+# reference for csr approver permissions: https://github.com/postfinance/kubelet-csr-approver/blob/c5ca70db40ca5002e9d7c047eb7126049b97dbf6/deploy/k8s/clusterrole.yaml
+- apiGroups: ["certificates.k8s.io"]
+  resources: ["certificatesigningrequests"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["certificates.k8s.io"]
+  resources: ["certificatesigningrequests/approval"]
+  verbs: ["update"]
+- apiGroups: ["certificates.k8s.io"]
+  resources: ["signers"]
+  resourceNames: ["kubernetes.io/kubelet-serving"]
+  verbs: ["approve"]
+- apiGroups: ["authorization.k8s.io"]
+  resources: ["subjectaccessreviews"]
+  verbs: ["create"]
+# burn-in test permissions
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["create"]
+# training job watcher permissions
+- apiGroups: [""]
+  resources: ["nodes", "nodes/status", "pods", "pods/status"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["delete", "deletecollection"]
+- apiGroups: [""]
+  resources: ["pods/log"]
+  verbs: ["get", "list"]
+- apiGroups: [""]
+  resources: ["nodes", "nodes/status"]
+  verbs: ["patch"]
+- apiGroups: ["", "events.k8s.io"]
+  resources: ["events"]
+  verbs: ["create", "patch", "update"]
+- apiGroups: ["kubeflow.org"]
+  resources: ["pytorchjobs", "pytorchjobs/status"]
+  verbs: ["get", "list", "watch", "delete", "patch", "update", "describe"]
+- apiGroups: ["batch"]
+  resources: ["jobs"]
+  verbs: ["get", "list", "watch", "create", "delete", "patch", "update", "describe"]
+- apiGroups: ["kubeflow.org"]
+  resources: ["mpijobs", "mpijobs/status"]
+  verbs: ["get", "list", "watch", "create", "delete", "patch", "update", "describe"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+# This role binding allows "jane" to read pods in the "default" namespace.
+# You need to already have a Role named "pod-reader" in that namespace.
+kind: ClusterRoleBinding
+metadata:
+  name: hyperpod-nodes
+  namespace: kube-system
+subjects:
+# You can specify more than one "subject"
+- kind: Group
+  name: hyperpod-node-manager # "name" is case sensitive
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  # "roleRef" specifies the binding to a Role / ClusterRole
+  kind: ClusterRole #this must be Role or ClusterRole
+  name: hyperpod-node-manager-role # this must match the name of the Role or ClusterRole you wish to bind to
+  apiGroup: rbac.authorization.k8s.io

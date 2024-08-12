@@ -1,0 +1,17 @@
+repositories:
+- name: eks-charts
+  url: https://aws.github.io/eks-charts
+- name: nvdp
+  url: https://nvidia.github.io/k8s-device-plugin
+
+releases:
+- name: efa-device-plugin
+  chart: aws-efa-k8s-device-plugin
+  createNamespace: true
+  namespace: kube-system
+  version: v0.5.4
+- name: nvidia-device-plugin
+  chart: nvidia-device-plugin
+  createNamespace: true
+  namespace: nvidia-device-plugin
+  version: 0.16.2

@@ -1,0 +1,208 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'AWS CloudFormation Template for Amazon EKS Cluster'
+
+Parameters:
+
+  ClusterName:
+    Description: EKS Cluster Name
+    Type: String
+
+  SubnetIds:
+    Description: Subnets to attach EKS cluster to
+    Type: List<AWS::EC2::Subnet::Id>
+
+  SecurityGroupId:
+    Description: Security group to attach EKS cluster to
+    Type: AWS::EC2::SecurityGroup::Id
+
+  KubernetesVersion:
+    Description: Kubernetes version to use for EKS cluster
+    Type: String
+    Default: '1.29'
+  
+  ResourceNamePrefix:
+    Description: 'Prefix to be used for all resources created by this template'
+    Type: String
+    Default: 'hyperpod-eks'
+
+Resources:
+
+  ClusterRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: !Sub ${ClusterName}-cluster-role
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - eks.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
+
+  EKSCluster:
+    Type: 'AWS::EKS::Cluster'
+    Properties:
+      Name: !Ref ClusterName
+      Version: !Ref KubernetesVersion
+      RoleArn: !GetAtt ClusterRole.Arn
+      AccessConfig:
+        # For now, HyperPod requires config map to work
+        AuthenticationMode: API_AND_CONFIG_MAP
+      Logging:
+        ClusterLogging:
+          EnabledTypes:
+            - Type: api
+            - Type: audit
+            - Type: authenticator
+            - Type: controllerManager
+            - Type: scheduler
+      ResourcesVpcConfig:
+        SubnetIds: !Ref SubnetIds
+        SecurityGroupIds:
+          - !Ref SecurityGroupId
+
+  VpcCNIAddOn:
+    Type: 'AWS::EKS::Addon'
+    Properties:
+      AddonName: vpc-cni
+      ClusterName: !Ref EKSCluster
+      ResolveConflicts: OVERWRITE
+
+  KubeProxyAddOn:
+    Type: 'AWS::EKS::Addon'
+    Properties:
+      AddonName: kube-proxy
+      ClusterName: !Ref EKSCluster
+      ResolveConflicts: OVERWRITE
+
+  CoreDNSAddOn:
+    Type: 'AWS::EKS::Addon'
+    Properties:
+      AddonName: coredns
+      ClusterName: !Ref EKSCluster
+      ResolveConflicts: OVERWRITE
+
+  PodIdentityAddOn:
+    Type: 'AWS::EKS::Addon'
+    Properties:
+      AddonName: eks-pod-identity-agent
+      ClusterName: !Ref EKSCluster
+      ResolveConflicts: OVERWRITE
+
+  ExecutionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - sagemaker.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/AmazonSageMakerClusterInstanceRolePolicy'
+        - 'arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess'
+        - 'arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy'
+      Policies:
+        - PolicyName: !Sub '${ResourceNamePrefix}-SageMakerClustersExecutionRolePolicy.'
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "ec2:CreateNetworkInterface"
+                  - "ec2:CreateNetworkInterfacePermission"
+                  - "ec2:DeleteNetworkInterface"
+                  - "ec2:DeleteNetworkInterfacePermission"
+                  - "ec2:DescribeNetworkInterfaces"
+                  - "ec2:DescribeVpcs"
+                  - "ec2:DescribeDhcpOptions"
+                  - "ec2:DescribeSubnets"
+                  - "ec2:DescribeSecurityGroups"
+                  - "ec2:DetachNetworkInterface" 
+                  - "ecr:GetAuthorizationToken"
+                  - "ecr:BatchGetImage"
+                  - "ecr:GetDownloadUrlForLayer"
+                  - "ec2:AssignPrivateIpAddresses"
+                  - "ec2:UnassignPrivateIpAddresses"
+                  - "eks-auth:AssumeRoleForPodIdentity"
+                Resource:
+                  - "*"
+              - Effect: Allow
+                Action:
+                  - 'ec2:CreateTags'
+                Resource: 
+                  - "arn:aws:ec2:*:*:network-interface/*"
+      RoleName: !Sub '${ResourceNamePrefix}-ExecutionRole'
+
+  ServiceRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - hyperpod.sagemaker.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      Policies:
+        - PolicyName: !Sub '${ResourceNamePrefix}-EKS-ReadOnly'
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'eks:DescribeCluster'
+                Resource: '*'
+        - PolicyName: 'SageMakerWriteLogAccess'
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'logs:CreateLogStream'
+                  - 'logs:CreateLogGroup'
+                  - 'logs:PutLogEvents'
+                Resource: !Sub 'arn:aws:logs:*:${AWS::AccountId}:log-group:/aws/sagemaker/Clusters/*'
+      RoleName: !Sub '${ResourceNamePrefix}-HyperPodServiceRoleAlternative'
+
+  Bucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Sub '${ResourceNamePrefix}-bucket-${AWS::AccountId}-${AWS::Region}'
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+
+Outputs:
+  ClusterArn:
+    Description: The ARN of the EKS cluster
+    Value: !GetAtt EKSCluster.Arn
+
+  ClusterName:
+    Description: The name of the EKS cluster
+    Value: !Ref EKSCluster
+
+  ExecutionRole:
+    Description: 'Execution Role Arn'
+    Value: !GetAtt ExecutionRole.Arn
+
+  ServiceRole:
+    Description: 'Execution Role Arn'
+    Value: !GetAtt ServiceRole.Arn
+
+  Bucket:
+    Description: 'Bucket Name'
+    Value: !Ref Bucket
