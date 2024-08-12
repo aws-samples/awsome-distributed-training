@@ -19,6 +19,7 @@ from datasets import load_dataset
 
 from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 from torch.distributed.fsdp import MixedPrecision
+from torch.distributed.fsdp import ShardingStrategy
 from torch.distributed.fsdp.wrap import size_based_auto_wrap_policy, transformer_auto_wrap_policy
 from torch.utils.data import DataLoader
 
@@ -31,36 +32,12 @@ from model_utils.train_utils import (get_model_config,
                                    apply_activation_checkpoint,
                                    get_param_groups_by_weight_decay,
                                    get_logger,
-                                   get_learning_rate_scheduler)
+                                   get_learning_rate_scheduler,
+                                   create_streaming_dataloader)
 from model_utils.checkpoint import save_checkpoint, load_checkpoint
 from model_utils.arguments import parse_args
 
 logger = get_logger()
-
-
-def create_streaming_dataloaders(dataset, 
-                      tokenizer, 
-                      global_rank=0, 
-                      train_batch_size=1, 
-                      val_batch_size=1, 
-                      max_context_width=4096,
-                      workers=4):
-    tokenizer = AutoTokenizer.from_pretrained(tokenizer)
-    data = load_dataset(dataset, 'en', streaming=True).shuffle(42+global_rank)
-    train_concat_dataset = ConcatTokensDataset(data['train'], tokenizer, max_context_width, True)
-    val_concat_dataset = ConcatTokensDataset(data['validation'], tokenizer, max_context_width, True)
-    train_dataloader = iter(DataLoader(train_concat_dataset, 
-                                       batch_size=train_batch_size, 
-                                       num_workers=workers, 
-                                       pin_memory=True, 
-                                       prefetch_factor=4))
-    val_dataloader = iter(DataLoader(val_concat_dataset, 
-                                     batch_size=val_batch_size, 
-                                     num_workers=workers, 
-                                     pin_memory=True, 
-                                     prefetch_factor=4))
-    return train_dataloader, val_dataloader
-
 
 def eval_model(model, dataloader, num_batches):
     """Eval step."""
@@ -123,7 +100,7 @@ def train(
             current_lr = lr_scheduler.get_lr()
             if global_rank==0 and batch_idx%args.logging_freq==0:
                 logger.info(
-                    "Batch %d Loss: %s, Speed: %.2f samples/sec, lr: %.6f",  # pylint: disable=line-too-long
+                    "Batch %d Loss: %.5f, Speed: %.2f samples/sec, lr: %.6f",  # pylint: disable=line-too-long
                     batch_idx,
                     loss_scalar,
                     throughput,
@@ -178,7 +155,16 @@ def main(args):
         logger.info(
             "Creating Model"
         )
-    model = AutoModelForCausalLM.from_config(model_config)
+    # Instantiate model on CPU on rank=0 only to prevent CPU OOM
+    # (e.g. 70B * 4 bytes * 8 processes > 2T RAM available on P5)
+    if global_rank == 0:
+        model = AutoModelForCausalLM.from_config(model_config)
+    else:
+        with torch.device("meta"):
+            # Instantiating model on `meta` device doesn't consume CPU memory,
+            # but requires specifing `param_init_fn=...`
+            # and `sync_module_states=True` in FSDP c-tor.
+            model = AutoModelForCausalLM.from_config(model_config)
     
     num_params = compute_num_params(model)
     if global_rank == 0:
@@ -199,13 +185,24 @@ def main(args):
         param_dtype=dtype, reduce_dtype=dtype, buffer_dtype=dtype
     )
 
+    if args.sharding_strategy=="full":
+        sharding_strategy = ShardingStrategy.FULL_SHARD
+    elif args.sharding_strategy=="hybrid":
+        sharding_strategy = ShardingStrategy.HYBRID_SHARD
+    else:
+        raise NotImplementedError("Available sharding strategies are full and hybrid")
+
     model = FSDP(
         model,
         auto_wrap_policy=gpt_auto_wrap_policy,
         mixed_precision=mixed_precision_policy,
         limit_all_gathers=args.limit_all_gathers,
         device_id=torch.cuda.current_device(),
-        use_orig_params=False
+        use_orig_params=False,
+        sharding_strategy=sharding_strategy,
+        sync_module_states=True,
+        param_init_fn=(lambda module: module.to_empty(device=torch.device("cuda"), recurse=False))
+        if global_rank != 0 else None,
     )
 
     if global_rank == 0:
@@ -246,14 +243,18 @@ def main(args):
     else:
         total_steps = 0
         start_batch_index = 0
-
-    train_dataloader, val_dataloader = create_streaming_dataloaders(dataset=args.dataset_path, 
-                                                          tokenizer=args.tokenizer, 
-                                                          global_rank=global_rank, 
-                                                          train_batch_size=args.train_batch_size, 
-                                                          val_batch_size=args.val_batch_size, 
-                                                          max_context_width=args.max_context_width,
-                                                          workers=4)
+    
+    train_dataloader = create_streaming_dataloader(args.dataset, 
+                                                   args.tokenizer, 
+                                                   name=args.dataset_config_name, 
+                                                   batch_size=args.train_batch_size, 
+                                                   split='train')
+    
+    val_dataloader = create_streaming_dataloader(args.dataset, 
+                                                  args.tokenizer, 
+                                                  name=args.dataset_config_name, 
+                                                  batch_size=args.train_batch_size, 
+                                                  split='validation')
     
     train(model, 
           optimizer, 

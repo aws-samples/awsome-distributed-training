@@ -11,6 +11,7 @@ except ModuleNotFoundError:
     pass
 
 print(f"{torch.cuda.is_available()=}")
+print(f"{torch.version.cuda=}")
 print(f"{torch.backends.cuda.is_built()=}")
 print(f"{torch.backends.cuda.matmul.allow_tf32=}")
 print(f"{torch.backends.cuda.matmul.allow_fp16_reduced_precision_reduction=}")
@@ -31,10 +32,13 @@ print(f"{torch.backends.mkl.is_available()=}")
 print(f"{torch.backends.mkldnn.is_available()=}")
 
 print(f"{torch.backends.openmp.is_available()=}")
-print(f"{torch.backends.opt_einsum.is_available()=}")
-print(f"{torch.backends.opt_einsum.get_opt_einsum()=}")
-print(f"{torch.backends.opt_einsum.enabled=}")
-print(f"{torch.backends.opt_einsum.strategy=}")
+try:
+    print(f"{torch.backends.opt_einsum.is_available()=}")
+    print(f"{torch.backends.opt_einsum.get_opt_einsum()=}")
+    print(f"{torch.backends.opt_einsum.enabled=}")
+    print(f"{torch.backends.opt_einsum.strategy=}")
+except AttributeError:
+    pass
 
 print(f"{torch.distributed.is_available()=}")
 print(f"{torch.distributed.is_mpi_available()=}")

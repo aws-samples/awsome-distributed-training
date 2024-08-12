@@ -1,6 +1,6 @@
 # ML Training Reference Architectures & Tests <!-- omit from toc -->
 
-This repository contains reference architectures and test cases for distributed model training with [AWS ParallelCluster](https://docs.aws.amazon.com/parallelcluster/latest/ug/what-is-aws-parallelcluster.html), [AWS Batch](https://docs.aws.amazon.com/batch/latest/userguide/what-is-batch.html), and [Amazon EKS](https://docs.aws.amazon.com/eks/latest/userguide/getting-started-console.html). The test cases cover different types and sizes of models as well as different frameworks and parallel optimizations (Pytorch DDP/FSDP, MegatronLM, NemoMegatron...).
+This repository contains reference architectures and test cases for distributed model training with [Amazon SageMaker Hyperpod](https://docs.aws.amazon.com/sagemaker/latest/dg/sagemaker-hyperpod.html), [AWS ParallelCluster](https://docs.aws.amazon.com/parallelcluster/latest/ug/what-is-aws-parallelcluster.html), [AWS Batch](https://docs.aws.amazon.com/batch/latest/userguide/what-is-batch.html), and [Amazon EKS](https://docs.aws.amazon.com/eks/latest/userguide/getting-started-console.html). The test cases cover different types and sizes of models as well as different frameworks and parallel optimizations (Pytorch DDP/FSDP, MegatronLM, NemoMegatron...).
 
 The major components of this directory are:
 
@@ -15,6 +15,16 @@ reference-architectures/
 
 **NOTE**: the architectures are designed to work with the S3 bucket and VPC created using reference templates `1.architectures/0.s3/` and `1.architectures/1.vpc_network/`. _You're strongly recommended to deploy these two templates **before** deploying any of the reference architectures._
 
+## 0. Workshops
+
+You can follow the workshop below to train models on AWS. Each contains examples for several test cases as well as nuggets of information on operating a cluster for LLM training.
+
+| Name                                                                           | Comments
+| ------------------------------------------------------------------------------ | ------------------------------------------------------------------- |
+| [Amazon SageMaker HyperPod](https://catalog.workshops.aws/sagemaker-hyperpod/en-US)   | Workshop for SageMaker HyperPod, shows how to deploy and monitor it |
+| [AWS ParallelCluster](https://catalog.workshops.aws/ml-on-aws-parallelcluster) | Similar workshop as HyperPod but on ParallelCluster                 |
+
+
 ## 1. Architectures
 
 Architectures are located in `1.architectures` and consists of utilities and service related architectures.
@@ -28,7 +38,7 @@ Architectures are located in `1.architectures` and consists of utilities and ser
 | [`4.amazon-eks`](./1.architectures/4.amazon-eks)                   | Compute  | Manifest files to train with Amazon EKS             |
 | [`5.sagemaker-hyperpod`](./1.architectures/5.sagemaker-hyperpod)   | Compute  | SageMaker HyperPod template for distributed training|
 
-More will come, feel free to add new ones (EKS, Ray?). You will also find [documentation](./1.architectures/efa-cheatsheet.md) for EFA and the recommended environment variables.
+More will come, feel free to add new ones (ex. Ray?). You will also find [documentation](./1.architectures/efa-cheatsheet.md) for EFA and the recommended environment variables.
 
 ## 2. Custom Amazon Machine Images
 
@@ -38,21 +48,39 @@ Custom machine images can be built using [Packer](www.packer.io) for AWS Paralle
 
 All test cases are under `3.test_cases/`. You can go in each test case directory to learn how to run it.
 
-| Test cases                                                            | Slurm | Kubernetes  | AWS Batch  |
-| --------------------------------------------------------------------- | ----- | ----------- | ---------- |
-| [`1.megatron-lm`](./3.test_cases/1.megatron-lm)                       |  ✅   | ❓          | ❓         |
-| [`2.nemo-launcher`](./3.test_cases/2.nemo-launcher)                   |  ✅   | ❌          | ❌         |
-| [`3.MPT`](./3.test_cases/3.MPT)                                       |  ✅   | ❓          | ❓         |
-| [`4.DDP`](./3.test_cases/4.DDP)                                       |  ✅   | ❓          | ❓         |
-| [`5.param-benchmark`](./3.test_cases/5.param-benchmark)               |  ✅   | ❓          | ❓         |
-| [`6.stable-diffusion`](./3.test_cases/6.stable-diffusion)             |  ✅   | ❓          | ❓         |
-| [`7.tensorflow-distributed`](./3.test_cases/7.tensorflow-distributed) |  ✅   | ❓          | ❓         |
-| [`8.neuronx-nemo-megatron`](./3.test_cases/8.neuronx-nemo-megatron)   |  ✅   | ❓          | ❓         |
-| [`10.FSDP`](./3.test_cases/10.FSDP)                                   |  ✅   | ❓          | ❓         |
+| Test cases                                                                    | Slurm | Kubernetes  | AWS Batch  |
+| ----------------------------------------------------------------------------- | ----- | ----------- | ---------- |
+| [`1.megatron-lm`](./3.test_cases/1.megatron-lm)                               |  ✅   | ✅          | ❓         |
+| [`2.nemo-launcher`](./3.test_cases/2.nemo-launcher)                           |  ✅   | ✅          | ❌         |
+| [`3.MPT`](./3.test_cases/3.MPT)                                               |  ✅   | ❓          | ❓         |
+| [`4.DDP`](./3.test_cases/4.DDP)                                               |  ✅   | ❓          | ❓         |
+| [`5.param-benchmark`](./3.test_cases/5.param-benchmark)                       |  ✅   | ❓          | ❓         |
+| [`6.stable-diffusion`](./3.test_cases/6.stable-diffusion)                     |  ✅   | ✅          | ❓         |
+| [`7.tensorflow-distributed`](./3.test_cases/7.tensorflow-distributed)         |  ✅   | ❓          | ❓         |
+| [`10.FSDP`](./3.test_cases/10.FSDP)                                           |  ✅   | ✅          | ❓         |
+| [`11.modelparallel`](./3.test_cases/11.modelparallel)                         |  ✅   | ❓          | ❓         |
+| [`12.SM-dataparallel-FSDP`](./3.test_cases/12.SM-dataparallel-FSDP)           |  ✅   | ❓          | ❓         |
+| [`13.SM-dataparallel-deepspeed`](./3.test_cases/13.SM-dataparallel-deepspeed) |  ✅   | ❓          | ❓         |
+| [`14.bionemo`](./3.test_cases/14.bionemo)                                     |  ✅   | ❓          | ❓         |
+| [`15.gpt-neox`](./3.test_cases/15.gpt-neox)                                   |  ✅   | ❓          | ❓         |
+| [`16.pytorch-cpu-ddp`](./3.test_cases/16.pytorch-cpu-ddp)                     |  ✅   | ✅          | ❓         |
+| [`17.SM-modelparallelv2`](./3.test_cases/17.SM-modelparallelv2)               |  ✅   | ❓          | ❓         |
+| [`18.deepspeed`](./3.test_cases/18.deepspeed)                                 |  ✅   | ❓          | ❓         |
+| [`jax`](./3.test_cases/jax)                                                   |  ✅   | ❓          | ❓         |
 
 ## 4. Validation scripts
 
-Utilities scripts and micro-benchmarks examples are set under `4.validation_scripts/`.
+Utilities scripts and micro-benchmarks examples are set under `4.validation_scripts/`. The EFA Prometheus exporter can be found in this [directory](./4.validation_and_observability/3.efa-node-exporter) 
+
+
+| Name                                                                                    | Comments                                                        |
+| --------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| [`1.pytorch-env-validation`](./4.validation_and_observability/1.pytorch-env-validation) | Validates your PyTorch environment                              |
+| [`3.efa-node-exporter`](./4.validation_and_observability/3.efa-node-exporter)           | Node exporter with Amazon EFA monitoring modules                |
+| [`4.prometheus-grafana`](./4.validation_and_observability/4.prometheus-grafana)         | Deployment assets to monitor SageMaker Hyperpod Clusters        |
+| [`5.nsight`](./4.validation_and_observability/5.nsight)                                 | Shows how to run Nvidia Nsight Systems to profile your workload |
+| [`efa-versions.py`](./1.architectures/efa-versions.py)                                  | Get the versions of Nvidia libraries, drivers and EFA drivers   |
+
 
 ## 5. CI
 

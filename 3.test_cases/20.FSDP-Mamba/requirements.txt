@@ -1,0 +1,8 @@
+mamba-ssm
+causal-conv1d==1.2.0.post1
+transformers==4.39.0
+datasets
+mosaicml-streaming
+bitsandbytes
+pynvml
+wandb

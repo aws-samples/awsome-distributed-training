@@ -1,0 +1,42 @@
+version: 0.2
+
+env:
+  variables:
+    GDRCOPY_VERSION: "v2.4.1"
+    EFA_INSTALLER_VERSION: "1.33.0"
+    AWS_OFI_NCCL_VERSION: "1.9.2-aws"
+    NCCL_VERSION: "v2.21.5-1"
+    NCCL_TESTS_VERSION: "v2.13.9"
+  exported-variables:
+    - GDRCOPY_VERSION
+    - EFA_INSTALLER_VERSION
+    - AWS_OFI_NCCL_VERSION
+    - NCCL_VERSION
+    - NCCL_TESTS_VERSION
+phases:
+  pre_build:
+    commands:
+      - export TAG="efa${EFA_INSTALLER_VERSION}-ofi${AWS_OFI_NCCL_VERSION}-nccl${NCCL_VERSION}-tests${NCCL_TESTS_VERSION}"
+      - echo "TAG=$TAG"
+      - export REPO_COUNT="$(aws ecr describe-repositories | grep repositoryName | grep \"${ECR_REPOSITORY_NAME}\" | wc -l)"
+      - if [ "$REPO_COUNT" == 0 ]; then aws ecr create-repository --repository-name ${ECR_REPOSITORY_NAME}; else echo "Repository ${ECR_REPOSITORY_NAME} already exists"; fi
+  build:
+    commands:
+      - export REPO_URI="$(aws ecr describe-repositories | grep repositoryUri | grep /${ECR_REPOSITORY_NAME}\" | cut -d '"' -f 4)"
+      - echo "REPO_URI=$REPO_URI"
+      - echo "Building ${REPO_URI}:${TAG} ..."
+      - cd micro-benchmarks/nccl-tests && docker image build --build-arg GDRCOPY_VERSION=$GDRCOPY_VERSION --build-arg EFA_INSTALLER_VERSION=$EFA_INSTALLER_VERSION --build-arg AWS_OFI_NCCL_VERSION=$AWS_OFI_NCCL_VERSION --build-arg NCCL_VERSION=$NCCL_VERSION --build-arg NCCL_TESTS_VERSION=$NCCL_TESTS_VERSION -t ${REPO_URI}:${TAG} -f ./nccl-tests.Dockerfile .
+  post_build:
+    commands:
+      - export ECR_URI=${REPO_URI%"/${ECR_REPOSITORY_NAME}"}
+      - echo "Logging in to ECR_URI $ECR_URI"
+      - aws ecr get-login-password | docker login --username AWS --password-stdin ${ECR_URI}
+      - docker image push ${REPO_URI}:${TAG}
+      - docker image tag ${REPO_URI}:${TAG} ${REPO_URI}:latest
+      - docker image push ${REPO_URI}:latest
+      - aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws
+      - docker image tag ${REPO_URI}:${TAG} public.ecr.aws/hpc-cloud/${ECR_REPOSITORY_NAME}:${TAG}
+      - docker image tag ${REPO_URI}:${TAG} public.ecr.aws/hpc-cloud/${ECR_REPOSITORY_NAME}:latest
+      - docker push public.ecr.aws/hpc-cloud/${ECR_REPOSITORY_NAME}:${TAG}
+      - docker push public.ecr.aws/hpc-cloud/${ECR_REPOSITORY_NAME}:latest
+

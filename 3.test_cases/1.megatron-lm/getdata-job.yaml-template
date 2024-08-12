@@ -1,0 +1,31 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: getdata-job
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: getdata-job
+        image: ${REGISTRY}megatron-training:latest
+        command: ["/bin/bash", "-c"]
+        args: 
+          - mkdir -p /fsx/gpt2;
+            cd /fsx/gpt2; 
+            wget https://huggingface.co/bigscience/misc-test-data/resolve/main/stas/oscar-1GB.jsonl.xz;
+            wget https://s3.amazonaws.com/models.huggingface.co/bert/gpt2-vocab.json;
+            wget https://s3.amazonaws.com/models.huggingface.co/bert/gpt2-merges.txt;
+            xz -d oscar-1GB.jsonl.xz;
+            ls -alh /fsx/gpt2;
+            echo "Download completed."
+        volumeMounts:
+        - name: fsx-pv
+          mountPath: /fsx
+        resources:
+          limits:
+            nvidia.com/gpu: 1
+      volumes:
+      - name: fsx-pv
+        persistentVolumeClaim:
+          claimName: fsx-pvc

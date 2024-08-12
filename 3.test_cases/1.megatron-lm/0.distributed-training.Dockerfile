@@ -3,8 +3,8 @@
 
 FROM nvcr.io/nvidia/pytorch:23.09-py3
 
-ARG EFA_INSTALLER_VERSION=1.28.0
-ARG AWS_OFI_NCCL_VERSION=v1.7.3-aws
+ARG EFA_INSTALLER_VERSION=1.30.0
+ARG AWS_OFI_NCCL_VERSION=v1.7.4-aws
 ARG OPEN_MPI_PATH=/opt/amazon/openmpi
 
 ######################
@@ -18,11 +18,6 @@ RUN rm -rf /opt/hpcx/ompi \
     && rm -rf /usr/local/mpi \
     && rm -rf /usr/local/ucx \
     && ldconfig
-
-######################
-# Add enviroment variable for processes to be able to call fork()
-######################
-ENV RDMAV_FORK_SAFE=1
 
 RUN DEBIAN_FRONTEND=noninteractive apt install -y --allow-unauthenticated \
     git \
@@ -88,8 +83,8 @@ RUN rm -rf /var/lib/apt/lists/*
 RUN echo "hwloc_base_binding_policy = none" >> /opt/amazon/openmpi/etc/openmpi-mca-params.conf \
  && echo "rmaps_base_mapping_policy = slot" >> /opt/amazon/openmpi/etc/openmpi-mca-params.conf
 
-RUN pip3 install awscli 
-RUN pip3 install pynvml 
+RUN pip3 install awscli
+RUN pip3 install pynvml
 
 RUN mv $OPEN_MPI_PATH/bin/mpirun $OPEN_MPI_PATH/bin/mpirun.real \
  && echo '#!/bin/bash' > $OPEN_MPI_PATH/bin/mpirun \
@@ -99,18 +94,14 @@ RUN mv $OPEN_MPI_PATH/bin/mpirun $OPEN_MPI_PATH/bin/mpirun.real \
 ######################
 # Transformers dependencies used in the model
 ######################
-RUN pip install transformers==4.21.0
+RUN pip install transformers==4.21.0 sentencepiece python-etcd
 
 #####################
 # Install megatron-lm
 #####################
-RUN cd /workspace && git clone https://github.com/NVIDIA/Megatron-LM.git \
+RUN cd /workspace && git clone --depth 1 --branch core_v0.4.0 https://github.com/NVIDIA/Megatron-LM.git \
 	&& cd Megatron-LM \
 	&& python3 -m pip install nltk  \
 	&& python -m pip install .
-	
+
 WORKDIR /workspace/Megatron-LM
-
-
-
-
