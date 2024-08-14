@@ -1,0 +1,44 @@
+{
+    "ClusterName": "ml-cluster",
+    "Orchestrator": {
+        "Eks": {
+            "ClusterArn": "arn:aws:eks:us-east-2:159553542841:cluster/hyperpod-cluster"
+        }
+    },
+    "InstanceGroups": [
+        {
+            "InstanceGroupName": "worker-group-1",
+            "InstanceType": "ml.g5.12xlarge",
+            "InstanceCount": 2,
+            "LifeCycleConfig": {
+                "SourceS3Uri": "s3://hyperpod-eks-bucket-159553542841-us-east-2",
+                "OnCreate": "on_create.sh"
+            },
+            "ExecutionRole": "arn:aws:iam::159553542841:role/hyperpod-eks-ExecutionRole",
+            "ThreadsPerCore": 1,
+            "EnableBurnInTest": true
+        },
+        {
+            "InstanceGroupName": "worker-group-2",
+            "InstanceType": "ml.m5.2xlarge",
+            "InstanceCount": 2,
+            "LifeCycleConfig": {
+                "SourceS3Uri": "s3://hyperpod-eks-bucket-159553542841-us-east-2",
+                "OnCreate": "on_create.sh"
+            },
+            "ExecutionRole": "arn:aws:iam::159553542841:role/hyperpod-eks-ExecutionRole",
+            "ThreadsPerCore": 1
+        }
+    ],
+    "VpcConfig": {
+        "SecurityGroupIds": [
+            "sg-038fbd3b37d8717bd"
+        ],
+        "Subnets": [
+            "subnet-0090e6a155032e25d"
+        ]
+    },
+    "ResilienceConfig": {
+        "EnableNodeAutoRecovery": true
+    }
+}
