@@ -313,6 +313,64 @@ The example is based on the GPT3 example from MegatronLM's [repository](https://
 | 145.6B     | `NUM_ATTENTION_HEADS=96 HIDDEN_SIZE=12288 NUM_LAYERS=80`  |
 | 310.1B     | `NUM_ATTENTION_HEADS=128 HIDDEN_SIZE=16384 NUM_LAYERS=96` |
 
+## 4. Appendix
+
+### 4.1. Benchmark mode
+
+To run in benchmark mode (i.e., train only, no validation and test), apply these changes to `2.distributed-training.sbatch` when calling `pretrain_gpt.py`:
+
+```diff
+-        --eval-iters 40 \
+-        --eval-interval 1000 \
+-        --split 98,2,0 \
++        --eval-iters 0 \
++        --split 100,0,0 \
+```
+
+Incorrect settings will cause this error message to appear in the Slurm output:
+
+```text
+Traceback (most recent call last):
+  File "/workspace/Megatron-LM/pretrain_gpt.py", line 198, in <module>
+    pretrain(train_valid_test_datasets_provider,
+  File "/workspace/Megatron-LM/megatron/training.py", line 227, in pretrain
+    = build_train_valid_test_data_iterators(
+  File "/workspace/Megatron-LM/megatron/training.py", line 1283, in build_train_valid_test_data_iterators
+    build_train_valid_test_data_loaders(
+  File "/workspace/Megatron-LM/megatron/training.py", line 1244, in build_train_valid_test_data_loaders
+    train_ds, valid_ds, test_ds = build_train_valid_test_datasets(
+  File "/workspace/Megatron-LM/megatron/training.py", line 1214, in build_train_valid_test_datasets
+    return build_train_valid_test_datasets_provider(train_val_test_num_samples)
+  File "/workspace/Megatron-LM/pretrain_gpt.py", line 186, in train_valid_test_datasets_provider
+    ).build()
+  File "/workspace/Megatron-LM/megatron/core/datasets/blended_megatron_dataset_builder.py", line 56, in build
+    return self._build_blended_dataset_splits()
+  File "/workspace/Megatron-LM/megatron/core/datasets/blended_megatron_dataset_builder.py", line 76, in _build_blended_dataset_splits
+    return self._build_megatron_dataset_splits(blend[0], split, self.sizes)
+  File "/workspace/Megatron-LM/megatron/core/datasets/blended_megatron_dataset_builder.py", line 216, in _build_megatron_dataset_splits
+    self.build_generic_dataset(
+  File "/workspace/Megatron-LM/megatron/core/datasets/blended_megatron_dataset_builder.py", line 258, in build_generic_dataset
+    dataset = cls(*args)
+  File "/workspace/Megatron-LM/megatron/core/datasets/gpt_dataset.py", line 68, in __init__
+    super().__init__(indexed_dataset, indexed_indices, num_samples, index_split, config)
+  File "/workspace/Megatron-LM/megatron/core/datasets/megatron_dataset.py", line 42, in __init__
+    assert num_samples > 0
+AssertionError
+```
+
+### 4.2. Adjust training steps
+
+By default, the .sbatch scripts specify the number of samples, then the number of training steps equals to `--train_samples` / `--global-batch-size`. To directly specify the number of steps, apply these changes to `2.distributed-training.sbatch` when calling `pretrain_gpt.py`. Note that `samples` and `iters` are mutually exclusive.
+
+```diff
+-        --train-samples 146484375 \
+-        --lr-decay-samples 126953125 \
+-        --lr-warmup-samples 183105 \
++        --train-iters 50 \
++        --lr-decay-iters 45 \
++        --lr-warmup-iters 2 \
+```
+=======
 
 Following the same pattern, you can train other models. Pretraining scripts for models like 
 Bert, ICT, and T5 are already included in the Megatron-LM container under `/workspace/Megatron-LM`. 
@@ -345,3 +403,4 @@ sbatch 4.pre-train-llama2.sbatch
 ```
 
 Tips: the Llama2 example prints the estimated FLOPS/GPU (enabled via `--log-throughput` in the pretrain `.sbatch` file). You might want to look at [PR-682](https://github.com/NVIDIA/Megatron-LM/pull/682) and decide whether to patch your Megatron-LM to adjust the way FLOPS/GPU is calculated.
+

@@ -65,7 +65,7 @@ envsubst < ./efa-exporter-values-temp.yaml > efa-exporter-values.yaml
 Next you can install the chart as below:
 
 ```bash
-helm install efa-node-exporter -f values.yaml prometheus-community/prometheus-node-exporter
+helm install efa-node-exporter -f efa-exporter-values.yaml prometheus-community/prometheus-node-exporter
 ```
 Once done you can see the chart as below:
 
