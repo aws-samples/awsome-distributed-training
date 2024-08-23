@@ -6,62 +6,45 @@ The guide assumes that you have the following:
 * An FSx for Lustre filesystem mounted on `/fsx`.
 * `enroot` if you want to run the container example.
 
-We recommend that you setup a Slurm cluster using the templates in the architectures [directory](../../1.architectures).  The following instruction describes how to run bionemo using conda environment or docker container.
+We recommend that you setup a Slurm cluster using the templates in the architectures [directory](../../1.architectures). Throughout the instruction, we assume that you have set following enviroment variables. 
 
-
-```
-export PYTHON_VERSION=3.10
+```bash
 # We are using Python version 3.10 in this work. For a different Python version select the right Miniconda file from https://repo.anaconda.com/miniconda/
+export FSX_PATH=/fsx
+export TEST_CASE_PATH=${FSX_PATH}/awsome-distributed-training/3.test_cases/14.bionemo/slurm
+# If you want to run the example using container
+export BIONEMO_VERSION=1.7
+export DOCKER_IMAGE_NAME=bionemo-framework-aws
+export ENROOT_IMAGE=/fsx/apps/${DOCKER_IMAGE_NAME}
+# If you want to run the test case using conda
+export PYTHON_VERSION=3.10
 export MINICONDA_INSTALLER=Miniconda3-py310_23.5.2-0-Linux-x86_64
-export TARGET_PATH=/apps/bionemo-src   # Must be a shared filesystem. This is where Nemo launcher scripts will reside.
-export DOCKER_IMAGE_NAME=bionemo
-export TAG=latest
-export ENROOT_IMAGE=/apps/${DOCKER_IMAGE_NAME}
-export DATASET_PATH=/fsx/
 ```
 
-## 1.4. Pull this github repo
+## 1. Container
+
+This section provides guide to run bionemo using [BioNeMo Framework container](https://catalog.ngc.nvidia.com/orgs/nvidia/teams/clara/containers/bionemo-framework).
+
+## 1.1 Get access to container
+
+1. You have a registered account with Nvidia and can access NGC. Retrieve the NGC API key following [instructions from Nvidia](https://docs.nvidia.com/ngc/gpu-cloud/ngc-user-guide/index.html#generating-api-key) and request access [here](https://developer.nvidia.com/nemo-framework/join) in order to be able to pull NeMo images.
+2. Configure NGC as shown below using the command below, when requested use `$oauthtoken` for the login and the API key from NGC fro the password.
 
 ```bash
-cd /apps/
-git clone https://github.com/aws-samples/awsome-distributed-training.git
-cp -r /apps/awsome-distributed-training/3.test_cases/14.bionemo/* ./apps/
+docker login nvcr.io
 ```
-
-## 2. Pull Image
-
+You can verify tp
 ```bash
-cd /apps/
-docker pull nvcr.io/nvidia/clara/bionemo-framework:1.2
+docker pull nvcr.io/nvidia/clara/bionemo-framework:${BIONEMO_VERSION}
 ```
-
-## 3. Create Conda env
-We need a conda environment that has the necessary dependencies for submitting multiple arrays of slurm jobs via [HYDRA](https://github.com/facebookresearch/hydra) which NeMo uses to configuring both NeMo models and the PyTorch Lightning Trainer. 
-```
-# Miniconda is already installed if you are using the DLAMI but needs installation with Base AMI
-
-wget -O miniconda.sh "https://repo.anaconda.com/miniconda/${MINICONDA_INSTALLER}.sh" \
-    && bash miniconda.sh -b -p /apps/.conda \
-          &&  /apps/.conda/bin/conda init bash  
-
-source ~/.bashrc    
-conda create --name bionemo python=${PYTHON_VERSION}
-
-source activate bionemo
-
-pip3 install -r requirements.txt
-
-```
-All package versions in the above `requirements.txt` file is recommended from Nvidia. An older version of the package `opencv-python-headless==4.8.0.74` has to be installed to avoid this [error](https://github.com/rom1504/img2dataset/issues/355) with [img2dataset](https://github.com/rom1504/img2dataset) package.
-
-
 
 ## 4. Build customized docker image
-To achieve target performance of Nemo-Multimodal with EFA on P5 and P4de instances, we provide a customized 
-`3.test_cases/14.nemo-multimodal/0.Dockerfile` and we can build a image like below:
+To achieve optimal performance on AWS, we 
 
 ```
-docker build -t ${DOCKER_IMAGE_NAME}:${TAG} -f 0.Dockerfile .
+pushd ..
+docker build -t ${DOCKER_IMAGE_NAME}:${BIONEMO_VERSION} -f bionemo.Dockerfile .
+popd
 ```
 
 ## 5. Convert image
@@ -109,3 +92,26 @@ Once the above image is pulled, you can run the container on the head node like 
 ```
  docker run -it nvcr.io/nvidia/clara/bionemo-framework:latest bash
 ```
+
+## 2. Conda
+The following instruction describes how to run bionemo using conda environment or docker container.
+
+
+## 3. Create Conda env
+We need a conda environment that has the necessary dependencies for submitting multiple arrays of slurm jobs via [HYDRA](https://github.com/facebookresearch/hydra) which NeMo uses to configuring both NeMo models and the PyTorch Lightning Trainer. 
+```
+# Miniconda is already installed if you are using the DLAMI but needs installation with Base AMI
+
+wget -O miniconda.sh "https://repo.anaconda.com/miniconda/${MINICONDA_INSTALLER}.sh" \
+    && bash miniconda.sh -b -p /apps/.conda \
+          &&  /apps/.conda/bin/conda init bash  
+
+source ~/.bashrc    
+conda create --name bionemo python=${PYTHON_VERSION}
+
+source activate bionemo
+
+pip3 install -r requirements.txt
+
+```
+All package versions in the above `requirements.txt` file is recommended from Nvidia. An older version of the package `opencv-python-headless==4.8.0.74` has to be installed to avoid this [error](https://github.com/rom1504/img2dataset/issues/355) with [img2dataset](https://github.com/rom1504/img2dataset) package.
