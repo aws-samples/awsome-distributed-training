@@ -270,7 +270,7 @@ ls /fsx/ubuntu/llama3_70B/pretrained_weight/model/dp_rank_*_tp_rank_*_pp_rank_*.
 ```
 
 As mentioned in the introduction of this section, the sharding ought to take hardware and cluster setup into account. Specifically, in our example, we have 16 trn1.32xlarge instances deployed on the HyperPod cluster. Each trn1.32xlarge instance has 16 Trainium Neuron Devices, each with 2 NeuronCore-v2, totaling 32 NeuronCore-v2 per instance, and 512 NeuronCore-v2 in the entire cluster.
-We divide the Llama3-70B model’s 80 layers into different stages, each containing the first 10 layers, second 10 layers, ..., 10th 10 layers, and assign them to 8 Trn1 instances. Each stage is further split with Tensor Parallelism, dividing the stage’s parameters across 32 NeuronCore-v2. Since we will have two replicas of the sharded models, we employ data parallelism with a degree of two to speed up the training process.
+We divide the Llama3-70B model’s 80 layers into different stages, each containing the first 10 layers, second 10 layers, ..., 8th 10 layers, and assign them to 8 Trn1 instances. Each stage is further split with Tensor Parallelism, dividing the stage’s parameters across 32 NeuronCore-v2. Since we will have two replicas of the sharded models, we employ data parallelism with a degree of two to speed up the training process.
 The resultant checkpoints will be used in the next continual pretraining stage. 
 
 ### **Step 2: Download and preprocess wiki-corpus datasets**
