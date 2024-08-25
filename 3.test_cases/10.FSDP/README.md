@@ -192,7 +192,8 @@ Detected Hyperpod cluster.. enabling --auto-resume=1
 3: 2024-07-19 03:34:01 I [train.py:102] Batch 9 Loss: 9.93156, Speed: 11.10 samples/sec, lr: 0.000063
 
 ```
-You are able to modify the sbatch file for Mathstral to work with other Mistral models. Refer to the `config.json` file for the models to update the training args.
+You are also able to modify the `sbatch` file for Mathstral to work with other Mistral models. Refer to the hyperparameters in the `config.json` file for the models on huggingface to update the training args.
+
 To modify training for a 13 or 70B Llama 2 model, just change the corresponding parameters based on the values in the [Llama 2 paper](https://arxiv.org/abs/2307.09288).
 
 | Param                    |     7B      |     13B     |     70B     |
