@@ -282,13 +282,13 @@ sbatch --job-name=get_dataset --output=logs/get_dataset.out \
        --wrap="srun python get_dataset.py"
 ```
 
-It will creates a job named `get_dataset`  and dump outputs into `logs/get_dataset.out` . You can track the progress with the following command:
+It will create a job named `get_dataset`  and dump outputs into `logs/get_dataset.out` . You can track the progress with the following command:
 
 ```bash
 tail -f logs/get_dataset.out 
 ```
 
-The example output as follows:
+The example output is as follows:
 
 ```bash
 Downloading data: 100%|██████████| 1.35G/1.35G [02:49<00:00, 7.94MB/s] 
@@ -312,7 +312,7 @@ and resultant data will be saved under `examples_datasets` directory.
 
 ### Section 3: Run continual pretraining job with Neuron Distributed
 
-Now that we have preprocessed data and checkpoints and ready to submit continual pretraining job.  We have two subdirectories under `/fsx/ubuntu/llama` , `tp_pp_llama_hf_pretrain`  and `tp_zero1_llama_hf_pretrain` . In this test case, we use the former. Copy the relevant files into the current directory:
+Now that we have preprocessed data and checkpoints and ready to submit continual pretraining job.  We have two subdirectories under `/fsx/ubuntu/llama`, `tp_pp_llama_hf_pretrain`,  and `tp_zero1_llama_hf_pretrain`. In this test case, we use the former. Copy the relevant files into the current directory:
 
 ```bash
 mv tp_pp_llama_hf_pretrain/* .
@@ -329,7 +329,7 @@ $ ls /fsx/ubuntu/llama
 
 We need to modify few lines in this script to run continual training with Llama3 70B model using the weights and data you have processed in the previous steps.
 **Modification 1:**
-Contrary to the cluster setup, the script is assuming shared directory to be `/shared` . Modify them to `/fsx/ubuntu`  (our home directory) as follows:
+Contrary to the cluster setup, the script assumes the shared directory to be `/shared`. Modify them to `/fsx/ubuntu`  (our home directory) as follows:
 
 ```bash
 sed -i 's/\/shared/\/fsx\/ubuntu/g' run_llama3_70B_tp_pp.sh
@@ -338,9 +338,9 @@ sed -i 's/\/shared/\/fsx\/ubuntu/g' run_llama3_70B_tp_pp.sh
 **Modification 2:**
 Before submitting the job, we need to modify a few arguments in `torchrun`  in `run_llama3_70B_tp_pp.sh` to minimize human intervention:
 
-1. **Enable Pretrained Weights**: By default, Neuron Distributed initiates training without using pretrained weights. To enable the use of pretrained weights, set the value of the  `--pretrained_weight` argument to `1`.
+1. **Enable Pretrained Weights**: Neuron Distributed default initiates training without using pretrained weights. To enable the use of pretrained weights, set the value of the  `--pretrained_weight` argument to `1`.
 2. **Change Checkpoint Frequency**: Modify the value of the `--checkpoint_freq` argument to `m` (an integer) to save checkpoints every `m` steps.
-3. **Manage Checkpoint Storage**: The current version of Neuron Distributed generates checkpoints roughly 850 GB in size for the 70B model training. Saving all historical checkpoints can consume too much space. Modify the value of the `--num_kept_checkpoints` argument to `n` (an integer) to keep only the latest `n` checkpoints.
+3. **Manage Checkpoint Storage**: The current version of Neuron Distributed generates checkpoints roughly 850 GB in size for the 70B model training. Saving all historical checkpoints can consume too much space. Modify the value of the `--num_kept_checkpoint` argument to `n` (an integer) to keep only the latest `n` checkpoints.
 4. **Ensure Latest Checkpoint Loading**: To ensure the training process always starts from the latest checkpoint, set the value of the `--loading_step` argument to `latest_if_exists`. This is crucial in the event of hardware failure. As mentioned earlier, Hyperpod provides an auto-resume functionality. If a job fails due to hardware issues, Hyperpod initiates node replacement and restarts the job using the same script. This script must load the latest checkpoints when training resumes.
 
 ```bash
@@ -349,7 +349,7 @@ torchrun $DISTRIBUTED_ARGS run_llama_nxd.py \
         --pretrained_weight 1 \ # Change value
         ...
         --checkpoint_freq 5 \ # change value
-        --num_kept_checkpoints 2 \ # Change value
+        --num_kept_checkpoint 2 \ # Change value
         --loading_step latest_if_exists \ # Change value
         --tb_dir $tb_dir |& tee $LOG_PATH/log
 exit ${PIPESTATUS[0]}        
@@ -380,7 +380,7 @@ You can track job progress as follows:
 tail -f logs/run_llama3_70B.out
 ```
 
-After a while you will see following outputs in the log, indicating that the training progressing as expected:
+After a while you will see the following outputs in the log, indicating that the training progressing as expected:
 
 ```bash
 step 1 step_time 433.9763135910034s throughput 2.3233670754725364 seq/s loss 1.686337987310253 grad norm 10.75
@@ -410,9 +410,9 @@ and the training process creates checkpoints in every `m` steps as follows:
 ### Test Auto-resume functionality
 
 > [!IMPORTANT]  
-> This section is applicable only when you are on HyperPod and runinng the training with `--auto-resume=1` flag.
+> This section is applicable only when you are on HyperPod and running the training with `--auto-resume=1` flag.
 
-Remember that the job submission command used in the previous section includes `--auto-resume=1` flag. This instructs HyperPod to run auto resume process. In this section, we'll dive into testing the auto-resume functionality of HyperPod by simulating an error in one of the compute instances. This will help us observe how HyperPod handles node failures and resumes the job seamlessly.
+Remember that the job submission command used in the previous section includes `--auto-resume=1` flag. This instructs HyperPod to run the auto resume process. In this section, we'll dive into testing the auto-resume functionality of HyperPod by simulating an error in one of the compute instances. This will help us observe how HyperPod handles node failures and resumes the job seamlessly.
 
 **Step1: Monitor the Training Log**
 First, open a terminal and use the `tail` command to monitor the training log:
@@ -431,7 +431,7 @@ JOBID PARTITION     NAME     USER ST       TIME  NODES NODELIST(REASON)
 84,ip-10-1-115-121,ip-10-1-127-124
 ```
 
-Choose one of the instance and log in to it with `ssh` ,
+Choose one of the instances and log in to it with `ssh`,
 
 ```bash
 ssh ip-10-1-16-50
@@ -450,7 +450,7 @@ Inject an artificial error with the following command:
 echo "1" >> /var/run/sagemaker_healthcheck_status
 ```
 
-Now let’s crash the training process. First check the training processes:
+Now let’s crash the training process. First, check the training processes:
 
 ```bash
 ps -aux | grep run_llama
