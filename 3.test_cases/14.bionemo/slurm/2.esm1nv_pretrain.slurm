@@ -1,12 +1,9 @@
 #!/bin/bash
-#SBATCH --nodes=4                    # number of nodes
+#SBATCH --nodes=2                    # number of nodes
 #SBATCH --ntasks-per-node=8          # n tasks per machine (one task per gpu) <required>
 #SBATCH --gpus-per-node=8
 #SBATCH --exclusive                   # exclusive node access
 #SBATCH --output slurm-esm1nv-train-%j.out
-
-export FI_EFA_USE_HUGE_PAGE=0
-
 
 ###########################
 ###### User Variables #####
@@ -22,6 +19,10 @@ declare -a ARGS=(
     --container-mount-home
     --container-mounts $FSX_MOUNT
 )
+
+
+export FI_EFA_USE_HUGE_PAGE=0
+
 
 
 # Training parameters

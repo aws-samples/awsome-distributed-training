@@ -15,13 +15,10 @@ export TEST_CASE_PATH=${FSX_PATH}/awsome-distributed-training/3.test_cases/14.bi
 # If you want to run the example using container
 export BIONEMO_VERSION=1.7
 export DOCKER_IMAGE_NAME=bionemo-framework-aws
-export ENROOT_IMAGE=/fsx/apps/${DOCKER_IMAGE_NAME}
-# If you want to run the test case using conda
-export PYTHON_VERSION=3.10
-export MINICONDA_INSTALLER=Miniconda3-py310_23.5.2-0-Linux-x86_64
+export ENROOT_IMAGE=${DOCKER_IMAGE_NAME}-${BIONEMO_VERSION}.sqsh
 ```
 
-## 1. Container
+## 1. Build container
 
 This section provides guide to run bionemo using [BioNeMo Framework container](https://catalog.ngc.nvidia.com/orgs/nvidia/teams/clara/containers/bionemo-framework).
 
@@ -33,12 +30,19 @@ This section provides guide to run bionemo using [BioNeMo Framework container](h
 ```bash
 docker login nvcr.io
 ```
+
+
+```text
+Username: $oauthtoken
+Password: <Your Key>
+```
+
 You can verify tp
 ```bash
 docker pull nvcr.io/nvidia/clara/bionemo-framework:${BIONEMO_VERSION}
 ```
 
-## 4. Build customized docker image
+## 1.2 Build customized docker image
 To achieve optimal performance on AWS, we 
 
 ```
@@ -47,14 +51,15 @@ docker build -t ${DOCKER_IMAGE_NAME}:${BIONEMO_VERSION} -f bionemo.Dockerfile .
 popd
 ```
 
-## 5. Convert image
+## 1.3 Convert image
 Convert the Docker container image to an [Enroot](https://github.com/NVIDIA/enroot) squash file that will be stored in `/apps`. This step takes a few minutes.
-```
-enroot import -o ${ENROOT_IMAGE}.sqsh dockerd://${DOCKER_IMAGE_NAME}
 
+```bash
+enroot import -o ${ENROOT_IMAGE} dockerd://${DOCKER_IMAGE_NAME}:${BIONEMO_VERSION}
 ```
 
-## 6. Download and preprocess data
+## Train
+## 2.1 Download and preprocess data
 We will use the popular [UniRef50](https://www.uniprot.org/help/uniref) dataset for pretraining. We will use BioNemo's in-built functionality to download and pre-process data. To this end, we provide `prepare_uniref50.py` file to do so. You can edit the above to download and process [UniRef90]((https://www.uniprot.org/help/uniref)). To run the above python code on your slurm cluster in the BioNemo cluster execute the following:
 
 ```bash
@@ -67,9 +72,15 @@ This will download raw data in `/fsx/raw/` and save pre-processed `train, valida
 tail -f slurm-uniref-<slurm_job_id>.out
 ```
 
+```text
+0: [NeMo I 2024-08-23 10:03:26 preprocess:359] Download and preprocess of UniRef50 data does not currently use GPU. Workstation or CPU-only instance recommended.
+0: [NeMo I 2024-08-23 10:03:26 preprocess:286] Data processing can take an hour or more depending on system resources.
+0: [NeMo I 2024-08-23 10:03:26 preprocess:288] Downloading file from https://ftp.uniprot.org/pub/databases/uniprot/uniref/uniref50/uniref50.fasta.gz...
+0: [NeMo I 2024-08-23 10:03:26 preprocess:69] Downloading file to /fsx/raw/uniref50.fasta.gz...
+0: [NeMo I 2024-08-23 10:05:02 preprocess:83] Extracting file to /fsx/raw/uniref50.fasta...
+```
 
-
-## 7. Pretrain ESM models
+## 2.2. Pretrain ESM models
 Now we are ready to submit distributed training jobs to pretrain `ESM1nv` models. We provide the `2.esm1nv_pretrain.slurm` script to run training 4 `p4de.24xlarge` nodes with `8xA100 80 GB` GPUs. Make sure data paths and model configuration is correct if you are running on custom data. To kick off distributed training execute:
 
 ```bash
@@ -92,26 +103,3 @@ Once the above image is pulled, you can run the container on the head node like 
 ```
  docker run -it nvcr.io/nvidia/clara/bionemo-framework:latest bash
 ```
-
-## 2. Conda
-The following instruction describes how to run bionemo using conda environment or docker container.
-
-
-## 3. Create Conda env
-We need a conda environment that has the necessary dependencies for submitting multiple arrays of slurm jobs via [HYDRA](https://github.com/facebookresearch/hydra) which NeMo uses to configuring both NeMo models and the PyTorch Lightning Trainer. 
-```
-# Miniconda is already installed if you are using the DLAMI but needs installation with Base AMI
-
-wget -O miniconda.sh "https://repo.anaconda.com/miniconda/${MINICONDA_INSTALLER}.sh" \
-    && bash miniconda.sh -b -p /apps/.conda \
-          &&  /apps/.conda/bin/conda init bash  
-
-source ~/.bashrc    
-conda create --name bionemo python=${PYTHON_VERSION}
-
-source activate bionemo
-
-pip3 install -r requirements.txt
-
-```
-All package versions in the above `requirements.txt` file is recommended from Nvidia. An older version of the package `opencv-python-headless==4.8.0.74` has to be installed to avoid this [error](https://github.com/rom1504/img2dataset/issues/355) with [img2dataset](https://github.com/rom1504/img2dataset) package.
