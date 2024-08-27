@@ -5,13 +5,15 @@
 #SBATCH --nodes 2
 #SBATCH --output=logs/%x_%j.out # logfile for stdout/stderr
 
-nodes=( $( scontrol show hostnames $SLURM_JOB_NODELIST ) )
-nodes_array=($nodes)
-head_node=${nodes_array[0]}
-head_node_ip=$(srun --nodes=1 --ntasks=1 -w "$head_node" hostname --ip-address)
-
-echo Node IP: $head_node_ip
 export LOGLEVEL=INFO
+
+declare -a TORCHRUN_ARGS=(
+    --nproc_per_node=4
+    --nnodes=$SLURM_JOB_NUM_NODES
+    --rdzv_id=$SLURM_JOB_ID
+    --rdzv_backend=c10d
+    --rdzv_endpoint=$(hostname)
+)
 
 AUTO_RESUME=""
 if [ -d "/opt/sagemaker_cluster" ]; then
@@ -20,9 +22,5 @@ if [ -d "/opt/sagemaker_cluster" ]; then
 fi
 
 srun ${AUTO_RESUME} ./pt_cpu/bin/torchrun \
---nnodes 2 \
---nproc_per_node 4 \
---rdzv_id $RANDOM \
---rdzv_backend c10d \
---rdzv_endpoint $head_node_ip:29500 \
-$(dirname "$PWD")/ddp.py 5000000 10
+    "${TORCHRUN_ARGS[@]}" \
+    $(dirname "$PWD")/ddp.py 5000000 10

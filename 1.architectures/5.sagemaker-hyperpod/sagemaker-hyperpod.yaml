@@ -396,6 +396,8 @@ Resources:
         DataCompressionType: !Ref Compression
         DeploymentType: PERSISTENT_2
         PerUnitStorageThroughput: !Ref PerUnitStorageThroughput
+        MetadataConfiguration:
+          Mode: AUTOMATIC
 
   AmazonSagemakerClusterExecutionRole:
     Type: AWS::IAM::Role
