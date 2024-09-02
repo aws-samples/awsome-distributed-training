@@ -8,40 +8,6 @@ This guide assumes that you have following:
 
 The subsequent sections presume that you are operating from the home directory of this head node as the `ubuntu` user.
 
-## Python virtual environment preparation
-
-First, we create python virtual environment installing torch-neuronx and neuronx-distributed .
-
-```bash
-# Install Python
-sudo apt-get install -y python3.8 python3.8-venv
-# Create Python venv
-python3.8 -m venv /fsx/ubuntu/aws_neuron_venv_pytorch 
-
-# Activate Python venv 
-source /fsx/ubuntu/aws_neuron_venv_pytorch/bin/activate 
-python -m pip install -U pip 
-
-# Install wget, awscli, and huggingface-cli
-python -m pip install wget awscli huggingface_hub
-
-# Set pip repository pointing to the Neuron repository 
-python -m pip config set global.extra-index-url https://pip.repos.neuron.amazonaws.com
-# Install Neuron Compiler and Framework
-python -m pip install torch-neuronx=="1.13.1.1.15.0" neuronx-cc=="2.14.213.0" neuronx_distributed=="0.8.0" torchvision
-```
-
-In this test case, we use Neuron SDK 2.19.1 which includes the following software stack:
-
-```
-$ srun -N1 dpkg -l | grep neuron # This command runs on a compute instance (trn1.32xlarge)
-aws-neuronx-collectives 2.21.46.0-69b77134b amd64 neuron_ccom built using CMake
-aws-neuronx-dkms 2.17.17.0 amd64 aws-neuronx driver in DKMS format.
-aws-neuronx-oci-hook 2.4.4.0 amd64 neuron_oci_hook built using CMake
-aws-neuronx-runtime-lib 2.21.41.0-fb1705f5f amd64 neuron_runtime built using CMake
-aws-neuronx-tools 2.18.3.0 amd64 Neuron profile and debug tools
-```
-
 
 ### Setting up software stack
 
