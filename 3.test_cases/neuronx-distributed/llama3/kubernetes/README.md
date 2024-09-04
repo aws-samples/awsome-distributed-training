@@ -1,6 +1,6 @@
-## Train Llama 3.1 8B model using SageMaker HyperPod
+## Train Llama 3 8B model on Kubernetes
 
-In this section, we showcase how to pre-train Llama3.1-8B, Llama3 8B model using Trn1.32xlarge/Trn1n.32xlarge instances using the Neuron Distributed library. To train the LLama model in this example, we will apply the following optimizations using the Neuron Distributed library:
+In this section, we showcase how to pre-train Llama3-8B, Llama3 8B model using Trn1.32xlarge/Trn1n.32xlarge instances using the Neuron Distributed library. To train the LLama model in this example, we will apply the following optimizations using the Neuron Distributed library:
 
 1. [Tensor Parallelism](https://awsdocs-neuron.readthedocs-hosted.com/en/latest/libraries/neuronx-distributed/tensor_parallelism_overview.html#tensor-parallelism-overview)
 
@@ -18,7 +18,7 @@ Before running this training, you'll need to create an Amazon EKS or a SageMaker
 
 ### 0.2 HF Access token 
 
-Since [llama 3.1](https://huggingface.co/meta-llama/Meta-Llama-3.1-8B) is a gated model users have to register in Huggingface and obtain an HF_Access_Token before running this example.
+Since [llama 3](https://huggingface.co/meta-llama/Meta-Llama-3-8B) is a gated model users have to register in Huggingface and obtain an HF_Access_Token before running this example.
 
 ### 0.3 Setup Persistant Volume Claim(PVC) for fsx 
 
@@ -36,7 +36,7 @@ region=us-east-2
 dlc_account_id=763104351884
 aws ecr get-login-password --region $region | docker login --username AWS --password-stdin $dlc_account_id.dkr.ecr.$region.amazonaws.com
 
-docker pull 763104351884.dkr.ecr.us-east-2.amazonaws.com/pytorch-training-neuronx:2.1.2-neuronx-py310-sdk2.19.1-ubuntu20.04
+docker pull ${dlc_account_id}.dkr.ecr.${region}.amazonaws.com/pytorch-training-neuronx:2.1.2-neuronx-py310-sdk2.19.1-ubuntu20.04
 ```
 
 ### Build Docker Image and push to ECR
@@ -74,7 +74,7 @@ docker image push ${REGISTRY}${IMAGE}${TAG}
 
 ## Generate Job Spec Files for tokenization and training
 
-The default config in the script launches a 8B Llama 3.1 model. When you run the generate-jobspec.sh script it creates 2 yaml files tokenize_data.yaml and llama3_train.yaml
+The default config in the script launches a 8B Llama 3 model. When you run the generate-jobspec.sh script it creates 2 yaml files tokenize_data.yaml and llama3_train.yaml
 
 You will have to update the HF_ACCESS_TOKEN in order for the tokenization to work.
 

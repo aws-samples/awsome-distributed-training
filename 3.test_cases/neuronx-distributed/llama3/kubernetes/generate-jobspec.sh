@@ -11,6 +11,7 @@ export JOB_NAME=trn1-llama3-training
 export NUM_NODES=1
 export INSTANCE_TYPE=ml.trn1.32xlarge
 export EFA_PER_NODE=8
+export NEURON_PER_NODE=16
 export FI_PROVIDER=efa
 
 
@@ -22,7 +23,7 @@ export HF_ACCESS_TOKEN=hf_xxxxxx
 export TOKENIZED_DATA_PATH=/fsx/tokenized_data
 export DATASET_NAME=wikicorpus
 export dATASET_CONFIG_NAME=raw_en
-export HF_MODEL_NAME=meta-llama/Meta-Llama-3.1-8B # change this to meta-llama/Meta-Llama-3-8B if you want to train llama3 8B model
+export HF_MODEL_NAME=meta-llama/Meta-Llama-3-8B # change this to meta-llama/Meta-Llama-3-8B if you want to train llama3 8B model
 
 
 export NEURON_CACHE_DIR=/fsx/neuron_cache
@@ -34,7 +35,7 @@ export MAX_STEPS=1000
 export STEPS_THIS_RUN=100
 export BATCH_SIZE=1
 
-export MODEL_PATH=config_8b_llama3.1 # change this to onfig_8b_llama3 if you want to train llama3 8B model
+export MODEL_PATH=config_8b_llama3
 
 
 cat tokenize_data.yaml-template | envsubst > tokenize_data.yaml

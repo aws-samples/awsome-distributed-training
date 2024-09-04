@@ -103,10 +103,10 @@ spec:
               imagePullPolicy: Always
               resources:
                 requests:
-                  aws.amazon.com/neuron: 16
+                  aws.amazon.com/neuron: ${NEURON_PER_NODE}
                   vpc.amazonaws.com/efa: ${EFA_PER_NODE}
                 limits:
-                  aws.amazon.com/neuron: 16
+                  aws.amazon.com/neuron: ${NEURON_PER_NODE}
                   vpc.amazonaws.com/efa: ${EFA_PER_NODE}
               env:
               - name: LOGLEVEL
