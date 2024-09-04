@@ -2,7 +2,7 @@ catalyst==22.4
 imageio==2.16.1
 matplotlib==3.5.1
 numpy==1.22.0
-opencv_python==4.5.5.64
+opencv_python==4.8.1.78
 pandas==1.5.0
 Pillow==10.3.0
 PyYAML==6.0
