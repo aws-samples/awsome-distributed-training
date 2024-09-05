@@ -14,38 +14,38 @@ ARG NCCL_VERSION=2.20.3
 
 ARG GDRCOPY_VERSION=2.4.1
 
-RUN apt-get update -y
-RUN apt-get remove -y --allow-change-held-packages \
-    libmlx5-1 ibverbs-utils libibverbs-dev libibverbs1 libnccl2 libnccl-dev
 
-# Remove existing MPI
-# RUN rm -rf /opt/hpcx \
-#     && rm -rf /usr/local/mpi \
-#     && rm -f /etc/ld.so.conf.d/hpcx.conf \
-#     && ldconfig
+RUN apt-get update -y && apt-get upgrade -y
+RUN apt-get remove -y --allow-change-held-packages \
+    ibverbs-utils \
+    libibverbs-dev \
+    libibverbs1 \
+    libmlx5-1 \
+    libnccl2 \
+    libnccl-dev
+
 ENV OPAL_PREFIX=
 
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y --allow-unauthenticated \
+    apt-utils \
+    autoconf \
+    automake \
+    build-essential \
+    check \
+    cmake \
+    curl \
+    debhelper \
+    devscripts \
     git \
     gcc \
-    vim \
+    gdb \
     kmod \
+    libsubunit-dev \
+    libtool \
     openssh-client \
     openssh-server \
-    build-essential \
-    curl \
-    autoconf \
-    libtool \
-    gdb \
-    automake \
-    python3-distutils \
-    cmake \
-    apt-utils \
-    devscripts \
-    debhelper \
-    libsubunit-dev \
-    check \
-    pkg-config
+    pkg-config \
+    python3-distutils
 
 RUN mkdir -p /var/run/sshd
 RUN sed -i 's/[ #]\(.*StrictHostKeyChecking \).*/ \1no/g' /etc/ssh/ssh_config && \
