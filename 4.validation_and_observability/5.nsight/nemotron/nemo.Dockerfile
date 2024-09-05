@@ -1,11 +1,11 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 
-# DOCKER_BUILDKIT=1 docker build --progress plain -t aws-nemo-megatron:latest .
+# DOCKER_BUILDKIT=1 docker build --progress plain -t nemo:24.07 -f nemo.Dockerfile .
 
-#FROM nvcr.io/ea-bignlp/ga-participants/nemofw-training:23.11
+ARG NEMO_VERSION=24.07
 
-FROM nvcr.io/nvidia/nemo:24.01.framework
+FROM nvcr.io/nvidia/nemo:${NEMO_VERSION}
 
 ENV DEBIAN_FRONTEND=noninteractive
 ARG GDRCOPY_VERSION=v2.4.1
