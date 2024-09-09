@@ -1,0 +1,67 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'AWS CloudFormation Template for Amazon EKS CW Add-on. Amazon Managed Prometheus and Amazon Manged Grafana workspaces with associated IAM roles are deployed in the AWS Account'
+Resources:
+
+  AmazonGrafanaWorkspaceIAMRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - grafana.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      RoleName: !Sub ${AWS::StackName}-Grafana-Role
+
+  AmazonGrafanaPrometheusPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: AmazonGrafana_Prometheus_policy
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - aps:ListWorkspaces
+              - aps:DescribeWorkspace
+              - aps:QueryMetrics
+              - aps:GetLabels
+              - aps:GetSeries
+              - aps:GetMetricMetadata
+            Resource: "*"
+      Roles: [!Ref AmazonGrafanaWorkspaceIAMRole]
+
+  AmazonGrafanaWorkspace:
+    Type: 'AWS::Grafana::Workspace'
+    Properties:
+      AccountAccessType: CURRENT_ACCOUNT
+      Name: !Sub ${AWS::StackName}-Dashboard
+      Description: Amazon Grafana Workspace to monitor SageMaker Cluster
+      AuthenticationProviders:
+        - AWS_SSO
+      PermissionType: SERVICE_MANAGED
+      RoleArn: !GetAtt
+        - AmazonGrafanaWorkspaceIAMRole
+        - Arn
+      DataSources: ["PROMETHEUS"]
+      OrganizationRoleName: "ADMIN"
+
+  APSWorkspace:
+    Type: AWS::APS::Workspace
+    Properties:
+      Alias: !Sub ${AWS::StackName}-Hyperpod-WorkSpace
+      Tags:
+        - Key: Name
+          Value: SageMaker Hyperpod PrometheusMetrics
+
+Outputs:
+  Region:
+    Value: !Ref "AWS::Region"
+  AMPRemoteWriteURL:
+    Value: !Sub '${APSWorkspace.PrometheusEndpoint}api/v1/remote_write'
+  GrafanWorkspaceURL:
+    Value: !Sub 'https://${AmazonGrafanaWorkspace.Endpoint}'
+
