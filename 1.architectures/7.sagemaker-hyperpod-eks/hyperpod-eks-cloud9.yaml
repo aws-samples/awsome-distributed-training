@@ -1,0 +1,379 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: AWS CloudFormation template for dynamic Cloud 9 setup. Creates and bootstraps Cloud9 instance.  Inspired by https://github.com/aws-samples/aws-cloud9-bootstrapping-example and https://www.eksworkshop.com geared toward use in event engine by Michael Maeng mmaeng@
+Parameters:
+  WorkshopInstanceType:
+    Description: Workshop Cloud9 instance type - Constrained AZs in a region could cause deployment failure for certain instance types
+    Type: String
+    Default: t3.medium
+    AllowedValues:
+      - t2.micro
+      - t3.micro
+      - t3.small
+      - t3.medium
+      - t2.medium
+    ConstraintDescription: Must be a valid Cloud9 instance type
+  WorkshopInstanceVolumeSize: 
+    Type: Number
+    Description: The Size in GB of the Cloud9 Instance Volume. 
+    Default: 10
+  WorkshopInstanceOwner: 
+    Type: String
+    Description: Assumed Role and Username of Cloud9 Owner, e.g. for EventEngine - TeamRole/MasterKey, for Workshop Studio 2.0 - {{.ParticipantRoleName}}/Participant, or Isengard - Superuser/username-Isengard
+    Default: WSParticipantRole/Participant
+
+Resources:
+################## PERMISSIONS AND ROLES #################
+  WorkshopRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Tags:
+        - Key: Environment
+          Value: AWS Workshop
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - ec2.amazonaws.com
+            - ssm.amazonaws.com
+            - cloud9.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/AdministratorAccess
+      - arn:aws:iam::aws:policy/AWSCloud9SSMInstanceProfile
+      Path: "/service-role/"
+
+  WorkshopLambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: "/"
+      Policies:
+      - PolicyName:
+          Fn::Join:
+          - ''
+          - - WorkshopLambdaPolicy-
+            - Ref: AWS::Region
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            Resource: arn:aws:logs:*:*:*
+          - Effect: Allow
+            Action:
+            - cloudformation:DescribeStacks
+            - cloudformation:DescribeStackEvents
+            - cloudformation:DescribeStackResource
+            - cloudformation:DescribeStackResources
+            - ec2:DescribeInstances
+            - ec2:AssociateIamInstanceProfile
+            - ec2:ModifyInstanceAttribute
+            - ec2:ReplaceIamInstanceProfileAssociation
+            - iam:ListInstanceProfiles
+            - iam:PassRole
+            - s3:ListBucket
+            - s3:DeleteObject
+            - s3:DeleteObjectVersion
+            Resource: "*"
+
+################## LAMBDA BOOTSTRAP FUNCTION ################
+
+  WorkshopBootstrapInstanceLambda:
+    Description: Bootstrap Cloud9 instance
+    Type: Custom::WorkshopBootstrapInstanceLambda
+    DependsOn:
+    - WorkshopBootstrapInstanceLambdaFunction
+    - WorkshopInstance
+    - WorkshopInstanceProfile
+    - WorkshopLambdaExecutionRole
+    - WorkshopOutputBucket
+    Properties:
+      Tags:
+        - Key: Environment
+          Value: AWS Workshop
+      ServiceToken:
+        Fn::GetAtt:
+        - WorkshopBootstrapInstanceLambdaFunction
+        - Arn
+      REGION:
+        Ref: AWS::Region
+      StackName:
+        Ref: AWS::StackName
+      EnvironmentId:
+        Ref: WorkshopInstance
+      LabIdeInstanceProfileName:
+        Ref: WorkshopInstanceProfile
+      LabIdeInstanceProfileArn:
+        Fn::GetAtt:
+        - WorkshopInstanceProfile
+        - Arn
+      WorkshopBucketId:
+        Ref: WorkshopOutputBucket
+
+  WorkshopBootstrapInstanceLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Tags:
+        - Key: Environment
+          Value: AWS Workshop
+      Handler: index.lambda_handler
+      Role:
+        Fn::GetAtt:
+        - WorkshopLambdaExecutionRole
+        - Arn
+      Runtime: python3.9
+      MemorySize: 256
+      Timeout: '600'
+      Code:
+        ZipFile: |
+          import boto3
+          import traceback
+          import cfnresponse
+
+          import logging
+          logger = logging.getLogger()
+          logger.setLevel(logging.INFO)
+
+          def lambda_handler(event, context):
+            try:
+              logger.info('event: {}'.format(event))
+
+              # Steps to do on Cloudformation Delete Request
+              if event['RequestType'] == 'Delete':
+                logger.info('Received Delete Request')
+
+                # Empty SSM output bucket on deletion of stack
+                bucket = event['ResourceProperties']['WorkshopBucketId']
+                logger.info('Deleting contents of ' + bucket)
+
+                s3 = boto3.resource('s3')
+                bucket = s3.Bucket(bucket)
+                for obj in bucket.objects.filter():
+                  s3.Object(bucket.name, obj.key).delete()
+
+              # Steps to do on Cloudformation Update requests
+              if event['RequestType'] == 'Update':
+                logger.info('Received Update Request')
+
+              # Steps to do on Cloudformation Create requests
+              if event['RequestType'] == 'Create':
+                # Open AWS clients
+                ec2 = boto3.client('ec2')
+
+                # Get ec2.instancesCollection Information of the Cloud9 IDE Environment
+                instances = boto3.resource('ec2').instances.filter(Filters=[{'Name': 'tag:Name','Values': ['*' + event['ResourceProperties']['EnvironmentId']]}])
+
+                # Create the IamInstanceProfile request object
+                iam_instance_profile = {
+                    'Arn': event['ResourceProperties']['LabIdeInstanceProfileArn'],
+                    'Name': event['ResourceProperties']['LabIdeInstanceProfileName']
+                }
+
+                # attach instance profile
+                for instance in instances:
+                  response = ec2.associate_iam_instance_profile(IamInstanceProfile=iam_instance_profile, InstanceId=instance.id)
+                  logger.info('Received Create Request - Completed for : ' + instance.id)
+
+            # Catch any exceptions
+            except Exception as e:
+                logger.error(e)
+                traceback.format_exc()
+
+            # Always respond back to Cloudformation so it isn't in excessive pending state
+            finally:
+              cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+
+                      
+################## SSM BOOTSRAP HANDLER ###############
+  WorkshopOutputBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
+
+  WorkshopSSMDocument: 
+    Type: AWS::SSM::Document
+    Properties: 
+      Tags:
+        - Key: Environment
+          Value: AWS Workshop
+      DocumentType: Command
+      Content: 
+        schemaVersion: '2.2'
+        description: Bootstrap Cloud9 Instance
+        mainSteps:
+        - action: aws:runShellScript
+          name: Workshopbootstrap
+          inputs:
+            timeoutSeconds: '600'
+            runCommand:
+            - "#!/bin/bash"
+            - date
+            - echo LANG=en_US.utf-8 >> /etc/environment
+            - echo LC_ALL=en_US.UTF-8 >> /etc/environment
+            ### Remove old awscli and install newest aws cli from pip, packaged version of awscli does not have switch to disable managed temporary credentials ###
+            - echo '=== INSTALL and CONFIGURE default software components ==='
+            - yum -y remove awscli
+            - python3 -m pip install --upgrade pip
+            - /usr/bin/python3 -m pip uninstall awscli
+            - curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            - unzip awscliv2.zip
+            - sudo ./aws/install
+            - . ~/.bash_profile
+            - . /home/ec2-user/.bashrc
+            - sudo yum install -y jq
+            - wget https://github.com/mikefarah/yq/releases/download/v4.21.1/yq_linux_amd64 -O /usr/bin/yq
+            - chmod +x /usr/bin/yq
+            - echo '=== Resizing the Instance volume'
+            - !Sub export AWS_REGION=${AWS::Region}
+            - !Sub export ACCOUNT_ID=${AWS::AccountId}
+            - !Sub export SIZE=${WorkshopInstanceVolumeSize}
+            ### After changing disk size, it won't be reflected in OS until reboot ###
+            - |
+              /usr/bin/python3 -m pip install --user --upgrade boto3
+              export instance_id=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)
+              /usr/bin/python3 -c "import boto3
+              import os
+              from botocore.exceptions import ClientError 
+              ec2 = boto3.client('ec2', region_name = os.getenv('AWS_REGION'))
+              volume_info = ec2.describe_volumes(
+                Filters=[
+                  {
+                    'Name': 'attachment.instance-id',
+                    'Values': [
+                      os.getenv('instance_id')
+                    ]
+                  }
+                ]
+              )
+              volume_id = volume_info['Volumes'][0]['VolumeId']
+              try:
+                resize = ec2.modify_volume(    
+                  VolumeId=volume_id,    
+                  Size=int(os.getenv('SIZE'))
+                )
+                print(resize)
+              except ClientError as e:
+                if e.response['Error']['Code'] == 'InvalidParameterValue':
+                  print('ERROR MESSAGE: {}'.format(e))"
+            - echo '=== CONFIGURE awscli and setting ENVIRONMENT VARS ==='
+            - |
+              mkdir -p /home/ec2-user/.aws
+              echo "[default]" > /home/ec2-user/.aws/config
+              echo "output = json" >> /home/ec2-user/.aws/config
+              echo "region = ${AWS_REGION}" >> /home/ec2-user/.aws/config
+              chmod 600 /home/ec2-user/.aws/config
+            - echo "export ACCOUNT_ID=${ACCOUNT_ID}" | tee -a /home/ec2-user/.bash_profile
+            - echo "export AWS_REGION=${AWS_REGION}" | tee -a /home/ec2-user/.bash_profile
+            ### Workshop Specific ###
+            - sudo su - ec2-user -c "npm install -g npm@latest"            
+            - sudo su - ec2-user -c "npm install -g aws-cdk@latest"
+            ### Install kubectl ###
+            - curl -O https://s3.us-west-2.amazonaws.com/amazon-eks/1.29.3/2024-04-19/bin/linux/amd64/kubectl
+            - chmod +x ./kubectl
+            - mkdir -p $HOME/bin && cp ./kubectl $HOME/bin/kubectl && export PATH=$HOME/bin:$PATH
+            - echo 'export PATH=$HOME/bin:$PATH' >> ~/.bashrc
+            ### Install eksctl ###
+            - ARCH=amd64
+            - PLATFORM=$(uname -s)_$ARCH
+            - curl -sLO "https://github.com/eksctl-io/eksctl/releases/latest/download/eksctl_$PLATFORM.tar.gz"
+            - tar -xzf eksctl_$PLATFORM.tar.gz -C /tmp && rm eksctl_$PLATFORM.tar.gz
+            - sudo mv /tmp/eksctl /usr/local/bin
+            ### Install helm ###
+            - curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+            - chmod 700 get_helm.sh
+            - ./get_helm.sh
+            - rm get_helm.sh
+            ### Disable Temporary credentials on login ###
+            - echo 'aws cloud9 update-environment --environment-id $C9_PID --managed-credentials-action DISABLE --region $AWS_REGION &> /dev/null' | tee -a /home/ec2-user/.bash_profile
+            - echo 'rm -vf ${HOME}/.aws/credentials  &> /dev/null' | tee -a /home/ec2-user/.bash_profile
+            ### General Cleanup and reboot ###
+            - echo '=== CLEANING /home/ec2-user ==='
+            - rm -vf /home/ec2-user/.aws/credentials
+            - for f in cloud9; do rm -rf /home/ec2-user/$f; done
+            - chown -R ec2-user:ec2-user /home/ec2-user/
+            - echo '=== PREPARE REBOOT in 1 minute with at ==='
+            - FILE=$(mktemp) && echo $FILE && echo '#!/bin/bash' > $FILE && echo 'reboot -f' >> $FILE && at now + 1 minute -f $FILE
+            - echo "Bootstrap completed with return code $?"
+  
+  WorkshopBootstrapAssociation: 
+    Type: AWS::SSM::Association
+    DependsOn: 
+      - WorkshopOutputBucket
+      - WorkshopInstance
+      - WorkshopBootstrapInstanceLambda
+    Properties: 
+      Name: !Ref WorkshopSSMDocument
+      OutputLocation: 
+        S3Location:
+          OutputS3BucketName: !Ref WorkshopOutputBucket
+          OutputS3KeyPrefix: bootstrapoutput
+      Targets:
+        - Key: tag:aws:cloud9:environment
+          Values:
+          - Ref: WorkshopInstance
+
+################## INSTANCE #####################
+  WorkshopInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: "/"
+      Roles:
+      - Ref: WorkshopRole
+
+  WorkshopInstance:
+    Description: "-"
+    Type: AWS::Cloud9::EnvironmentEC2
+    Properties:
+      Description: AWS Cloud9 instance for Workshops
+      AutomaticStopTimeMinutes: 180
+      ImageId: amazonlinux-2-x86_64
+      InstanceType:
+        Ref: WorkshopInstanceType
+      Name:
+        Ref: AWS::StackName
+      OwnerArn: !Join
+        - ''
+        - - 'arn:'
+          - !Ref AWS::Partition
+          - ':sts::'
+          - !Ref AWS::AccountId
+          - ':assumed-role/'
+          - !Ref WorkshopInstanceOwner
+      Tags: 
+        - 
+          Key: Environment
+          Value: AWS Workshop
+
+Outputs: 
+  Cloud9IDE:
+    Value:
+      Fn::Join:
+      - ''
+      - - https://
+        - Ref: AWS::Region
+        - ".console.aws.amazon.com/cloud9/ide/"
+        - Ref: WorkshopInstance
+        - "?region="
+        - Ref: AWS::Region
+
+  WorkshopRoleArn:
+    Description: A reference to  ARN of the created Workshop Role used by the Cloud9 instance
+    Value: !GetAtt WorkshopRole.Arn
+    Export:
+      Name: WorkshopRoleArn
+
+  
