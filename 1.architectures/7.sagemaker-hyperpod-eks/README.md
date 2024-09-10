@@ -358,14 +358,6 @@ aws sagemaker update-cluster-software --cluster-name ml-cluster --region $AWS_RE
 ```
 
 Note that this API replaces the instance root volume and cleans up data in it. You should back up your work before running it.
-We've included a script `patching-backup.sh` that can backup and restore the data via Amazon S3.
-
-```bash
-# to backup data to an S3 bucket before patching
-sudo bash patching-backup.sh --create <s3-buckup-bucket-path>
-# to restore data from an S3 bucket after patching
-sudo bash patching-backup.sh --restore <s3-buckup-bucket-path>
-```
 
 ### 3.7 Deleting your HyperPod cluster
 
