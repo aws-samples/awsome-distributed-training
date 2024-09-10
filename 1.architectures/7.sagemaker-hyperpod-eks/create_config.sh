@@ -143,51 +143,6 @@ else
     return 1
 fi
 
-# Grab the public ssubnet id
-# export PUBLIC_SUBNET_ID=`aws cloudformation describe-stacks \
-#     --stack-name $STACK_ID \
-#     --query 'Stacks[0].Outputs[?OutputKey==\`PublicSubnet1\`].OutputValue' \
-#     --region ${AWS_REGION} \
-#     --output text`
-
-# if [[ ! -z $PUBLIC_SUBNET_ID ]]; then
-#     echo "export PUBLIC_SUBNET_ID=${PUBLIC_SUBNET_ID}" >> env_vars
-#     echo "[INFO] PUBLIC_SUBNET_ID = ${PUBLIC_SUBNET_ID}"
-# else
-#     echo "[ERROR] failed to retrieve Public SUBNET ID"
-#     return 1
-# fi
-
-# Get FSx Filesystem id from CloudFormation
-# export FSX_ID=`aws cloudformation describe-stacks \
-#     --stack-name $STACK_ID \
-#     --query 'Stacks[0].Outputs[?OutputKey==\`FSxLustreFilesystemId\`].OutputValue' \
-#     --region ${AWS_REGION} \
-#     --output text`
-
-# if [[ ! -z $FSX_ID ]]; then
-#     echo "export FSX_ID=${FSX_ID}" >> env_vars
-#     echo "[INFO] FSX_ID = ${FSX_ID}"
-# else
-#     echo "[ERROR] failed to retrieve FSX ID"
-#     return 1
-# fi
-
-# Get FSx Filesystem Mountname from CloudFormation
-# export FSX_MOUNTNAME=`aws cloudformation describe-stacks \
-#     --stack-name $STACK_ID \
-#     --query 'Stacks[0].Outputs[?OutputKey==\`FSxLustreFilesystemMountname\`].OutputValue' \
-#     --region ${AWS_REGION} \
-#     --output text`
-
-# if [[ ! -z $FSX_MOUNTNAME ]]; then
-#     echo "export FSX_MOUNTNAME=${FSX_MOUNTNAME}" >> env_vars
-#     echo "[INFO] FSX_MOUNTNAME = ${FSX_MOUNTNAME}"
-# else
-#     echo "[ERROR] failed to retrieve FSX Mountname"
-#     return 1
-# fi
-
 # Get Security Group from CloudFormation
 if [ "$SECURITY_GROUP" == "" ]; then
     export SECURITY_GROUP=`aws cloudformation describe-stacks \

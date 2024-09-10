@@ -1,5 +1,4 @@
-# AWS SageMaker HyperPod Distributed Training Reference Architectures
-
+# Amazon EKS support in Amazon SageMaker HyperPod
 
 > [!IMPORTANT]  
 > 🚨 We recommend following the official [Amazon SageMaker HyperPod Workshop](https://catalog.workshops.aws/sagemaker-hyperpod/en-US) to deploy clusters, which contains detailed instructions and latest best-practices.
@@ -19,10 +18,12 @@ Before creating a cluster, we need to install the latest [AWS CLI](https://docs.
 
 ### 2.2. Install Kubectl
 
-We will need to setup kubectlto interact with the EKS cluster Kubernetes API server. The following commands correspond with Linux installations. See the Kubernetes documentation for steps on how to install kubectl on other environments.
+We will need to setup kubectl to interact with the EKS cluster Kubernetes API server. The following commands correspond with Linux installations. See the [Kubernetes documentation](https://kubernetes.io/docs/tasks/tools/) for steps on how to install kubectl on other environments.
 
 ```bash
-curl -O https://s3.us-west-2.amazonaws.com/amazon-eks/1.29.3/2024-04-19/bin/linux/amd64/kubectl
+export KUBECTL_VERSION=1.29.3
+export RELEASE_DATE=2024-04-19
+curl -O https://s3.us-west-2.amazonaws.com/amazon-eks/${KUBECTL_VERSION}/${RELEASE_DATE}/bin/linux/amd64/kubectl
 chmod +x ./kubectl
 mkdir -p $HOME/bin && cp ./kubectl $HOME/bin/kubectl && export PATH=$HOME/bin:$PATH
 echo 'export PATH=$HOME/bin:$PATH' >> ~/.bashrc
@@ -50,7 +51,7 @@ sudo mv /tmp/eksctl /usr/local/bin
 ### 2.4 Deploy the cloudformation stack (optional)
 
 We have provided an cloudformation template that helps you to setup vpc, subnets, EKS cluster and necessary SageMaker Permissions. The template can be used in 3 scenarios
-1. **Full Deployment** - Use full deployment mode if you want to create a new VPC and EKS cluster. On the template set  ```CreateEKSCluster to true```
+1. **Full Deployment** - Use full deployment mode if you want to create a new VPC and EKS cluster. On the template set  ```CreateEKSCluster to 'true'```
 2. **Integrative Deployment** - Use integrative deployment mode if you want to use your own VPC and EKS cluster, but need to create an additional /16 CIDR block, a private subnet, and a security group for the SageMaker HyperPod Cluster. For this option 
 Set the following parameters accordingly if you want to use integrative deployment mode.
 
@@ -62,7 +63,7 @@ Set the following parameters accordingly if you want to use integrative deployme
     * Provide the VpcId. This parameter is used to attach an additional /16 CIDR block (10.1.0.0/16 by default) to your existing VPC.
     * Provide the PrivateSubnet1CIDR. This parameter is used to specify the desired range to use for the additional /16 CIDR block and private subnet (10.1.0.0/16 by default). Please configure a CIDR range that does not overlap with your existing VPC.
 
-3. **Minimal Deployment** - Use minimal deployment mode if you want to use your own VPC and EKS cluster, and you want to manage the subnet and security group configurations in your environment by yourself. This optional only creates SageMaker HyperPod specific stuff like role, bucket needed for cluster creation. 
+3. **Minimal Deployment** - Use minimal deployment mode if you want to use your own VPC and EKS cluster, and you want to manage the subnet and security group configurations in your environment by yourself. This optional only creates SageMaker HyperPod specific resources like role, bucket needed for cluster creation. 
 Set the following parameters accordingly if you want to use minimal deployment mode.
 
     * Set CreateEKSCluster to false
@@ -105,10 +106,9 @@ The HyperPod team provides a Helm chart package, which bundles key dependencies 
 
 #### Clone the Repo 
 
-(Update for GA)
 ```bash
-git clone ssh://git.amazon.com/pkg/HyperpodCLI
-cd HyperpodCLI/src/hyperpod_cli/helm_chart
+git clone https://github.com/aws/sagemaker-hyperpod-cli.git
+cd sagemaker-hyperpod-cli/src/hyperpod_cli/helm_chart
 ```
 
 #### Install the Helm Chart
@@ -343,23 +343,25 @@ aws ssm start-session --target $TARGET_ID
 
 ### 3.5 Running workloads on the cluster 
 
-To run workloads on the cluster you can use kubctl ( configured in prerequisities) to interact with the EKS control plane and submit jobs. 
+To run workloads on the cluster you can use kubctl(configured in prerequisities) to interact with the EKS control plane and submit jobs. 
 
-Amazon SageMaker HyperPod also provides a CLI which can be used to manage jobs on the cluster without having to worry about the kubernetes constraints. To setup the CLI follow the below steps. 
+Amazon SageMaker HyperPod also provides a [CLI](https://github.com/aws/sagemaker-hyperpod-cli) which can be used to manage jobs on the cluster without having to worry about the kubernetes constraints. To setup the CLI follow the below steps. 
 
------To be compeleted------
+* Install SageMaker HyperPod CLI refering the documentation [here](https://github.com/aws/sagemaker-hyperpod-cli?tab=readme-ov-file#installation)
+* To use the CLI to access cluster and submit jobs refer to the documentation [here](https://github.com/aws/sagemaker-hyperpod-cli?tab=readme-ov-file#usage)
 
 ### 3.6 Patching your HyperPod cluster
 
 Run `update-cluster-software` to update existing HyperPod clusters with software and security patches provided by the SageMaker HyperPod service. For more details, see [Update the SageMaker HyperPod platform software of a cluster](https://docs.aws.amazon.com/sagemaker/latest/dg/sagemaker-hyperpod-operate.html#sagemaker-hyperpod-operate-cli-command-update-cluster-software) in the *Amazon SageMaker Developer Guide*.
 
 ```
-aws sagemaker update-cluster-software --cluster-name ml-cluster --region us-west-2
+aws sagemaker update-cluster-software --cluster-name ml-cluster --region $AWS_REGION
 ```
 
 Note that this API replaces the instance root volume and cleans up data in it. You should back up your work before running it.
 We've included a script `patching-backup.sh` that can backup and restore the data via Amazon S3.
-```
+
+```bash
 # to backup data to an S3 bucket before patching
 sudo bash patching-backup.sh --create <s3-buckup-bucket-path>
 # to restore data from an S3 bucket after patching
@@ -370,6 +372,6 @@ sudo bash patching-backup.sh --restore <s3-buckup-bucket-path>
 
 When you're done with your HyperPod cluster, you can delete it down with
 
-```
-aws sagemaker delete-cluster --cluster-name ml-cluster --region us-west-2
+```bash
+aws sagemaker delete-cluster --cluster-name ml-cluster --region $AWS_REGION
 ```
