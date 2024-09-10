@@ -226,7 +226,7 @@ cat > cluster-config.json << EOL
         },
         "ExecutionRole": "${EXECUTION_ROLE}",
         "ThreadsPerCore": 1,
-        "OnStartDeepHealthCheck": ["InstanceStress", "InstanceConnectivity"]
+        "OnStartDeepHealthChecks": ["InstanceStress", "InstanceConnectivity"]
       },
       {
         "InstanceGroupName": "worker-group-2",
@@ -258,7 +258,7 @@ EOL
 
 - You can configure up to 20 instance groups under the `InstanceGroups` parameter. 
 - For `Orchestrator.Eks.ClusterArn`, specify the ARN of the EKS cluster you want to use as the orchestrator. 
-- For `OnStartDeepHealthCheck`, add `InstanceStress` and `InstanceConnectivity` to enable deep health checks. 
+- For `OnStartDeepHealthChecks`, add `InstanceStress` and `InstanceConnectivity` to enable deep health checks. 
 - For `NodeRecovery`, specify `Automatic` to enable automatic node recovery. HyperPod replaces or reboots instances (nodes) that fail the basic health or deep health checks (when enabled). 
 - For the `VpcConfig` parameter, specify the information of the VPC used in the EKS cluster. The subnets must be private
 
