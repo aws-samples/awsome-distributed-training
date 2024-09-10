@@ -516,15 +516,6 @@ Resources:
         SecurityGroupIds: 
           - !Ref NoIngressSecurityGroup
 
-  # Service Role Access Entry, REMOVE for GA 
-  # ServiceRoleAccessEntry:
-  #   Type: AWS::EKS::AccessEntry
-  #   Condition: CreateEKSCluster
-  #   Properties:
-  #     ClusterName: !Ref EKSCluster
-  #     PrincipalArn: !GetAtt ServiceRole.Arn
-  #     KubernetesGroups: 
-  #       - 'hyperpod-node-manager'
 
   VpcCNIAddOn:
     Type: 'AWS::EKS::Addon'
@@ -569,10 +560,7 @@ Resources:
             Principal:
               Service:
                 - hyperpod.sagemaker.amazonaws.com
-                - roleproxy.im.aws.internal # Remove for GA
-                - roleproxy.ease.aws.internal # Remove for GA
                 - sagemaker.amazonaws.com
-                - scuderia.im.aws.internal # Remove for GA
             Action:
               - 'sts:AssumeRole'
       Path: /
@@ -597,67 +585,6 @@ Resources:
                 Resource: '*'
       RoleName: !Sub '${ResourceNamePrefix}-ExecutionRole-${AWS::Region}'
 
-  # REMOVE for GA 
-  # ServiceRole:
-  #   Type: 'AWS::IAM::Role'
-  #   Properties:
-  #     AssumeRolePolicyDocument:
-  #       Version: 2012-10-17
-  #       Statement:
-  #         - Effect: Allow
-  #           Principal:
-  #             Service:
-  #               - sagemaker.amazonaws.com
-  #               - scuderia.im.aws.internal
-  #               - hyperpod.sagemaker.amazonaws.com
-  #           Action:
-  #             - 'sts:AssumeRole'
-  #     Path: /
-  #     Policies:
-  #       - PolicyName: !Sub '${ResourceNamePrefix}-EKS-ReadOnly'
-  #         PolicyDocument:
-  #           Version: 2012-10-17
-  #           Statement:
-  #             - Effect: Allow
-  #               Action:
-  #                 - 'eks:DescribeCluster'
-  #               Resource: '*'
-  #       - PolicyName: 'SageMakerWriteLogAccess'
-  #         PolicyDocument:
-  #           Version: 2012-10-17
-  #           Statement:
-  #             - Effect: Allow
-  #               Action:
-  #                 - 'logs:CreateLogStream'
-  #                 - 'logs:CreateLogGroup'
-  #                 - 'logs:PutLogEvents'
-  #               Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/sagemaker/Clusters/*'
-  #     RoleName: 'HyperPodServiceRoleAlternative'
-
-  # ServiceRoleV2:
-  #   Type: 'AWS::IAM::Role'
-  #   Properties:
-  #     AssumeRolePolicyDocument:
-  #       Version: 2012-10-17
-  #       Statement:
-  #         - Effect: Allow
-  #           Principal:
-  #             Service:
-  #               - sagemaker.amazonaws.com
-  #               - scuderia.im.aws.internal
-  #           Action:
-  #             - 'sts:AssumeRole'
-  #     Path: /
-  #     Policies:
-  #       - PolicyName: !Sub '${ResourceNamePrefix}-EKS-ReadOnly'
-  #         PolicyDocument:
-  #           Version: 2012-10-17
-  #           Statement:
-  #             - Effect: Allow
-  #               Action:
-  #                 - 'eks:DescribeCluster'
-  #               Resource: '*'
-  #     RoleName: 'HyperPodServiceRoleV2Alternative'
 
 ### ---------------- Lifcycle Policy Bucket ----------------###
   
@@ -732,11 +659,6 @@ Outputs:
   AmazonSagemakerClusterExecutionRoleArn:
     Description: 'Execution Role Arn'
     Value: !GetAtt ExecutionRole.Arn
-
-  # REMOVE for GA 
-  # AmazonSagemakerServiceRole:
-  #   Description: 'Service Role Arn'
-  #   Value: !GetAtt ServiceRole.Arn
 
   AmazonS3BucketName:
     Description: 'Bucket Name'
