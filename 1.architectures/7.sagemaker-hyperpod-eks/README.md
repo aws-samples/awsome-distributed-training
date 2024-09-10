@@ -1,7 +1,6 @@
 # Amazon EKS support in Amazon SageMaker HyperPod
 
-> [!IMPORTANT]  
-> 
+> 🚨 We recommend following the official [Amazon SageMaker HyperPod EKS Workshop](https://catalog.us-east-1.prod.workshops.aws/workshops/2433d39e-ccfe-4c00-9d3d-9917b729258e/en-US) to deploy clusters, which contains detailed instructions and latest best-practices.
 
 ## 1. Architectures
 
@@ -108,7 +107,7 @@ The HyperPod team provides a Helm chart package, which bundles key dependencies 
 
 ```bash
 git clone https://github.com/aws/sagemaker-hyperpod-cli.git
-cd sagemaker-hyperpod-cli/src/hyperpod_cli/helm_chart
+cd sagemaker-hyperpod-cli/helm_chart
 ```
 
 #### Install the Helm Chart
