@@ -14,7 +14,7 @@ The example that follows describes the process of setting up a SageMaker HyperPo
 
 ### 2.1. Install AWS CLI
 
-Before creating a cluster, we need to install the latest [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html), you'll need version 2.14.3 as a minimum to run the SageMaker HyperPod commands:
+Before creating a cluster, we need to install the latest [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html), you'll need version 2.17.47 as a minimum to run the SageMaker HyperPod commands:
 
 ### 2.2. Install Kubectl
 
