@@ -5,6 +5,48 @@ Description:  This template deploys a VPC, with three public and private subnets
   and default routes for them in the private subnets. This template also deploys an EKS cluster, 
   an IAM execution role for SageMaker, and an S3 bucket for storing lifecycle scripts. 
 
+Metadata: 
+  AWS::CloudFormation::Interface: 
+    ParameterGroups: 
+      - 
+        Label: 
+          default: "Set the Stack Deployment Mode"
+        Parameters: 
+          - CreateEKSCluster
+          - CreateSubnet
+          - ResourceNamePrefix
+      - 
+        Label: 
+          default: "Common Parameters (for Full and Integrative Deployment Modes)"
+        Parameters:
+          - AvailabilityZoneId
+          - PrivateSubnet1CIDR
+      - 
+        Label: 
+          default: "Full Deployment Mode Parameters"
+        Parameters: 
+          - VpcCIDR
+          - PublicSubnet1CIDR
+          - PublicSubnet2CIDR
+          - PublicSubnet3CIDR
+          - EKSPrivateSubnet1CIDR
+          - EKSPrivateSubnet2CIDR
+          - EKSPrivateSubnet3CIDR
+          - KubernetesVersion
+      - 
+        Label: 
+          default: "Integrative Deployment Mode Parameters"
+        Parameters: 
+          - VpcId
+          - NatGatewayId
+          - SecurityGroupId
+
+    ParameterLabels: 
+      CreateEKSCluster: 
+        default: "[Full Deployment Mode] CreateEKSCluster: Do you need to create a new VPC and EKS cluster?"
+      CreateSubnet:
+        default: "[Integrative Deployment Mode] CreateSubnet: Do you need a new private /16 subnet for an existing VPC and EKS cluster?"
+     
 Parameters:
 
   CreateEKSCluster:
@@ -17,7 +59,7 @@ Parameters:
      Description: 'Boolean to enable or disable the creation of a /16 private subnet. Note, this parameter is only evaluated when the CreateEKSCluster parameter is set to false'
      Type: String
      AllowedValues: ['true', 'false']
-     Default: 'true'
+     Default: 'false'
 
   ResourceNamePrefix:
     Description: 'Prefix to be used for all resources created by this template'
@@ -26,16 +68,16 @@ Parameters:
 
 ### ---------------- VPC Params ----------------###
   AvailabilityZoneId: 
-    Description: Please specify the Availability Zone Id you wish to deploy HyperPod ENIs into. Note, this parameter is not evaluated if you are using your own EKS Cluster and your own private subnet.
+    Description: Please specify the Availability Zone Id you wish to deploy HyperPod ENIs into. Note, this parameter is not evaluated if you are using your own EKS Cluster and your own private subnet (CreateEKSCluster=false, CreateSubnet=false).
     Type: String
     Default: usw2-az2
     AllowedPattern: ^[a-z]{3,4}[0-9]-az[0-9]$
     ConstraintDescription: The Availability Zone Id must match the expression ^[a-z]{3,4}[0-9]-az[0-9]$. For example, use1-az4, usw2-az2, or apse1-az2. 
 
   VpcId: 
-    Description: If you are using an Existing EKS Cluster, please specify the Id of your VPC. 
+    Description: (OPTIONAL) If you are using an Existing EKS Cluster, please specify the Id of your VPC (CreateEKSCluster=false, CreateSubnet=true). 
     Type: String
-    Default: Replace with your VPC ID
+    Default: vpc-1234567890abcdef0
 
   VpcCIDR:
     Description: Please enter the IP range (CIDR notation) for this VPC
@@ -43,14 +85,14 @@ Parameters:
     Default: 10.192.0.0/16
 
   SecurityGroupId:
-    Description: If you are using an Existing EKS Cluster, please specify the Id of your cluster security group. 
+    Description: (OPTIONAL) If you are using an Existing EKS Cluster, please specify the Id of your cluster security group (CreateEKSCluster=false, CreateSubnet=true). 
     Type: String
-    Default: Replace with your Security Group ID
+    Default: sg-02ce123456e7893c7
 
   NatGatewayId:
-    Description: If you are using an Existing EKS Cluster, please specify the Id of a NAT Gateway to route enternet bound traffic to. 
+    Description: (OPTIONAL) If you are using an Existing EKS Cluster, please specify the Id of a NAT Gateway to route enternet bound traffic to (CreateEKSCluster=false, CreateSubnet=true). 
     Type: String
-    Default: Replace with your NatGateway ID
+    Default: nat-0a12bc456789de0fg
 
   PublicSubnet1CIDR:
     Description: Please enter the IP range (CIDR notation) for the public subnet in the first Availability Zone
@@ -79,19 +121,21 @@ Parameters:
     Default: '1.29'
 
   EKSPrivateSubnet1CIDR:
-    Description: Please enter the IP range (CIDR notation) for the EKS private subnet in the first Availability Zone
+    Description: Please enter the IP range (CIDR notation) for the EKS private subnet in the first Availability Zone. EKS will use this subnet to deploy cross-account ENIs.
     Type: String
     Default: 10.192.7.0/28
 
   EKSPrivateSubnet2CIDR:
-    Description: Please enter the IP range (CIDR notation) for the EKS private subnet in the second Availability Zone
+    Description: Please enter the IP range (CIDR notation) for the EKS private subnet in the second Availability Zone. EKS will use this subnet to deploy cross-account ENIs.
     Type: String
     Default: 10.192.8.0/28
 
   EKSPrivateSubnet3CIDR:
-    Description: Please enter the IP range (CIDR notation) for the EKS private subnet in the third Availability Zone
+    Description: Please enter the IP range (CIDR notation) for the EKS private subnet in the third Availability Zone. EKS will use this subnet to deploy cross-account ENIs.
     Type: String
     Default: 10.192.9.0/28
+
+### ---------------- Conditions ----------------###
 
 Conditions:
     CreateEKSCluster: !Equals
@@ -196,7 +240,8 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ${ResourceNamePrefix} Private Subnet 1
-    DependsOn: AdditionalCidrBlock1
+    DependsOn: 
+        - AdditionalCidrBlock1
 
   EKSPrivateSubnet1:
     Type: AWS::EC2::Subnet
@@ -471,28 +516,6 @@ Resources:
         SecurityGroupIds: 
           - !Ref NoIngressSecurityGroup
 
-  ## Note: This AccessEntry references the WorkshopRoleArn imported from the hyperpod-eks-cloud9 stack
-  # UserAccessEntry:
-  #   Type: AWS::EKS::AccessEntry
-  #   Condition: CreateEKSCluster
-  #   Properties:
-  #     ClusterName: !Ref EKSCluster
-  #     PrincipalArn: !ImportValue WorkshopRoleArn
-  #     AccessPolicies: 
-  #       - PolicyArn: 'arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy'
-  #         AccessScope:
-  #           Type: 'cluster'
-
-  
-  # Service Role Access Entry, REMOVE for GA 
-  # ServiceRoleAccessEntry:
-  #   Type: AWS::EKS::AccessEntry
-  #   Condition: CreateEKSCluster
-  #   Properties:
-  #     ClusterName: !Ref EKSCluster
-  #     PrincipalArn: !GetAtt ServiceRole.Arn
-  #     KubernetesGroups: 
-  #       - 'hyperpod-node-manager'
 
   VpcCNIAddOn:
     Type: 'AWS::EKS::Addon'
@@ -536,80 +559,33 @@ Resources:
           - Effect: Allow
             Principal:
               Service:
+                - hyperpod.sagemaker.amazonaws.com
                 - sagemaker.amazonaws.com
             Action:
               - 'sts:AssumeRole'
       Path: /
       ManagedPolicyArns:
-        - 'arn:aws:iam::aws:policy/AmazonSageMakerClusterInstanceRolePolicy'
+        - 'arn:aws:iam::aws:policy/AmazonSageMakerFullAccess'
+        - 'arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly'
+        - 'arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy'
+        - 'arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy'
         - 'arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess'
+        - 'arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore'
         - 'arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy'
       Policies:
-        - PolicyName: !Sub '${ResourceNamePrefix}-SageMakerClustersExecutionRolePolicy-${AWS::Region}'
+        - PolicyName: !Sub '${ResourceNamePrefix}-EKS-ReadOnly-${AWS::Region}'
           PolicyDocument:
             Version: 2012-10-17
             Statement:
               - Effect: Allow
                 Action:
-                  - "ec2:CreateNetworkInterface"
-                  - "ec2:CreateNetworkInterfacePermission"
-                  - "ec2:DeleteNetworkInterface"
-                  - "ec2:DeleteNetworkInterfacePermission"
-                  - "ec2:DescribeNetworkInterfaces"
-                  - "ec2:DescribeVpcs"
-                  - "ec2:DescribeDhcpOptions"
-                  - "ec2:DescribeSubnets"
-                  - "ec2:DescribeSecurityGroups"
-                  - "ec2:DetachNetworkInterface" 
-                  - "ecr:GetAuthorizationToken"
-                  - "ecr:BatchGetImage"
-                  - "ecr:GetDownloadUrlForLayer"
-                  - "ec2:AssignPrivateIpAddresses"
-                  - "ec2:UnassignPrivateIpAddresses"
-                  - "eks-auth:AssumeRoleForPodIdentity"
+                  - 'eks:Describe*'
+                  - 'eks:List*'
+                  - 'eks:AccessKubernetesApi'
                 Resource: '*'
-              - Effect: Allow
-                Action:
-                  - 'ec2:CreateTags'
-                Resource: 
-                  - "arn:aws:ec2:*:*:network-interface/*"
       RoleName: !Sub '${ResourceNamePrefix}-ExecutionRole-${AWS::Region}'
 
-# REMOVE for GA 
-  # ServiceRole:
-  #   Type: 'AWS::IAM::Role'
-  #   Properties:
-  #     AssumeRolePolicyDocument:
-  #       Version: 2012-10-17
-  #       Statement:
-  #         - Effect: Allow
-  #           Principal:
-  #             Service:
-  #               - hyperpod.sagemaker.amazonaws.com
-  #           Action:
-  #             - 'sts:AssumeRole'
-  #     Path: /
-  #     Policies:
-  #       - PolicyName: !Sub '${ResourceNamePrefix}-EKS-ReadOnly'
-  #         PolicyDocument:
-  #           Version: 2012-10-17
-  #           Statement:
-  #             - Effect: Allow
-  #               Action:
-  #                 - 'eks:DescribeCluster'
-  #               Resource: '*'
-  #       - PolicyName: 'SageMakerWriteLogAccess'
-  #         PolicyDocument:
-  #           Version: 2012-10-17
-  #           Statement:
-  #             - Effect: Allow
-  #               Action:
-  #                 - 'logs:CreateLogStream'
-  #                 - 'logs:CreateLogGroup'
-  #                 - 'logs:PutLogEvents'
-  #               Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/sagemaker/Clusters/*'
-  #     RoleName: 'HyperPodServiceRoleAlternative'
-  
+
 ### ---------------- Lifcycle Policy Bucket ----------------###
   
   Bucket:
@@ -683,11 +659,6 @@ Outputs:
   AmazonSagemakerClusterExecutionRoleArn:
     Description: 'Execution Role Arn'
     Value: !GetAtt ExecutionRole.Arn
-
-  # REMOVE for GA 
-  # AmazonSagemakerServiceRole:
-  #   Description: 'Service Role Arn'
-  #   Value: !GetAtt ServiceRole.Arn
 
   AmazonS3BucketName:
     Description: 'Bucket Name'
