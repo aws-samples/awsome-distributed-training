@@ -226,7 +226,7 @@ cat > cluster-config.json << EOL
         },
         "ExecutionRole": "${EXECUTION_ROLE}",
         "ThreadsPerCore": 1,
-        "OnStartDeepHealthCheck": ["InstanceStress", "InstanceConnectivity"]
+        "OnStartDeepHealthChecks": ["InstanceStress", "InstanceConnectivity"]
       },
       {
         "InstanceGroupName": "worker-group-2",
@@ -258,7 +258,7 @@ EOL
 
 - You can configure up to 20 instance groups under the `InstanceGroups` parameter. 
 - For `Orchestrator.Eks.ClusterArn`, specify the ARN of the EKS cluster you want to use as the orchestrator. 
-- For `OnStartDeepHealthCheck`, add `InstanceStress` and `InstanceConnectivity` to enable deep health checks. 
+- For `OnStartDeepHealthChecks`, add `InstanceStress` and `InstanceConnectivity` to enable deep health checks. 
 - For `NodeRecovery`, specify `Automatic` to enable automatic node recovery. HyperPod replaces or reboots instances (nodes) that fail the basic health or deep health checks (when enabled). 
 - For the `VpcConfig` parameter, specify the information of the VPC used in the EKS cluster. The subnets must be private
 
@@ -358,14 +358,6 @@ aws sagemaker update-cluster-software --cluster-name ml-cluster --region $AWS_RE
 ```
 
 Note that this API replaces the instance root volume and cleans up data in it. You should back up your work before running it.
-We've included a script `patching-backup.sh` that can backup and restore the data via Amazon S3.
-
-```bash
-# to backup data to an S3 bucket before patching
-sudo bash patching-backup.sh --create <s3-buckup-bucket-path>
-# to restore data from an S3 bucket after patching
-sudo bash patching-backup.sh --restore <s3-buckup-bucket-path>
-```
 
 ### 3.7 Deleting your HyperPod cluster
 
