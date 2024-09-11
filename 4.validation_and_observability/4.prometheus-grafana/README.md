@@ -152,4 +152,17 @@ https://grafana.com/grafana/dashboards/12239-nvidia-dcgm-exporter-dashboard/
 
 ![DCGM Dashboard](./assets/dcgm-dashboard.png)
 
+#### GPU Health (Xid) Dashboard:
+
+https://grafana.com/grafana/dashboards/21645-gpu-health-cluster/
+
+![GPUHealth Dashboard](./assets/gpu-health.png)
+
+
+#### GPU Health (Xid) ny Node Dashboard:
+
+https://grafana.com/grafana/dashboards/21646-gpu-health-filter-by-host/
+
+![GPUHealthNode Dashboard](./assets/gpu-health-by-node.png)
+
 Congratulations, you can now view real time metrics about your Sagemaker HyperPod Cluster and compute nodes in Grafana!
