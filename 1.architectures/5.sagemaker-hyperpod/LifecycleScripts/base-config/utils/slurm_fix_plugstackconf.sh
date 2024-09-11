@@ -35,7 +35,7 @@ check_root(){
 
 # swap the generic include in ${plugstack_conf} from ${plugstack_dir}/* to direct ${pyxis_conf}
 # WARNING it is not generic anymore, only pyxis plugin will be loaded
-slurm_fix_pyxis(){
+slurm_fix_plugstack(){
     pecho "start ${FUNCNAME}:"
     
     pecho "Fixing ${plugstack_conf}"
@@ -60,7 +60,7 @@ main(){
     pecho "start ${FUNCNAME}:"
 
     check_root
-    slurm_fix_pyxis # need to run on all instances (controller-machine and work-group-1, etc.)
+    slurm_fix_plugstack # need to run on all instances (controller-machine and work-group-1, etc.)
 
     pecho "leave ${FUNCNAME}."
 }
