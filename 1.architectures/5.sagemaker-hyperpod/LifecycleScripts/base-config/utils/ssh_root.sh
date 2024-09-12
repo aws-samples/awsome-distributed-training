@@ -1,13 +1,10 @@
 #!/bin/bash
-# https://slurm.schedmd.com/pam_slurm_adopt.html
-# https://github.com/SchedMD/slurm/blob/master/contribs/pam_slurm_adopt/pam_slurm_adopt.c
-# https://slurm.schedmd.com/slurm.conf.html
-# root needed
-# tested on Ubuntu 20.04
+# add ssh keys to a specified user in order to SSH between nodes of the cluster
 
 shared_mount="/fsx"
 admin_dir="${shared_mount}/admin"
 
+user="$1"
 ssh_dir="${HOME}/.ssh"
 key_priv="id_rsa"
 key_pub="${key_priv}.pub"

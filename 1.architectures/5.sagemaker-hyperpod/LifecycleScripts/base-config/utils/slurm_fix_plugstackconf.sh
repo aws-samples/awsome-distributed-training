@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # BUG
-# Slurm configless bug workaround for pyxis SPANK plugin reference in etc/plugstack.conf # CF internal ticket D148893639 and V1514329557 # schedMD ticket 20903
+# Slurm configless bug workaround for pyxis SPANK plugin reference in etc/plugstack.conf
 # known limitation of configless, where included files must be adjacent to their parent file.
 # slurmctld is attempting to read '*' wildcard as a file, marking it not responsive
 # The slurmctld not responsive issue was fixed in 23.11.5, but the wildcard limitation still exists.
@@ -33,8 +33,9 @@ check_root(){
     fi
 }
 
-# swap the generic include in ${plugstack_conf} from ${plugstack_dir}/* to direct ${pyxis_conf}
-# WARNING it is not generic anymore, only pyxis plugin will be loaded
+# in Slurm configuration plugstack.conf: swap the generic "include" by expanding wildcard into "include" with direct config files absolute path
+# ex: from "include ${plugstack_dir}/*" to "include ${pyxis_conf}"
+# https://slurm.schedmd.com/spank.html # include keyword must appear on its own line, and takes a glob as its parameter
 slurm_fix_plugstack(){
     pecho "start ${FUNCNAME}:"
     
@@ -46,10 +47,11 @@ slurm_fix_plugstack(){
         for f in $(ls $line) ;do
             echo "include $f" >> "${plugstack_conf}"
         done
-    done < <(cat "${plugstack_conf}" | grep -v "^#" | grep "^include" | awk '{print $2}')
+    done < <(cat "${plugstack_conf}" | grep -v "^#" | grep '*' | egrep "^include|" | awk '{print $2}')
 
-    # sed -i "${plugstack_conf}" -e "s#^include[ ][ ]*.*${plugstack_dir}/\*.*#include ${pyxis_conf}#g" # WARNING this only swap pyxis, it is not generic anymore, only pyxis plugin will be loaded
-    sed -i "${plugstack_conf}" -e "s#^\(include[ ][ ]*.*${plugstack_dir}/\*.*\)#\#\1#g" # comment the whole wildcard line
+    # comment the whole wildcard line
+    # sed -i "${plugstack_conf}" -e "s#^\(include[ ][ ]*.*${plugstack_dir}/\*.*\)#\#\1#g"
+    sed -i "${plugstack_conf}" -e "s#^\(include[ ][ ]*.*\*.*\)#\#\1#g"
 
     cat "${plugstack_conf}"
     pecho "leave ${FUNCNAME}."
