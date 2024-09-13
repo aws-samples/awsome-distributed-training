@@ -4,12 +4,18 @@
 # 1. add cgroup enforcement to fence jobs, memory for exemaple with MaxRAMPercent
 # 2. add pam_slurm_adopt support to prevent user to ssh without jobs running on that node
 # 3. add wheel group support to allow ssh 
-#
+# 
 # pam_slurm_adopt will always allow the root user access.
-# To allow other admins to the system, there are 2 PAM options to allow users to ssh:
+# To allow other admins to the system, there are 2 PAM implemented options to allow users to ssh:
 # 1. pam_access.so using ${access_conf}
 # 2. pam_listfile.so using ${wheel_list}
 # 
+# pam_slurm_adopt
+# The purpose of this module is to prevent users from sshing into nodes that they do not have a running job on, and to track the ssh connection and
+# any other spawned processes for accounting and to ensure complete job cleanup when the job is completed. This module does this by determining the job
+# which originated the ssh connection. The user's connection is "adopted" into the "external" step of the job.
+# When access is denied, the user will receive a relevant error message.
+#
 # https://github.com/SchedMD/slurm/blob/master/contribs/pam_slurm_adopt/pam_slurm_adopt.c
 # https://slurm.schedmd.com/slurm.conf.html
 # root needed
