@@ -122,6 +122,7 @@ slurm_pam_adopt(){
         fi
         if [[ $(cat ${access_conf} | grep -v '^#' | grep -c ${admin_group} ) -eq 0 ]] ;then
             echo "+:(${admin_group}):ALL" >> "${access_conf}"
+            echo "-:ALL:ALL" >> "${access_conf}"
         fi
     fi
     # add users to admin group and add it to the ${wheel_list} if it exists
