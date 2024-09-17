@@ -34,7 +34,7 @@ admin_group="" # ex: admin_group="admin" name of the admin group used by pam_acc
 access_conf="/etc/security/access.conf" # used by pam_access.so
 shared_mount="/fsx" # to share files needed by all nodes
 admin_dir="${shared_mount}/admin" # to store admin files containing admin users (${wheel_list}) used by pam_listfile.so
-wheel_list="${admin_dir}/${admin_group}.lst" # text file listing the admins used by pam_listfile.so. Set to "" to deactivate
+wheel_list="${admin_dir}/admin.lst" # text file listing the admins used by pam_listfile.so. Set to "" to deactivate
 pam_conf="/etc/pam.d/sshd"
 sshd_conf="/etc/ssh/sshd_config" # to add UsePAM=yes
 
