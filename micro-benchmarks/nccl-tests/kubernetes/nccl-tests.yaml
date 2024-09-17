@@ -48,6 +48,8 @@ spec:
             - NCCL_BUFFSIZE=8388608
             - -x
             - NCCL_P2P_NET_CHUNKSIZE=524288
+            - -x
+            - NCCL_TUNER_PLUGIN=/opt/aws-ofi-nccl/install/lib/libnccl-ofi-tuner.so
             - --mca
             - pml
             - ^cm,ucx
