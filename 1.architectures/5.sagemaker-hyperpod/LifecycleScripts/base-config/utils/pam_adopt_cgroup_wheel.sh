@@ -1,20 +1,22 @@
 #!/bin/bash
 
-# This script is doing 3 actions following the documentation from https://slurm.schedmd.com/pam_slurm_adopt.html
-# 1. add cgroup enforcement to fence jobs, memory for exemaple with MaxRAMPercent
-# 2. add pam_slurm_adopt support to prevent user to ssh without jobs running on that node
-# 3. add wheel group support to allow ssh 
-# 
-# pam_slurm_adopt will always allow the root user access.
-# To allow other admins to the system, there are 2 PAM implemented options to allow users to ssh:
-# 1. pam_access.so using ${access_conf}
-# 2. pam_listfile.so using ${wheel_list}
-# 
+# Implementing the content of https://slurm.schedmd.com/pam_slurm_adopt.html to add cgroups, pam_slurm_adopt and ssh admin access
+#
 # pam_slurm_adopt
 # The purpose of this module is to prevent users from sshing into nodes that they do not have a running job on, and to track the ssh connection and
 # any other spawned processes for accounting and to ensure complete job cleanup when the job is completed. This module does this by determining the job
 # which originated the ssh connection. The user's connection is "adopted" into the "external" step of the job.
 # When access is denied, the user will receive a relevant error message.
+#
+# This script is implementing 3 specific items following the documentation from https://slurm.schedmd.com/pam_slurm_adopt.html
+# 1. add cgroup enforcement to fence jobs, memory for exemaple with MaxRAMPercent
+# 2. add pam_slurm_adopt support to prevent user to ssh without jobs running on that node
+# 3. add wheel group support to allow ssh
+# 
+# pam_slurm_adopt will always allow the root user access.
+# To allow other admins to the system, there are 2 PAM implemented options to allow users to ssh:
+# 1. pam_access.so using ${access_conf}
+# 2. pam_listfile.so using ${wheel_list}
 #
 # https://github.com/SchedMD/slurm/blob/master/contribs/pam_slurm_adopt/pam_slurm_adopt.c
 # https://slurm.schedmd.com/slurm.conf.html
@@ -28,11 +30,11 @@ slurm_conf_accounting="${slurm_dir}/etc/accounting.conf"
 
 # admin users ssh without having jobs running on a node
 admin_users="ubuntu" # list of admin users who can ssh without having jobs running on the node
-admin_group="admin" # name of the admin group used by pam_access.so. Set to "" to deactivate
+admin_group="" # ex: admin_group="admin" name of the admin group used by pam_access.so. Set to "" to deactivate
 access_conf="/etc/security/access.conf" # used by pam_access.so
 shared_mount="/fsx" # to share files needed by all nodes
 admin_dir="${shared_mount}/admin" # to store admin files containing admin users (${wheel_list}) used by pam_listfile.so
-wheel_list="${admin_dir}/${admin_group}.lst" # text file listing the admins used by pam_listfile.so. Set to "" to deactivate
+wheel_list="${admin_dir}/admin.lst" # text file listing the admins used by pam_listfile.so. Set to "" to deactivate
 pam_conf="/etc/pam.d/sshd"
 sshd_conf="/etc/ssh/sshd_config" # to add UsePAM=yes
 
@@ -45,7 +47,8 @@ slurm_adopt_apt="libpam-slurm-adopt"
 
 smhp_conf="/opt/ml/config/resource_config.json" # get_node_type
 
-# apt_opts='-o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold"'
+# APT CLI options to avoid failure
+apt_opts='' # apt_opts='-o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold"'
 export DEBIAN_FRONTEND=noninteractive
 
 if [[ -n "${admin_group}" ]] && [[ -n "${wheel_list}" ]] ;then
@@ -91,7 +94,7 @@ slurm_pam_adopt(){
     grep -Hn "^UsePAM " ${sshd_conf} 
 
     pecho "Remove OS slurm-pam packages:"
-    apt -y remove libpam-slurm-adopt libpam-slurm
+    apt -y ${apt_opts} remove libpam-slurm-adopt libpam-slurm
     
     pecho "Download, compile and install the pam_slurm_adopt module from ${slurm_git_dir} GitHub repo:"
     path_orig="$(pwd)"
@@ -256,9 +259,6 @@ squeue -u ${user}
 for node in $nodes ;do
     echo "Testing node $node :"
     ssh -o StrictHostKeyChecking=no ${user}@${node} "hostname"
-    # Access denied by pam_slurm_adopt: you have no active jobs on this node
-    # Connection closed by 10.1.64.87 port 22
-    sbatch --wrap "sleep 10" -w $node -N 1
     jobid="$(sbatch -w "${node}" --wrap "sleep 10" -N 1 | grep -Po "[0-9]+")"
     ssh -o StrictHostKeyChecking=no ${user}@${node} "hostname"
     scancel ${jobid}
@@ -266,8 +266,11 @@ for node in $nodes ;do
 done
 squeue -u ${user}
 
-
-
+    # output expected:
+    #   Testing node ip-10-1-28-64 :
+    #   Access denied by pam_slurm_adopt: you have no active jobs on this node
+    #   Connection closed by 10.1.28.64 port 22
+    #   ip-10-1-28-64
 
 
 
