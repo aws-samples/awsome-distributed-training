@@ -1,11 +1,14 @@
 #!/bin/bash
 
-# BUG
+# Slurm cannot expand wildcard in etc/plugstack.conf while used with configless.
+# The wildcard character '*' is interpreted as a character.
+# The purpose of the script is to expand the wildcard by listing all the files matching the wildcard.
+# BUG:
 # Slurm configless bug workaround for pyxis SPANK plugin reference in etc/plugstack.conf
 # known limitation of configless, where included files must be adjacent to their parent file.
 # slurmctld is attempting to read '*' wildcard as a file, marking it not responsive
 # The slurmctld not responsive issue was fixed in 23.11.5, but the wildcard limitation still exists.
-# WORKAROUND
+# WORKAROUND:
 # This script changes the Slurm configuration file /opt/slurm/etc/plugstack.conf expanding wildcard to include directly config files absolute path
 # like /opt/slurm/etc/plugstack.conf.d/pyxis.conf instead of using the generic /opt/slurm/etc/plugstack.conf.d/*
 # Avoids slurmctld restart hanging for minutes
