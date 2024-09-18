@@ -3,7 +3,7 @@
 # This script is implementing 3 specific items following the documentation from https://slurm.schedmd.com/pam_slurm_adopt.html
 # 1. Limit host memory usage at 99% MaxRAMPercent using cgroup enforcement
 # 2. Prevent user to ssh without jobs running on that node using adding pam_slurm_adopt PAM module
-# 3. Since pam_slurm_adopt will block ssh user access, we add a wheel group mechanism to authorized admin users to ssh with 2 different PAM modules.
+# 3. Since pam_slurm_adopt will block ssh user access, we add a wheel group mechanism to authorize admin users to ssh with 2 different PAM modules.
 #
 # pam_slurm_adopt will always allow the root user access. To allow other admins to the system, there are 2 PAM implemented options to allow users to ssh:
 # - pam_access.so using ${access_conf}
