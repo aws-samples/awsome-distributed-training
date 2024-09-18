@@ -1,6 +1,13 @@
 #!/bin/bash
 
-# Implementing the content of https://slurm.schedmd.com/pam_slurm_adopt.html to add cgroups, pam_slurm_adopt and ssh admin access
+# This script is implementing 3 specific items following the documentation from https://slurm.schedmd.com/pam_slurm_adopt.html
+# 1. Limit host memory usage at 99% MaxRAMPercent using cgroup enforcement
+# 2. Prevent user to ssh without jobs running on that node using adding pam_slurm_adopt PAM module
+# 3. Since pam_slurm_adopt will block ssh user access, we add a wheel group mechanism to authorized admin users to ssh with 2 different PAM modules.
+#
+# pam_slurm_adopt will always allow the root user access. To allow other admins to the system, there are 2 PAM implemented options to allow users to ssh:
+# - pam_access.so using ${access_conf}
+# - pam_listfile.so using ${wheel_list}
 #
 # pam_slurm_adopt
 # The purpose of this module is to prevent users from sshing into nodes that they do not have a running job on, and to track the ssh connection and
@@ -8,19 +15,12 @@
 # which originated the ssh connection. The user's connection is "adopted" into the "external" step of the job.
 # When access is denied, the user will receive a relevant error message.
 #
-# This script is implementing 3 specific items following the documentation from https://slurm.schedmd.com/pam_slurm_adopt.html
-# 1. add cgroup enforcement to fence jobs, memory for exemaple with MaxRAMPercent
-# 2. add pam_slurm_adopt support to prevent user to ssh without jobs running on that node
-# 3. add wheel group support to allow ssh
-# 
-# pam_slurm_adopt will always allow the root user access.
-# To allow other admins to the system, there are 2 PAM implemented options to allow users to ssh:
-# 1. pam_access.so using ${access_conf}
-# 2. pam_listfile.so using ${wheel_list}
+# Implementing the content of https://slurm.schedmd.com/pam_slurm_adopt.html to add cgroups, pam_slurm_adopt and ssh admin access
 #
 # https://github.com/SchedMD/slurm/blob/master/contribs/pam_slurm_adopt/pam_slurm_adopt.c
 # https://slurm.schedmd.com/slurm.conf.html
 # root needed
+
 
 # CGROUP --> check slurm_cgroups() to set specific Slurm options
 slurm_dir="/opt/slurm"
