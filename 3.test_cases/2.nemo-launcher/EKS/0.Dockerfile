@@ -108,4 +108,4 @@ RUN git clone https://github.com/NVIDIA/nccl-tests.git /opt/nccl-tests \
 # 1. Downgrade the protobuf package to 3.20.x or lower.
 # 2. Set PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python (but this will use pure-Python parsing and will be much slower).
 
-RUN pip install pip install protobuf==3.20.*
+RUN pip install protobuf==3.20.*
