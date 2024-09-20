@@ -6,6 +6,8 @@ FROM nvcr.io/nvidia/pytorch:24.08-py3
 ARG GDRCOPY_VERSION=v2.4.1
 ARG EFA_INSTALLER_VERSION=1.34.0
 ARG AWS_OFI_NCCL_VERSION=v1.11.0-aws
+ARG TRANSFORMERS_VERSION=4.44.2
+ARG MEGATRON_LM_VERSION=core_r0.8.0
 
 ARG OPEN_MPI_PATH=/opt/amazon/openmpi
 
@@ -117,12 +119,12 @@ RUN mv $OPEN_MPI_PATH/bin/mpirun $OPEN_MPI_PATH/bin/mpirun.real \
 ######################
 # Transformers dependencies used in the model
 ######################
-RUN pip install transformers==4.21.0 sentencepiece python-etcd
+RUN pip install transformers==${TRANSFORMERS_VERSION} sentencepiece python-etcd
 
 #####################
 # Install megatron-lm
 #####################
-RUN cd /workspace && git clone --depth 1 --branch core_v0.4.0 https://github.com/NVIDIA/Megatron-LM.git \
+RUN cd /workspace && git clone --depth 1 --branch ${MEGATRON_LM_VERSION} https://github.com/NVIDIA/Megatron-LM.git \
 	&& cd Megatron-LM \
 	&& python3 -m pip install nltk  \
 	&& python -m pip install .
