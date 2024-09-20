@@ -124,10 +124,11 @@ RUN pip install transformers==${TRANSFORMERS_VERSION} sentencepiece python-etcd
 #####################
 # Install megatron-lm
 #####################
+RUN pip install -U setuptools==75.1.0
 RUN cd /workspace && git clone --depth 1 --branch ${MEGATRON_LM_VERSION} https://github.com/NVIDIA/Megatron-LM.git \
-	&& cd Megatron-LM \
-	&& python3 -m pip install nltk  \
-	&& python -m pip install .
+    && cd Megatron-LM \
+    && python3 -m pip install nltk  \
+    && python -m pip install .
 
 ## Set Open MPI variables to exclude network interface and conduit.
 ENV OMPI_MCA_pml=^cm,ucx            \
