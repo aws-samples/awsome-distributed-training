@@ -1,18 +1,25 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 
-FROM nvcr.io/nvidia/pytorch:23.09-py3
+FROM nvcr.io/nvidia/pytorch:24.08-py3
 
-ARG EFA_INSTALLER_VERSION=1.30.0
-ARG AWS_OFI_NCCL_VERSION=v1.7.4-aws
+ARG GDRCOPY_VERSION=v2.4.1
+ARG EFA_INSTALLER_VERSION=1.34.0
+ARG AWS_OFI_NCCL_VERSION=v1.11.0-aws
+ARG TRANSFORMERS_VERSION=4.44.2
+ARG MEGATRON_LM_VERSION=core_r0.8.0
+
 ARG OPEN_MPI_PATH=/opt/amazon/openmpi
 
 ######################
 # Update and remove the IB libverbs
 ######################
-RUN apt-get update -y
+RUN apt-get update -y && apt-get upgrade -y
 RUN apt-get remove -y --allow-change-held-packages \
-                      libmlx5-1 ibverbs-utils libibverbs-dev libibverbs1
+    ibverbs-utils \
+    libibverbs-dev \
+    libibverbs1 \
+    libmlx5-1
 
 RUN rm -rf /opt/hpcx/ompi \
     && rm -rf /usr/local/mpi \
@@ -20,23 +27,21 @@ RUN rm -rf /opt/hpcx/ompi \
     && ldconfig
 
 RUN DEBIAN_FRONTEND=noninteractive apt install -y --allow-unauthenticated \
-    git \
+    apt-utils \
+    autoconf \
+    automake \
+    build-essential \
+    cmake \
+    curl \
     gcc \
-    vim \
+    gdb \
+    git \
     kmod \
+    libtool \
     openssh-client \
     openssh-server \
-    build-essential \
-    curl \
-    autoconf \
-    libtool \
-    gdb \
-    libhwloc-dev \
-    automake \
-    cmake \
-    apt-utils && \
-    DEBIAN_FRONTEND=noninteractive apt autoremove -y
-
+    vim \
+    && apt autoremove -y
 
 RUN mkdir -p /var/run/sshd && \
     sed -i 's/[ #]\(.*StrictHostKeyChecking \).*/ \1no/g' /etc/ssh/ssh_config && \
@@ -54,28 +59,49 @@ ENV LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:/opt/amazon/openmpi/lib:/
 ENV PATH=/opt/amazon/openmpi/bin/:/opt/amazon/efa/bin:/usr/bin:/usr/local/bin:$PATH
 
 #################################################
+## Install NVIDIA GDRCopy
+##
+## NOTE: if `nccl-tests` or `/opt/gdrcopy/bin/sanity -v` crashes with incompatible version, ensure
+## that the cuda-compat-xx-x package is the latest.
+RUN git clone -b ${GDRCOPY_VERSION} https://github.com/NVIDIA/gdrcopy.git /tmp/gdrcopy \
+    && cd /tmp/gdrcopy \
+    && make prefix=/opt/gdrcopy install
+
+ENV LD_LIBRARY_PATH /opt/gdrcopy/lib:/usr/local/cuda/compat:$LD_LIBRARY_PATH
+ENV LIBRARY_PATH /opt/gdrcopy/lib:/usr/local/cuda/compat/:$LIBRARY_PATH
+ENV CPATH /opt/gdrcopy/include:$CPATH
+ENV PATH /opt/gdrcopy/bin:$PATH
+
+#################################################
 ## Install EFA installer
 RUN cd $HOME \
     && curl -O https://efa-installer.amazonaws.com/aws-efa-installer-${EFA_INSTALLER_VERSION}.tar.gz \
     && tar -xf $HOME/aws-efa-installer-${EFA_INSTALLER_VERSION}.tar.gz \
     && cd aws-efa-installer \
-    && ./efa_installer.sh -y --skip-kmod --no-verify
+    && ./efa_installer.sh -y -g -d --skip-kmod --skip-limit-conf --no-verify \
+    && rm -rf $HOME/aws-efa-installer
 
 
 ###################################################
 ## Install AWS-OFI-NCCL plugin
-RUN export OPAL_PREFIX="" \
-    && git clone https://github.com/aws/aws-ofi-nccl.git /opt/aws-ofi-nccl \
-    && cd /opt/aws-ofi-nccl \
-    && env \
-    && git checkout ${AWS_OFI_NCCL_VERSION} \
-    && ./autogen.sh \
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y libhwloc-dev
+#Switch from sh to bash to allow parameter expansion
+SHELL ["/bin/bash", "-c"]
+RUN curl -OL https://github.com/aws/aws-ofi-nccl/releases/download/${AWS_OFI_NCCL_VERSION}/aws-ofi-nccl-${AWS_OFI_NCCL_VERSION//v}.tar.gz \
+    && tar -xf aws-ofi-nccl-${AWS_OFI_NCCL_VERSION//v}.tar.gz \
+    && cd aws-ofi-nccl-${AWS_OFI_NCCL_VERSION//v} \
     && ./configure --prefix=/opt/aws-ofi-nccl/install \
-       --with-libfabric=/opt/amazon/efa \
-       --with-cuda=/usr/local/cuda \
-       --with-mpi=/opt/amazon/openmpi/ \
-       --enable-platform-aws \
-    && make -j $(nproc) && make install
+        --with-mpi=/opt/amazon/openmpi \
+        --with-libfabric=/opt/amazon/efa \
+        --with-cuda=/usr/local/cuda \
+        --enable-platform-aws \
+    && make -j $(nproc) \
+    && make install \
+    && cd .. \
+    && rm -rf aws-ofi-nccl-${AWS_OFI_NCCL_VERSION//v} \
+    && rm aws-ofi-nccl-${AWS_OFI_NCCL_VERSION//v}.tar.gz
+
+SHELL ["/bin/sh", "-c"]
 
 ###################################################
 RUN rm -rf /var/lib/apt/lists/*
@@ -83,8 +109,7 @@ RUN rm -rf /var/lib/apt/lists/*
 RUN echo "hwloc_base_binding_policy = none" >> /opt/amazon/openmpi/etc/openmpi-mca-params.conf \
  && echo "rmaps_base_mapping_policy = slot" >> /opt/amazon/openmpi/etc/openmpi-mca-params.conf
 
-RUN pip3 install awscli
-RUN pip3 install pynvml
+RUN pip3 install awscli pynvml
 
 RUN mv $OPEN_MPI_PATH/bin/mpirun $OPEN_MPI_PATH/bin/mpirun.real \
  && echo '#!/bin/bash' > $OPEN_MPI_PATH/bin/mpirun \
@@ -94,14 +119,25 @@ RUN mv $OPEN_MPI_PATH/bin/mpirun $OPEN_MPI_PATH/bin/mpirun.real \
 ######################
 # Transformers dependencies used in the model
 ######################
-RUN pip install transformers==4.21.0 sentencepiece python-etcd
+RUN pip install transformers==${TRANSFORMERS_VERSION} sentencepiece python-etcd
 
 #####################
 # Install megatron-lm
 #####################
-RUN cd /workspace && git clone --depth 1 --branch core_v0.4.0 https://github.com/NVIDIA/Megatron-LM.git \
-	&& cd Megatron-LM \
-	&& python3 -m pip install nltk  \
-	&& python -m pip install .
+RUN pip install -U setuptools==75.1.0
+RUN cd /workspace && git clone --depth 1 --branch ${MEGATRON_LM_VERSION} https://github.com/NVIDIA/Megatron-LM.git \
+    && cd Megatron-LM \
+    && python3 -m pip install nltk  \
+    && python -m pip install .
+
+## Set Open MPI variables to exclude network interface and conduit.
+ENV OMPI_MCA_pml=^cm,ucx            \
+    OMPI_MCA_btl=tcp,self           \
+    OMPI_MCA_btl_tcp_if_exclude=lo,docker0,veth_def_agent\
+    OPAL_PREFIX=/opt/amazon/openmpi \
+    NCCL_SOCKET_IFNAME=^docker,lo,veth_def_agent,eth
+
+## Turn off PMIx Error https://github.com/open-mpi/ompi/issues/7516
+ENV PMIX_MCA_gds=hash
 
 WORKDIR /workspace/Megatron-LM
