@@ -132,6 +132,8 @@ elif [[ $(mount | grep /opt/sagemaker) ]]; then
 
      mkdir -p /opt/sagemaker/enroot
      chmod 1777 /opt/sagemaker/enroot
+     
+fi
 
 # Use /fsx for enroot cache, if available. Let's be extra careful in the probe.
 if [[ $(mount | grep /fsx) ]]; then
