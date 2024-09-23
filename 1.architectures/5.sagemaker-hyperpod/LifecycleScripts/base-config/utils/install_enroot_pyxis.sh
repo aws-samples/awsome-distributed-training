@@ -55,30 +55,49 @@ ln -fs /usr/local/share/pyxis/pyxis.conf $SLURM_INSTALL_DIR/etc/plugstack.conf.d
 mkdir -p /run/pyxis/ /tmp/enroot/data /opt/enroot/
 chmod 777 -R /tmp/enroot /opt/enroot
 ################################################################################
+# Below while loop instituted to combat race condition when mapping enroot path to /opt/dlami/nvme described in https://github.com/aws-samples/awsome-distributed-training/issues/427
+# Maximum time to wait in seconds (2 minutes = 120 seconds)
+MAX_WAIT_TIME=120
 
+# Initialize the elapsed time
+ELAPSED_TIME=0
 
-# Opportunistically use /opt/sagemaker or /opt/dlami/nvme if present. Let's be extra careful in the probe.
-#
-# Note: ENROOT_TEMP_PATH on Lustre throws "Unrecognised xattr prefix lustre.lov".
-# See: https://github.com/aws-samples/awsome-distributed-training/issues/127
-if [[ $(mount | grep /opt/sagemaker) ]]; then
-    sed -i \
-        -e 's|^\(ENROOT_RUNTIME_PATH  *\).*$|\1/opt/sagemaker/tmp/enroot/user-$(id -u)|' \
-        -e 's|^\(ENROOT_CACHE_PATH  *\).*$|\1/opt/sagemaker/enroot|' \
-        -e 's|^\(ENROOT_DATA_PATH  *\).*$|\1/opt/sagemaker/tmp/enroot/data/user-$(id -u)|' \
-        -e 's|^#\(ENROOT_TEMP_PATH  *\).*$|\1/opt/sagemaker/tmp|' \
-        /etc/enroot/enroot.conf
+# Interval to wait between each check (in seconds)
+CHECK_INTERVAL=5
 
-    mkdir -p /opt/sagemaker/tmp/enroot/
-    chmod 1777 /opt/sagemaker/tmp
-    chmod 1777 /opt/sagemaker/tmp/enroot/
+while true; do
+    # Check the ActiveState of the lib/systemd/system/dlami-nvme.service
+    ACTIVE_STATE=$(systemctl show dlami-nvme | grep "ActiveState" | cut -d '=' -f 2)
+    # Check the ExecMainStatus of the lib/systemd/system/dlami-nvme.service
+    RESULT_STATE=$(systemctl show dlami-nvme | grep "ExecMainStatus" | cut -d '=' -f 2)
 
-    mkdir -p /opt/sagemaker/tmp/enroot/data/
-    chmod 1777 /opt/sagemaker/tmp/enroot/data/
+    # Print the current states of /lib/systemd/system/dlami-nvme.service (for debugging purposes)
+    echo "dlami-nvme.service ActiveState: $ACTIVE_STATE"
+    echo "dlami-nvme.service ExecMainStatus: $RESULT_STATE"
 
-     mkdir -p /opt/sagemaker/enroot
-     chmod 1777 /opt/sagemaker/enroot
-elif [[ $(mount | grep /opt/dlami/nvme) ]]; then
+    # Break the loop if service == active and ExecMainStatus == 0 (which means success)
+    if [[ "$ACTIVE_STATE" == "active" && "$RESULT_STATE" == "0" ]]; then
+        echo "dlami-nvme.service is active and successful. Proceeding with Enroot configuration on /opt/dlami/nvme if available"
+        break
+    fi
+
+    # Increment the elapsed time
+    ELAPSED_TIME=$((ELAPSED_TIME + CHECK_INTERVAL))
+
+    # Break the loop if the elapsed time exceeds the maximum wait time
+    if [[ $ELAPSED_TIME -ge $MAX_WAIT_TIME ]]; then
+        echo "WARN: Timeout reached: dlami-nvme.service did not become active and successful, it is possible enroot default path is /opt/sagemaker. When training larger models, dragons be here. See https://github.com/aws-samples/awsome-distributed-training/issues/427 for corrective actions"
+        break
+    fi
+
+    # Wait for the specified interval before checking again
+    sleep $CHECK_INTERVAL
+done
+
+####################################################################################################
+
+# Opportunistically use /opt/dlami/nvme (takes precedent) or /opt/sagemaker (secondary) if present. Let's be extra careful in the probe.
+if [[ $(mount | grep /opt/dlami/nvme) ]]; then
     sed -i \
         -e 's|^\(ENROOT_RUNTIME_PATH  *\).*$|\1/opt/dlami/nvme/tmp/enroot/user-$(id -u)|' \
         -e 's|^\(ENROOT_CACHE_PATH  *\).*$|\1/opt/dlami/nvme/enroot|' \
@@ -96,7 +115,23 @@ elif [[ $(mount | grep /opt/dlami/nvme) ]]; then
      mkdir -p /opt/dlami/nvme/enroot
      chmod 1777 /opt/dlami/nvme/enroot
 
-fi
+elif [[ $(mount | grep /opt/sagemaker) ]]; then
+    sed -i \
+        -e 's|^\(ENROOT_RUNTIME_PATH  *\).*$|\1/opt/sagemaker/tmp/enroot/user-$(id -u)|' \
+        -e 's|^\(ENROOT_CACHE_PATH  *\).*$|\1/opt/sagemaker/enroot|' \
+        -e 's|^\(ENROOT_DATA_PATH  *\).*$|\1/opt/sagemaker/tmp/enroot/data/user-$(id -u)|' \
+        -e 's|^#\(ENROOT_TEMP_PATH  *\).*$|\1/opt/sagemaker/tmp|' \
+        /etc/enroot/enroot.conf
+
+    mkdir -p /opt/sagemaker/tmp/enroot/
+    chmod 1777 /opt/sagemaker/tmp
+    chmod 1777 /opt/sagemaker/tmp/enroot/
+
+    mkdir -p /opt/sagemaker/tmp/enroot/data/
+    chmod 1777 /opt/sagemaker/tmp/enroot/data/
+
+     mkdir -p /opt/sagemaker/enroot
+     chmod 1777 /opt/sagemaker/enroot
 
 # Use /fsx for enroot cache, if available. Let's be extra careful in the probe.
 if [[ $(mount | grep /fsx) ]]; then

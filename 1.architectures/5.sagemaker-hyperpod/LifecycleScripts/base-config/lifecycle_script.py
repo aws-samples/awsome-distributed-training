@@ -182,11 +182,6 @@ def main(args):
 
         ExecuteBashScript("./start_slurm.sh").run(node_type, ",".join(controllers))
 
-        # Install Docker/Enroot/Pyxis
-        if Config.enable_docker_enroot_pyxis:
-            ExecuteBashScript("./utils/install_docker.sh").run()
-            ExecuteBashScript("./utils/install_enroot_pyxis.sh").run(node_type)
-
         # Install metric exporting software and Prometheus for observability
         if Config.enable_observability:
             if node_type == SlurmNodeType.COMPUTE_NODE:
@@ -201,8 +196,13 @@ def main(args):
                 ExecuteBashScript("./utils/install_head_node_exporter.sh").run()
                 ExecuteBashScript("./utils/install_prometheus.sh").run()
         
+        # Install Docker/Enroot/Pyxis
+        if Config.enable_docker_enroot_pyxis:
+            ExecuteBashScript("./utils/install_docker.sh").run()
+            ExecuteBashScript("./utils/install_enroot_pyxis.sh").run(node_type)
+
         # Update Neuron SDK version to the version defined in update_neuron_sdk.sh
-        if Config.enable_observability:
+        if Config.enable_update_neuron_sdk:
             if node_type == SlurmNodeType.COMPUTE_NODE:
                 ExecuteBashScript("./utils/update_neuron_sdk.sh").run()
 
