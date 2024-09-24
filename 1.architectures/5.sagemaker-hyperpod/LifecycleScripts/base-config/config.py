@@ -5,6 +5,11 @@ class Config:
     # Set true if you want to install Docker/Enroot/Pyxis.
     enable_docker_enroot_pyxis = True
 
+    # Set true if you want to install pam_slurm_adopt PAM module and configure:
+    # - Limit host memory usage at 99% MaxRAMPercent using cgroup enforcement
+    # - Prevent user to ssh without jobs running on that node
+    enable_pam_slurm_adopt = False
+
     # Set true if you want to install metric exporter software and Prometheus for observability
     # DCGM Exporter and EFA Node Exporter are installed on compute nodes,
     # Slurm Exporter and Prometheus are installed on controller node.

@@ -213,6 +213,10 @@ def main(args):
         if Config.enable_initsmhp:
             ExecuteBashScript("./initsmhp.sh").run(node_type)
 
+        if Config.enable_pam_slurm_adopt:
+            ExecuteBashScript("./utils/slurm_fix_plugstackconf.sh").run()
+            ExecuteBashScript("./utils/pam_adopt_cgroup_wheel.sh").run()
+
     print("[INFO]: Success: All provisioning scripts completed")
 
 
