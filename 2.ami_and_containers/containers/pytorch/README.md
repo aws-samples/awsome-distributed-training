@@ -13,6 +13,10 @@ With that said, feel free to explore the example. Happy coding, and experimentin
 
 ## 1. Essential software
 
+Please note that software versions in the template are provided for illustration only. For
+well-tested combinations, please refer to the various Dockerfile files under `3.test_cases/` and
+`4.validation_and_observability/0.nccl_tests/`.
+
 In principle, the reference `Dockerfile` does the following:
 
 - Provide PyTorch built for NVidia CUDA devices, by using a recent NVidia PyTorch image as the
