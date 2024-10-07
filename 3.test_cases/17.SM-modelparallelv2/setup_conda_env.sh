@@ -20,14 +20,6 @@ conda create -p ${ENV_PATH} python=3.10
 
 conda activate ${ENV_PATH}
 
-
-# Install OFI nccl 
-conda install "aws-ofi-nccl==1.7.4" packaging --override-channels \
-  -c https://aws-ml-conda.s3.us-west-2.amazonaws.com \
-  -c pytorch -c numba/label/dev \
-  -c nvidia \
-  -c conda-forge \
-
 conda install -c conda-forge mkl=2023.1.0
 conda install "requests==2.28.2"
 conda install "filelock==3.9.0"
