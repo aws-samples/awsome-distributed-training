@@ -7,12 +7,12 @@ Parameters:
   InstanceType:
     Description: EC2 instance type
     Type: String
-    Default: t3a.micro
+    Default: t3.micro
     AllowedValues:
-      - t3a.micro
-      - t3a.small
-      - t3a.medium
-      - t3a.large
+      - t3.micro
+      - t3.small
+      - t3.medium
+      - t3.large
       - t2.small
   LatestUbuntuAmiId:
     Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
@@ -229,18 +229,6 @@ Resources:
             cn: clusterusers
             gidNumber: 3000
             EOF
-
-            ldapadd -x -D cn=admin,dc=example,dc=com -f /tmp/groups.ldif -w "$PASSWD"
-            # Add NGINX Server
-            nginx_dir="~/nginx"
-            nginx_ssl_dir="~/nginx/ssl"
-            mkdir -p ~/nginx/ssl 
-            echo -e "\nDNS.1=$(ec2-metadata -p | awk '{print $2}')" >> "~/nginx/ssl/openssl.cnf"
-            openssl req -new -x509 -nodes -newkey rsa:4096 -days 3650 -keyout "~/nginx/ssl/nginx.key" -out "~/nginx/ssl/nginx.crt" -config "~/nginx/ssl/openssl.cnf"
-
-            #give $cfn_cluster_user ownership
-            chown -R $cfn_cluster_user:$cfn_cluster_user "~/nginx/ssl/nginx.key"
-            chown -R $cfn_cluster_user:$cfn_cluster_user "~/nginx/ssl/nginx.crt"
 
             /usr/local/bin/cfn-init -v --stack ${AWS::StackName} \
               --resource LdapServer \
