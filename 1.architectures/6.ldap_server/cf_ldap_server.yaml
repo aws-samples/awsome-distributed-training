@@ -231,6 +231,16 @@ Resources:
             EOF
 
             ldapadd -x -D cn=admin,dc=example,dc=com -f /tmp/groups.ldif -w "$PASSWD"
+            # Add NGINX Server
+            nginx_dir="~/nginx"
+            nginx_ssl_dir="~/nginx/ssl"
+            mkdir -p ~/nginx/ssl 
+            echo -e "\nDNS.1=$(ec2-metadata -p | awk '{print $2}')" >> "~/nginx/ssl/openssl.cnf"
+            openssl req -new -x509 -nodes -newkey rsa:4096 -days 3650 -keyout "~/nginx/ssl/nginx.key" -out "~/nginx/ssl/nginx.crt" -config "~/nginx/ssl/openssl.cnf"
+
+            #give $cfn_cluster_user ownership
+            chown -R $cfn_cluster_user:$cfn_cluster_user "~/nginx/ssl/nginx.key"
+            chown -R $cfn_cluster_user:$cfn_cluster_user "~/nginx/ssl/nginx.crt"
 
             /usr/local/bin/cfn-init -v --stack ${AWS::StackName} \
               --resource LdapServer \
