@@ -35,6 +35,9 @@ export NCCL_DEBUG=INFO
 ## https://docs.nvidia.com/cuda/cuda-driver-api/group__CUDA__UNIFIED.html
 export FI_EFA_SET_CUDA_SYNC_MEMOPS=0
 
+## Set HuggingFace metadata timeout (in seconds) for large clusters
+export HF_HUB_ETAG_TIMEOUT=60
+
 ###########################
 ####### Torch Dist  #######
 ###########################
