@@ -20,12 +20,12 @@ conda create -p ${ENV_PATH} -y python=3.10 -c conda-forge
 
 conda activate ${ENV_PATH}
 
-conda install -p ${ENV_PATH} \
+conda install -p ${ENV_PATH} -y \
     ./bin/aws-ofi-nccl-1.7.4-aws_0.tar.bz2 \
     ./bin/hwloc-2.9.2-h2bc3f7f_0.tar.bz2
 
 # Install SMP V2 pytorch. We will install SMP with pytorch 2.2
-conda install -p ${ENV_PATH} mkl=2023.1.0 "requests==2.28.2" "filelock==3.9.0" "sympy==1.12" \
+conda install -p ${ENV_PATH} -y mkl=2023.1.0 "requests==2.28.2" "filelock==3.9.0" "sympy==1.12" \
   pytorch="2.2.0=sm_py3.10_cuda12.1_cudnn8.9.5_nccl_pt_2.2_tsm_2.3_cuda12.1_0" packaging --override-channels \
   -c https://sagemaker-distributed-model-parallel.s3.us-west-2.amazonaws.com/smp-v2/ \
   -c pytorch -c numba/label/dev \
