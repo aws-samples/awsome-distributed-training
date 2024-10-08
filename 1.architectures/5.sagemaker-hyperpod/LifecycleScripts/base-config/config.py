@@ -10,6 +10,13 @@ class Config:
     # Slurm Exporter and Prometheus are installed on controller node.
     enable_observability = False
 
+    # Set true if you want to:
+    # - fix Slurm slurmctld being not responsive at restart
+    # - install pam_slurm_adopt PAM module to:
+    #    - Limit host memory usage at 99% MaxRAMPercent using cgroup enforcement
+    #    - Prevent user to ssh without jobs running on that node
+    enable_pam_slurm_adopt = False
+
     # Set true if you want to update default Neuron SDK version on compute nodes (only applies to trn and inf clusters)
     enable_update_neuron_sdk = False
 
