@@ -20,6 +20,7 @@ from datasets import load_dataset
 from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 from torch.distributed.fsdp import MixedPrecision
 from torch.distributed.fsdp import ShardingStrategy
+from torch.distributed.fsdp import CPUOffload
 from torch.distributed.fsdp.wrap import size_based_auto_wrap_policy, transformer_auto_wrap_policy
 from torch.utils.data import DataLoader
 
@@ -191,6 +192,11 @@ def main(args):
         sharding_strategy = ShardingStrategy.HYBRID_SHARD
     else:
         raise NotImplementedError("Available sharding strategies are full and hybrid")
+    
+    if args.cpu_offload == 1:
+        cpu_offload = CPUOffload(offload_params=True)
+    else: 
+        cpu_offload = None
 
     model = FSDP(
         model,
@@ -200,6 +206,7 @@ def main(args):
         device_id=torch.cuda.current_device(),
         use_orig_params=False,
         sharding_strategy=sharding_strategy,
+        cpu_offload=cpu_offload,
         sync_module_states=True,
         param_init_fn=(lambda module: module.to_empty(device=torch.device("cuda"), recurse=False))
         if global_rank != 0 else None,
