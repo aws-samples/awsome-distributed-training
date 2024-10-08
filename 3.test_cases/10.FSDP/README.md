@@ -36,7 +36,7 @@ If you'd like to instead use your own dataset, you can do so by [formatting it a
 
 ## 3. Launch Training
 
-- The script to launch a Llama 2 Slurm batch training job can be found in `1.distributed-training.sbatch`.
+- The script to launch a Llama 2 Slurm batch training job can be found in `1.distributed-training-llama2.sbatch`.
 - The script to launch a Mixtral training can be found in `2.distributed-training-mixtral.sbatch`.
 - Th script to launch Mistral Mathstral training can be foudn in `3.distributed-training-mistral-mathstral.sbatch`.
 -  You can adjust the number of training nodes by modifying `#SBATCH --nodes=4` to match the size of your cluster.
@@ -115,7 +115,7 @@ declare -a TRAINING_ARGS=(
 To launch your training for Llama 2, run
 
 ```
-sbatch 1.distributed-training.sbatch 
+sbatch 1.distributed-training-llama2.sbatch 
 ```
 Similarly for Mixtral 8x7B and Mathstral, launch run `sbatch` with the `2.distributed-training-mixtral.sbatch` and the `3.distributed-training-mistral-mathstral.sbatch` files respectively.
 
