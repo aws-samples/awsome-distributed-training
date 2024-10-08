@@ -16,24 +16,22 @@ source ./miniconda3/bin/activate
 
 export ENV_PATH=./miniconda3/envs/smpv2
 
-conda create -p ${ENV_PATH} python=3.10
+conda create -p ${ENV_PATH} -y python=3.10 -c conda-forge
 
 conda activate ${ENV_PATH}
 
-conda install -c conda-forge mkl=2023.1.0
-conda install "requests==2.28.2"
-conda install "filelock==3.9.0"
-conda install "sympy==1.12"
+conda install -p ${ENV_PATH} \
+    ./bin/aws-ofi-nccl-1.7.4-aws_0.tar.bz2 \
+    ./bin/hwloc-2.9.2-h2bc3f7f_0.tar.bz2
 
 # Install SMP V2 pytorch. We will install SMP with pytorch 2.2
-conda install pytorch="2.2.0=sm_py3.10_cuda12.1_cudnn8.9.5_nccl_pt_2.2_tsm_2.3_cuda12.1_0" packaging --override-channels \
+conda install -p ${ENV_PATH} mkl=2023.1.0 "requests==2.28.2" "filelock==3.9.0" "sympy==1.12" \
+  pytorch="2.2.0=sm_py3.10_cuda12.1_cudnn8.9.5_nccl_pt_2.2_tsm_2.3_cuda12.1_0" packaging --override-channels \
   -c https://sagemaker-distributed-model-parallel.s3.us-west-2.amazonaws.com/smp-v2/ \
   -c pytorch -c numba/label/dev \
   -c pytorch-nightly -c nvidia -c conda-forge
 
-
 # Install dependencies of the script as below
-
 python -m pip install --no-cache-dir -U \
     "transformers==4.37.1" \
     "accelerate==0.28.0" \
