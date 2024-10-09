@@ -2,13 +2,15 @@
 
 This sample setup a Amazon RDS database for HPC and Machine Learning cluster.
 You can use for Slurm accounting and generate report of your cluster usage.
-For more information you can visit Slurm documentation on [accounting](https://slurm.schedmd.com/accounting.html)
+For more information you can visit Slurm documentation on [accounting](https://slurm.schedmd.com/accounting.html).
+
+You will need at least two private subnets in different avaibility zones to deploy the database.
 
 ## Deploy
 
 Deploy the accounting database using the 1-click deploy:
 
-[<kbd> <br> 1-Click Deploy 🚀 <br> </kbd>](https://console.aws.amazon.com/cloudformation/home?#/stacks/quickcreate?templateURL=https%3A%2F%2Fawsome-distributed-training.s3.amazonaws.com%2Ftemplates%2Fcf_database-accounting.yaml&stackName=accounting-database)
+[<kbd> <br> 1-Click Deploy 🚀 <br> </kbd>](https://console.aws.amazon.com/cloudformation/home?#/stacks/quickcreate?templateURL=https%3A%2F%2Fawsome-distributed-training.s3.amazonaws.com%2Ftemplates%2Fcf_database-accounting.yaml&stackName=slurm-accounting-database)
 
 **Note** or you can deploy using AWS cli and CloudFormation:
   ```bash
@@ -71,10 +73,9 @@ To use the database created previously for accounting, add the following in the 
 ```
 
 ## Amazon SageMaker HyperPod Orchestrated by Slurm
-There are 3 steps to setup Slurm with the accounting database:
-	1. sdd
-	1. 
-	1. 
+There are two steps to setup Slurm with the accounting database:
+1. Add database configuration file
+1. Configure Slurm accounting
 
 ### Add database configuration file
 You need to execute the following command on the controller node to configure the database connectivity for Slurm.
@@ -105,6 +106,7 @@ AccountingStorageType=accounting_storage/slurmdbd
 AccountingStorageHost=$(hostname)
 AccountingStorageUser=${DATABASE_ADMIN}
 AccountingStoragePort=6819
+AccountingStorageTRES=gres/gpu
 EOF
 ```
 
