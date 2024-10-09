@@ -22,10 +22,9 @@ The solution uses SageMaker HyperPod [Lifecycle Scripts](https://github.com/aws-
 | [`2.NVIDIA-DCGM-Exporter`](https://github.com/NVIDIA/dcgm-exporter) | cluster-nodes  | Nvidia DCGM Metrics about Nvidia Enabled GPUs |
 
 ### Prerequisites 
+To enable these exporter services, modify the [config.py](https://github.com/aws-samples/awsome-distributed-training/blob/main/1.architectures/5.sagemaker-hyperpod/LifecycleScripts/base-config/config.py) file to configure `enable_observability = True`. Save this file, and [upload it to the s3 bucket path](https://catalog.workshops.aws/sagemaker-hyperpod/en-US/01-cluster/03-s3) referenced in your [`cluster-config.json`](https://catalog.workshops.aws/sagemaker-hyperpod/en-US/01-cluster/04-create-cluster#create-cluster) file. By modifying `config.py` and uploading to S3, this will ensure that any new nodes added or replaced in the HyperPod cluster will also be created with the metric exporter scripts running  
 
-> [!IMPORTANT]  
-> To enable these exporter services, uncomment lines 154-165 from the [lifecycle_script.py](https://github.com/aws-samples/awsome-distributed-training/blob/c52a69393f4ecdaba7de8af802174d075eca3a3b/1.architectures/5.sagemaker-hyperpod/LifecycleScripts/base-config/lifecycle_script.py#L154) file used when deploying your cluster. Uncommenting these lines will install and configure the necessary exporter services to export cluster metrics to the Amazon Managed Prometheus workspace. Save this file, and [upload it to the s3 bucket path](https://catalog.workshops.aws/sagemaker-hyperpod/en-US/01-cluster/03-s3) referenced in your [`cluster-config.json`](https://catalog.workshops.aws/sagemaker-hyperpod/en-US/01-cluster/04-create-cluster#create-cluster) file.  
-
+If you have already created your HyperPod cluster, you can follow [these instructions](https://catalog.workshops.aws/sagemaker-hyperpod/en-US/06-observability/09-update) to update your existing HyperPod cluster with Observabiltiy. 
 
 > [!IMPORTANT]
 >Before proceeding, you will need to add the following AWS Managed IAM Policies to your AmazonSagemakerClusterExecutionRole:
