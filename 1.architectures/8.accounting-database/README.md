@@ -6,7 +6,10 @@ For more information you can visit Slurm documentation on [accounting](https://s
 
 ## Deploy
 
-1. Download the `cf_database-accounting.yaml` file
+1. Deploy the accounting database using the 1-click deploy:
+
+[<kbd> <br> 1-Click Deploy 🚀 <br> </kbd>](https://console.aws.amazon.com/cloudformation/home?#/stacks/quickcreate?templateURL=https%3A%2F%2Fawsome-distributed-training.s3.amazonaws.com%2Ftemplates%2Fcf_database-accounting.yaml&stackName=accounting-database)
+
 1. Run the following command
   ```bash
   aws cloudformation deploy --stack-name slurm-accounting-database \
