@@ -6,11 +6,11 @@ For more information you can visit Slurm documentation on [accounting](https://s
 
 ## Deploy
 
-1. Deploy the accounting database using the 1-click deploy:
+Deploy the accounting database using the 1-click deploy:
 
 [<kbd> <br> 1-Click Deploy 🚀 <br> </kbd>](https://console.aws.amazon.com/cloudformation/home?#/stacks/quickcreate?templateURL=https%3A%2F%2Fawsome-distributed-training.s3.amazonaws.com%2Ftemplates%2Fcf_database-accounting.yaml&stackName=accounting-database)
 
-1. Run the following command
+**Note** or you can deploy using AWS cli and CloudFormation:
   ```bash
   aws cloudformation deploy --stack-name slurm-accounting-database \
   --template-file cf_database-accounting.yaml \
@@ -23,36 +23,36 @@ In this section, you will retrieve the database parameter that are used by Slurm
 
 ### Get the Database URI
 
-1. Retrieve the `DatabaseHost` to connect to the LDAP User Interface.
-  ```bash
-  DATABASE_URI=$(aws cloudformation describe-stacks \
-   --stack-name slurm-accounting-database \
-   --query 'Stacks[0].Outputs[?OutputKey==`DatabaseHost`].OutputValue' \
-   --output text)
-  ```
+Retrieve the `DatabaseHost` to connect to the LDAP User Interface.
+```bash
+DATABASE_URI=$(aws cloudformation describe-stacks \
+ --stack-name slurm-accounting-database \
+ --query 'Stacks[0].Outputs[?OutputKey==`DatabaseHost`].OutputValue' \
+ --output text)
+```
   Copy URL into a Web Browser.
 
 ### Get the Database Admin User
 The database admin user is by default `custeradmin` if you didn't change it on creation.
 
-1. Get the Database admin user name
-	```bash
-	 DATABASE_ADMIN=$(aws cloudformation describe-stacks \
-	 	--stack-name slurm-accounting-database \
-	  --query 'Stacks[0].Outputs[?OutputKey==`DatabaseAdminUser`].OutputValue' \
-	  --output text)
-	```
+Get the Database admin user name
+```bash
+ DATABASE_ADMIN=$(aws cloudformation describe-stacks \
+ 	--stack-name slurm-accounting-database \
+  --query 'Stacks[0].Outputs[?OutputKey==`DatabaseAdminUser`].OutputValue' \
+  --output text)
+```
 
 ### Get the Database password
 The password to access the database was generated randomly and stored in AWS Secret Manager under `AccountingClusterAdminSecre-XXX` output of the cloudformation stack.
 
-1. Get the Secret ARN
-	```bash
-	 DATABASE_SECRET_ARN=$(aws cloudformation describe-stacks \
-	 	--stack-name slurm-accounting-database \
-	  --query 'Stacks[0].Outputs[?OutputKey==`DatabaseSecretArn`].OutputValue' \
-	  --output text)
-	```
+Get the Secret ARN
+```bash
+DATABASE_SECRET_ARN=$(aws cloudformation describe-stacks \
+  --stack-name slurm-accounting-database \
+  --query 'Stacks[0].Outputs[?OutputKey==`DatabaseSecretArn`].OutputValue' \
+  --output text)
+```
 
 ## Configure AWS ParallelCluster
 Starting with version 3.3.0, AWS ParallelCluster supports Slurm accounting with the cluster configuration parameter `SlurmSettings / Database`.
