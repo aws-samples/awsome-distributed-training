@@ -71,10 +71,9 @@ To use the database created previously for accounting, add the following in the 
 ```
 
 ## Amazon SageMaker HyperPod Orchestrated by Slurm
-There are 3 steps to setup Slurm with the accounting database:
-	1. sdd
-	1. 
-	1. 
+There are two steps to setup Slurm with the accounting database:
+1. Add database configuration file
+1. Configure Slurm accounting
 
 ### Add database configuration file
 You need to execute the following command on the controller node to configure the database connectivity for Slurm.
@@ -105,6 +104,7 @@ AccountingStorageType=accounting_storage/slurmdbd
 AccountingStorageHost=$(hostname)
 AccountingStorageUser=${DATABASE_ADMIN}
 AccountingStoragePort=6819
+AccountingStorageTRES: gres/gpu
 EOF
 ```
 
