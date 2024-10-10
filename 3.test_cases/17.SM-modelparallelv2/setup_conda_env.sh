@@ -50,7 +50,7 @@ pip install megatron-core==0.5.0
 
 pip uninstall -y ninja && pip install ninja
 
-MAX_JOBS=64 pip install flash-attn==2.3.3 --no-build-isolation
+MAX_JOBS=$(nproc) pip install flash-attn==2.3.3 --no-build-isolation
 
 # Install SMDDP
 
@@ -62,18 +62,20 @@ SMDDP_WHL="smdistributed_dataparallel-2.2.0-cp310-cp310-linux_x86_64.whl" \
 
 if [ $SMP_CUDA_VER == "11.8" ]; then
     # cuDNN installation for TransformerEngine installation for cuda11.8
-    tar xf cudnn-linux-x86_64-8.9.5.30_cuda11-archive.tar.xz \
-        && rm -rf /usr/local/cuda-$SMP_CUDA_VER/include/cudnn* /usr/local/cuda-$SMP_CUDA_VER/lib/cudnn* \
-        && cp ./cudnn-linux-x86_64-8.9.5.30_cuda11-archive/include/* /usr/local/cuda-$SMP_CUDA_VER/include/ \
-        && cp ./cudnn-linux-x86_64-8.9.5.30_cuda11-archive/lib/* /usr/local/cuda-$SMP_CUDA_VER/lib/ \
+    wget https://developer.download.nvidia.com/compute/cudnn/redist/cudnn/linux-x86_64/cudnn-linux-x86_64-8.9.5.30_cuda11-archive.tar.xz \
+        && tar xf cudnn-linux-x86_64-8.9.5.30_cuda11-archive.tar.xz \
+        && sudo rm -rf /usr/local/cuda-$SMP_CUDA_VER/include/cudnn* /usr/local/cuda-$SMP_CUDA_VER/lib/cudnn* \
+        && sudo cp ./cudnn-linux-x86_64-8.9.5.30_cuda11-archive/include/* /usr/local/cuda-$SMP_CUDA_VER/include/ \
+        && sudo cp ./cudnn-linux-x86_64-8.9.5.30_cuda11-archive/lib/* /usr/local/cuda-$SMP_CUDA_VER/lib/ \
         && rm -rf cudnn-linux-x86_64-8.9.5.30_cuda11-archive.tar.xz \
         && rm -rf cudnn-linux-x86_64-8.9.5.30_cuda11-archive/
 else
     # cuDNN installation for TransformerEngine installation for cuda12.1
-    tar xf cudnn-linux-x86_64-8.9.7.29_cuda12-archive.tar.xz \
-        && rm -rf /usr/local/cuda-$SMP_CUDA_VER/include/cudnn* /usr/local/cuda-$SMP_CUDA_VER/lib/cudnn* \
-        && cp ./cudnn-linux-x86_64-8.9.7.29_cuda12-archive/include/* /usr/local/cuda-$SMP_CUDA_VER/include/ \
-        && cp ./cudnn-linux-x86_64-8.9.7.29_cuda12-archive/lib/* /usr/local/cuda-$SMP_CUDA_VER/lib/ \
+    wget https://developer.download.nvidia.com/compute/cudnn/redist/cudnn/linux-x86_64/cudnn-linux-x86_64-8.9.7.29_cuda12-archive.tar.xz \
+        && tar xf cudnn-linux-x86_64-8.9.7.29_cuda12-archive.tar.xz \
+        && sudo rm -rf /usr/local/cuda-$SMP_CUDA_VER/include/cudnn* /usr/local/cuda-$SMP_CUDA_VER/lib/cudnn* \
+        && sudo cp ./cudnn-linux-x86_64-8.9.7.29_cuda12-archive/include/* /usr/local/cuda-$SMP_CUDA_VER/include/ \
+        && sudo cp ./cudnn-linux-x86_64-8.9.7.29_cuda12-archive/lib/* /usr/local/cuda-$SMP_CUDA_VER/lib/ \
         && rm -rf cudnn-linux-x86_64-8.9.7.29_cuda12-archive.tar.xz \
         && rm -rf cudnn-linux-x86_64-8.9.7.29_cuda12-archive/
 fi
