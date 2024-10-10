@@ -49,16 +49,6 @@ bash setup_conda_env.sh
 These scripts need to be put in a shared file system that can be accessed by all nodes, such as [FSx for Lustre](https://docs.aws.amazon.com/fsx/latest/LustreGuide/what-is.html).
 We also recommend setting all paths for input data and checkpoints as shared directories using FSx for Lustre.
 
-### cuDNN Download for cuda11.8 and cuda12.1
-We recommend that you install cuDNN for your desired cuda version using from the [NVIDIA Developer page](https://developer.nvidia.com/cudnn).  Click on the link and:
-1. Make a developer account.
-2. Click on "Download cuDNN Library".
-3. Agree to the terms.
-4. Download the Local Installer for Linux x86_64 (Tar) for cuda11 or cuda12 (we will use version 8.9.5 in the example going forward).
-4. Move the tar file from your local machine to your cluster root directory. 
-
-
-
 ### User Guide
 1. **Launching a job with synthetic data on 8 nodes**
 
