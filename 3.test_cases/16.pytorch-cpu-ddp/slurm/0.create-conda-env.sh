@@ -10,10 +10,8 @@ chmod +x Miniconda3-latest-Linux-x86_64.sh
 
 source ./miniconda3/bin/activate
 
-conda create -y -p ./pt_cpu python=3.10 --strict-channel-priority --override-channels -c https://aws-ml-conda.s3.us-west-2.amazonaws.com -c nvidia -c conda-forge
+conda create -y -p ./pt_cpu python=3.10 pytorch=2.0.1 -c pytorch -c nvidia -c conda-forge
 
 source activate ./pt_cpu/
-
-conda install -y pytorch=2.0.1  --strict-channel-priority --override-channels -c https://aws-ml-conda.s3.us-west-2.amazonaws.com -c nvidia -c conda-forge
 
 rm Miniconda3-latest-Linux-x86_64.sh*

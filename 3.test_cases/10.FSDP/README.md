@@ -36,24 +36,12 @@ If you'd like to instead use your own dataset, you can do so by [formatting it a
 
 ## 3. Launch Training
 
-- The script to launch a Llama 2 Slurm batch training job can be found in `1.distributed_training.sbatch`.
-- The script to launch a Mixtral training can be found in `2.distributed_training_mixtral.sbatch`.
+- The script to launch a Llama 2 Slurm batch training job can be found in `1.distributed-training-llama2.sbatch`.
+- The script to launch a Mixtral training can be found in `2.distributed-training-mixtral.sbatch`.
 - Th script to launch Mistral Mathstral training can be foudn in `3.distributed-training-mistral-mathstral.sbatch`.
 -  You can adjust the number of training nodes by modifying `#SBATCH --nodes=4` to match the size of your cluster.
 
-If you are using a non-RDMA enable instance, such as g5.12xlarge, comment out lines 21-22. These instances have EFA between nodes, but do not have the GPU direct RDMA access of P4d and P5 instances.
-
-```
-## Plenty of EFA level variables
-## Comment out for non-efa instances (G5, G4d, P3)
-# export FI_EFA_USE_DEVICE_RDMA=1 # use for p4d
-# export FI_EFA_FORK_SAFE=1
-export FI_LOG_LEVEL=1
-export FI_PROVIDER=efa
-export NCCL_DEBUG=INFO
-```
-
-If you are using non-EFA enabled instances, such as G4dn, or single GPU g5 nodes, comment out all EFA environment variables on lines 21-25.
+If you are using non-EFA enabled instances, such as G4dn, or single GPU g5 nodes, comment out all EFA environment variables on lines 24-25.
 
 Also, under `User Variables` make sure to adjust `GPUS_PER_NODE` to match the number of GPUs on your instance type (8 for P4d(e)/P5, 4 for G5.12xlarge, 1 for G5.xlarge).
 
@@ -127,9 +115,9 @@ declare -a TRAINING_ARGS=(
 To launch your training for Llama 2, run
 
 ```
-sbatch 1.distributed_training.sbatch 
+sbatch 1.distributed-training-llama2.sbatch 
 ```
-Similarly for Mixtral 8x7B and Mathstral, launch run `sbatch` with the `2.distributed_training_mixtral.sbatch` and the `3.distributed-training-mistral-mathstral.sbatch` files respectively.
+Similarly for Mixtral 8x7B and Mathstral, launch run `sbatch` with the `2.distributed-training-mixtral.sbatch` and the `3.distributed-training-mistral-mathstral.sbatch` files respectively.
 
 You'll find a new file in the FSDP directory of the form `slurm-[job-number].out`. This will be continuously updated with your training logs. Don't be worried if you see a long stream of NCCL logs (we prefer to use `NCCL_DEBUG=INFO` for verbose logging). After about a minute, you should see your model training, with an output similar to below for Llama2 :
 
