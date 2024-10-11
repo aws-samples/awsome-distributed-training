@@ -7,12 +7,12 @@ Parameters:
   InstanceType:
     Description: EC2 instance type
     Type: String
-    Default: t3a.micro
+    Default: t3.micro
     AllowedValues:
-      - t3a.micro
-      - t3a.small
-      - t3a.medium
-      - t3a.large
+      - t3.micro
+      - t3.small
+      - t3.medium
+      - t3.large
       - t2.small
   LatestUbuntuAmiId:
     Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
@@ -229,8 +229,6 @@ Resources:
             cn: clusterusers
             gidNumber: 3000
             EOF
-
-            ldapadd -x -D cn=admin,dc=example,dc=com -f /tmp/groups.ldif -w "$PASSWD"
 
             /usr/local/bin/cfn-init -v --stack ${AWS::StackName} \
               --resource LdapServer \

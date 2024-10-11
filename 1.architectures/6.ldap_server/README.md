@@ -38,6 +38,11 @@ Outbound rules
   --parameter-overrides SubnetId=XXX SecurityGroupIds=XXX,XXX
   ```
 
+  aws cloudformation deploy --stack-name ldap-server \
+  --region ap-northeast-1 \
+  --template-file cf_ldap_server.yaml \
+  --capabilities CAPABILITY_IAM \
+  --parameter-overrides SubnetId=subnet-06797ee726d0b549e SecurityGroupIds=sg-0f09f8c83fc2186d6
 ## Connect to the UI
 
 1. Retrieve the `LdapUIUrl` to connect to the LDAP User Interface.
