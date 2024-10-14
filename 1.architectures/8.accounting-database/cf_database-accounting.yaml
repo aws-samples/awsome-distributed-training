@@ -1,0 +1,224 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  This template creates a database for Slurm Accounting.
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Database Cluster Configuration"
+        Parameters:
+          - ClusterName
+          - ClusterAdmin
+          - AdminPasswordSecretString
+          - MinCapacity
+          - MaxCapacity
+    ParameterLabels:
+      ClusterName:
+        default: "The name of the database cluster"
+      ClusterAdmin:
+        default: "The database administrator user name."
+      AdminPasswordSecretString:
+        default: "The administrator password."
+      MinCapacity:
+        default: "The minimum scaling capacity of the database cluster."
+      MaxCapacity:
+        default: "The maximum scaling capacity of the database cluster."
+      VpcId:
+        default: "VPC ID in which the cluster will be created."
+      SubnetIds:
+        default: "Subnet IDs where database will have connections. Recommend to host in private subnets."
+
+###############
+## Parameters
+Parameters:
+  ClusterName:
+    Description: Database Cluster Name
+    Type: String
+    Default: "slurm-accounting-cluster"
+    MinLength: 1
+    MaxLength: 63
+    AllowedPattern: ^[a-z][-a-z0-9]{0,62}$
+    ConstraintDescription: >-
+      Cluster name must be between 1 and 63 characters, start with a lower case character, and be followed by a mix of
+      lower case characters, digits, and - (hyphens).
+  ClusterAdmin:
+    Description: Administrator user name.
+    Type: String
+    Default: clusteradmin
+    MinLength: 3
+    MaxLength: 64
+  MinCapacity:
+    Description: Must be less than the maximum capacity.
+    Type: Number
+    Default: 1
+    MinValue: .5
+    MaxValue: 127.5
+  MaxCapacity:
+    Description: Must be greater than or equal to the minimum capacity.
+    Type: Number
+    Default: 4
+    MinValue: 1
+    MaxValue: 128
+  VpcId:
+    Description: VPC ID in which the cluster is deployed.
+    Type: AWS::EC2::VPC::Id
+  SubnetIds:
+    Description: Subnets in which database will be reachable.
+    Type: List<AWS::EC2::Subnet::Id>
+
+############################
+## Database Resources
+Transform: AWS::Serverless-2016-10-31
+Resources:
+  ###########     
+  # Generate Password and Store in SecretsManager
+  AccountingClusterAdminSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Description: 'Serverless Database Cluster Administrator Password'
+      GenerateSecretString:
+        PasswordLength: 16
+        ExcludeCharacters: '#"@/\'
+      Tags:
+        - Key: 'parallelcluster:usecase'
+          Value: 'slurm accounting'
+
+  ###########
+  # Database network
+  AccountingClusterParameterGroup:
+    Type: 'AWS::RDS::DBClusterParameterGroup'
+    Properties:
+      Description: Cluster parameter group for aurora-mysql
+      Family: aurora-mysql8.0
+      Parameters:
+        require_secure_transport: 'ON'
+        innodb_lock_wait_timeout: '900'
+      Tags:
+        - Key: 'parallelcluster:usecase'
+          Value: 'slurm accounting'
+  AccountingClusterSubnetGroup:
+    Type: 'AWS::RDS::DBSubnetGroup'
+    Properties:
+      DBSubnetGroupDescription: !Sub 'Subnets for AccountingCluster-${AWS::Region} database'
+      SubnetIds: !Ref SubnetIds
+      Tags:
+        - Key: 'parallelcluster:usecase'
+          Value: 'slurm accounting'
+  AccountingClusterSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: RDS security group
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic by default
+          IpProtocol: '-1'
+      Tags:
+        - Key: 'parallelcluster:usecase'
+          Value: 'slurm accounting'
+      VpcId: !Ref VpcId
+  AccountingClusterSecurityGroupInboundRule:
+    Type: 'AWS::EC2::SecurityGroupIngress'
+    Properties:
+      IpProtocol: tcp
+      Description: Allow incoming connections from client security group
+      FromPort: !GetAtt
+        - AccountingCluster
+        - Endpoint.Port
+      GroupId: !GetAtt
+        - AccountingClusterSecurityGroup
+        - GroupId
+      SourceSecurityGroupId: !GetAtt
+        - AccountingClusterClientSecurityGroup
+        - GroupId
+      ToPort: !GetAtt
+        - AccountingCluster
+        - Endpoint.Port
+
+  ###########
+  # Database Cluster
+  AccountingCluster:
+    Type: 'AWS::RDS::DBCluster'
+    Properties:
+      DBClusterIdentifier: !Ref ClusterName
+      Engine: "aurora-mysql"
+      EngineVersion: "8.0.mysql_aurora.3.07.1"
+      CopyTagsToSnapshot: true
+      DBClusterParameterGroupName: !Ref AccountingClusterParameterGroup
+      DBSubnetGroupName: !Ref AccountingClusterSubnetGroup
+      EnableHttpEndpoint: false
+      MasterUsername: !Ref ClusterAdmin
+      MasterUserPassword: !Sub "{{resolve:secretsmanager:${AccountingClusterAdminSecret}}}"
+      ServerlessV2ScalingConfiguration:
+        MaxCapacity: !Ref MaxCapacity
+        MinCapacity: !Ref MinCapacity
+      StorageEncrypted: true
+      Tags:
+        - Key: 'parallelcluster:usecase'
+          Value: 'slurm accounting'
+      VpcSecurityGroupIds:
+        - !GetAtt
+          - AccountingClusterSecurityGroup
+          - GroupId
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+  AccountingClusterInstance1:
+    Type: 'AWS::RDS::DBInstance'
+    Properties:
+      DBInstanceClass: 'db.serverless'
+      DBClusterIdentifier: !Ref AccountingCluster
+      DBInstanceIdentifier: !Sub '${ClusterName}-instance-1'
+      Engine: "aurora-mysql"
+      PubliclyAccessible: false
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+  AccountingClusterClientSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Security Group to allow connection to Serverless DB Cluster
+      Tags:
+        - Key: 'parallel-cluster:usecase'
+          Value: 'slurm accounting'
+      VpcId: !Ref VpcId
+  AccountingClusterClientSecurityGroupOutboundRule:
+    Type: 'AWS::EC2::SecurityGroupEgress'
+    Properties:
+      GroupId: !GetAtt
+        - AccountingClusterClientSecurityGroup
+        - GroupId
+      IpProtocol: tcp
+      Description: Allow incoming connections from PCluster
+      DestinationSecurityGroupId: !GetAtt
+        - AccountingClusterSecurityGroup
+        - GroupId
+      FromPort: !GetAtt
+        - AccountingCluster
+        - Endpoint.Port
+      ToPort: !GetAtt
+        - AccountingCluster
+        - Endpoint.Port
+
+######################
+# Outputs
+Outputs:
+  ClusterName:
+    Value: !Ref ClusterName
+  DatabaseHost:
+    Value: !GetAtt
+      - AccountingCluster
+      - Endpoint.Address
+  DatabasePort:
+    Value: !GetAtt
+      - AccountingCluster
+      - Endpoint.Port
+  DatabaseAdminUser:
+    Value: !Ref ClusterAdmin
+  DatabaseSecretArn:
+    Value: !Ref AccountingClusterAdminSecret
+  DatabaseClusterSecurityGroup:
+    Value: !GetAtt
+      - AccountingClusterSecurityGroup
+      - GroupId
+  DatabaseClientSecurityGroup:
+    Value: !GetAtt
+      - AccountingClusterClientSecurityGroup
+      - GroupId
