@@ -14,7 +14,7 @@ conda create -y -p ./pt_fsdp python=3.11
 
 source activate ./pt_fsdp/
 
-conda install -y pytorch=2.4.1 torchvision torchaudio transformers datasets fsspec=2023.9.2 pytorch-cuda=12.1 -c pytorch -c nvidia
+conda install -y pytorch=2.4.1 torchvision torchaudio transformers datasets fsspec=2023.9.2 pytorch-cuda=12.1 "numpy=1.*" -c pytorch -c nvidia
 
 # Create checkpoint dir
 mkdir checkpoints
