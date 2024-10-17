@@ -3,5 +3,5 @@ datasets
 accelerate>=0.21
 bitsandbytes
 peft
-deepspeed==0.9.2
+deepspeed==0.15.1
 Pydantic==1.10.13
