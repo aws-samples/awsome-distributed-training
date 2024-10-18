@@ -51,12 +51,12 @@ Parameters:
     Default: "2.15"
 
   SecurityGroup:
-    Description: Security group
+    Description: Security group ID
     Type: String
     Default: ""
 
   Subnet:
-    Description: Subnet
+    Description: Subnet ID
     Type: String
     Default: ""
 
