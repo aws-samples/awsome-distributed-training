@@ -1,7 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: This template deploys an FSx for Luster File System
 
-### Stack metadata
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
@@ -80,6 +79,8 @@ Resources:
         DataCompressionType: !Ref Compression
         DeploymentType: PERSISTENT_2
         PerUnitStorageThroughput: !Ref PerUnitStorageThroughput
+        MetadataConfiguration:
+          Mode: AUTOMATIC
 
 Outputs:
   FSxLustreFilesystemMountname:
