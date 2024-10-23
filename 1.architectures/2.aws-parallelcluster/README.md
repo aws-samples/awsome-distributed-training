@@ -11,24 +11,27 @@ Before deploying a cluster, let's ensure you have installed the AWS ParallelClus
 ### 2.1. Install AWS ParallelCluster CLI
 
 Run the script below to install AWS ParallelCluster in a Python virtual environment and access this environment.
+```bash
+export VIRTUAL_ENV_PATH=~/pcluster_env # change the path to your liking
+export AWS_REGION=us-east-1
+export KEYPAIR_NAME=keypair
+```
 
 ```bash
 #!/bin/bash
 
-VIRTUAL_ENV_PATH=~/apc-ve # change the path to your liking
-
 # Update pip and the virtual env module
 python3 -m pip install --upgrade pip
 python3 -m pip install --user --upgrade virtualenv
-
-python3 -m virtualenv $VIRTUAL_ENV_PATH # create the virtual env
-
-source $VIRTUAL_ENV_PATH/bin/activate # activate the environment
+python3 -m virtualenv ${VIRTUAL_ENV_PATH} # create the virtual env
+source ${VIRTUAL_ENV_PATH}/bin/activate # activate the environment
 pip3 install awscli # install the AWS CLI
 pip3 install aws-parallelcluster # then AWS ParallelCluster
 ```
 
-> **Note**: you can use virtual environments to test different versions of AWS ParallelCluster by setting the version during the installation. For example to use 3.9.1, change the command `pip3 install aws-parallelcluster==3.9.1`.
+> **Note**: you can use virtual environments to test different versions of AWS ParallelCluster by setting the version during the installation. For example to use 3.11.1, change the command `pip3 install aws-parallelcluster==3.11.1`.
+
+You can follow the [documentation](https://docs.aws.amazon.com/parallelcluster/latest/ug/commands-v3.html) to review the list of all AWS ParallelCluster commands.
 
 ### 2.2. Create your EC2 Keypair (if needed)
 
@@ -41,116 +44,32 @@ If you do not have a keypair that you can use then we will create one with the c
 ```bash
 #!/bin/bash
 
-AWS_TARGET_REGION=us-east-1
-KEYPAIR_NAME=pcluster-workshop-key
 
 # Create the key pair using the AWS CLI and retrieve the private part (.pem file)
-aws ec2 create-key-pair --key-name pcluster-workshop-key \
+aws ec2 create-key-pair --key-name ${KEYPAIR_NAME} \
                         --query KeyMaterial \
-                        --region $AWS_TARGET_REGION \
-                        --output text > $KEYPAIR_NAME.pem
+                        --key-type ed25519 \
+                        --region $AWS_REGION \
+                        --output text > ${KEYPAIR_NAME}.pem
 
 # The above command will also generate a private key in the current directory.
 # We must change the access rights to the current user only, otherwise the ssh
 # client refuses to use this private key to open an ssh connection.
-sudo chmod 600 $KEYPAIR_NAME.pem
+sudo chmod 600 ${KEYPAIR_NAME}.pem
 ```
 
-### 2.2 Connect to your cluster
-
-To easily login to your cluster via [AWS Systems Manager](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-sessions-start.html) we've included a script `easy-ssh.sh` that you can run like so, assuming `ml-cluster` is the name of your cluster:
-
-```bash
-./easy-ssh.sh ml-cluster
-```
-
-You'll need a few pre-requisites for this script:
-* JQ: `brew install jq`
-* aws cli
-* `pcluster` cli
-* [Session Manager Plugin](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html)
-
-Once you've run the script you'll see the following output:
-
-```
-Instance Id: i-0096542c11ccb02b5
-Os: ubuntu2004
-User: ubuntu
-Add the following to your ~/.ssh/config to easily connect:
-
-cat <<EOF >> ~/.ssh/config
-Host ml-cluster
-  User ubuntu
-  ProxyCommand sh -c "aws ssm start-session --target i-0095542c11ccb02b5 --document-name AWS-StartSSHSession --parameters 'portNumber=%p'"
-EOF
-
-Add your ssh keypair and then you can do:
-
-$ ssh ml-cluster
-
-Connecting to ml-cluster...
-
-Starting session with SessionId: ...
-root@ip-10-0-24-126:~#
-```
-
-1. Add your public key to the file `~/.ssh/authorized_keys`
-
-2. Now paste in the lines from the output of to your terminal, this will add them to your `~/.ssh/config`.
-
-```
-cat <<EOF >> ~/.ssh/config
-Host ml-cluster
-  User ubuntu
-  ProxyCommand sh -c "aws ssm start-session --target i-0095542c11ccb02b5 --document-name AWS-StartSSHSession --parameters 'portNumber=%p'"
-EOF
-```
-3. Now you ssh in, assuming `ml-cluster` is the name of your cluster with:
-
-```
-ssh ml-cluster
-```
 
 
 ## 3. Deploy a Cluster
 
-To create the cluster use the command below and replace `CLUSTER_CONFIG_FILE` by the path to the cluster configuration file (see next section) and `NAME_OF_YOUR_CLUSTER` by the name of your cluster (`realpotato` is a cool name).
+To create the cluster use the command below and replace `CLUSTER_CONFIG_FILE` by the path to the cluster configuration file (see next section) and `NAME_OF_YOUR_CLUSTER` by the name of your cluster.
 
-```bash
+```bas
 pcluster create-cluster --cluster-configuration CLUSTER_CONFIG_FILE --cluster-name NAME_OF_YOUR_CLUSTER --region us-east-1
 ```
 
-You can follow the [documentation](https://docs.aws.amazon.com/parallelcluster/latest/ug/commands-v3.html) to review the list of all AWS ParallelCluster commands.
+For the detailed instruction for the cluster deployment, please refer to [deployment-guide](./deployment-guide). Under the directory we have instructions for following three pattern of cluster deployments:
 
-### 3.1. Cluster templates
-
-Each reference architectures provides an example of cluster configuration (`.yaml`) for different use cases. The architectures most commonly used are:
-
-- `distributed-training-gpu.yaml`: base template, uses the default AMI with no software installed.
-- `distributed-training-p4de_custom_ami.yaml`: base cluster with a custom AMI to install custom software.
-- `distributed-training-p4de_postinstall_scripts.yaml`: same as above but uses post-install scripts to install Docker, Pyxis and Enroot.
-
-Alternatively you can refer to these architectures for more specific use cases:
-
-- `distributed-training-p4de_batch-inference-g5_custom_ami.yaml`: multi-queue template with p4de for training and g5 for inference. It assumes a custom AMI.
-- `distributed-training-trn1_custom_ami.yaml`: uses Trainium instances for distributed training. Assumes a custom AMI.
-
-### 3.2. What to replace in the templates
-
-The `.yaml` templates contain placeholder variables that you need to replace before use.
-
-- `CUSTOM_AMI_ID`: if using a custom AMI then replace with the custom AMI ID (`ami-12356790abcd`).
-- `PUBLIC_SUBNET_ID`: change to the id of a public subnet to host the head-node (`subnet-12356790abcd`).
-- `PRIVATE_SUBNET_ID`: change to the id of a public subnet to host the compute nodes (`subnet-12356790abcd`).
-- `PLACEHOLDER_SSH_KEY`: ID of the SSH key you'd like to use to connect to the head-node, use the name of the key. You can also use AWS Systems Manager Session Manager (SSM).
-- `CAPACITY_RESERVATION_ID`: if using a capacity reservation put the ID here (`cr-12356790abcd`).
-
-In some of the templates you may need to update these placeholders:
-
-- `PLACEHOLDER_MIN_INSTANCES`: the minimum number of instances you want in your cluster at any point in time.
-- `PLACEHOLDER_MAX_INSTANCES`: the maximum number of instances you anticipate to scale to.
-
-If `MIN` = `MAX` then you keep a fixed amount of instances at any point in time. If `MIN` < `MAX` then the cluster will keep a `MIN` number of instances and scale up to `MAX` if capacity beyond `MIN` is required to run jobs. Update this values by updating your cluster ([documentation](https://docs.aws.amazon.com/parallelcluster/latest/ug/using-pcluster-update-cluster-v3.html))
 
 ## 4. Anatomy of AWS Parallel Cluster
 
@@ -242,6 +161,64 @@ You can chose to use a custom image or post-install scripts to install your appl
 A common issue we see customer face is a problem with the post install scripts or issue to access capacity due to a mis-configuration. This can manifest itself through a `HeadNodeWaitCondition` that'll cause the ParallelCluster to fail a cluster deployment.
 
 To solve that, you can look at the cluster logs in CloudWatch in the cluster log group, otherwise use the option `--rollback-on-failure false` to keep resources up upon failure for further troubleshooting.
+
+
+
+## Tips and tricks
+### 2.2 Connect to your cluster
+
+To easily login to your cluster via [AWS Systems Manager](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-sessions-start.html) we've included a script `easy-ssh.sh` that you can run like so, assuming `ml-cluster` is the name of your cluster:
+
+```bash
+./easy-ssh.sh ml-cluster
+```
+
+You'll need a few pre-requisites for this script:
+* JQ: `brew install jq`
+* aws cli
+* `pcluster` cli
+* [Session Manager Plugin](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html)
+
+Once you've run the script you'll see the following output:
+
+```
+Instance Id: i-0096542c11ccb02b5
+Os: ubuntu2004
+User: ubuntu
+Add the following to your ~/.ssh/config to easily connect:
+
+cat <<EOF >> ~/.ssh/config
+Host ml-cluster
+  User ubuntu
+  ProxyCommand sh -c "aws ssm start-session --target i-0095542c11ccb02b5 --document-name AWS-StartSSHSession --parameters 'portNumber=%p'"
+EOF
+
+Add your ssh keypair and then you can do:
+
+$ ssh ml-cluster
+
+Connecting to ml-cluster...
+
+Starting session with SessionId: ...
+root@ip-10-0-24-126:~#
+```
+
+1. Add your public key to the file `~/.ssh/authorized_keys`
+
+2. Now paste in the lines from the output of to your terminal, this will add them to your `~/.ssh/config`.
+
+```
+cat <<EOF >> ~/.ssh/config
+Host ml-cluster
+  User ubuntu
+  ProxyCommand sh -c "aws ssm start-session --target i-0095542c11ccb02b5 --document-name AWS-StartSSHSession --parameters 'portNumber=%p'"
+EOF
+```
+3. Now you ssh in, assuming `ml-cluster` is the name of your cluster with:
+
+```
+ssh ml-cluster
+```
 
 ## 5. Appendix
 
