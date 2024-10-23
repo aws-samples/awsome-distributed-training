@@ -21,9 +21,9 @@ In some of the templates you may need to update these placeholders:
 
 If `MIN` = `MAX` then you keep a fixed amount of instances at any point in time. If `MIN` < `MAX` then the cluster will keep a `MIN` number of instances and scale up to `MAX` if capacity beyond `MIN` is required to run jobs. Update this values by updating your cluster ([documentation](https://docs.aws.amazon.com/parallelcluster/latest/ug/using-pcluster-update-cluster-v3.html))
 
-# [Lead SA Runbook] Vanilla PCluster Deployment
+# Vanilla PCluster Deployment
 
-Lead SA will have an onboarding call with customers and assist them to create AWS ParallelCluster using the procured P5 capacity. This runbook is for the Lead SA and aiming to provide step-by-step guide on vanilla [AWS ParallelCluster (PCluster)](https://github.com/aws/aws-parallelcluster) deployment which supports following features:
+This runbook is to provide step-by-step guide on vanilla [AWS ParallelCluster (PCluster)](https://github.com/aws/aws-parallelcluster) deployment which supports following features:
 
 |Feature	|Enabled	|
 |---	|---	|
@@ -31,16 +31,9 @@ Lead SA will have an onboarding call with customers and assist them to create AW
 |Accounting	|FALSE	|
 |Observability	|FALSE	|
 
-- [ ] add script to deploy cluster
-- [ ] cut branch on awsome-distributed-training and export the contents
-
 ## Introduction
 
-This setup involves two main infrastructure components, `parallelcluster-prerequisites`  (the base infrastructure stack including VPC, FSx for Lustre, FSx for Open ZFS) and a PCluster itself. If you need guidance on additional components (such as multi-user support, accounting, and observability) please refer to the other Runbooks. You can find links to the document in [References section](https://quip-amazon.com/wDrEAxaBEI3A/Runbook-Vanilla-PCluster-Deployment#temp:C:fdV09aac85c19e04a3aa33506baf).
-[Image: image.png]
-Customer may create the `parallelcluster-prerequisites` stack prior to the onboarding call on Oct. 25th if they want to, however...
- 🚨 Please deploy FSx for Luster with minimal capacity configuration (for now) 🚨 
-Due to the limited FSxL capacity, deployment would likely fail if Cx increases `Capacity` or `PerUnitStorageThroughput` when they deploy the Cloudformation stack. Please make sure that Cx first deploys the stack “as is” (`Capacity`: 1.2 TiB, `PerUnitStorageThroughput` : 250 MB/s/TiB) and then try to scale up FSxL filesystem after Oct. 25th. Refer [Stage1: Infrastructure deployment](https://quip-amazon.com/wDrEAxaBEI3A#temp:C:fdVcab143c12c0f4174a628110fe) for the base infrastructure deployment. **Please make sure to deploy the stack on the availability zone P5 capacity will be procured.  Please refer [column R(AZ) of the engagement doc](https://quip-amazon.com/eQ1mAZdTbJVj/GENIAC-Cycle2-Customer-and-Engagement-Team)for to find out AZ ID.** 
+This setup involves two main infrastructure components, `parallelcluster-prerequisites`  (the base infrastructure stack including VPC, FSx for Lustre, FSx for Open ZFS) and a PCluster itself. If you need guidance on additional components (such as multi-user support, accounting, and observability) please refer to the other Runbooks. 
 
 ## Cluster Deployment 
 
@@ -48,20 +41,21 @@ This section goes through all the steps necessary to deploy the architecture dis
 
 ### Stage0: Preflight check
 
-Ask customer to select one person (Cx) who will share their screen and conduct following steps.
 **Step0: Check resource info** 
-The capacity should have been already accepted by Classmethod.  
-Account specific info you will need:
 
-* Customer Account ID
-* AZ for P5 capacity (`apne1-az1`)
-* Number of procured P5 instances
-* Bucket name for the data S3 bucket. If it does not exists ask customer to create. This bucket will be used to persist all the data/model checkpoints throughout 6 months of the cluster operation. Please refer to the [Cloudformation template](https://github.com/aws-samples/awsome-distributed-training/blob/main/1.architectures/0.s3/0.private-bucket.yaml) for S3 deployment. You can use the following quick deployment link: https://console.aws.amazon.com/cloudformation/home?#/stacks/quickcreate?templateURL=https://awsome-distributed-training.s3.amazonaws.com/templates/0.private-bucket.yaml&stackName=ML-S3
-    The bucket name is referred as `${BUCKET_NAME_DATA}`.
+You need following information before proceed:
+
+* AWS Account ID
+* An ODCR (usually P5 or Trn1) on the account. You can check 
+    * AZ for the capacity
+    * Number of instances in the CR
+* (Optional, but recommended ) Name for the data S3 bucket. This bucket will be used to persist all the data/model checkpoints throughout 6 months of the cluster operation. Please refer to the [Cloudformation template](https://github.com/aws-samples/awsome-distributed-training/blob/main/1.architectures/0.s3/0.private-bucket.yaml) for the deployment. The bucket name is referred as `${BUCKET_NAME_DATA}`.
 
 **Local environment setup**
 
-* terminal (local shell or cloudshell)
+You need to work on parallelcluster CLI to create the cluster. That will require following:
+
+* Terminal (local shell or cloudshell)
 * Admin role is required
 * NodeJS. You can install from https://nodejs.org/en/download/package-manager (Win/MacOS) or https://formulae.brew.sh/formula/node (MacOS)
 * pcluster version: [v3.11.1](https://github.com/aws/aws-parallelcluster/releases/tag/v3.11.1) 
@@ -69,12 +63,6 @@ Account specific info you will need:
 ```
 pip3 install -U "aws-parallelcluster==3.11.1"
 ```
-
-🚨 Please use v3.11.1 instead of v3.11.0 due to following issue (we install enroot/pyxis through postinstall script) 🚨 
-
->Important message on PC 3.11. Based on an [issue discovered](https://amzn-aws.slack.com/archives/C017LP32MN3/p1728408306384719) we investigated further to reveal a problem with the our current implementation of Pyxis and Enroot on PC. We have published a GitHub [Issue and mitigation](https://github.com/aws/aws-parallelcluster/wiki/(3.11.0)-Job-submission-failure-caused-by-race-condition-in-Pyxis-configuration) for the same and are working on a Patch release 3.11.1 scheduled to come out next week. For now we have planned to send out a PHD notification when the patch has been released, the PHD will inform the customer on the mitigation and recommend to upgrade to 3.11.1. (edited) 
-
-
 
 #### Generate an SSH Key-pair
 
