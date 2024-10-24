@@ -22,12 +22,13 @@ This section goes through all the steps necessary to deploy the architecture dis
 
 
 ```bash
-source env_vars
 export KEY_PAIR_NAME=<your keypair name without .pem>
 export CAPACITY_RESERVATION_ID=cr-<YOUR CRID>
 export INSTANCE=p5.48xlarge
 export NUM_INSTANCES=4
 export AMPREMOTEWRITEURL=https://aps-workspaces.ap-northeast-1.amazonaws.com/workspaces/ws-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx/api/v1/remote_write
 bash create_config.sh
+source env_vars
 ```
+
 
