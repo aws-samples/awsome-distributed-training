@@ -73,6 +73,8 @@ Create [_Amazon Virtual Private Cloud_](https://aws.amazon.com/vpc/) (Amazon VPC
 Due to the limited FSxL capacity, deployment would likely fail if Cx increases `Capacity` or `PerUnitStorageThroughput` . Please make sure that Cx first deploys the stack “as is” and then try to scale up FSxL filesystem after Oct. 25th:
 Proceed to the next step once the Cloud Formation stack creation completed.
 
+[<kbd> <br> 1-Click Deploy 🚀 <br> </kbd>](https://ap-northeast-1.console.aws.amazon.com/cloudformation/home?region=ap-northeast-1#/stacks/quickcreate?templateURL=https://awsome-distributed-training.s3.amazonaws.com/templates/Vpc.yaml&stackName=SageMakerVPC)
+
 ### 2.5 Associate Lustre storage with S3 bucket with data-repository-association (DRA)
 
 In this step, you will create a [Data Repository Association (DRA)](https://docs.aws.amazon.com/fsx/latest/LustreGuide/create-dra-linked-data-repo.html) between the S3 bucket and FSx Lustre Filesystem.
@@ -90,7 +92,7 @@ export FSX_ID=`aws cloudformation describe-stacks \
 Note: `BUCKET_NAME_DATA`  is the bucket created in [Step0: Check resource info](https://quip-amazon.com/wDrEAxaBEI3A#temp:C:fdV996b34e8ad4e4dc3ac2ef128b). 
 Create DRA as follows:
 
-```
+```bash
 aws fsx create-data-repository-association \
     --file-system-id ${FSX_ID} \
     --file-system-path "/data" \
