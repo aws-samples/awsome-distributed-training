@@ -72,7 +72,14 @@ In this section, you deploy a custom [_Amazon Virtual Private Cloud_](https://aw
 
 Please follow the steps below to deploy your resources:
 
-[<kbd> <br> 1-Click Deploy 🚀 <br> </kbd>](https://ap-northeast-1.console.aws.amazon.com/cloudformation/home?region=ap-northeast-1#/stacks/quickcreate?templateURL=https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/geniac/1.architectures/2.aws-parallelcluster/templates/parallelcluster-prerequisites.yaml&stackName=parallelcluster-prerequisites)
+1. Click on this link to deploy to CloudFormation:
+
+[<kbd> <br> 1-Click Deploy 🚀 <br> </kbd>](https://ap-northeast-1.console.aws.amazon.com/cloudformation/home?region=ap-northeast-1#/stacks/quickcreate?templateUrl=https://awsome-distributed-training.s3.amazonaws.com/templates/parallelcluster-prerequisites.yaml&stackName=parallelcluster-prerequisites)
+
+The cloudformation stack uses FSx for Lustre Persistent_2 deployment type. If you wish to use Persistent_1 deployment type please use the link below:
+
+[<kbd> <br> 1-Click Deploy 🚀 <br> </kbd>](https://ap-northeast-1.console.aws.amazon.com/cloudformation/home?region=ap-northeast-1#/stacks/quickcreate?templateUrl=https://awsome-distributed-training.s3.amazonaws.com/templates/parallelcluster-prerequisites-p1.yaml&stackName=parallelcluster-prerequisites)
+
 
 They need to open the link and specify the region and availability zone where they have their compute resources. Fill out “Availability Zone configuration for the subnets”, and create the stack. 
 🚨 Do not change FSx for Lustre (FSxL) configuration at this point 🚨 
