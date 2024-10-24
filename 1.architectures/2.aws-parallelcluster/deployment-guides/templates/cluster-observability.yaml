@@ -30,7 +30,7 @@ HeadNode:
           Args:
             - v2.23.4-1 # NCCL version
             - v1.11.0-aws # AWS OFI NCCL version
-        - Script: 'https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/main/1.architectures/5.sagemaker-hyperpod/LifecycleScripts/base-config/utils/install_prometheus.sh'
+        - Script: 'https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/geniac/1.architectures/2.aws-parallelcluster/deployment-guides/post-install-scripts/install_prometheus.sh'
           Args:
             - ${PROMETHEUS_REMOTE_WRITE_URL}
         - Script: 'https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/main/1.architectures/5.sagemaker-hyperpod/LifecycleScripts/base-config/utils/install_slurm_exporter.sh'
