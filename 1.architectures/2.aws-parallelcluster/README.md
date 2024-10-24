@@ -10,7 +10,7 @@ Before deploying a cluster, let's ensure you have installed the AWS ParallelClus
 
 ### 2.1. Install AWS ParallelCluster CLI
 
-Run the script below to install AWS ParallelCluster in a Python virtual environment and access this environment.
+Run the script below to install AWS ParallelCluster CLI in a Python virtual environment and access this environment.
 ```bash
 export VIRTUAL_ENV_PATH=~/pcluster_env # change the path to your liking
 export AWS_REGION=us-east-1
@@ -26,10 +26,8 @@ python3 -m pip install --user --upgrade virtualenv
 python3 -m virtualenv ${VIRTUAL_ENV_PATH} # create the virtual env
 source ${VIRTUAL_ENV_PATH}/bin/activate # activate the environment
 pip3 install awscli # install the AWS CLI
-pip3 install aws-parallelcluster # then AWS ParallelCluster
+pip3 install aws-parallelcluster==3.11.1 # then AWS ParallelCluster
 ```
-
-> **Note**: you can use virtual environments to test different versions of AWS ParallelCluster by setting the version during the installation. For example to use 3.11.1, change the command `pip3 install aws-parallelcluster==3.11.1`.
 
 You can follow the [documentation](https://docs.aws.amazon.com/parallelcluster/latest/ug/commands-v3.html) to review the list of all AWS ParallelCluster commands.
 
@@ -58,6 +56,17 @@ aws ec2 create-key-pair --key-name ${KEYPAIR_NAME} \
 sudo chmod 600 ${KEYPAIR_NAME}.pem
 ```
 
+### Stage0: Preflight check
+
+**Step0: Check resource info** 
+
+You need following information before proceed:
+
+* AWS Account ID
+* An ODCR (usually P5 or Trn1) on the account. You can check 
+    * AZ for the capacity
+    * Number of instances in the CR
+* (Optional, but recommended ) Name for the data S3 bucket. This bucket will be used to persist all the data/model checkpoints throughout 6 months of the cluster operation. Please refer to the [Cloudformation template](https://github.com/aws-samples/awsome-distributed-training/blob/main/1.architectures/0.s3/0.private-bucket.yaml) for the deployment. The bucket name is referred as `${BUCKET_NAME_DATA}`.
 
 
 ## 3. Deploy a Cluster
