@@ -1,26 +1,3 @@
-
-
-### 3.1. Cluster templates
-
-Each reference architectures provides an example of cluster configuration (`.yaml`) for different use cases. The architectures most commonly used are:
-
-### 3.2. What to replace in the templates
-
-The `.yaml` templates contain placeholder variables that you need to replace before use.
-
-- `CUSTOM_AMI_ID`: if using a custom AMI then replace with the custom AMI ID (`ami-12356790abcd`).
-- `PUBLIC_SUBNET_ID`: change to the id of a public subnet to host the head-node (`subnet-12356790abcd`).
-- `PRIVATE_SUBNET_ID`: change to the id of a public subnet to host the compute nodes (`subnet-12356790abcd`).
-- `PLACEHOLDER_SSH_KEY`: ID of the SSH key you'd like to use to connect to the head-node, use the name of the key. You can also use AWS Systems Manager Session Manager (SSM).
-- `CAPACITY_RESERVATION_ID`: if using a capacity reservation put the ID here (`cr-12356790abcd`).
-
-In some of the templates you may need to update these placeholders:
-
-- `PLACEHOLDER_MIN_INSTANCES`: the minimum number of instances you want in your cluster at any point in time.
-- `PLACEHOLDER_MAX_INSTANCES`: the maximum number of instances you anticipate to scale to.
-
-If `MIN` = `MAX` then you keep a fixed amount of instances at any point in time. If `MIN` < `MAX` then the cluster will keep a `MIN` number of instances and scale up to `MAX` if capacity beyond `MIN` is required to run jobs. Update this values by updating your cluster ([documentation](https://docs.aws.amazon.com/parallelcluster/latest/ug/using-pcluster-update-cluster-v3.html))
-
 # Vanilla PCluster Deployment
 
 This runbook is to provide step-by-step guide on vanilla [AWS ParallelCluster (PCluster)](https://github.com/aws/aws-parallelcluster) deployment which supports following features:
