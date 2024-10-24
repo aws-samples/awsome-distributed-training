@@ -42,7 +42,7 @@ If you do not have a keypair that you can use then we will create one with the c
 ```bash
 #!/bin/bash
 
-
+cd ~/.ssh
 # Create the key pair using the AWS CLI and retrieve the private part (.pem file)
 aws ec2 create-key-pair --key-name ${KEYPAIR_NAME} \
                         --query KeyMaterial \

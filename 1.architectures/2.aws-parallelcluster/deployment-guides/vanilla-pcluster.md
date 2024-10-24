@@ -14,47 +14,8 @@ This setup involves two main infrastructure components, `parallelcluster-prerequ
 
 ## Cluster Deployment 
 
-This section goes through all the steps necessary to deploy the architecture discussed in the previous section. Moreover, this section covers how to set up a [Data Repository Association (DRA)](https://docs.aws.amazon.com/fsx/latest/LustreGuide/create-dra-linked-data-repo.html) between the S3 bucket and FSx Lustre Filesystem. With DRA, user can access to the objects in Amazon S3 bucket through Lustre filesystem.
+This section goes through all the steps necessary to deploy the architecture discussed in the previous section. Moreover, this section covers how to set up a [Data Repository Association (DRA)](https://docs.aws.amazon.com/fsx/latest/LustreGuide/create-dra-linked-data-repo.html) between the S3 bucket and FSx Lustre Filesystem. With DRA, user can access to the objects in Amazon S3 bucket through Lustre filesystem. ** Make sure to check [prerequisites](https://github.com/aws-samples/awsome-distributed-training/tree/geniac/1.architectures/2.aws-parallelcluster#2-pre-requisites) before proceed. **
 
-### Stage0: Preflight check
-
-**Step0: Check resource info** 
-
-You need following information before proceed:
-
-* AWS Account ID
-* An ODCR (usually P5 or Trn1) on the account. You can check 
-    * AZ for the capacity
-    * Number of instances in the CR
-* (Optional, but recommended ) Name for the data S3 bucket. This bucket will be used to persist all the data/model checkpoints throughout 6 months of the cluster operation. Please refer to the [Cloudformation template](https://github.com/aws-samples/awsome-distributed-training/blob/main/1.architectures/0.s3/0.private-bucket.yaml) for the deployment. The bucket name is referred as `${BUCKET_NAME_DATA}`.
-
-**Local environment setup**
-
-You need to work on parallelcluster CLI to create the cluster. That will require following:
-
-* Terminal (local shell or cloudshell)
-* Admin role is required
-* NodeJS. You can install from https://nodejs.org/en/download/package-manager (Win/MacOS) or https://formulae.brew.sh/formula/node (MacOS)
-* pcluster version: [v3.11.1](https://github.com/aws/aws-parallelcluster/releases/tag/v3.11.1) 
-
-```
-pip3 install -U "aws-parallelcluster==3.11.1"
-```
-
-#### Generate an SSH Key-pair
-
-SSH is [commonly](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AccessingInstancesLinux.html) used to connect to Amazon EC2 instances. To allow you to connect to your instances, you can generate a key-pair using the AWS CLI on your terminal. Enter the following command to generate a key pair:
-
-```
-aws ec2 create-key-pair --key-name key --query KeyMaterial --output text > lab-your-key.pem
-chmod 400 key.pem
-```
-
-
-```
-cp ~/Downloads/ap-northeast-1.pem ~/.ssh 
-chmod 600 ~/.ssh/ap-northeast-1.pem 
-```
 
 ### Stage1: Infrastructure deployment
 
