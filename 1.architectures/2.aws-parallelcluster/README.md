@@ -74,10 +74,10 @@ To create the cluster use the command below and replace `CLUSTER_CONFIG_FILE` by
 pcluster create-cluster --cluster-configuration CLUSTER_CONFIG_FILE --cluster-name NAME_OF_YOUR_CLUSTER --region us-east-1
 ```
 
-For the detailed instruction for the cluster deployment, please refer to [deployment-guide](./deployment-guide). Under the directory we have instructions for following three pattern of cluster deployments:
+For the detailed instruction for the cluster deployment, please refer to [deployment-guides](./deployment-guides). Under the directory we have instructions for following three pattern of cluster deployments:
 
-* [vanilla cluster deployment](./deployment-guide/vanilla-pcluster.md)
-* [pcluster with observability stack deployment](./deployment-guide/vanilla-pcluster.md)
+* [vanilla cluster deployment](./deployment-guides/vanilla-pcluster.md)
+* [pcluster with observability stack deployment](./deployment-guides/vanilla-pcluster.md)
 
 ## 4. Anatomy of AWS Parallel Cluster
 
