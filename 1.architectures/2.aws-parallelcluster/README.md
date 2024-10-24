@@ -6,11 +6,12 @@ Clusters in AWS ParallelCluster share similar components: a head-node, compute n
 
 ## 2. Pre-requisites
 
-Before deploying a cluster, let's ensure you have installed the AWS ParallelCluster (PC) CLI, and that you have generated an EC2 key pair for the head node later on. If you have both PC installed and the key pair generated then skip this section and go [deploy-a-cluster section](#3-deploy-clusters).
+Before deploying a cluster, let's ensure you have installed the AWS ParallelCluster (PCluster) CLI, and that you have generated an EC2 key pair for the head node later on. If you have both PC installed and the key pair generated then skip this section and go [deploy-a-cluster section](#3-deploy-clusters).
 
 ### 2.1. Install AWS ParallelCluster CLI
 
 Run the script below to install AWS ParallelCluster CLI in a Python virtual environment and access this environment.
+
 ```bash
 export VIRTUAL_ENV_PATH=~/pcluster_env # change the path to your liking
 export AWS_REGION=us-east-1
@@ -64,7 +65,9 @@ You need following information before proceed:
     * AZ for the capacity `AZ`.
     * Number of instances in the CR `ODCR_ID`.
 * (Optional, but recommended ) Name for the data S3 bucket. This bucket will be used to persist all the data/model checkpoints throughout 6 months of the cluster operation. Please refer to the [Cloudformation template](https://github.com/aws-samples/awsome-distributed-training/blob/main/1.architectures/0.s3/0.private-bucket.yaml) for the deployment. The bucket name is referred to as `BUCKET_NAME_DATA`.
+Click on this link to deploy the S3 bucket:
 
+[<kbd> <br> 1-Click Deploy 🚀 <br> </kbd>](https://github.com/aws-samples/awsome-distributed-training/blob/main/1.architectures/0.s3/0.private-bucket.yaml)
 
 ### 2.4 Deploy parallelcluster-prerequisites
 
