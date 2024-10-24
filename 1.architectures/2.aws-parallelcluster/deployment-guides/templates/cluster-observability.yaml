@@ -68,7 +68,7 @@ Scheduling:
           InstanceType: ${INSTANCE}
           MinCount: ${NUM_INSTANCES} # if min = max then capacity is maintained and will
           MaxCount: ${NUM_INSTANCES} # not scale down
-          Efa
+          Efa:
             Enabled: true
           CapacityReservationTarget:
             CapacityReservationId: ${CAPACITY_RESERVATION_ID}
