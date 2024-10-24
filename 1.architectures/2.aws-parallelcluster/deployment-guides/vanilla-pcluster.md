@@ -16,7 +16,7 @@ This setup involves two main infrastructure components, `parallelcluster-prerequ
 
 ## Cluster Deployment 
 
-This section goes through all the steps necessary to deploy the architecture discussed in the previous section. Moreover, this section covers how to set up a [Data Repository Association (DRA)](https://docs.aws.amazon.com/fsx/latest/LustreGuide/create-dra-linked-data-repo.html) between the S3 bucket and FSx Lustre Filesystem. With DRA, user can access to the objects in Amazon S3 bucket through Lustre filesystem. **Make sure to check [prerequisites](https://github.com/aws-samples/awsome-distributed-training/tree/geniac/1.architectures/2.aws-parallelcluster#2-pre-requisites) before proceed.**
+This section goes through all the steps necessary to deploy the architecture discussed in the previous section. *Make sure to check [prerequisites](https://github.com/aws-samples/awsome-distributed-training/tree/geniac/1.architectures/2.aws-parallelcluster#2-pre-requisites) before proceed.**
 
 
 In this example, are going to deploy PCluster with P5 instances.
@@ -24,12 +24,14 @@ In this example, are going to deploy PCluster with P5 instances.
 
 ```bash
 source env_vars
-export KEY_PAIR_NAME=<your keypair name without .pem>
-export CAPACITY_RESERVATION_ID=cr-<YOUR CRID>
+export KEY_PAIR_NAME=<your keypair name without .pem> # You need to create a keypair prior to this ste
+export CAPACITY_RESERVATION_ID=cr-<YOUR CRID> # Please check EC2 console
 export INSTANCE=p5.48xlarge
 export NUM_INSTANCES=4
 bash create_config.sh
 ```
+
+This command will create a file called `env_vars`.
 
 Then create cluster with the following command:
 
