@@ -27,7 +27,7 @@ HeadNode:
           Args:
             - v2.23.4-1 # NCCL version
             - v1.11.0-aws # AWS OFI NCCL version
-        - Script: 'https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/geniac/1.architectures/2.aws-parallelcluster/deployment-guides/configure_pyxis_enroot_headnode.sh'
+        - Script: 'https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/geniac/1.architectures/2.aws-parallelcluster/deployment-guides/post-install-scripts/configure_pyxis_enroot_headnode.sh'
   Imds:
     Secured: false
 Scheduling:
@@ -72,7 +72,7 @@ Scheduling:
               Args:
                 - v2.23.4-1 # NCCL version
                 - v1.11.0-aws # AWS OFI NCCL version
-            - Script: 'https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/geniac/1.architectures/2.aws-parallelcluster/deployment-guides/configure_pyxis_enroot_computenode.sh'
+            - Script: 'https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/geniac/1.architectures/2.aws-parallelcluster/deployment-guides/post-install-scripts/configure_pyxis_enroot_computenode.sh'
 SharedStorage:
   - Name: HomeDirs
     MountDir: /home
