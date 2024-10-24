@@ -47,6 +47,13 @@ fi
 echo "export NUM_INSTANCES=${NUM_INSTANCES}" >> env_vars
 echo "[INFO] NUM_INSTANCES = ${NUM_INSTANCES}"
 
+if [ -z ${CAPACITY_RESERVATION_ID} ]; then
+    echo "[WARNING] CAPACITY_RESERVATION_ID environment variable is not set, automatically set to 2"
+    export CAPACITY_RESERVATION_ID="NA"
+fi
+echo "export CAPACITY_RESERVATION_ID=${CAPACITY_RESERVATION_ID}" >> env_vars
+echo "[INFO] CAPACITY_RESERVATION_ID = ${CAPACITY_RESERVATION_ID}"
+
 if [ -z ${KEY_PAIR_NAME} ]; then
     echo "[WARNING] KEY_PAIR_NAME environment variable is not set, assuming that you will not use it."
     export KEY_PAIR_NAME="REMOVE_THIS_LINE_AND_A_LINE_BEFORE"

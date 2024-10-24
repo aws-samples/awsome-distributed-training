@@ -28,7 +28,11 @@ export INSTANCE=p5.48xlarge
 export NUM_INSTANCES=4
 export AMPREMOTEWRITEURL=https://aps-workspaces.ap-northeast-1.amazonaws.com/workspaces/ws-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx/api/v1/remote_write
 bash create_config.sh
-source env_vars
 ```
 
+then 
 
+```bash
+source env_vars
+cat templates/cluster-observability.yaml | envsubst > configs/cluster-observability.yaml
+```
