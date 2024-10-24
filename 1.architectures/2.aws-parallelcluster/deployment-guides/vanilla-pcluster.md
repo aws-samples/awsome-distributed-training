@@ -10,7 +10,9 @@ This runbook is to provide step-by-step guide on vanilla [AWS ParallelCluster (P
 
 ## Introduction
 
-This setup involves two main infrastructure components, `parallelcluster-prerequisites`  (the base infrastructure stack including VPC, FSx for Lustre, FSx for Open ZFS) and a PCluster itself. If you need guidance on additional components (such as multi-user support, accounting, and observability) please refer to the other Runbooks. 
+This setup involves two main infrastructure components, `parallelcluster-prerequisites`  (the base infrastructure stack including VPC, FSx for Lustre, FSx for Open ZFS) and a PCluster itself.  
+
+![core-infra-architecture](../../../0.docs/core-infra-architecture.png)
 
 ## Cluster Deployment 
 
