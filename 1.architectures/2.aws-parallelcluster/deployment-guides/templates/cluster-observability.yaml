@@ -27,13 +27,14 @@ HeadNode:
       Sequence:
         - Script: 'https://raw.githubusercontent.com/aws-samples/aws-parallelcluster-post-install-scripts/main/docker/postinstall.sh'
         - Script: 'https://raw.githubusercontent.com/aws-samples/aws-parallelcluster-post-install-scripts/main/nccl/postinstall.sh'
-        - Script: 'https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/main/1.architectures/5.sagemaker-hyperpod/LifecycleScripts/base-config/utils/install_prometheus.sh'
-        - Script: 'https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/main/1.architectures/5.sagemaker-hyperpod/LifecycleScripts/base-config/utils/install_slurm_exporter.sh'
-        - Script: 'https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/main/1.architectures/5.sagemaker-hyperpod/LifecycleScripts/base-config/utils/install_head_node_exporter.sh'
           Args:
             - v2.23.4-1 # NCCL version
             - v1.11.0-aws # AWS OFI NCCL version
+        - Script: 'https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/main/1.architectures/5.sagemaker-hyperpod/LifecycleScripts/base-config/utils/install_prometheus.sh'
+          Args:
             - ${PROMETHEUS_REMOTE_WRITE_URL}
+        - Script: 'https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/main/1.architectures/5.sagemaker-hyperpod/LifecycleScripts/base-config/utils/install_slurm_exporter.sh'
+        - Script: 'https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/main/1.architectures/5.sagemaker-hyperpod/LifecycleScripts/base-config/utils/install_head_node_exporter.sh'
   Imds:
     Secured: false
 Scheduling:
@@ -76,11 +77,11 @@ Scheduling:
           Sequence:
             - Script: 'https://raw.githubusercontent.com/aws-samples/aws-parallelcluster-post-install-scripts/main/docker/postinstall.sh'
             - Script: 'https://raw.githubusercontent.com/aws-samples/aws-parallelcluster-post-install-scripts/main/nccl/postinstall.sh'
-            - Script: 'https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/main/1.architectures/5.sagemaker-hyperpod/LifecycleScripts/base-config/utils/install_dcgm_exporter.sh'
-            - Script: 'https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/main/1.architectures/5.sagemaker-hyperpod/LifecycleScripts/base-config/utils/install_efa_node_exporter.sh'
               Args:
                 - v2.23.4-1 # NCCL version
                 - v1.11.0-aws # AWS OFI NCCL version
+            - Script: 'https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/main/1.architectures/5.sagemaker-hyperpod/LifecycleScripts/base-config/utils/install_dcgm_exporter.sh'
+            - Script: 'https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/main/1.architectures/5.sagemaker-hyperpod/LifecycleScripts/base-config/utils/install_efa_node_exporter.sh'
 SharedStorage:
   - Name: HomeDirs
     MountDir: /home
