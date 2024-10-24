@@ -29,13 +29,18 @@ export CAPACITY_RESERVATION_ID=cr-<YOUR CRID>
 export INSTANCE=p5.48xlarge
 export NUM_INSTANCES=4
 bash create_config.sh
-
 ```
 
-Then create cluster
+Then create cluster with the following command:
 
 ```bash
- pcluster create-cluster -n ml-cluster -c config.yaml -r ${AWS_REGION}
+source env_vars
+cat templates/cluster-vanilla.yaml | envsubst > configs/cluster-vanilla.yaml
+```
+
+
+```bash
+pcluster create-cluster -n ml-cluster -c configs/cluster-vanilla.yaml -r ${AWS_REGION}
 ```
 
 You will see the output like follows:

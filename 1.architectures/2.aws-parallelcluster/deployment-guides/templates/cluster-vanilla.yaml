@@ -1,5 +1,6 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
+
 Imds:
   ImdsSupport: v1.0
 Image:
@@ -10,6 +11,8 @@ HeadNode:
     SubnetId: ${PUBLIC_SUBNET_ID}
     AdditionalSecurityGroups:
       - ${SECURITY_GROUP}
+  Ssh:
+    KeyName: ${KEY_PAIR_NAME}
   LocalStorage:
     RootVolume:
       Size: 500
@@ -27,7 +30,8 @@ HeadNode:
           Args:
             - v2.23.4-1 # NCCL version
             - v1.11.0-aws # AWS OFI NCCL version
-        - Script: 'https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/geniac/1.architectures/2.aws-parallelcluster/deployment-guides/post-install-scripts/configure_pyxis_enroot_headnode.sh'
+        - Script: 'https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/main/1.architectures/5.sagemaker-hyperpod/LifecycleScripts/base-config/utils/install_slurm_exporter.sh'
+        - Script: 'https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/main/1.architectures/5.sagemaker-hyperpod/LifecycleScripts/base-config/utils/install_head_node_exporter.sh'
   Imds:
     Secured: false
 Scheduling:
@@ -56,14 +60,15 @@ Scheduling:
             MountDir: /scratch # each instance has a local scratch on NVMe
           RootVolume:
             Size: 200
-      JobExclusiveAllocation: true   # GenAI training likes to gobble all GPUs in an instance
       ComputeResources:
         - Name: distributed-ml
-          InstanceType: p5.48xlarge
-          MinCount: 0 # if min = max then capacity is maintained and will
-          MaxCount: 4 # not scale down
+          InstanceType: ${INSTANCE}
+          MinCount: ${NUM_INSTANCES} # if min = max then capacity is maintained and will
+          MaxCount: ${NUM_INSTANCES} # not scale down
           Efa:
             Enabled: true
+          CapacityReservationTarget:
+            CapacityReservationId: ${CAPACITY_RESERVATION_ID}
       CustomActions:
         OnNodeConfigured:
           Sequence:
@@ -72,7 +77,6 @@ Scheduling:
               Args:
                 - v2.23.4-1 # NCCL version
                 - v1.11.0-aws # AWS OFI NCCL version
-            - Script: 'https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/geniac/1.architectures/2.aws-parallelcluster/deployment-guides/post-install-scripts/configure_pyxis_enroot_computenode.sh'
 SharedStorage:
   - Name: HomeDirs
     MountDir: /home

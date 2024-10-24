@@ -36,3 +36,9 @@ then
 source env_vars
 cat templates/cluster-observability.yaml | envsubst > configs/cluster-observability.yaml
 ```
+
+finally 
+
+```bash
+ pcluster create-cluster -n ml-cluster -c configs/cluster-observability.yaml -r ${AWS_REGION}
+```
