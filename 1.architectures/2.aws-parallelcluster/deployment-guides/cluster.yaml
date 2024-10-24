@@ -1,6 +1,5 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
-
 Imds:
   ImdsSupport: v1.0
 Image:
@@ -28,6 +27,7 @@ HeadNode:
           Args:
             - v2.23.4-1 # NCCL version
             - v1.11.0-aws # AWS OFI NCCL version
+        - Script: 'https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/geniac/1.architectures/2.aws-parallelcluster/deployment-guides/configure_pyxis_enroot_headnode.sh'
   Imds:
     Secured: false
 Scheduling:
@@ -72,6 +72,7 @@ Scheduling:
               Args:
                 - v2.23.4-1 # NCCL version
                 - v1.11.0-aws # AWS OFI NCCL version
+            - Script: 'https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/geniac/1.architectures/2.aws-parallelcluster/deployment-guides/configure_pyxis_enroot_computenode.sh'
 SharedStorage:
   - Name: HomeDirs
     MountDir: /home
