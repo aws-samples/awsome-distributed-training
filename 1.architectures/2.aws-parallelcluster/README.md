@@ -64,7 +64,7 @@ You need following information before proceed:
 * An ODCR (usually P5 or Trn1) on the account. You can check 
     * AZ for the capacity `AZ`.
     * Number of instances in the CR `ODCR_ID`.
-* (Optional, but recommended) Name for the data S3 bucket. This bucket will be used to persist all the data/model checkpoints throughout 6 months of the cluster operation. Please refer to the [Cloudformation template](https://github.com/aws-samples/awsome-distributed-training/blob/main/1.architectures/0.s3/0.private-bucket.yaml) for the deployment. The bucket name is referred to as `BUCKET_NAME_DATA`.
+* (Optional, but recommended) Name for the data S3 bucket. This bucket will be used to persist all the data/model checkpoints throughout 6 months of the cluster operation. Please refer to the [Cloudformation template](https://github.com/aws-samples/awsome-distributed-training/blob/main/1.architectures/0.s3/0.private-bucket.yaml) for the deployment. The bucket name is referred to as `DATA_BUCKET_NAME`.
 
 Click on this link to deploy the S3 bucket:
 
@@ -100,14 +100,14 @@ export FSX_ID=`aws cloudformation describe-stacks \
     --output text`
 ```
 
-Note: `BUCKET_NAME_DATA`  is the bucket created in [Step0: Check resource info](https://quip-amazon.com/wDrEAxaBEI3A#temp:C:fdV996b34e8ad4e4dc3ac2ef128b). 
+Note: `DATA_BUCKET_NAME`  is the bucket created in [Step0: Check resource info](https://quip-amazon.com/wDrEAxaBEI3A#temp:C:fdV996b34e8ad4e4dc3ac2ef128b). 
 Create DRA as follows:
 
 ```bash
 aws fsx create-data-repository-association \
     --file-system-id ${FSX_ID} \
     --file-system-path "/data" \
-    --data-repository-path s3://${BUCKET_NAME_DATA} \
+    --data-repository-path s3://${DATA_BUCKET_NAME} \
     --s3 AutoImportPolicy='{Events=[NEW,CHANGED,DELETED]},AutoExportPolicy={Events=[NEW,CHANGED,DELETED]}' \
     --batch-import-meta-data-on-create \
     --region ${AWS_REGION}
