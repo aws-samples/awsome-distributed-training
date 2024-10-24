@@ -61,19 +61,24 @@ sudo chmod 600 ${KEYPAIR_NAME}.pem
 You need following information before proceed:
 
 * An ODCR (usually P5 or Trn1) on the account. You can check 
-    * AZ for the capacity
-    * Number of instances in the CR
-* (Optional, but recommended ) Name for the data S3 bucket. This bucket will be used to persist all the data/model checkpoints throughout 6 months of the cluster operation. Please refer to the [Cloudformation template](https://github.com/aws-samples/awsome-distributed-training/blob/main/1.architectures/0.s3/0.private-bucket.yaml) for the deployment. The bucket name is referred as `${BUCKET_NAME_DATA}`.
+    * AZ for the capacity `AZ`.
+    * Number of instances in the CR `ODCR_ID`.
+* (Optional, but recommended ) Name for the data S3 bucket. This bucket will be used to persist all the data/model checkpoints throughout 6 months of the cluster operation. Please refer to the [Cloudformation template](https://github.com/aws-samples/awsome-distributed-training/blob/main/1.architectures/0.s3/0.private-bucket.yaml) for the deployment. The bucket name is referred to as `BUCKET_NAME_DATA`.
 
 
 ### 2.4 Deploy parallelcluster-prerequisites
 
-Create [_Amazon Virtual Private Cloud_](https://aws.amazon.com/vpc/) (Amazon VPC) network and security groups, deploying supporting services such as FSx for Lustre in their VPC, and publishing their Slurm lifecycle scripts to an S3 bucket. Advice Cx to use[_CloudFormation stack_](https://console.aws.amazon.com/cloudformation/home?#/stacks/quickcreate?templateUrl=https://awsome-distributed-training.s3.amazonaws.com/templates/parallelcluster-prerequisites.yaml&stackName=parallelcluster-prerequisites.) to create those resources. They need to open the link and specify the region and availability zone where they have their compute resources. Fill out “Availability Zone configuration for the subnets”, and create the stack. 
+In this section, you deploy a custom [_Amazon Virtual Private Cloud_](https://aws.amazon.com/vpc/) (Amazon VPC) network and security groups, as well as supporting services such as FSx for Lustre using the CloudFormation template called `parallelcluster-prerequisites.yaml`. This template is region agnostic and enables you to create a VPC with the required network architecture to run your workloads.
+
+Please follow the steps below to deploy your resources:
+
+[<kbd> <br> 1-Click Deploy 🚀 <br> </kbd>](https://ap-northeast-1.console.aws.amazon.com/cloudformation/home?region=ap-northeast-1#/stacks/quickcreate?templateURL=https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/geniac/1.architectures/2.aws-parallelcluster/templates/parallelcluster-prerequisites.yaml&stackName=parallelcluster-prerequisites)
+
+They need to open the link and specify the region and availability zone where they have their compute resources. Fill out “Availability Zone configuration for the subnets”, and create the stack. 
 🚨 Do not change FSx for Lustre (FSxL) configuration at this point 🚨 
 Due to the limited FSxL capacity, deployment would likely fail if Cx increases `Capacity` or `PerUnitStorageThroughput` . Please make sure that Cx first deploys the stack “as is” and then try to scale up FSxL filesystem after Oct. 25th:
 Proceed to the next step once the Cloud Formation stack creation completed.
 
-[<kbd> <br> 1-Click Deploy 🚀 <br> </kbd>](https://ap-northeast-1.console.aws.amazon.com/cloudformation/home?region=ap-northeast-1#/stacks/quickcreate?templateURL=https://awsome-distributed-training.s3.amazonaws.com/templates/Vpc.yaml&stackName=SageMakerVPC)
 
 ### 2.5 Associate Lustre storage with S3 bucket with data-repository-association (DRA)
 
