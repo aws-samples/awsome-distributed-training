@@ -8,11 +8,11 @@ Image:
 HeadNode:
   InstanceType: m5.8xlarge
   Networking:
-    SubnetId: subnet-0f826b2cc7887a579
+    SubnetId: ${PUBLIC_SUBNET_ID}
     AdditionalSecurityGroups:
-      - sg-0e49d586bafc4b63c
+      - ${SECURITY_GROUP}
   Ssh:
-    KeyName: ap-northeast-1
+    KeyName: ${KEY_PAIR_NAME}
   LocalStorage:
     RootVolume:
       Size: 500
@@ -32,7 +32,7 @@ HeadNode:
             - v1.11.0-aws # AWS OFI NCCL version
         - Script: 'https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/geniac/1.architectures/2.aws-parallelcluster/deployment-guides/post-install-scripts/install_prometheus.sh'
           Args:
-            - ${PROMETHEUS_REMOTE_WRITE_URL}
+            - ${AMPREMOTEWRITEURL}
         - Script: 'https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/main/1.architectures/5.sagemaker-hyperpod/LifecycleScripts/base-config/utils/install_slurm_exporter.sh'
         - Script: 'https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/main/1.architectures/5.sagemaker-hyperpod/LifecycleScripts/base-config/utils/install_head_node_exporter.sh'
   Imds:
@@ -52,26 +52,26 @@ Scheduling:
       CapacityType: ONDEMAND
       Networking:
         SubnetIds:
-          - subnet-0a451a7d1b9dbe633
+          - ${PRIVATE_SUBNET_ID}
         PlacementGroup:
           Enabled: true  # set this to false if using a targeted ODCR
         AdditionalSecurityGroups:
-          - sg-0e49d586bafc4b63c
+          - ${SECURITY_GROUP}
       ComputeSettings:
         LocalStorage:
           EphemeralVolume:
             MountDir: /scratch # each instance has a local scratch on NVMe
           RootVolume:
-            Size: 200     
+            Size: 200
       ComputeResources:
         - Name: distributed-ml
-          InstanceType: p5.48xlarge
-          MinCount: 4 # if min = max then capacity is maintained and will
-          MaxCount: 24 # not scale down
-          Efa:
+          InstanceType: ${INSTANCE}
+          MinCount: ${NUM_INSTANCES} # if min = max then capacity is maintained and will
+          MaxCount: ${NUM_INSTANCES} # not scale down
+          Efa
             Enabled: true
           CapacityReservationTarget:
-            CapacityReservationId: cr-0fe517b1419d736a1
+            CapacityReservationId: ${CAPACITY_RESERVATION_ID}
       CustomActions:
         OnNodeConfigured:
           Sequence:
@@ -87,12 +87,12 @@ SharedStorage:
     MountDir: /home
     StorageType: FsxOpenZfs
     FsxOpenZfsSettings:
-      VolumeId: fsvol-0dd320b78f30bf645
+      VolumeId: ${FSXO_ID}
   - MountDir: /fsx
     Name: fsx
     StorageType: FsxLustre
     FsxLustreSettings:
-      FileSystemId: fs-0160ebe1881498442
+      FileSystemId: ${FSX_ID}
 Monitoring:
   DetailedMonitoring: true
   Logs:
