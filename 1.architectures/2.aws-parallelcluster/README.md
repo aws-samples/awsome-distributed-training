@@ -166,7 +166,7 @@ To create cluster, please refer to [deployment-guides](./deployment-guides). Und
 * [Vanilla cluster deployment](./deployment-guides/vanilla-pcluster.md)
 * [Pcluster with observability stack deployment](./deployment-guides/vanilla-pcluster.md)
 
-## 4. Anatomy of AWS Parallel Cluster
+## 4. (For Reference) Anatomy of AWS Parallel Cluster
 
 ![AWS ParallelCluster diagram](../../0.docs/parallelcluster-arch-diagram.png)
 
