@@ -1,6 +1,7 @@
 #!/bin/bash
 
 AMPREMOTEWRITEURL=$1
+REGION=$2
 
 # Check if CFNREGION is empty
 if [ -z "$AMPREMOTEWRITEURL" ]; then
