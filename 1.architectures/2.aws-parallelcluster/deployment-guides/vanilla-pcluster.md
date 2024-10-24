@@ -19,96 +19,15 @@ This setup involves two main infrastructure components, `parallelcluster-prerequ
 This section goes through all the steps necessary to deploy the architecture discussed in the previous section. Moreover, this section covers how to set up a [Data Repository Association (DRA)](https://docs.aws.amazon.com/fsx/latest/LustreGuide/create-dra-linked-data-repo.html) between the S3 bucket and FSx Lustre Filesystem. With DRA, user can access to the objects in Amazon S3 bucket through Lustre filesystem. **Make sure to check [prerequisites](https://github.com/aws-samples/awsome-distributed-training/tree/geniac/1.architectures/2.aws-parallelcluster#2-pre-requisites) before proceed.**
 
 
-### Stage1: Infrastructure deployment
-
-**Deploy parallelcluster-prerequisites**
-
-Create [_Amazon Virtual Private Cloud_](https://aws.amazon.com/vpc/) (Amazon VPC) network and security groups, deploying supporting services such as FSx for Lustre in their VPC, and publishing their Slurm lifecycle scripts to an S3 bucket. Advice Cx to use[_CloudFormation stack_](https://console.aws.amazon.com/cloudformation/home?#/stacks/quickcreate?templateUrl=https://awsome-distributed-training.s3.amazonaws.com/templates/parallelcluster-prerequisites.yaml&stackName=parallelcluster-prerequisites.) to create those resources. They need to open the link and specify the region and availability zone where they have their compute resources. Fill out “Availability Zone configuration for the subnets”, and create the stack. 
-🚨 Do not change FSx for Lustre (FSxL) configuration at this point 🚨 
-Due to the limited FSxL capacity, deployment would likely fail if Cx increases `Capacity` or `PerUnitStorageThroughput` . Please make sure that Cx first deploys the stack “as is” and then try to scale up FSxL filesystem after Oct. 25th:
-Proceed to the next step once the Cloud Formation stack creation completed.
-**Associate Lustre storage with S3 bucket with data-repository-association (DRA)**
-https://docs.aws.amazon.com/fsx/latest/LustreGuide/create-dra-linked-data-repo.html
-Wait for completion of the stack creation.
-Run `create_config.sh`  script which will fetch resource info from the CloudFormation stack created in the previous step:
-
-```
-export AWS_REGION=ap-northeast-1
-export INSTANCES=p5.48xlarge
-export BUCKET_NAME_DATA=<ADD YOUR BUCKET NAME HERE>
-curl 'https://static.us-east-1.prod.workshops.aws/public/cfe259f7-a9f1-4040-acd8-6cd911f1da63/static/scripts/create_config.sh' --output create_config.sh
-bash create_config.sh
-source env_vars
-```
-
-Note: `BUCKET_NAME_DATA`  is the bucket created in [Step0: Check resource info](https://quip-amazon.com/wDrEAxaBEI3A#temp:C:fdV996b34e8ad4e4dc3ac2ef128b). 
-Create DRA as follows:
-
-```
-aws fsx create-data-repository-association \
-    --file-system-id ${FSX_ID} \
-    --file-system-path "/data" \
-    --data-repository-path s3://${BUCKET_NAME_DATA} \
-    --s3 AutoImportPolicy='{Events=[NEW,CHANGED,DELETED]},AutoExportPolicy={Events=[NEW,CHANGED,DELETED]}' \
-    --batch-import-meta-data-on-create \
-    --region ${AWS_REGION}
-```
-
-You shall see output like below:
-
-```
-{
-    "Association": {
-        "AssociationId": "dra-0295ef8c2a0e78886",
-        "ResourceARN": "arn:aws:fsx:ap-northeast-1:483026362307:association/fs-0160ebe1881498442/dra-0295ef8c2a0e78886",
-        "FileSystemId": "fs-0160ebe1881498442",
-        "Lifecycle": "CREATING",
-        "FileSystemPath": "/data",
-        "DataRepositoryPath": "s3://genica-cluster-data-483026362307",
-        "BatchImportMetaDataOnCreate": true,
-        "ImportedFileChunkSize": 1024,
-        "S3": {
-            "AutoImportPolicy": {
-                "Events": [
-                    "NEW",
-                    "CHANGED",
-                    "DELETED"
-                ]
-            },
-            "AutoExportPolicy": {
-                "Events": [
-                    "NEW",
-                    "CHANGED",
-                    "DELETED"
-                ]
-            }
-        },
-        "Tags": [],
-        "CreationTime": "2024-10-22T09:06:57.151000+09:00"
-    }
-}
-```
-
-You can query the status of the DRA creation as below:
-
-```
-aws fsx describe-data-repository-associations \
-    --filters "Name=file-system-id,Values=${FSX_ID}" --query "Associations[0].Lifecycle" --output text
-```
-
-Wait until the output becomes `AVAILABLE` . You also can check the status of DRA on AWS console:
-
-
-### Stage2: Cluster deployment
-
-In this stage, we are going to deploy PCluster with P5 instances.
+In this example, are going to deploy PCluster with P5 instances.
 
 
 ```
 source env_vars
 export KEY_PAIR=<your keypair name without .pem>
 export CAPACITY_RESERVATION_ID=cr-<YOUR CRID>
-export NUM_INSTANCES=0
+export INSTANCE=p5.48xlarge
+export NUM_INSTANCES=16
 cat > config.yaml << EOF
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
