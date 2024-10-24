@@ -4,6 +4,13 @@
 
 Clusters in AWS ParallelCluster share similar components: a head-node, compute nodes (typically P or Trn EC2 family of instances) and one or multiple shared filesystems (FSx for Lustre). You will find below a section on the architectures themselves and how to deploy them. After this section, you will be brief on key elements of these templates (or things you wanna know to avoid potential mistakes).
 
+To get started, clone this repository and navigate to this directory:
+
+```bash
+git clone -b geniac https://github.com/aws-samples/awsome-distributed-training.git
+cd awsome-distributed-training/1.architectures/2.aws-parallelcluster
+```
+
 ## 2. Pre-requisites
 
 Before deploying a cluster, let's ensure you have installed the AWS ParallelCluster (PCluster) CLI, and that you have generated an EC2 key pair for the head node later on. If you have both PC installed and the key pair generated then skip this section and go [deploy-a-cluster section](#3-deploy-clusters).
