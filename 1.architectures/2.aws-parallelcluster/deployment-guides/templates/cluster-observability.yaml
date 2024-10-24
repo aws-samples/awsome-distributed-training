@@ -22,6 +22,7 @@ HeadNode:
       - Policy: arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
       - Policy: arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
       - Policy: arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+      - Policy: arn:aws:iam::aws:policy/AmazonPrometheusRemoteWriteAccess
   CustomActions:
     OnNodeConfigured:
       Sequence:
