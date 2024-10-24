@@ -33,13 +33,19 @@ fi
 echo "export AWS_REGION=${AWS_REGION}" >> env_vars
 echo "[INFO] AWS_REGION = ${AWS_REGION}"
 
-# Define Instances seperated by ','.
-if [ -z ${INSTANCES} ]; then
-    echo "[WARNING] INSTANCES environment variable is not set, automatically set to g5.12xlarge."
-    export INSTANCES=g5.12xlarge
+if [ -z ${INSTANCE} ]; then
+    echo "[WARNING] INSTANCES environment variable is not set, automatically set to p5.48xlarge."
+    export INSTANCE=p5.48xlarge
 fi
-echo "export INSTANCES=${INSTANCES}" >> env_vars
-echo "[INFO] INSTANCES = ${INSTANCES}"
+echo "export INSTANCE=${INSTANCE}" >> env_vars
+echo "[INFO] INSTANCE = ${INSTANCE}"
+
+if [ -z ${KEYPAIR_NAME} ]; then
+    echo "[WARNING] KEYPAIR_NAME environment variable is not set, assuming that you will not use it."
+    export KEYPAIR_NAME="REMOVE_THIS_LINE_AND_A_LINE_BEFORE"
+fi
+echo "export INSTANCE=${INSTANCE}" >> env_vars
+echo "[INFO] INSTANCE = ${INSTANCE}"
 
 # Retrieve VPC ID
 export VPC_ID=`aws cloudformation describe-stacks \
