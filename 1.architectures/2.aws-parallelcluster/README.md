@@ -161,13 +161,7 @@ Wait until the output becomes `AVAILABLE` . You also can check the status of DRA
 
 ## 3. Deploy a Cluster
 
-To create the cluster use the command below and replace `CLUSTER_CONFIG_FILE` by the path to the cluster configuration file (see next section) and `NAME_OF_YOUR_CLUSTER` by the name of your cluster.
-
-```bash
-pcluster create-cluster --cluster-configuration CLUSTER_CONFIG_FILE --cluster-name NAME_OF_YOUR_CLUSTER --region us-east-1
-```
-
-For the detailed instruction for the cluster deployment, please refer to [deployment-guides](./deployment-guides). Under the directory we have instructions for following three pattern of cluster deployments:
+To create cluster, please refer to [deployment-guides](./deployment-guides). Under the directory we have instructions for following patterns of cluster deployments:
 
 * [Vanilla cluster deployment](./deployment-guides/vanilla-pcluster.md)
 * [Pcluster with observability stack deployment](./deployment-guides/vanilla-pcluster.md)
