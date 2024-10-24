@@ -105,7 +105,7 @@ Parameters:
   HomeThroughput:
     Description: "Home directories storage throughput MB/s"
     Type: Number
-    Default: 320
+    Default: 512
 
 
 ###############################
