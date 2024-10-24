@@ -56,7 +56,7 @@ aws ec2 create-key-pair --key-name ${KEYPAIR_NAME} \
 sudo chmod 600 ${KEYPAIR_NAME}.pem
 ```
 
-### 3.2 Check compute resource
+### 2.3 Check compute resource
 
 You need following information before proceed:
 
