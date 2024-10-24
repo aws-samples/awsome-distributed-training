@@ -43,5 +43,5 @@ cat templates/cluster-observability.yaml | envsubst > configs/cluster-observabil
 finally 
 
 ```bash
- pcluster create-cluster -n ml-cluster -c configs/cluster-observability.yaml -r ${AWS_REGION}
+ pcluster create-cluster -n ml-cluster -c configs/cluster-observability.yaml -r ${AWS_REGION}  --rollback-on-failure false
 ```
