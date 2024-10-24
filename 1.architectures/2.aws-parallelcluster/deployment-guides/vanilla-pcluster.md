@@ -100,10 +100,11 @@ git clone https://github.com/aws-samples/awsome-distributed-training.git
 cd awsome-distributed-training/micro-benchmarks/nccl-tests/slurm
 ```
 
-```
-wget 
-enroot import -o /fsx/nccl.sqsh public.ecr.aws/hpc-cloud/nccl-tests:latest
-sbatch nccl-tests-ami.sbatch /opt/nccl-tests/build/all_reduce_perf /opt/nccl/build/lib
+```bash
+enroot import -o /fsx/nccl.sqsh dockerd://public.ecr.aws/hpc-cloud/nccl-tests:latest
+wget https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/main/micro-benchmarks/nccl-tests/slurm/nccl-tests-container.sbatch
+export APPS_PATH=/fsx
+sbatch nccl-tests-ami.sbatch 
 watch squeue # wait for job to go into 'R' running
 ```
 
