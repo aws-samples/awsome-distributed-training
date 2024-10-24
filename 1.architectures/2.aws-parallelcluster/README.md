@@ -70,6 +70,8 @@ pcluster create-cluster --cluster-configuration CLUSTER_CONFIG_FILE --cluster-na
 
 For the detailed instruction for the cluster deployment, please refer to [deployment-guide](./deployment-guide). Under the directory we have instructions for following three pattern of cluster deployments:
 
+* [vanilla cluster deployment](./deployment-guide/vanilla-pcluster.md)
+* [pcluster with observability stack deployment](./deployment-guide/vanilla-pcluster.md)
 
 ## 4. Anatomy of AWS Parallel Cluster
 
