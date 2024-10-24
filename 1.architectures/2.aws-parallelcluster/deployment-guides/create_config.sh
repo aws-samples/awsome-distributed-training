@@ -40,12 +40,19 @@ fi
 echo "export INSTANCE=${INSTANCE}" >> env_vars
 echo "[INFO] INSTANCE = ${INSTANCE}"
 
-if [ -z ${KEYPAIR_NAME} ]; then
-    echo "[WARNING] KEYPAIR_NAME environment variable is not set, assuming that you will not use it."
-    export KEYPAIR_NAME="REMOVE_THIS_LINE_AND_A_LINE_BEFORE"
+if [ -z ${NUM_INSTANCES} ]; then
+    echo "[WARNING] NUM_INSTANCES environment variable is not set, automatically set to 2"
+    export NUM_INSTANCES=2
 fi
-echo "export KEYPAIR_NAME=${KEYPAIR_NAME}" >> env_vars
-echo "[INFO] KEYPAIR_NAME = ${KEYPAIR_NAM}"
+echo "export NUM_INSTANCES=${NUM_INSTANCES}" >> env_vars
+echo "[INFO] NUM_INSTANCES = ${NUM_INSTANCES}"
+
+if [ -z ${KEY_PAIR_NAME} ]; then
+    echo "[WARNING] KEY_PAIR_NAME environment variable is not set, assuming that you will not use it."
+    export KEY_PAIR_NAME="REMOVE_THIS_LINE_AND_A_LINE_BEFORE"
+fi
+echo "export KEY_PAIR_NAME=${KEY_PAIR_NAME}" >> env_vars
+echo "[INFO] KEY_PAIR_NAME = ${KEY_PAIR_NAME}"
 
 # Retrieve VPC ID
 export VPC_ID=`aws cloudformation describe-stacks \

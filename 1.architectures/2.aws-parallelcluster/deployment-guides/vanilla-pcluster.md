@@ -22,12 +22,14 @@ This section goes through all the steps necessary to deploy the architecture dis
 In this example, are going to deploy PCluster with P5 instances.
 
 
-```
+```bash
 source env_vars
-export KEY_PAIR=<your keypair name without .pem>
+export KEY_PAIR_NAME=<your keypair name without .pem>
 export CAPACITY_RESERVATION_ID=cr-<YOUR CRID>
 export INSTANCE=p5.48xlarge
-export NUM_INSTANCES=16
+export NUM_INSTANCES=4
+bash create_config.sh
+
 cat > config.yaml << EOF
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
