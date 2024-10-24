@@ -75,16 +75,16 @@ Proceed to the next step once the Cloud Formation stack creation completed.
 
 ### 2.5 Associate Lustre storage with S3 bucket with data-repository-association (DRA)
 
-https://docs.aws.amazon.com/fsx/latest/LustreGuide/create-dra-linked-data-repo.html
-Run `create_config.sh`  script which will fetch resource info from the CloudFormation stack created in the previous step:
+In this step, you will create a [Data Repository Association (DRA)](https://docs.aws.amazon.com/fsx/latest/LustreGuide/create-dra-linked-data-repo.html) between the S3 bucket and FSx Lustre Filesystem.
 
-```
+```bash
 export AWS_REGION=ap-northeast-1
-export INSTANCES=p5.48xlarge
-export BUCKET_NAME_DATA=<ADD YOUR BUCKET NAME HERE>
-curl 'https://static.us-east-1.prod.workshops.aws/public/cfe259f7-a9f1-4040-acd8-6cd911f1da63/static/scripts/create_config.sh' --output create_config.sh
-bash create_config.sh
-source env_vars
+export STACK_ID_VPC=parallelcluster-prerequisites 
+export FSX_ID=`aws cloudformation describe-stacks \
+    --stack-name ${STACK_ID_VPC} \
+    --query 'Stacks[0].Outputs[?OutputKey==\`FSxLustreFilesystemId\`].OutputValue' \
+    --region ${AWS_REGION} \
+    --output text`
 ```
 
 Note: `BUCKET_NAME_DATA`  is the bucket created in [Step0: Check resource info](https://quip-amazon.com/wDrEAxaBEI3A#temp:C:fdV996b34e8ad4e4dc3ac2ef128b). 
