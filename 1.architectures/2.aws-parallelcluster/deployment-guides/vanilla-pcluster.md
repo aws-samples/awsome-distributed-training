@@ -101,10 +101,11 @@ cd awsome-distributed-training/micro-benchmarks/nccl-tests/slurm
 ```
 
 ```bash
+cd /fsx
 enroot import -o /fsx/nccl.sqsh dockerd://public.ecr.aws/hpc-cloud/nccl-tests:latest
 wget https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/main/micro-benchmarks/nccl-tests/slurm/nccl-tests-container.sbatch
 export APPS_PATH=/fsx
-sbatch nccl-tests-ami.sbatch 
+sbatch nccl-tests-container.sbatch 
 watch squeue # wait for job to go into 'R' running
 ```
 
