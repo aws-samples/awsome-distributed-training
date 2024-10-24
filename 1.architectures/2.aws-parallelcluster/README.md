@@ -56,13 +56,10 @@ aws ec2 create-key-pair --key-name ${KEYPAIR_NAME} \
 sudo chmod 600 ${KEYPAIR_NAME}.pem
 ```
 
-### Stage0: Preflight check
-
-**Step0: Check resource info** 
+### 3.2 Check compute resource
 
 You need following information before proceed:
 
-* AWS Account ID
 * An ODCR (usually P5 or Trn1) on the account. You can check 
     * AZ for the capacity
     * Number of instances in the CR
