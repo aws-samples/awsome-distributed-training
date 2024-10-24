@@ -37,6 +37,9 @@ source env_vars
 cat templates/cluster-observability.yaml | envsubst > configs/cluster-observability.yaml
 ```
 
+> [!TIP]  
+> If you are working on CloudShell, your environment might not have `envsubst`. In that case, please install the command with `sudo yum install gettext`
+
 finally 
 
 ```bash
