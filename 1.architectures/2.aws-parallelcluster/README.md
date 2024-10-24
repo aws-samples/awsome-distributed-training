@@ -82,7 +82,6 @@ The cloudformation stack uses FSx for Lustre Persistent_2 deployment type. If yo
 
 They need to open the link and specify the region and availability zone where they have their compute resources. Fill out “Availability Zone configuration for the subnets”, and create the stack. 
 
-
 ### 2.5 Associate Lustre storage with S3 bucket with data-repository-association (DRA)
 
 In this step, you will create a [Data Repository Association (DRA)](https://docs.aws.amazon.com/fsx/latest/LustreGuide/create-dra-linked-data-repo.html) between the S3 bucket and FSx Lustre Filesystem.
@@ -147,9 +146,10 @@ You shall see output like below:
 
 You can query the status of the DRA creation as below:
 
-```
+```bash
 aws fsx describe-data-repository-associations \
     --filters "Name=file-system-id,Values=${FSX_ID}" --query "Associations[0].Lifecycle" --output text
+    --region ${AWS_REGION}
 ```
 
 Wait until the output becomes `AVAILABLE` . You also can check the status of DRA on AWS console:
@@ -159,14 +159,14 @@ Wait until the output becomes `AVAILABLE` . You also can check the status of DRA
 
 To create the cluster use the command below and replace `CLUSTER_CONFIG_FILE` by the path to the cluster configuration file (see next section) and `NAME_OF_YOUR_CLUSTER` by the name of your cluster.
 
-```bas
+```bash
 pcluster create-cluster --cluster-configuration CLUSTER_CONFIG_FILE --cluster-name NAME_OF_YOUR_CLUSTER --region us-east-1
 ```
 
 For the detailed instruction for the cluster deployment, please refer to [deployment-guides](./deployment-guides). Under the directory we have instructions for following three pattern of cluster deployments:
 
-* [vanilla cluster deployment](./deployment-guides/vanilla-pcluster.md)
-* [pcluster with observability stack deployment](./deployment-guides/vanilla-pcluster.md)
+* [Vanilla cluster deployment](./deployment-guides/vanilla-pcluster.md)
+* [Pcluster with observability stack deployment](./deployment-guides/vanilla-pcluster.md)
 
 ## 4. Anatomy of AWS Parallel Cluster
 
