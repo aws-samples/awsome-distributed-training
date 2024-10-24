@@ -44,8 +44,8 @@ if [ -z ${KEYPAIR_NAME} ]; then
     echo "[WARNING] KEYPAIR_NAME environment variable is not set, assuming that you will not use it."
     export KEYPAIR_NAME="REMOVE_THIS_LINE_AND_A_LINE_BEFORE"
 fi
-echo "export INSTANCE=${INSTANCE}" >> env_vars
-echo "[INFO] INSTANCE = ${INSTANCE}"
+echo "export KEYPAIR_NAME=${KEYPAIR_NAME}" >> env_vars
+echo "[INFO] KEYPAIR_NAME = ${KEYPAIR_NAM}"
 
 # Retrieve VPC ID
 export VPC_ID=`aws cloudformation describe-stacks \
