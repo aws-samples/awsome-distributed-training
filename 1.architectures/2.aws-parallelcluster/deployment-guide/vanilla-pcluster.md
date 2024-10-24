@@ -82,6 +82,7 @@ chmod 600 ~/.ssh/ap-northeast-1.pem
 ### Stage1: Infrastructure deployment
 
 **Deploy parallelcluster-prerequisites**
+
 Create [_Amazon Virtual Private Cloud_](https://aws.amazon.com/vpc/) (Amazon VPC) network and security groups, deploying supporting services such as FSx for Lustre in their VPC, and publishing their Slurm lifecycle scripts to an S3 bucket. Advice Cx to use[_CloudFormation stack_](https://console.aws.amazon.com/cloudformation/home?#/stacks/quickcreate?templateUrl=https://awsome-distributed-training.s3.amazonaws.com/templates/parallelcluster-prerequisites.yaml&stackName=parallelcluster-prerequisites.) to create those resources. They need to open the link and specify the region and availability zone where they have their compute resources. Fill out “Availability Zone configuration for the subnets”, and create the stack. 
 🚨 Do not change FSx for Lustre (FSxL) configuration at this point 🚨 
 Due to the limited FSxL capacity, deployment would likely fail if Cx increases `Capacity` or `PerUnitStorageThroughput` . Please make sure that Cx first deploys the stack “as is” and then try to scale up FSxL filesystem after Oct. 25th:
