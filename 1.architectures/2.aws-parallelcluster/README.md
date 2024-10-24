@@ -80,11 +80,7 @@ The cloudformation stack uses FSx for Lustre Persistent_2 deployment type. If yo
 
 [<kbd> <br> 1-Click Deploy 🚀 <br> </kbd>](https://ap-northeast-1.console.aws.amazon.com/cloudformation/home?region=ap-northeast-1#/stacks/quickcreate?templateUrl=https://awsome-distributed-training.s3.amazonaws.com/templates/parallelcluster-prerequisites-p1.yaml&stackName=parallelcluster-prerequisites)
 
-
 They need to open the link and specify the region and availability zone where they have their compute resources. Fill out “Availability Zone configuration for the subnets”, and create the stack. 
-🚨 Do not change FSx for Lustre (FSxL) configuration at this point 🚨 
-Due to the limited FSxL capacity, deployment would likely fail if Cx increases `Capacity` or `PerUnitStorageThroughput` . Please make sure that Cx first deploys the stack “as is” and then try to scale up FSxL filesystem after Oct. 25th:
-Proceed to the next step once the Cloud Formation stack creation completed.
 
 
 ### 2.5 Associate Lustre storage with S3 bucket with data-repository-association (DRA)
