@@ -54,6 +54,13 @@ fi
 echo "export KEY_PAIR_NAME=${KEY_PAIR_NAME}" >> env_vars
 echo "[INFO] KEY_PAIR_NAME = ${KEY_PAIR_NAME}"
 
+if [ -z ${AMPREMOTEWRITEURL} ]; then
+    echo "[WARNING] AMPREMOTEWRITEURL environment variable is not set, assuming that you will not use it."
+    export AMPREMOTEWRITEURL="NA"
+fi
+echo "export AMPREMOTEWRITEURL=${AMPREMOTEWRITEURL}" >> env_vars
+echo "[INFO] AMPREMOTEWRITEURL = ${AMPREMOTEWRITEURL}"
+
 # Retrieve VPC ID
 export VPC_ID=`aws cloudformation describe-stacks \
     --stack-name $STACK_ID_VPC \
