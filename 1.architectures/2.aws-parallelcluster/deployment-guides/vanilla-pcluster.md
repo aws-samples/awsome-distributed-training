@@ -38,6 +38,8 @@ source env_vars
 cat templates/cluster-vanilla.yaml | envsubst > configs/cluster-vanilla.yaml
 ```
 
+> [!TIP]  
+> If you are working on CloudShell, your environment might not have `envsubst`. In that case, please install the command with `sudo yum install gettext`
 
 ```bash
 pcluster create-cluster -n ml-cluster -c configs/cluster-vanilla.yaml -r ${AWS_REGION}
