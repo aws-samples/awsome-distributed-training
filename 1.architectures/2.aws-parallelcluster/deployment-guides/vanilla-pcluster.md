@@ -101,6 +101,8 @@ cd awsome-distributed-training/micro-benchmarks/nccl-tests/slurm
 ```
 
 ```
+wget 
+enroot import -o /fsx/nccl.sqsh public.ecr.aws/hpc-cloud/nccl-tests:latest
 sbatch nccl-tests-ami.sbatch /opt/nccl-tests/build/all_reduce_perf /opt/nccl/build/lib
 watch squeue # wait for job to go into 'R' running
 ```
