@@ -1,6 +1,7 @@
 # How to run continual pretraining of Llama3 using Amazon Trainium on Slurm
 
-## Prerequisits 
+## Prerequisites
+ 
 
 This guide assumes that you have following:
 * Slurm cluster using 16 [trn1.32xlarge](https://aws.amazon.com/ec2/instance-types/trn1/) instances with a shared parallel filesystem such as [Amazon FSx for Lustre](https://docs.aws.amazon.com/fsx/latest/LustreGuide/getting-started.html). 
@@ -11,7 +12,7 @@ The subsequent sections presume that you are operating from the home directory o
 
 ### Setting up software stack
 
-In this step, you will prepare the software stack and scripts needed for the next stage. Specifically, you wil:
+In this step, you will prepare the software stack and scripts needed for the next stage. Specifically, you will:
 
 1. Create a Python virtual environment, including Neuron Distributed, used for the pretraining task.
 2. Fetch scripts used for the Llama3-70B model training.
@@ -307,7 +308,7 @@ Before submitting the job, we need to modify a few arguments in `torchrun`  in `
 1. **Enable Pretrained Weights**: Neuron Distributed default initiates training without using pretrained weights. To enable the use of pretrained weights, set the value of the  `--pretrained_weight` argument to `1`.
 2. **Change Checkpoint Frequency**: Modify the value of the `--checkpoint_freq` argument to `m` (an integer) to save checkpoints every `m` steps.
 3. **Manage Checkpoint Storage**: The current version of Neuron Distributed generates checkpoints roughly 850 GB in size for the 70B model training. Saving all historical checkpoints can consume too much space. Modify the value of the `--num_kept_checkpoint` argument to `n` (an integer) to keep only the latest `n` checkpoints.
-4. **Ensure Latest Checkpoint Loading**: To ensure the training process always starts from the latest checkpoint, set the value of the `--loading_step` argument to `latest_if_exists`. This is crucial in the event of hardware failure. As mentioned earlier, Hyperpod provides an auto-resume functionality. If a job fails due to hardware issues, Hyperpod initiates node replacement and restarts the job using the same script. This script must load the latest checkpoints when training resumes.
+4. **Ensure Latest Checkpoint Loading**: To ensure the training process always starts from the latest checkpoint, set the value of the `--loading_step` argument to `latest_if_exists`. This is crucial in the event of hardware failure. As mentioned earlier, HyperPod provides an auto-resume functionality. If a job fails due to hardware issues, HyperPod initiates node replacement and restarts the job using the same script. This script must load the latest checkpoints when training resumes.
 
 ```bash
 torchrun $DISTRIBUTED_ARGS run_llama_nxd.py \
