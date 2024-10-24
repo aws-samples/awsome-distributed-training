@@ -93,6 +93,8 @@ The cloudformation stack uses FSx for Lustre Persistent_2 deployment type. If yo
 
 They need to open the link and specify the region and availability zone where they have their compute resources. Fill out “Availability Zone configuration for the subnets”, and create the stack. 
 
+![parallelcluster-prerequisites-cfn](../../0.docs/parallelcluster-prerequisites-cfn.png)
+
 ### 2.5 Associate Lustre storage with S3 bucket with data-repository-association (DRA)
 
 In this step, you will create a [Data Repository Association (DRA)](https://docs.aws.amazon.com/fsx/latest/LustreGuide/create-dra-linked-data-repo.html) between the S3 bucket and FSx Lustre Filesystem.
