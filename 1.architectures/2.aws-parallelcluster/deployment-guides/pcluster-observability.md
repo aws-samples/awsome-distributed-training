@@ -17,6 +17,7 @@ The `Slurm-Observability` stack is used to monitor cluster metrics in real-time 
 
 ### Prerequisites: Set up IAM Identity Center
 As a prerequisite to deploying this stack, you will need to have IAM Identity Center enabled for your account or organization. Amazon Managed Grafana uses IAM Identity Center to authenticate users to your dashboards. You can do this through the IAM Identity Center AWS Console .
+![EnableIdentityCenter](../../../0.docs/EnableIdentityCenter.png)
 
 
 ### Deploy Managed Grafana and Managed Prometheus with CloudFormation
