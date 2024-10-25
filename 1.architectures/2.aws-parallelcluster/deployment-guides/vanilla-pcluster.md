@@ -121,7 +121,11 @@ It will show output like follows:
 ```
 
 
-### Cluster sanity check
+### Cluster sanity checks
+
+In this section, we'll go through cluster health check. 
+
+#### NCCL tests
 
 In this section we'll run the [NCCL Tests](https://github.com/NVIDIA/nccl-tests), specifically the *All Reduce* tests which are a suite of tests intended to validate the networking performance of the cluster. 
 
@@ -217,6 +221,8 @@ We're going to run the [nccl-tests](https://github.com/NVIDIA/nccl-tests) which 
 If we take a look at the `busbw` column for the largest message size we see the number `487.09` GBps. If you remember from our [table earlier](/04-verify-cluster), the `p5.48xlarge` instances has `3200Gbps` of network bandwidth so if we convert from Gib to GiB we get `3,896.72` Gbps. How can we get more bandwidth than expected?
 
 The difference here is due to *inter-node NVlink* which has an aggregate bandwidth of `900GBps`. At two nodes NVLink plays are larger role in GPU to GPU communication than at larger number of instances.
+
+#### Enroot/Pyxis
 
 Optionally, you can test enroot/pyxis with the following command:
 
