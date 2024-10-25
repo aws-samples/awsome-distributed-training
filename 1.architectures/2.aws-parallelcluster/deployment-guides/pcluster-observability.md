@@ -16,6 +16,7 @@ AWS ParallelCluster can optionally be integrated with Amazon Managed Prometheus 
 The `Slurm-Observability` stack is used to monitor cluster metrics in real-time using Amazon Managed Prometheus and Amazon Managed Grafana workspaces. You can optionally deploy the observability stack following cluster deployment using these instructions.
 
 ### Prerequisites: Set up IAM Identity Center
+As a prerequisite to deploying this stack, you will need to have IAM Identity Center enabled for your account or organization. Amazon Managed Grafana uses IAM Identity Center to authenticate users to your dashboards. You can do this through the IAM Identity Center AWS Console .
 
 
 ### Deploy Managed Grafana and Managed Prometheus with CloudFormation
