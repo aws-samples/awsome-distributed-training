@@ -58,7 +58,7 @@ Deploy the CloudFormation Stack from this 1-Click Deploy link:
 
 [<kbd> <br> 1-Click Deploy 🚀 <br> </kbd>](https://console.aws.amazon.com/cloudformation/home?#/stacks/quickcreate?templateURL=https://awsome-distributed-training.s3.amazonaws.com/templates/cluster-observability.yaml&stackName=Slurm-Observability)
 
-After deployment check the 
+After deployment check the `AMPRemoteWriteURL` and `GrafanaWorkspaceURL` output values. You will use those values in the subsequent steps:
 
 ![deploy_prometheus_grafana_cfn](../../../0.docs/deploy_prometheus_grafana_cfn.png)
 
