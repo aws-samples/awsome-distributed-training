@@ -64,8 +64,9 @@ After deployment check the `AMPRemoteWriteURL` and `GrafanaWorkspaceURL` output 
 
 ## Cluster Deployment 
 
-In this step, we will deploy parallelcluster. **Make sure to check [prerequisites](https://github.com/aws-samples/awsome-distributed-training/tree/geniac/1.architectures/2.aws-parallelcluster#2-pre-requisites) before proceed.**
+In this step, we will deploy parallelcluster. **Make sure to prepare [prerequisites](https://github.com/aws-samples/awsome-distributed-training/tree/geniac/1.architectures/2.aws-parallelcluster#2-pre-requisites) before proceed.**
 
+In this example, are going to deploy PCluster with P5 instances. Fill out `KEY_PAIR_NAME`, `CAPACITY_RESERVATION_ID`, `INSTANCE`, `NUM_INSTANCES`, and `AMPREMOTEWRITEURL` and run the following command:
 
 ```bash
 export KEY_PAIR_NAME=<your keypair name without .pem>
@@ -76,7 +77,9 @@ export AMPREMOTEWRITEURL=https://aps-workspaces.ap-northeast-1.amazonaws.com/wor
 bash create_config.sh
 ```
 
-then 
+This command will create a file called `env_vars`.
+
+Then create cluster with the following command:
 
 ```bash
 source env_vars
