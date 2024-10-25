@@ -106,11 +106,20 @@ sudo su - ubuntu
 
 ### SSH access
 
-Access to the headnode via SSH over SSM or SSH (if you set up keypair). You can retrieve IP address of the head node with the following command
+Also, You can access to the headnode via SSH (if you set up keypair). You can retrieve IP address of the head node with the following command:
 
+```bash
+pcluster ssh --region ap-northeast-1 --cluster-name ml-cluster --identity_file ~/.ssh/ap-northeast-1.pem  --dryrun true 
 ```
-pcluster ssh --cluster-name ml-cluster --dry-run
+
+It will show output like follows:
+
+```bash
+{
+  "command": "ssh ubuntu@18.183.235.248 --identity_file /Users/mlkeita/.ssh/ap-northeast-1.pem"
+}
 ```
+
 
 ### Step3:  Cluster sanity check
 
