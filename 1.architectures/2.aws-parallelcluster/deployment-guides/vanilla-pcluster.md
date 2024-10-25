@@ -104,8 +104,7 @@ sudo su - ubuntu
 
 ![ssm user connect](../../../0.docs/ssm-connect-user.png)
 
-
-### Step3:  Cluster sanity check
+### SSH access
 
 Access to the headnode via SSH over SSM or SSH (if you set up keypair). You can retrieve IP address of the head node with the following command
 
@@ -113,7 +112,8 @@ Access to the headnode via SSH over SSM or SSH (if you set up keypair). You can 
 pcluster ssh --cluster-name ml-cluster --dry-run
 ```
 
-If you want to access to the headnode SSH over SSM please refer to the workshop https://catalog.workshops.aws/ml-on-aws-parallelcluster/en-US/03-cluster/04-connect-cluster
+### Step3:  Cluster sanity check
+
 
 Once login to the headnode, make sure you are working as a `ubuntu` user:
 Then execute NCCL tests to make sure all the GPUs on the cluster functional:
@@ -124,12 +124,16 @@ cd awsome-distributed-training/micro-benchmarks/nccl-tests/slurm
 ```
 
 ```bash
-cd /fsx
-enroot import -o /fsx/nccl.sqsh dockerd://public.ecr.aws/hpc-cloud/nccl-tests:latest
-wget https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/main/micro-benchmarks/nccl-tests/slurm/nccl-tests-container.sbatch
-export APPS_PATH=/fsx
-sbatch nccl-tests-container.sbatch 
+wget https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/main/micro-benchmarks/nccl-tests/slurm/nccl-tests-ami.sbatch
+sbatch nccl-tests-ami.sbatch /opt/nccl-tests/build/all_reduce_perf /opt/nccl/build/lib
 watch squeue # wait for job to go into 'R' running
+```
+
+Optionally, you can test enroot/pyxis with the following command:
+
+```bash
+# Submitting an interactive job
+srun -N 2 --container-image docker://ubuntu:22.04 hostname
 ```
 
 
