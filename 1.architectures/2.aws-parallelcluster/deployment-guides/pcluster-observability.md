@@ -25,15 +25,25 @@ Next, we create one user and associate the user to a group called `grafana-admin
 
 <details>
 
+First click "Users" to create a new user:
 ![IdentityCenterSetup1](../../../0.docs/IdentityCenterSetup1.png)
+Click "Add user":
 ![IdentityCenterSetup2](../../../0.docs/IdentityCenterSetup2.png)
+Fill out "Username", "Email address", "Confirm email address", "First name", "Last name", and "Display name". Then click "Next":
 ![IdentityCenterSetup3](../../../0.docs/IdentityCenterSetup3.png)
+Click "Create Group" to create a new group for Grafana access. This will open a new tab:
 ![IdentityCenterSetup4](../../../0.docs/IdentityCenterSetup4.png)
+Set `grafana-admin` as a group name and click "Create group" to create:
 ![IdentityCenterSetup5](../../../0.docs/IdentityCenterSetup5.png)
+Go back to the previous tab and assign the user to the group:
 ![IdentityCenterSetup6](../../../0.docs/IdentityCenterSetup6.png)
+Then, review the configuration and click "Add user":
 ![IdentityCenterSetup7](../../../0.docs/IdentityCenterSetup7.png)
+Finally you need to set up access to the user you have just created. First, click "Send email verification link" to receive an invitation email:
 ![IdentityCenterSetup8](../../../0.docs/IdentityCenterSetup8.png)
+Check inbox and find an email entitled "Invitation to join AWS IAM Identity Center". Click "Accept Invitation":
 ![IdentityCenterSetup9](../../../0.docs/IdentityCenterSetup9.png)
+Set password for the user:
 ![IdentityCenterSetup10](../../../0.docs/IdentityCenterSetup10.png)
 
 </details>
