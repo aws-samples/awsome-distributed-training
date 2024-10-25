@@ -21,6 +21,19 @@ As a prerequisite to deploying this stack, you will need to have IAM Identity Ce
 
 ![EnableIdentityCenter](../../../0.docs/EnableIdentityCenter.png)
 
+Next, we create one user and associate the user to a group called `grafana-admin`. Follow the following instructions to set up the user and group.
+
+
+![IdentityCenterSetup1](../../../0.docs/IdentityCenterSetup1.png)
+![IdentityCenterSetup2](../../../0.docs/IdentityCenterSetup2.png)
+![IdentityCenterSetup3](../../../0.docs/IdentityCenterSetup3.png)
+![IdentityCenterSetup4](../../../0.docs/IdentityCenterSetup4.png)
+![IdentityCenterSetup5](../../../0.docs/IdentityCenterSetup5.png)
+![IdentityCenterSetup6](../../../0.docs/IdentityCenterSetup6.png)
+![IdentityCenterSetup7](../../../0.docs/IdentityCenterSetup7.png)
+![IdentityCenterSetup8](../../../0.docs/IdentityCenterSetup8.png)
+![IdentityCenterSetup9](../../../0.docs/IdentityCenterSetup9.png)
+![IdentityCenterSetup10](../../../0.docs/IdentityCenterSetup10.png)
 
 
 ### Deploy Managed Grafana and Managed Prometheus with CloudFormation
