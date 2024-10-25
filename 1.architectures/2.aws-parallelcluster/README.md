@@ -21,7 +21,7 @@ Run the script below to install AWS ParallelCluster CLI in a Python virtual envi
 
 ```bash
 export VIRTUAL_ENV_PATH=~/pcluster_env # change the path to your liking
-export AWS_REGION=us-east-1
+export AWS_REGION=ap-northeast-1
 export KEYPAIR_NAME=keypair
 ```
 
