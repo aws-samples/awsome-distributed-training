@@ -12,6 +12,14 @@ This runbook is to provide step-by-step guide on PCluster + Grafana observabilit
 
 ## Managed Observability stack deployment
 
+AWS ParallelCluster can optionally be integrated with Amazon Managed Prometheus and Amazon Managed Grafana to export metrics about your cluster and cluster-nodes to an Amazon Managed Grafana dashboard.
+The `Slurm-Observability` stack is used to monitor cluster metrics in real-time using Amazon Managed Prometheus and Amazon Managed Grafana workspaces. You can optionally deploy the observability stack following cluster deployment using these instructions.
+
+### Prerequisites: Set up IAM Identity Center
+
+
+### Deploy Managed Grafana and Managed Prometheus with CloudFormation
+
 [<kbd> <br> 1-Click Deploy 🚀 <br> </kbd>](https://console.aws.amazon.com/cloudformation/home?#/stacks/quickcreate?templateURL=https://awsome-distributed-training.s3.amazonaws.com/templates/cluster-observability.yaml&stackName=Slurm-Observability)
 
 ![observability](../../../0.docs//observability_architecture.png)
@@ -231,9 +239,11 @@ srun -N 2 --container-image docker://ubuntu:22.04 hostname
 ```
 
 
+## Configure observability stack
+
+
 
 ## References
 
 * NCCL Tests — Understanding NCCL Bandwidth
     * https://github.com/aws-samples/awsome-distributed-training/tree/main/micro-benchmarks/nccl-tests#3-understanding-nccl-bandwidth
-
