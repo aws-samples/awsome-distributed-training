@@ -50,12 +50,17 @@ Congratulations! Now you have completed all the steps.
 
 ### Deploy Managed Grafana and Managed Prometheus with CloudFormation
 
-In this step you will deploy managed grafana and prometheus using a CloudFormation template.
+In this step you will deploy the following managed grafana and prometheus using a CloudFormation template.
 
-![observability](../../../0.docs//observability_architecture.png)
+![observability](../../../0.docs/observability_architecture.png)
+
+Deploy the CloudFormation Stack from this 1-Click Deploy link:
 
 [<kbd> <br> 1-Click Deploy 🚀 <br> </kbd>](https://console.aws.amazon.com/cloudformation/home?#/stacks/quickcreate?templateURL=https://awsome-distributed-training.s3.amazonaws.com/templates/cluster-observability.yaml&stackName=Slurm-Observability)
 
+After deployment check the 
+
+![deploy_prometheus_grafana_cfn](../../../0.docs/deploy_prometheus_grafana_cfn.png)
 
 ## Cluster Deployment 
 
