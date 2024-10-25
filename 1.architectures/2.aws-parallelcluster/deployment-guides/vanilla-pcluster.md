@@ -80,9 +80,30 @@ You will see the output like follows:
 Then you can check progress of cluster creation on Cloudformation console
 Alternatively, you can check the progress through `pcluster` command as follows:
 
-```
+```bash
 pcluster list-clusters -r ${AWS_REGION}
 ```
+
+## Connect to the Cluster
+
+Once the cluster goes into **CREATE COMPLETE**, we can connect to the head node in one of two ways, either through the SSM or SSH.
+
+**SSM Session Manager** is ideal for quick terminal access to the head node, it doesn't require any ports to be open on the head node, however it does require you to authenticate with the AWS account the instance it running in.
+
+**SSH** can be used to connect to the cluster from a standard SSH client. This can be configured to use your own key via adding the public key or a new key can be provisioned.
+
+### SSM Connect 
+![ssm connect](../../../0.docs/ssm-connect.png)
+You'll need to be authenticated to the AWS account that instance is running in and have permission to launch a SSM session . Once you're connected you'll have access to a terminal on the head node:
+
+Now change to `ubuntu` user:
+
+```bash
+sudo su - ubuntu
+```
+
+![ssm user connect](../../../0.docs/ssm-connect-user.png)
+
 
 ### Step3:  Cluster sanity check
 
