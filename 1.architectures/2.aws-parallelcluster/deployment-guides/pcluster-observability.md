@@ -45,14 +45,17 @@ Check inbox and find an email entitled "Invitation to join AWS IAM Identity Cent
 ![IdentityCenterSetup9](../../../0.docs/IdentityCenterSetup9.png)
 Set password for the user:
 ![IdentityCenterSetup10](../../../0.docs/IdentityCenterSetup10.png)
-
+Congratulations! Now you have completed all the steps.
 </details>
 
 ### Deploy Managed Grafana and Managed Prometheus with CloudFormation
 
-[<kbd> <br> 1-Click Deploy 🚀 <br> </kbd>](https://console.aws.amazon.com/cloudformation/home?#/stacks/quickcreate?templateURL=https://awsome-distributed-training.s3.amazonaws.com/templates/cluster-observability.yaml&stackName=Slurm-Observability)
+In this step you will deploy managed grafana and prometheus using a CloudFormation template.
 
 ![observability](../../../0.docs//observability_architecture.png)
+
+[<kbd> <br> 1-Click Deploy 🚀 <br> </kbd>](https://console.aws.amazon.com/cloudformation/home?#/stacks/quickcreate?templateURL=https://awsome-distributed-training.s3.amazonaws.com/templates/cluster-observability.yaml&stackName=Slurm-Observability)
+
 
 ## Cluster Deployment 
 
