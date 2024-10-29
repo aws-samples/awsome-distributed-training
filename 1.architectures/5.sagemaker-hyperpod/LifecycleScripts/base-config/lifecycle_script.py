@@ -160,6 +160,8 @@ def main(args):
 
         print("This is a slurm cluster. Do additional slurm setup")
         self_ip = get_ip_address()
+        head_node_ip = resource_config.get_list_of_addresses(params.controller_group)
+        login_node_ip = resource_config.get_list_of_addresses(params.login_group)
         print(f"This node ip address is {self_ip}")
 
         group, instance = resource_config.find_instance_by_address(self_ip)
@@ -177,7 +179,7 @@ def main(args):
             ExecuteBashScript("./setup_mariadb_accounting.sh").run()
 
         ExecuteBashScript("./apply_hotfix.sh").run(node_type)
-        ExecuteBashScript("./utils/motd.sh").run(node_type)
+        ExecuteBashScript("./utils/motd.sh").run(node_type, ",".join(head_node_ip), ",".join(login_node_ip))
         ExecuteBashScript("./utils/fsx_ubuntu.sh").run()
 
         ExecuteBashScript("./start_slurm.sh").run(node_type, ",".join(controllers))

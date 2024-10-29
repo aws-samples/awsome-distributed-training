@@ -9,4 +9,6 @@ instance_type=$(curl -H "X-aws-ec2-metadata-token: $token" -v http://169.254.169
 GREEN="\e[32m"
 ENDCOLOR="\e[0m"
 echo -e "You're on the ${GREEN}$1${ENDCOLOR}" | sudo tee -a /etc/motd
+echo -e "Controller Node IP: ${GREEN}$2${ENDCOLOR}" | sudo tee -a /etc/motd
+echo -e "Login Node IP: ${GREEN}$3${ENDCOLOR}" | sudo tee -a /etc/motd
 echo -e "Instance Type: ${GREEN}ml.${instance_type}${ENDCOLOR}" | sudo tee -a /etc/motd
