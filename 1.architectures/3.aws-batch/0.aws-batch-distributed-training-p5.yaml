@@ -11,22 +11,10 @@ Parameters:
     Type: String
     Description: Private subnets will be retrieved for the compute environment
     Default: 'aws-batch-vpc'
-  AMI:
-    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
-    Default: '/aws/service/ecs/optimized-ami/amazon-linux-2/gpu/recommended/image_id'
-    Description: AL2 GPU AMI
   CapacityBlockId:
     Description: ID of the Capacity Block
     Type: String
     Default: ''
-  CreatePlacementGroup:
-    AllowedValues:
-      - 'true'
-      - 'false'
-    Default: 'false'
-    Description:
-      Create a new placement group with cluster placement
-    Type: String
 
 Metadata:
   AWS::CloudFormation::Interface:
@@ -38,23 +26,13 @@ Metadata:
       - Label:
           default: AWS Batch Configuration
         Parameters:
-          - AMI
           - CapacityBlockId
-          - CreatePlacementGroup
     ParameterLabels:
       VPCStackParameter:
         default: Name of the VPC Stack
-      AMI:
-        default: ECS Compatible AMI
       CapacityBlockId:
         default: Capacity Block ID
-      CreatePlacementGroup:
-        default: Create Placement Group
 
-
-Conditions:
-  ImageID: !Equals [ !Ref AMI, '' ]
-  PG: !Equals [ !Ref CreatePlacementGroup, 'true' ]
 
 Resources:
   ###################
@@ -326,10 +304,6 @@ Resources:
             DeviceIndex: 0
             DeleteOnTermination: true
             InterfaceType: efa
-  ClusterPlacementGroup:
-    Type: AWS::EC2::PlacementGroup
-    Properties:
-      Strategy: cluster
 
   ########################
   ## Batch Architecture ##
@@ -393,12 +367,10 @@ Resources:
         MaxvCpus: 100000
         DesiredvCpus: 0
         MinvCpus: 0
-        PlacementGroup: !If [ PG, !Ref AWS::NoValue, !Ref ClusterPlacementGroup]
         Subnets: !Split
           - ','
           - Fn::ImportValue: !Sub ${VPCStackParameter}-PrivateSubnet
         Type: EC2
-        ImageId: !If [ ImageID, !Ref AWS::NoValue, !Ref AMI]
         InstanceRole: !Ref ECSTaskInstanceProfile
         LaunchTemplate:
           LaunchTemplateId: !Ref DistributedDeepLearningLT
