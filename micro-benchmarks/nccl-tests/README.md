@@ -211,7 +211,7 @@ To change the type of collective to test, modify the line with `srun` in the fil
 
 ### Amazon EKS
 
-1. You need to deploy MPI Operator prior to the test. Follow [instructions](https://github.com/kubeflow/mpi-operator?tab=readme-ov-file#installation) for the set up.
+1. Before running the test, you need to deploy the MPIOperator. Follow the [instructions](https://github.com/kubeflow/mpi-operator?tab=readme-ov-file#installation) in the repository to complete the setup.
 2. Prepare the MPIJob manifest
    Edit file `kubernetes/nccl-tests.yaml` and adjust the following values:
 
