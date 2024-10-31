@@ -211,7 +211,8 @@ To change the type of collective to test, modify the line with `srun` in the fil
 
 ### Amazon EKS
 
-1. Prepare the MPIJob manifest
+1. You need to deploy MPI Operator prior to the test. Follow [instructions](https://github.com/kubeflow/mpi-operator?tab=readme-ov-file#installation) for the set up.
+2. Prepare the MPIJob manifest
    Edit file `kubernetes/nccl-tests.yaml` and adjust the following values:
 
    - `slotsPerWorker: 8`: set to the number of GPUs per node in your cluster
@@ -225,19 +226,19 @@ To change the type of collective to test, modify the line with `srun` in the fil
    Please note that the current default settings have been specified for instance type p5.48xlarge. Only the image URI is required to be set for running the test on this instance type.
    The current manifest executes the `all_reduce_perf` test. If you wish to execute other NCCL tests, change the section between lines 59 and 73 in this MPIJob manifest file. 
 
-2. Apply the MPIJob manifest to the cluster
+3. Apply the MPIJob manifest to the cluster
    ```bash
    kubectl apply -f ./nccl-tests.yaml
    ```
 
-3. Wait until pods to enter the Running state
+4. Wait until pods to enter the Running state
    To monitor the state of the pods, execute the following command:
    ```bash
    watch kubectl get pods -o wide
    ```
    Once the state of the launcher and worker pods becomes "Running", press `Ctrl-C` to return to the command prompt.
 
-4. View test logs
+5. View test logs
    To follow the test logs, execute the following command:
    ```bash
    kubectl logs -f $(kubectl get pods | grep launcher | cut -d ' ' -f 1)
@@ -262,7 +263,7 @@ To change the type of collective to test, modify the line with `srun` in the fil
    ```
    Press `Ctrl-C` to return to the command prompt if you do not wish to wait until the launcher pod enters the "Completed" state.
 
-5. Clean up test run
+6. Clean up test run
    Before running a subsequent test, the current MPIJob needs to be deleted:
    ```bash
    kubectl delete -f nccl-tests.yaml
