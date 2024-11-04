@@ -45,7 +45,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -y --allow-unauthenticated \
     pkg-config \
     python3-distutils \
     vim \
-    && apt-get install -y --upgrade
+RUN apt-get purge -y cuda-compat-*
 
 RUN mkdir -p /var/run/sshd
 RUN sed -i 's/[ #]\(.*StrictHostKeyChecking \).*/ \1no/g' /etc/ssh/ssh_config && \
