@@ -44,8 +44,8 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -y --allow-unauthenticated \
     openssh-server \
     pkg-config \
     python3-distutils \
-    vim \
-    && apt-get install -y --upgrade ${NV_CUDA_COMPAT_PACKAGE}
+    vim
+RUN apt-get purge -y cuda-compat-*
 
 RUN mkdir -p /var/run/sshd
 RUN sed -i 's/[ #]\(.*StrictHostKeyChecking \).*/ \1no/g' /etc/ssh/ssh_config && \
@@ -68,8 +68,8 @@ RUN git clone -b ${GDRCOPY_VERSION} https://github.com/NVIDIA/gdrcopy.git /tmp/g
     && cd /tmp/gdrcopy \
     && make prefix=/opt/gdrcopy install
 
-ENV LD_LIBRARY_PATH /opt/gdrcopy/lib:/usr/local/cuda/compat:$LD_LIBRARY_PATH
-ENV LIBRARY_PATH /opt/gdrcopy/lib:/usr/local/cuda/compat/:$LIBRARY_PATH
+ENV LD_LIBRARY_PATH /opt/gdrcopy/lib:$LD_LIBRARY_PATH
+ENV LIBRARY_PATH /opt/gdrcopy/lib:$LIBRARY_PATH
 ENV CPATH /opt/gdrcopy/include:$CPATH
 ENV PATH /opt/gdrcopy/bin:$PATH
 
