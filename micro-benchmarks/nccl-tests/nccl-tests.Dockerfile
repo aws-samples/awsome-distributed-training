@@ -45,7 +45,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -y --allow-unauthenticated \
     pkg-config \
     python3-distutils \
     vim \
-    && apt-get install -y --upgrade ${NV_CUDA_COMPAT_PACKAGE}
+    && apt-get install -y --upgrade
 
 RUN mkdir -p /var/run/sshd
 RUN sed -i 's/[ #]\(.*StrictHostKeyChecking \).*/ \1no/g' /etc/ssh/ssh_config && \
