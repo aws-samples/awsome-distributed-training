@@ -2,7 +2,7 @@
 # Basic configuration parameters
 class Config:
 
-    # Set true if you want to install Docker/Enroot/Pyxis.
+    # Default is true to install Docker/Enroot/Pyxis.
     enable_docker_enroot_pyxis = True
 
     # Set true if you want to install metric exporter software and Prometheus for observability
@@ -26,6 +26,17 @@ class Config:
 
     # Set true to install quality-of-live improvements
     enable_initsmhp = False
+
+    # Set true if you want to use mountpoint for s3 on cluster nodes. 
+    # If enabled, a systemctl mount-s3.service file will be writen that will mount at /mnt/<BucketName>.
+    # requires s3 permissions to be added to cluster execution role. 
+    enable_mount_s3 = False
+
+    s3_bucket = "" # required when enable_mount_s3 = True, replace with your actual data bucket name in quotes, ie. "my-dataset-bucket"
+
+    if enable_mount_s3 and not s3_bucket:
+        raise ValueError("Error: A bucket name must be specified when enable_mount_s3 is True")
+
 
 # Configuration parameters for ActiveDirectory/LDAP/SSSD
 class SssdConfig:

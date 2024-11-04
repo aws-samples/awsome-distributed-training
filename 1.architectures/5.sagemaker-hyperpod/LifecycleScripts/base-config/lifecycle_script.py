@@ -181,7 +181,6 @@ def main(args):
         ExecuteBashScript("./apply_hotfix.sh").run(node_type)
         ExecuteBashScript("./utils/motd.sh").run(node_type, ",".join(head_node_ip), ",".join(login_node_ip))
         ExecuteBashScript("./utils/fsx_ubuntu.sh").run()
-
         ExecuteBashScript("./start_slurm.sh").run(node_type, ",".join(controllers))
 
         # Install metric exporting software and Prometheus for observability
@@ -207,7 +206,7 @@ def main(args):
         if Config.enable_update_neuron_sdk:
             if node_type == SlurmNodeType.COMPUTE_NODE:
                 ExecuteBashScript("./utils/update_neuron_sdk.sh").run()
-
+        
         # Install and configure SSSD for ActiveDirectory/LDAP integration
         if Config.enable_sssd:
             subprocess.run(["python3", "-u", "setup_sssd.py", "--node-type", node_type], check=True)
@@ -218,6 +217,9 @@ def main(args):
         if Config.enable_pam_slurm_adopt:
             ExecuteBashScript("./utils/slurm_fix_plugstackconf.sh").run()
             ExecuteBashScript("./utils/pam_adopt_cgroup_wheel.sh").run()
+
+        if Config.enable_mount_s3:
+            ExecuteBashScript("./utils/mount-s3.sh").run(Config.s3_bucket)
 
     print("[INFO]: Success: All provisioning scripts completed")
 
