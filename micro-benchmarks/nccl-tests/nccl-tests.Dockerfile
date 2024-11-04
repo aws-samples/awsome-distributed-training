@@ -1,6 +1,6 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
-FROM nvidia/cuda:12.4.1-devel-ubuntu22.04
+FROM nvidia/cuda:12.2.2-devel-ubuntu22.04
 
 ARG GDRCOPY_VERSION=v2.4.1
 ARG EFA_INSTALLER_VERSION=1.35.0
@@ -68,8 +68,8 @@ RUN git clone -b ${GDRCOPY_VERSION} https://github.com/NVIDIA/gdrcopy.git /tmp/g
     && cd /tmp/gdrcopy \
     && make prefix=/opt/gdrcopy install
 
-ENV LD_LIBRARY_PATH /opt/gdrcopy/lib:/usr/local/cuda/compat:$LD_LIBRARY_PATH
-ENV LIBRARY_PATH /opt/gdrcopy/lib:/usr/local/cuda/compat/:$LIBRARY_PATH
+ENV LD_LIBRARY_PATH /opt/gdrcopy/lib:$LD_LIBRARY_PATH
+ENV LIBRARY_PATH /opt/gdrcopy/lib:$LIBRARY_PATH
 ENV CPATH /opt/gdrcopy/include:$CPATH
 ENV PATH /opt/gdrcopy/bin:$PATH
 
