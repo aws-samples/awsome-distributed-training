@@ -1,7 +1,6 @@
 #!/bin/bash
 
 #SBATCH --job-name=esm2-accelerate
-#SBATCH -D .
 #SBATCH --output=accelerate-%x.%j.out
 #SBATCH --nodes=2              # number of nodes
 #SBATCH --ntasks-per-node=1         # number of MP tasks
