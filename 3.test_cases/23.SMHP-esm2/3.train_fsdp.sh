@@ -3,7 +3,7 @@
 #SBATCH --job-name=esm2-accelerate
 #SBATCH --output=accelerate-%x.%j.out
 #SBATCH --nodes=2              # number of nodes
-#SBATCH --ntasks-per-node=1         # number of MP tasks
+#SBATCH --exclusive # job has exclusive use of the resource, no sharing
 
 
 ######################
