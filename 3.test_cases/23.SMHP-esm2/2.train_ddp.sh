@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: MIT-0
 
 #SBATCH --nodes=2 # number of nodes to use
-#SBATCH --job-name=FSDP # name of your job
+#SBATCH --job-name=DDP # name of your job
 #SBATCH --exclusive # job has exclusive use of the resource, no sharing
 
 set -ex;
