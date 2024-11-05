@@ -307,6 +307,7 @@ Resources:
         DeploymentType: PERSISTENT_1
         PerUnitStorageThroughput: !Ref PerUnitStorageThroughput
 
+
   OpenZFSFileSystem:
     Type: AWS::FSx::FileSystem
     Properties:
