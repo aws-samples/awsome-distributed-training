@@ -133,16 +133,11 @@ setup_env_vars() {
     clone_adt
 
     echo -e "${BLUE}Enter the name of the SageMaker VPC CloudFormation stack that was deployed as a prerequisite (default: sagemaker-hyperpod):${NC}"
-    read -e CF_STACK_NAME
-    CF_STACK_NAME=${CF_STACK_NAME:-sagemaker-hyperpod}
+    read -e STACK_ID_VPC
+    export STACK_ID_VPC=${STACK_ID_VPC:-sagemaker-hyperpod}
 
     if [ "$CF_STACK_NAME" != "sagemaker-hyperpod" ]; then
-        # Replace 'sagemaker-hyperpod' with the user-provided stack name in the create_config.sh script    
-        echo -e "${YELLOW}Using custom stack name: ${GREEN}$CF_STACK_NAME${NC}"
-        echo -e "${BLUE}Updating configuration script...${NC}"
-        sed -i.bak "s/\${STACK_ID_VPC:=sagemaker-hyperpod}/\${STACK_ID_VPC:=$CF_STACK_NAME}/" create_config.sh
-        rm create_config.sh.bak
-        echo -e "${GREEN}✅ Configuration script updated${NC}"
+        echo -e "${GREEN}✅ Configuration script updated with stack name: $STACK_ID_VPC${NC}"
     else
         echo -e "${GREEN}Using default stack name: sagemaker-hyperpod${NC}"
     fi
@@ -153,7 +148,8 @@ setup_env_vars() {
     echo -e "${YELLOW}Generating new environment variables...${NC}"
     
     generate_env_vars() {
-        bash awsome-distributed-training/1.architectures/5.sagemaker-hyperpod/LifecycleScripts/create_config.sh
+        # bash awsome-distributed-training/1.architectures/5.sagemaker-hyperpod/LifecycleScripts/create_config.sh
+        bash create_config.sh
     }
 
     # Capture stdout + stderr
@@ -371,7 +367,7 @@ create_config() {
         echo -e "${YELLOW}Configuring Worker Group $WORKER_GROUP_COUNT${NC}"
         INSTANCE_TYPE=$(get_input "Enter the instance type for worker group $WORKER_GROUP_COUNT" "ml.p5.48xlarge")
         INSTANCE_COUNT=$(get_input "Enter the instance count for worker group $WORKER_GROUP_COUNT" "1")
-        
+                
         INSTANCE_GROUPS+=",
         {
             \"InstanceGroupName\": \"worker-group-$WORKER_GROUP_COUNT\",
