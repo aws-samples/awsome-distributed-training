@@ -148,8 +148,8 @@ setup_env_vars() {
     echo -e "${YELLOW}Generating new environment variables...${NC}"
     
     generate_env_vars() {
-        # bash awsome-distributed-training/1.architectures/5.sagemaker-hyperpod/LifecycleScripts/create_config.sh
-        bash create_config.sh
+        bash awsome-distributed-training/1.architectures/5.sagemaker-hyperpod/LifecycleScripts/create_config.sh
+        # bash create_config.sh
     }
 
     # Capture stdout + stderr
