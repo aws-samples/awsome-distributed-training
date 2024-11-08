@@ -421,8 +421,6 @@ EOL
             WORKER_GROUPS+=","
         fi
 
-        echo "$INSTANCE_GROUPS" > debug_json.txt 
-
         instance_type=$(jq -r ".InstanceGroups[] | select(.InstanceGroupName == \"worker-group-$i\").InstanceType" cluster-config.json)
 
         WORKER_GROUPS+="
