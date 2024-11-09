@@ -296,41 +296,13 @@ create_config() {
 
     # Get controller machine details
     CONTROLLER_NAME=$(get_input "Enter the name for the controller instance group" "controller-machine")
-    CONTROLLER_TYPE=$(get_input "Enter the instance type for the controller" "ml.m5.12xlarge")
+    # Re: Invent 2024 AIM403: Use ml.m5.4xlarge
+    CONTROLLER_TYPE=$(get_input "Enter the instance type for the controller" "ml.m5.4xlarge")
 
     # Initialize instance groups array
     INSTANCE_GROUPS="["
 
-    # Add login group
-    echo -e "${GREEN}Do you want to add a login group? (yes/no): ${NC}"
-    read -e ADD_LOGIN_GROUP
-
-    if [[ $ADD_LOGIN_GROUP == "yes" ]]; then
-        LOGIN_TYPE=$(get_input "Enter the instance type for the login group" "ml.m5.4xlarge")
-
-        INSTANCE_GROUPS+="{
-            \"InstanceGroupName\": \"login-group\",
-            \"InstanceType\": \"$LOGIN_TYPE\",
-            \"InstanceStorageConfigs\": [
-                {
-                    \"EbsVolumeConfig\": {
-                        \"VolumeSizeInGB\": 500
-                    }
-                }
-            ],
-            \"InstanceCount\": 1,
-            \"LifeCycleConfig\": {
-                \"SourceS3Uri\": \"s3://${BUCKET}/src\",
-                \"OnCreate\": \"on_create.sh\"
-            },
-            \"ExecutionRole\": \"${ROLE}\",
-            \"ThreadsPerCore\": 2
-        },"
-        
-        echo -e "${GREEN}✅ Login Group added${NC}"
-    fi
-
-    # Add controller group
+    # Add controller group. Re: Invent 2024 AIM403: Removing login group
     INSTANCE_GROUPS+="{
         \"InstanceGroupName\": \"$CONTROLLER_NAME\",
         \"InstanceType\": \"$CONTROLLER_TYPE\",
@@ -365,6 +337,7 @@ create_config() {
         fi
 
         echo -e "${YELLOW}Configuring Worker Group $WORKER_GROUP_COUNT${NC}"
+        # Re: Invent 2024 AIM403: Use ml.c5.4xlarge
         INSTANCE_TYPE=$(get_input "Enter the instance type for worker group $WORKER_GROUP_COUNT" "ml.c5.4xlarge")
         INSTANCE_COUNT=$(get_input "Enter the instance count for worker group $WORKER_GROUP_COUNT" "4")
                 
@@ -436,19 +409,6 @@ EOL
     WORKER_GROUPS+="
         ]"
 
-    if [[ $ADD_LOGIN_GROUP == "yes" ]]; then    
-        cat > provisioning_parameters.json << EOL
-        {
-            "version": "1.0.0",
-            "workload_manager": "slurm",
-            "controller_group": "$CONTROLLER_NAME",
-            "login_group": "login-group",
-            "worker_groups": $WORKER_GROUPS,
-            "fsx_dns_name": "${FSX_ID}.fsx.${AWS_REGION}.amazonaws.com",
-            "fsx_mountname": "${FSX_MOUNTNAME}"
-        }
-EOL
-    else
         cat > provisioning_parameters.json << EOL
         {
             "version": "1.0.0",
@@ -459,7 +419,6 @@ EOL
             "fsx_mountname": "${FSX_MOUNTNAME}"
         }
 EOL
-    fi
     
     echo -e "${GREEN}✅ provisioning_parameters.json created successfully${NC}"
 
