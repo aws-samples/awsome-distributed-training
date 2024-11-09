@@ -185,71 +185,64 @@ setup_lifecycle_scripts() {
 
     cd awsome-distributed-training/1.architectures/5.sagemaker-hyperpod/LifecycleScripts/
 
-    echo -e "${YELLOW}Did you deploy the optional hyperpod-observability CloudFormation stack? (yes/no)${NC}"
-    read -e DEPLOYED_OBSERVABILITY
+    echo -e "${BLUE}Enabling observability in LCS...${NC}"
+    sed -i.bak 's/enable_observability = False/enable_observability = True/' base-config/config.py
+    rm base-config/config.py.bak
+    echo -e "${GREEN}✅ Lifecycle Scripts modified successfully! Observability enabled in config.py${NC}"
 
-    if [ "$DEPLOYED_OBSERVABILITY" == "yes" ]; then
-        echo -e "${BLUE}Enabling observability in LCS...${NC}"
-        sed -i.bak 's/enable_observability = False/enable_observability = True/' base-config/config.py
-        rm base-config/config.py.bak
-        echo -e "${GREEN}✅ Lifecycle Scripts modified successfully! Observability enabled in config.py${NC}"
+    echo -e "${BLUE}Attaching IAM policies for observability to $ROLENAME${NC}"
 
-        echo -e "${BLUE}Attaching IAM policies for observability to $ROLENAME${NC}"
+    # Helper function for attaching IAM policies (specific to observability stack only!)
+    attach_policies() {
+        aws iam attach-role-policy --role-name $ROLENAME --policy-arn arn:aws:iam::aws:policy/AmazonPrometheusRemoteWriteAccess
+        aws iam attach-role-policy --role-name $ROLENAME --policy-arn arn:aws:iam::aws:policy/AWSCloudFormationReadOnlyAccess 
+    }
 
-        # Helper function for attaching IAM policies (specific to observability stack only!)
-        attach_policies() {
-            aws iam attach-role-policy --role-name $ROLENAME --policy-arn arn:aws:iam::aws:policy/AmazonPrometheusRemoteWriteAccess
-            aws iam attach-role-policy --role-name $ROLENAME --policy-arn arn:aws:iam::aws:policy/AWSCloudFormationReadOnlyAccess 
-        }
+    # Capture stdout + stderr
 
-        # Capture stdout + stderr
+    if ! error_output=$(attach_policies 2>&1); then
+        echo -e "${YELLOW}⚠️  Failed to attach IAM policies. This operation requires admin permissions${NC}"
+        echo -e "${YELLOW}   This was the error received${NC}"
+        echo -e "${YELLOW}$error_output${NC}"
+        echo -e "Options:"
+        echo -e "1. Run 'aws configure' as an admin user as part of this script."
+        echo -e "2. Press Ctrl+C to exit and run 'aws configure' as an admin user outside this script."
+        echo -e "3. Press Enter to continue with the rest of the script without configuring this step."
 
-        if ! error_output=$(attach_policies 2>&1); then
-            echo -e "${YELLOW}⚠️  Failed to attach IAM policies. This operation requires admin permissions${NC}"
-            echo -e "${YELLOW}   This was the error received${NC}"
-            echo -e "${YELLOW}$error_output${NC}"
-            echo -e "Options:"
-            echo -e "1. Run 'aws configure' as an admin user as part of this script."
-            echo -e "2. Press Ctrl+C to exit and run 'aws configure' as an admin user outside this script."
-            echo -e "3. Press Enter to continue with the rest of the script without configuring this step."
-
-            read -e -p "Choose an option (1, 2, or 3): " choice   
-            
-            case $choice in
-                1)
-                    echo -e "${BLUE}Running 'aws configure'. Please enter your **admin** credentials..${NC}"
-                    aws configure
-                    echo -e "${GREEN}✅ AWS CLI configured successfully${NC}"
-                    echo -e "${BLUE}Retrying to attach IAM policies!${NC}"
-                    if ! attach_policies; then
-                        echo -e "${YELLOW}⚠️  Failed to attach IAM policies. Please attach the following policies manually:${NC}"
-                        echo -e "1. AmazonPrometheusRemoteWriteAccess"
-                        echo -e "2. AWSCloudFormationReadOnlyAccess"
-                        echo -e "Press Enter to continue with the rest of the script without configuring this step."
-                        read -e -p "Press Enter to continue: "
-                        echo -e "${BLUE}Continuing with the rest of the script without configuring this step.${NC}"
-                    else
-                        echo -e "${GREEN}✅ IAM policies attached successfully${NC}"
-                    fi
-                    ;;
-                2)
-                    echo -e "${BLUE}Please run 'aws configure' as an admin user outside this script.${NC}"
-                    exit 1
-                    ;;
-                3)
+        read -e -p "Choose an option (1, 2, or 3): " choice   
+        
+        case $choice in
+            1)
+                echo -e "${BLUE}Running 'aws configure'. Please enter your **admin** credentials..${NC}"
+                aws configure
+                echo -e "${GREEN}✅ AWS CLI configured successfully${NC}"
+                echo -e "${BLUE}Retrying to attach IAM policies!${NC}"
+                if ! attach_policies; then
+                    echo -e "${YELLOW}⚠️  Failed to attach IAM policies. Please attach the following policies manually:${NC}"
+                    echo -e "1. AmazonPrometheusRemoteWriteAccess"
+                    echo -e "2. AWSCloudFormationReadOnlyAccess"
+                    echo -e "Press Enter to continue with the rest of the script without configuring this step."
+                    read -e -p "Press Enter to continue: "
                     echo -e "${BLUE}Continuing with the rest of the script without configuring this step.${NC}"
-                    ;;
-                *)
-                    echo -e "${BLUE}Invalid choice. Continuing with the rest of the script without configuring this step.${NC}"
-                    ;;
-            esac
-        else
-            echo -e "${GREEN}✅ IAM policies attached successfully${NC}"
-        fi    
-        echo -e "${GREEN}✅ Observability setup complete!${NC}"
+                else
+                    echo -e "${GREEN}✅ IAM policies attached successfully${NC}"
+                fi
+                ;;
+            2)
+                echo -e "${BLUE}Please run 'aws configure' as an admin user outside this script.${NC}"
+                exit 1
+                ;;
+            3)
+                echo -e "${BLUE}Continuing with the rest of the script without configuring this step.${NC}"
+                ;;
+            *)
+                echo -e "${BLUE}Invalid choice. Continuing with the rest of the script without configuring this step.${NC}"
+                ;;
+        esac
     else
-        echo -e "${YELLOW}Observability not enabled. Continuing with default configuration${NC}"
-    fi
+        echo -e "${GREEN}✅ IAM policies attached successfully${NC}"
+    fi    
+    echo -e "${GREEN}✅ Observability setup complete!${NC}"
 
     echo -e "${BLUE}Uploading your lifecycle scripts to S3 bucket ${YELLOW}${BUCKET}${NC}"
     # upload data
