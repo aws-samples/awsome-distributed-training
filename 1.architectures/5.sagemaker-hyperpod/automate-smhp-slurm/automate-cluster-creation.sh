@@ -8,7 +8,7 @@ set -e
 
 #===Global===
 export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text)
-export AWS_REGION=$(aws configure get region)
+export AWS_REGION=${AWS_DEFAULT_REGION:-$(aws configure get region)}
 TOTAL_STEPS=5
 CURRENT_STEP=0
 
@@ -148,7 +148,7 @@ setup_env_vars() {
     echo -e "${YELLOW}Generating new environment variables...${NC}"
     
     generate_env_vars() {
-        bash awsome-distributed-training/1.architectures/5.sagemaker-hyperpod/LifecycleScripts/create_config.sh
+        bash awsome-distributed-training/1.architectures/5.sagemaker-hyperpod/create_config.sh
         # bash create_config.sh
     }
 
@@ -365,8 +365,8 @@ create_config() {
         fi
 
         echo -e "${YELLOW}Configuring Worker Group $WORKER_GROUP_COUNT${NC}"
-        INSTANCE_TYPE=$(get_input "Enter the instance type for worker group $WORKER_GROUP_COUNT" "ml.p5.48xlarge")
-        INSTANCE_COUNT=$(get_input "Enter the instance count for worker group $WORKER_GROUP_COUNT" "1")
+        INSTANCE_TYPE=$(get_input "Enter the instance type for worker group $WORKER_GROUP_COUNT" "ml.c5.4xlarge")
+        INSTANCE_COUNT=$(get_input "Enter the instance count for worker group $WORKER_GROUP_COUNT" "4")
                 
         INSTANCE_GROUPS+=",
         {
@@ -387,7 +387,7 @@ create_config() {
             \"ExecutionRole\": \"${ROLE}\",
             \"ThreadsPerCore\": 1"
 
-        # More coming Re:Invent 2024!!!
+        # More coming Re:Invent 2024!!!   
 
         INSTANCE_GROUPS+="
         }"  
@@ -398,10 +398,13 @@ create_config() {
 
     INSTANCE_GROUPS+="]"
 
+    read -e -p "What would you like to name your cluster? (default: ml-cluster): " CLUSTER_NAME
+    CLUSTER_NAME=${CLUSTER_NAME:-ml-cluster}
+
     # Create the cluster-config.json file
     cat > cluster-config.json << EOL
     {
-        "ClusterName": "ml-cluster",
+        "ClusterName": "$CLUSTER_NAME",
         "InstanceGroups": $INSTANCE_GROUPS,
         "VpcConfig": {
         "SecurityGroupIds": ["$SECURITY_GROUP"],
@@ -433,17 +436,31 @@ EOL
     WORKER_GROUPS+="
         ]"
 
-    cat > provisioning_parameters.json << EOL
-    {
-        "version": "1.0.0",
-        "workload_manager": "slurm",
-        "controller_group": "$CONTROLLER_NAME",
-        "worker_groups": $WORKER_GROUPS,
-        "fsx_dns_name": "${FSX_ID}.fsx.${AWS_REGION}.amazonaws.com",
-        "fsx_mountname": "${FSX_MOUNTNAME}"
-    }
+    if [[ $ADD_LOGIN_GROUP == "yes" ]]; then    
+        cat > provisioning_parameters.json << EOL
+        {
+            "version": "1.0.0",
+            "workload_manager": "slurm",
+            "controller_group": "$CONTROLLER_NAME",
+            "login_group": "login-group",
+            "worker_groups": $WORKER_GROUPS,
+            "fsx_dns_name": "${FSX_ID}.fsx.${AWS_REGION}.amazonaws.com",
+            "fsx_mountname": "${FSX_MOUNTNAME}"
+        }
 EOL
-
+    else
+        cat > provisioning_parameters.json << EOL
+        {
+            "version": "1.0.0",
+            "workload_manager": "slurm",
+            "controller_group": "$CONTROLLER_NAME",
+            "worker_groups": $WORKER_GROUPS,
+            "fsx_dns_name": "${FSX_ID}.fsx.${AWS_REGION}.amazonaws.com",
+            "fsx_mountname": "${FSX_MOUNTNAME}"
+        }
+EOL
+    fi
+    
     echo -e "${GREEN}✅ provisioning_parameters.json created successfully${NC}"
 
     # copy to the S3 Bucket
@@ -534,6 +551,58 @@ region_check() {
     read
 }
 
+# Function to create the cluster
+create_cluster() {
+    echo -e "${GREEN}✅ Creating cluster for you!${NC}"
+
+    if ! output=$(aws sagemaker create-cluster \
+        --cli-input-json file://cluster-config.json \
+        --region $AWS_REGION 2>&1); then
+
+        echo -e "${YELLOW}⚠️  Error occurred while creating the cluster:${NC}"
+        echo -e "${YELLOW}$output${NC}"
+
+        echo -e "Options:"
+        echo -e "1. Press Enter to continue with the rest of the script (you will run the command below yourself!)"
+        echo -e "2. Press Ctrl+C to exit the script."
+
+        # Command to create the cluster
+        echo -e "${GREEN} aws sagemaker create-cluster \\"
+        echo -e "${GREEN}    --cli-input-json file://cluster-config.json \\"
+        echo -e "${GREEN}    --region $AWS_REGION${NC}\n"
+
+        read -e -p "Select an option (Enter/Ctrl+C): " choice
+
+        if [[ -z "$choice" ]]; then
+            echo -e "${BLUE}Continuing with the rest of the script...${NC}"
+        else
+            exit 1
+        fi
+    else
+        echo -e "${GREEN}✅ Cluster creation request submitted successfully. To monitor the progress of cluster creation, you can either check the SageMaker console, or you can run:.${NC}"    
+        echo -e "${YELLOW}watch -n 1 aws sagemaker list-clusters --output table${NC}"
+    fi
+}
+
+# Warning message function
+warning() {
+    echo -e "${BLUE}⚠️  Please note:${NC}"
+    echo -e "   - Cluster creation may take some time (~15-20 min)"
+    echo -e "   - This operation may incur costs on your AWS account"
+    echo -e "   - Ensure you understand the implications before proceeding\n"
+}
+
+# Function to display goodbye message
+goodbye() {
+    # Final goodbye message
+    echo -e "${GREEN}Thank you for using the SageMaker HyperPod Cluster Creation Script!${NC}"
+    echo -e "${GREEN}For any issues or questions, please refer to the AWS documentation.${NC}"
+    echo "https://docs.aws.amazon.com/sagemaker/latest/dg/smcluster-getting-started.html"
+
+    # Exit message
+    echo -e "\n${BLUE}Exiting script. Good luck with your SageMaker HyperPod journey! 👋${NC}\n"
+}  
+
 
 #===Main Script===
 main() {
@@ -602,26 +671,27 @@ main() {
     # Instructions for next steps
     echo -e "${GREEN}Congratulations! You've completed all the preparatory steps.${NC}"
     echo -e "${YELLOW}Next Steps:${NC}"
-    echo -e "${YELLOW}Run the following command to create the cluster. Exiting this script!${NC}"
 
-    # Command to create the cluster
-    echo -e "${GREEN} aws sagemaker create-cluster \\"
-    echo -e "${GREEN}    --cli-input-json file://cluster-config.json \\"
-    echo -e "${GREEN}    --region $AWS_REGION${NC}\n"
+    read -e -p "Do you want the script to create the cluster for you now? (yes/no): " CREATE_CLUSTER
+    if [[ "$CREATE_CLUSTER" == "yes" ]]; then
+        warning
+        create_cluster
+        goodbye
+    else
+        echo -e "${YELLOW}Run the following command to create the cluster. Exiting this script!${NC}"
 
-    # Warning message
-    echo -e "${BLUE}⚠️  Please note:${NC}"
-    echo -e "   - Cluster creation may take some time (~15-20 min)"
-    echo -e "   - This operation may incur costs on your AWS account"
-    echo -e "   - Ensure you understand the implications before proceeding\n"
+        # Command to create the cluster
+        echo -e "${GREEN} aws sagemaker create-cluster \\"
+        echo -e "${GREEN}    --cli-input-json file://cluster-config.json \\"
+        echo -e "${GREEN}    --region $AWS_REGION${NC}\n"
 
-    # Final goodbye message
-    echo -e "${GREEN}Thank you for using the SageMaker HyperPod Cluster Creation Script!${NC}"
-    echo -e "${GREEN}For any issues or questions, please refer to the AWS documentation.${NC}"
-    echo "https://docs.aws.amazon.com/sagemaker/latest/dg/smcluster-getting-started.html"
+        echo -e "${YELLOW}To monitor the progress of cluster creation, you can either check the SageMaker console, or you can run:.${NC}"    
+        echo -e "${GREEN}watch -n 1 aws sagemaker list-clusters --output table${NC}"
 
-    # Exit message
-    echo -e "\n${BLUE}Exiting script. Good luck with your SageMaker HyperPod journey! 👋${NC}\n"
+        \
+        warning
+        goodbye
+    fi    
 }
 
 main
