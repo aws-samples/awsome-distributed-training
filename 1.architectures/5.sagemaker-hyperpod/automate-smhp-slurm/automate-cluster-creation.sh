@@ -550,6 +550,7 @@ region_check() {
     echo -e "${BLUE}Press Enter to continue...${NC}"
     read
 }
+
 # Function to create the cluster
 create_cluster() {
     echo -e "${GREEN}✅ Creating cluster for you!${NC}"
@@ -601,6 +602,7 @@ goodbye() {
     # Exit message
     echo -e "\n${BLUE}Exiting script. Good luck with your SageMaker HyperPod journey! 👋${NC}\n"
 }  
+
 
 #===Main Script===
 main() {
