@@ -626,6 +626,7 @@ Resources:
               Resource:
                 - '*'
       RouteTableIds:
+        - !Ref PublicRouteTable
         - !Ref PrivateRouteTable
       ServiceName: !Join
         - ''
