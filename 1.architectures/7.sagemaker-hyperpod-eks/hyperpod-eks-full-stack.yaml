@@ -87,12 +87,12 @@ Parameters:
   SecurityGroupId:
     Description: (OPTIONAL) If you are using an Existing EKS Cluster, please specify the Id of your cluster security group (CreateEKSCluster=false, CreateSubnet=true). 
     Type: String
-    Default: sg-02ce123456e7893c7
+    Default: sg-1234567890abcdef0
 
   NatGatewayId:
     Description: (OPTIONAL) If you are using an Existing EKS Cluster, please specify the Id of a NAT Gateway to route enternet bound traffic to (CreateEKSCluster=false, CreateSubnet=true). 
     Type: String
-    Default: nat-0a12bc456789de0fg
+    Default: nat-1234567890abcdef0
 
   PublicSubnet1CIDR:
     Description: Please enter the IP range (CIDR notation) for the public subnet in the first Availability Zone
@@ -346,7 +346,7 @@ Resources:
       RouteTableId: !Ref PublicRouteTable
       SubnetId: !Ref PublicSubnet3
 
-  PrivateRouteTable1:
+  PrivateRouteTable:
     Type: AWS::EC2::RouteTable
     Condition: EKSOrSubnet
     Properties:
@@ -362,7 +362,7 @@ Resources:
     Type: AWS::EC2::Route
     Condition: EKSOrSubnet
     Properties:
-      RouteTableId: !Ref PrivateRouteTable1
+      RouteTableId: !Ref PrivateRouteTable
       DestinationCidrBlock: 0.0.0.0/0
       NatGatewayId: !If
         - CreateEKSCluster
@@ -373,7 +373,7 @@ Resources:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Condition: EKSOrSubnet
     Properties:
-      RouteTableId: !Ref PrivateRouteTable1
+      RouteTableId: !Ref PrivateRouteTable
       SubnetId: !Ref PrivateSubnet1
 
   NoIngressSecurityGroup:
@@ -559,35 +559,50 @@ Resources:
           - Effect: Allow
             Principal:
               Service:
-                - hyperpod.sagemaker.amazonaws.com
                 - sagemaker.amazonaws.com
             Action:
               - 'sts:AssumeRole'
       Path: /
       ManagedPolicyArns:
-        - 'arn:aws:iam::aws:policy/AmazonSageMakerFullAccess'
-        - 'arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly'
-        - 'arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy'
-        - 'arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy'
-        - 'arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess'
-        - 'arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore'
-        - 'arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy'
+        - 'arn:aws:iam::aws:policy/AmazonSageMakerClusterInstanceRolePolicy'
       Policies:
-        - PolicyName: !Sub '${ResourceNamePrefix}-EKS-ReadOnly-${AWS::Region}'
+        - PolicyName: !Sub '${ResourceNamePrefix}-ExecutionRolePolicy-${AWS::Region}'
           PolicyDocument:
             Version: 2012-10-17
             Statement:
               - Effect: Allow
                 Action:
-                  - 'eks:Describe*'
-                  - 'eks:List*'
-                  - 'eks:AccessKubernetesApi'
+                  - 'ec2:AssignPrivateIpAddresses'
+                  - 'ec2:CreateNetworkInterface'
+                  - 'ec2:CreateNetworkInterfacePermission'
+                  - 'ec2:DeleteNetworkInterface'
+                  - 'ec2:DeleteNetworkInterfacePermission'
+                  - 'ec2:DescribeNetworkInterfaces'
+                  - 'ec2:DescribeVpcs'
+                  - 'ec2:DescribeDhcpOptions'
+                  - 'ec2:DescribeSubnets'
+                  - 'ec2:DescribeSecurityGroups'
+                  - 'ec2:DetachNetworkInterface'
+                  - 'ec2:ModifyNetworkInterfaceAttribute'
+                  - 'ec2:UnassignPrivateIpAddresses'
+                  - 'ecr:BatchGetImage'
+                  - 'ecr:GetAuthorizationToken'
+                  - 'ecr:GetDownloadUrlForLayer'
+                  - 'eks-auth:AssumeRoleForPodIdentity'
                 Resource: '*'
+              - Effect: Allow
+                Action: 
+                  - 'ec2:CreateTags'
+                Resource: 'arn:aws:ec2:*:*:network-interface/*'
+              - Effect: Allow
+                Action: 
+                  - 's3:ListBucket'
+                  - 's3:GetObject'
+                Resource: 
+                  - !GetAtt Bucket.Arn
+                  - !Sub '${Bucket.Arn}/*'
       RoleName: !Sub '${ResourceNamePrefix}-ExecutionRole-${AWS::Region}'
 
-
-### ---------------- Lifcycle Policy Bucket ----------------###
-  
   Bucket:
     Type: 'AWS::S3::Bucket'
     Properties:
@@ -596,6 +611,32 @@ Resources:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
               SSEAlgorithm: AES256
+
+  S3Endpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Condition: EKSOrSubnet
+    Properties:
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+            - Effect: Allow
+              Principal: '*'
+              Action:
+                - '*'
+              Resource:
+                - '*'
+      RouteTableIds:
+        - !Ref PublicRouteTable
+        - !Ref PrivateRouteTable
+      ServiceName: !Join
+        - ''
+        - - com.amazonaws.
+          - !Ref AWS::Region
+          - .s3
+      VpcId: !If 
+        - CreateEKSCluster
+        - !Ref VPC
+        - !Ref VpcId
 
 Outputs:
   VPC:
