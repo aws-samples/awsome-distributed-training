@@ -9,6 +9,7 @@ set -e
 #===Global===
 export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text)
 export AWS_REGION=${AWS_DEFAULT_REGION:-$(aws configure get region)}
+aws configure set output json
 TOTAL_STEPS=5
 CURRENT_STEP=0
 
