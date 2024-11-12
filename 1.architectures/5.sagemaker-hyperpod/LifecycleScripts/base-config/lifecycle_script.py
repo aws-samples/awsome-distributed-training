@@ -182,6 +182,8 @@ def main(args):
         ExecuteBashScript("./utils/motd.sh").run(node_type, ",".join(head_node_ip), ",".join(login_node_ip))
         ExecuteBashScript("./utils/fsx_ubuntu.sh").run()
         ExecuteBashScript("./start_slurm.sh").run(node_type, ",".join(controllers))
+        ExecuteBashScript("./utils/gen-keypair-ubuntu.sh").run()
+        ExecuteBashScript("./utils/ssh-to-compute.sh").run()
 
         # Install metric exporting software and Prometheus for observability
         if Config.enable_observability:
@@ -210,9 +212,6 @@ def main(args):
         # Install and configure SSSD for ActiveDirectory/LDAP integration
         if Config.enable_sssd:
             subprocess.run(["python3", "-u", "setup_sssd.py", "--node-type", node_type], check=True)
-
-        if Config.enable_initsmhp:
-            ExecuteBashScript("./initsmhp.sh").run(node_type)
 
         if Config.enable_pam_slurm_adopt:
             ExecuteBashScript("./utils/slurm_fix_plugstackconf.sh").run()
