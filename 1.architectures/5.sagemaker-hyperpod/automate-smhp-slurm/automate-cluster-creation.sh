@@ -9,7 +9,6 @@ set -e
 #===Global===
 export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text)
 export AWS_REGION=${AWS_DEFAULT_REGION:-$(aws configure get region)}
-aws configure set output json
 TOTAL_STEPS=5
 CURRENT_STEP=0
 
@@ -195,8 +194,8 @@ setup_lifecycle_scripts() {
 
     # Helper function for attaching IAM policies (specific to observability stack only!)
     attach_policies() {
-        aws iam attach-role-policy --role-name $ROLENAME --policy-arn arn:aws:iam::aws:policy/AmazonPrometheusRemoteWriteAccess
-        aws iam attach-role-policy --role-name $ROLENAME --policy-arn arn:aws:iam::aws:policy/AWSCloudFormationReadOnlyAccess 
+        aws iam attach-role-policy --role-name $ROLENAME --policy-arn arn:aws:iam::aws:policy/AmazonPrometheusRemoteWriteAccess --output json
+        aws iam attach-role-policy --role-name $ROLENAME --policy-arn arn:aws:iam::aws:policy/AWSCloudFormationReadOnlyAccess --output json
     }
 
     # Capture stdout + stderr
@@ -248,7 +247,7 @@ setup_lifecycle_scripts() {
     echo -e "${BLUE}Uploading your lifecycle scripts to S3 bucket ${YELLOW}${BUCKET}${NC}"
     # upload data
     upload_to_s3() {
-        aws s3 cp --recursive base-config/ s3://${BUCKET}/src
+        aws s3 cp --recursive base-config/ s3://${BUCKET}/src --output json
     }
 
     if error_output=$(upload_to_s3 2>&1); then
@@ -420,7 +419,7 @@ EOL
 
     # upload data
     upload_to_s3() {
-        aws s3 cp provisioning_parameters.json s3://${BUCKET}/src/
+        aws s3 cp provisioning_parameters.json s3://${BUCKET}/src/ --output json
     }
 
     if error_output=$(upload_to_s3 2>&1); then
@@ -508,7 +507,7 @@ create_cluster() {
 
     if ! output=$(aws sagemaker create-cluster \
         --cli-input-json file://cluster-config.json \
-        --region $AWS_REGION 2>&1); then
+        --region $AWS_REGION --output json 2>&1); then
 
         echo -e "${YELLOW}⚠️  Error occurred while creating the cluster:${NC}"
         echo -e "${YELLOW}$output${NC}"
@@ -520,7 +519,7 @@ create_cluster() {
         # Command to create the cluster
         echo -e "${GREEN} aws sagemaker create-cluster \\"
         echo -e "${GREEN}    --cli-input-json file://cluster-config.json \\"
-        echo -e "${GREEN}    --region $AWS_REGION${NC}\n"
+        echo -e "${GREEN}    --region $AWS_REGION --output json${NC}\n"
 
         read -e -p "Select an option (Enter/Ctrl+C): " choice
 
@@ -633,7 +632,7 @@ main() {
         # Command to create the cluster
         echo -e "${GREEN} aws sagemaker create-cluster \\"
         echo -e "${GREEN}    --cli-input-json file://cluster-config.json \\"
-        echo -e "${GREEN}    --region $AWS_REGION${NC}\n"
+        echo -e "${GREEN}    --region $AWS_REGION --output json${NC}\n"
 
         echo -e "${YELLOW}To monitor the progress of cluster creation, you can either check the SageMaker console, or you can run:.${NC}"    
         echo -e "${GREEN}watch -n 1 aws sagemaker list-clusters --output table${NC}"
