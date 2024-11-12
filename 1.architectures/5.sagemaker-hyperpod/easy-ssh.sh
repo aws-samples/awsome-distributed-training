@@ -100,8 +100,8 @@ print_header() {
 
 print_header "🚀 HyperPod Cluster Easy SSH Script! 🚀"
 
-cluster_id=$(aws sagemaker describe-cluster "${aws_cli_args[@]}" --cluster-name $cluster_name | jq '.ClusterArn' | awk -F/ '{gsub(/"/, "", $NF); print $NF}')
-instance_id=$(aws sagemaker list-cluster-nodes "${aws_cli_args[@]}" --cluster-name $cluster_name --instance-group-name-contains ${node_group} | jq '.ClusterNodeSummaries[0].InstanceId' | tr -d '"')
+cluster_id=$(aws sagemaker describe-cluster "${aws_cli_args[@]}" --cluster-name $cluster_name --ouput json | jq '.ClusterArn' | awk -F/ '{gsub(/"/, "", $NF); print $NF}')
+instance_id=$(aws sagemaker list-cluster-nodes "${aws_cli_args[@]}" --cluster-name $cluster_name --instance-group-name-contains ${node_group}  --ouput json | jq '.ClusterNodeSummaries[0].InstanceId' | tr -d '"')
 
 # print_header
 echo -e "Cluster id: ${GREEN}${cluster_id}${NC}"
