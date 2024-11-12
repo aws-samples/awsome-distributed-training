@@ -320,11 +320,10 @@ create_config() {
     echo -e "\n${BLUE}=== Worker Group Configuration ===${NC}"
     while true; do
         if [[ $WORKER_GROUP_COUNT -eq 1 ]]; then
-            echo -e "${GREEN}Do you want to add a worker instance group? (yes/no): ${NC}"
+            ADD_WORKER=$(get_input "Do you want to add a worker instance group? (yes/no):" "yes")
         else
-            echo -e "${GREEN}Do you want to add another worker instance group? (yes/no): ${NC}"
+            ADD_WORKER=$(get_input "Do you want to add another worker instance group? (yes/no):" "no")
         fi
-        read -e ADD_WORKER
         if [[ $ADD_WORKER != "yes" ]]; then
             break
         fi
