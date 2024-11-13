@@ -458,24 +458,24 @@ display_important_prereqs() {
     echo -e "${BLUE}Before running this script, please ensure the following:${NC}\n"
 
     echo -e "${GREEN}1. 🔑 IAM Credentials:${NC}"
-    echo "   Since this is AWS Event you will use the IAM role inherited from the SaeMaker Studio Instance."
-    echo "   You can view the role by calling `aws sts get-caller-identity`"
-    echo "   This role is sufficient to perform the following steps"
+    echo "   Because this is AWS Event you will use the IAM role inherited from the SaeMaker Studio Instance."
+    echo "   The current role is: `aws sts get-caller-identity --query "Arn" --output text`"
+    echo "   This role is pre-provisioned in the workshop with sufficient to perform the following steps"
 
     echo -e "\n${GREEN}2. 🌐 VPC Stack:${NC}"
-    echo "   Since this is an AWS Event, this stack is already deployed in your account"
+    echo "   Because this is an AWS Event, this stack is already deployed in your account"
     echo "   This stack includes the following resources: VPC, subnets, FSx Lustre FileSystem,"
     echo "   S3 bucket, security groups and IAM role for your SageMaker HyperPod cluster."
 
     echo -e "\n${GREEN}3. 📊 Observability Stack:${NC}"
-    echo "   Since this is an AWS Event, this stack is already deployed in your account "
-    echo "   this stack includes Amazon Managed Prometheus workspace, and an EC2 instance running OS Grafana"
+    echo "   Because this is an AWS Event, this stack is already deployed in your account "
+    echo "   This stack includes Amazon Managed Prometheus workspace, and an EC2 instance running OS Grafana"
 
     echo -e "\n${GREEN}4. 💻 Development Environment:${NC}"
-    echo "   Since this is an AWS Event, the SageMaker Studio Code Editor is a sufficient Linux-based development environment."
+    echo "   Because this is an AWS Event, the SageMaker Studio Code Editor is a sufficient Linux-based development environment."
 
     echo -e "\n${GREEN}5. 🔧 Packages required for this script to run:${NC}"
-    echo "   Since this is an AWS Event, SageMaker Studio Code Editor already has the following pre-requiste packages installed: pip, jq, boto3, and jsonschema"
+    echo "   Because this is an AWS Event, SageMaker Studio Code Editor already has the following pre-requiste packages installed: pip, jq, boto3, and jsonschema"
 
     echo -e "\n${YELLOW}Ready to proceed? Press Enter to continue or Ctrl+C to exit...${NC}"
     read
