@@ -136,7 +136,7 @@ setup_env_vars() {
     read -e STACK_ID_VPC
     export STACK_ID_VPC=${STACK_ID_VPC:-sagemaker-hyperpod}
 
-    echo -e "${GREEN} Using default workshop stack name: $STACK_ID_VPC${NC}"
+    echo -e "${GREEN}🏗️ Using default workshop stack name: ${YELLOW}$STACK_ID_VPC${NC}"
 
     # if [ "$CF_STACK_NAME" != "sagemaker-hyperpod" ]; then
     #     echo -e "${GREEN}✅ Configuration script updated with stack name: $STACK_ID_VPC${NC}"
