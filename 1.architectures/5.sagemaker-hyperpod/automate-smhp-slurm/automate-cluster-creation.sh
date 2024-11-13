@@ -459,7 +459,7 @@ display_important_prereqs() {
 
     echo -e "${GREEN}1. 🔑 IAM Credentials:${NC}"
     echo "   Since this is AWS Event you will use the IAM role inherited from the SaeMaker Studio Instance.
-    echo "   You can view the role by calling `aws sts get-caller-identity"
+    echo "   You can view the role by calling `aws sts get-caller-identity`"
     echo "   This role is sufficient to perform the following steps"
 
     echo -e "\n${GREEN}2. 🌐 VPC Stack:${NC}"
