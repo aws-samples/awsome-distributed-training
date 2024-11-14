@@ -108,10 +108,10 @@ echo -e "Cluster id: ${GREEN}${cluster_id}${NC}"
 echo -e "Instance id: ${GREEN}${instance_id}${NC}"
 echo -e "Node Group: ${GREEN}${node_group}${NC}"
 
-echo -e "\naws ssm start-session "${aws_cli_args[@]}" --target sagemaker-cluster:${cluster_id}_${node_group}-${instance_id}\n"
+echo -e "\naws ssm start-session "${aws_cli_args[@]}" --target sagemaker-cluster:${cluster_id}_${node_group}-${instance_id} --document SSM-SessionManagerRunShellAsUbuntu\n"
 
 check_ssh_config
 
 [[ DRY_RUN -eq 1 ]] && exit 0
 
-aws ssm start-session "${aws_cli_args[@]}" --target sagemaker-cluster:${cluster_id}_${node_group}-${instance_id}
+aws ssm start-session "${aws_cli_args[@]}" --target sagemaker-cluster:${cluster_id}_${node_group}-${instance_id} --document SSM-SessionManagerRunShellAsUbuntu

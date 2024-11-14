@@ -443,6 +443,29 @@ Resources:
           - '${S3Bucket}-${RandomGUID}'
           - { RandomGUID: !Select [0, !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId ]]]] }
 
+  SSMSessionManagerRunShellAsUbuntu:
+    Type: AWS::SSM::Document
+    Properties:
+      DocumentType: "Session"
+      Content:
+        schemaVersion: "1.0"
+        description: "Document to hold regional settings for Session Manager"
+        sessionType: "Standard_Stream"
+        inputs:
+          s3BucketName: ""
+          s3KeyPrefix: ""
+          s3EncryptionEnabled: true
+          cloudWatchLogGroupName: ""
+          cloudWatchEncryptionEnabled: true
+          cloudWatchStreamingEnabled: true
+          idleSessionTimeout: "20"
+          maxSessionDuration: ""
+          kmsKeyId: ""
+          runAsEnabled: true
+          runAsDefaultUser: "ubuntu"
+          shellProfile:
+            windows: ""
+            linux: "/bin/bash"
 
 #############
 ## Outputs ##
