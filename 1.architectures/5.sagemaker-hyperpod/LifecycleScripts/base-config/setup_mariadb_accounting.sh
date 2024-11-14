@@ -99,6 +99,8 @@ JobAcctGatherFrequency=30
 AccountingStorageType=accounting_storage/slurmdbd
 AccountingStorageHost=$DBD_HOST
 AccountingStoragePort=6819
+AccountingStorageTRES=gres/gpu
+GresTypes=gpu
 EOL
 }
 
