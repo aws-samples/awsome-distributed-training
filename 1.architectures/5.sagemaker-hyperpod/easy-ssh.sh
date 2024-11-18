@@ -67,6 +67,10 @@ check_ssh_config() {
         read -p "> " ADD_CONFIG
 
         if [[ $ADD_CONFIG == "yes" ]]; then
+            if [ ! -f ~/.ssh/config ]; then
+                mkdir -p ~/.ssh
+                touch ~/.ssh/config
+            fi
             echo -e "${GREEN}✅ adding ml-cluster to  ~/.ssh/config:${NC}"
             cat <<EOL >> ~/.ssh/config 
 Host ${cluster_name}
