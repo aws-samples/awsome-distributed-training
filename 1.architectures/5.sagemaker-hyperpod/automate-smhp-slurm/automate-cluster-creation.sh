@@ -116,6 +116,7 @@ clone_adt() {
             echo -e "${BLUE}Cloning repository...${NC}"
             git clone --depth=1 https://github.com/aws-samples/awsome-distributed-training/
             echo -e "${GREEN}✅ Repository cloned successfully${NC}"
+            echo -e "${BLUE}Press Enter to continue...${NC}"
         else
             echo -e "${BLUE}Using existing directory...${NC}"
         fi
@@ -123,6 +124,7 @@ clone_adt() {
         echo -e "${BLUE}Cloning repository $REPO_NAME...${NC}"
         git clone --depth=1 https://github.com/aws-samples/awsome-distributed-training/
         echo -e "${GREEN}✅ Repository cloned successfully${NC}"
+        "${BLUE}Press Enter to continue...${NC}"
     fi
 }
 
