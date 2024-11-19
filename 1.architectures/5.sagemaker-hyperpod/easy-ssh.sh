@@ -112,10 +112,13 @@ echo -e "Cluster id: ${GREEN}${cluster_id}${NC}"
 echo -e "Instance id: ${GREEN}${instance_id}${NC}"
 echo -e "Node Group: ${GREEN}${node_group}${NC}"
 
-echo -e "\naws ssm start-session "${aws_cli_args[@]}" --target sagemaker-cluster:${cluster_id}_${node_group}-${instance_id} --document SSM-SessionManagerRunShellAsUbuntu\n"
-
 check_ssh_config
 
 [[ DRY_RUN -eq 1 ]] && exit 0
 
-aws ssm start-session "${aws_cli_args[@]}" --target sagemaker-cluster:${cluster_id}_${node_group}-${instance_id} --document SSM-SessionManagerRunShellAsUbuntu
+# Start session as Ubuntu only if the SSM-SessionManagerRunShellAsUbuntu document exists.
+if aws ssm describe-document "${aws_cli_args[@]}" --name SSM-SessionManagerRunShellAsUbuntu > /dev/null 2>&1; then
+    aws ssm start-session "${aws_cli_args[@]}" --target sagemaker-cluster:${cluster_id}_${node_group}-${instance_id} --document SSM-SessionManagerRunShellAsUbuntu
+else
+    aws ssm start-session "${aws_cli_args[@]}" --target sagemaker-cluster:${cluster_id}_${node_group}-${instance_id}
+fi
