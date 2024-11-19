@@ -118,7 +118,7 @@ Parameters:
   KubernetesVersion:
     Description: Kubernetes version to use for EKS cluster
     Type: String
-    Default: '1.29'
+    Default: '1.30'
 
   EKSPrivateSubnet1CIDR:
     Description: Please enter the IP range (CIDR notation) for the EKS private subnet in the first Availability Zone. EKS will use this subnet to deploy cross-account ENIs.
