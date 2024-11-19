@@ -3,8 +3,13 @@ version: 0.2
 env:
   variables:
     GDRCOPY_VERSION: "v2.4.1"
+<<<<<<< HEAD
     EFA_INSTALLER_VERSION: "1.36.0"
-    AWS_OFI_NCCL_VERSION: "v1.12.1-aws"
+    AWS_OFI_NCCL_VERSION: "v1.13.0-aws"
+=======
+    EFA_INSTALLER_VERSION: "1.37.0"
+    AWS_OFI_NCCL_VERSION: "v1.13.1-aws"
+>>>>>>> 3e4bbd9 (Fix)
     NCCL_VERSION: "v2.23.4-1"
     NCCL_TESTS_VERSION: "v2.13.10"
   exported-variables:
