@@ -36,26 +36,16 @@ The NCCL tests are packaged in a container.
 > | Variable              | Default     | Repository                                                                                  |
 > |-----------------------|-------------|---------------------------------------------------------------------------------------------|
 > |`GDRCOPY_VERSION`      | `v2.4.1`    | [link](https://github.com/NVIDIA/gdrcopy)                                                   |
-<<<<<<< HEAD
-> |`EFA_INSTALLER_VERSION`| `1.36.0`    | [link](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa-start.html#efa-start-enable) |
-> |`AWS_OFI_NCCL_VERSION` | `v1.13.0-aws`| [link](https://github.com/aws/aws-ofi-nccl)                                                 |
-=======
 > |`EFA_INSTALLER_VERSION`| `1.37.0`    | [link](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa-start.html#efa-start-enable) |
 > |`AWS_OFI_NCCL_VERSION` | `v1.13.1-aws`| [link](https://github.com/aws/aws-ofi-nccl)                                                 |
->>>>>>> 3e4bbd9 (Fix)
 > |`NCCL_VERSION`         | `v2.23.4-1` | [link](https://github.com/NVIDIA/nccl)                                                      |
 > |`NCCL_TESTS_VERSION`   | `v2.13.10`   | [link](https://github.com/NVIDIA/nccl-tests)                                                |
 
 ### Build the container
 1. Build the container image with the command below:
    ```bash
-<<<<<<< HEAD
-   EFA_INSTALLER_VERSION=1.36.0
-   AWS_OFI_NCCL_VERSION=v1.13.0-aws
-=======
    EFA_INSTALLER_VERSION=1.37.0
    AWS_OFI_NCCL_VERSION=v1.13.1-aws
->>>>>>> 3e4bbd9 (Fix)
    NCCL_VERSION=v2.23.4-1
    NCCL_TESTS_VERSION=v2.13.10
    docker build  -f nccl-tests.Dockerfile \
@@ -91,13 +81,8 @@ To run the NCCL tests on EKS, you will need to build the container image, then p
 
 1. Create the ECR repository if it does not exist
    ```bash
-<<<<<<< HEAD
-   EFA_INSTALLER_VERSION=1.36.0
-   AWS_OFI_NCCL_VERSION=v1.13.0-aws
-=======
    EFA_INSTALLER_VERSION=1.37.0
    AWS_OFI_NCCL_VERSION=v1.13.1-aws
->>>>>>> 3e4bbd9 (Fix)
    NCCL_VERSION=v2.23.4-1
    NCCL_TESTS_VERSION=v2.13.10
    ECR_REPOSITORY_NAME="nccl-tests"
