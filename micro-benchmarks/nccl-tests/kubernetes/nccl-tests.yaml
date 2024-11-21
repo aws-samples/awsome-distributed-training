@@ -12,11 +12,11 @@ spec:
       replicas: 1
       template:
          spec:
-          imagePullPolicy: IfNotPresent
           restartPolicy: OnFailure
-          containers:
+          containers: 
           - image: <account>.dkr.ecr.<region>.amazonaws.com/<image>:<tag>
             name: test-nccl-launcher
+            imagePullPolicy: IfNotPresent
             env:
              - name: LD_LIBRARY_PATH
                value: /opt/amazon/openmpi/lib:/opt/nccl/build/lib:/opt/amazon/efa/lib:/opt/aws-ofi-nccl/install/lib:/usr/local/nvidia/lib:$LD_LIBRARY_PATH
@@ -38,10 +38,6 @@ spec:
             - LD_LIBRARY_PATH
             - -x
             - FI_PROVIDER=efa
-            - -x
-            - FI_EFA_USE_DEVICE_RDMA=1
-            - -x
-            - FI_EFA_FORK_SAFE=1
             - -x
             - NCCL_DEBUG=INFO
             - -x
@@ -78,10 +74,10 @@ spec:
         spec:
           nodeSelector:
             node.kubernetes.io/instance-type: "p5.48xlarge"
-          imagePullPolicy: IfNotPresent
           containers:
           - image: <account>.dkr.ecr.<region>.amazonaws.com/<image>:<tag>
             name: test-nccl-worker
+            imagePullPolicy: IfNotPresent
             volumeMounts:
             - name: shmem
               mountPath: /dev/shm
