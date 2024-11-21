@@ -38,6 +38,13 @@ If you have already created your HyperPod cluster, you can follow [these instruc
 >[!IMPORTANT]
 > It is strongly recommended you deploy this stack into the same region and same account as your SageMaker HyperPod Cluster.This will ensure successful execution of the Lifecycle Scripts, specifically `install_prometheus.sh`, which relies on AWS CLI commands that assume same account and same region. 
 
+[<kbd> <br> 1-Click Deploy 🚀 <br> </kbd>](https://console.aws.amazon.com/cloudformation/home?#/stacks/quickcreate?templateURL=https://awsome-distributed-training.s3.amazonaws.com/templates/cluster-observability.yaml&stackName=Cluster-Observability)
+
+>[!TIP]
+> If the deployment region does not support Amazon Managed Grafana, you can use the following stack, which provisions an EC2 instance and installs open source Grafana using a launch template.
+
+[<kbd> <br> 1-Click Deploy 🚀 <br> </kbd>](https://console.aws.amazon.com/cloudformation/home?#/stacks/quickcreate?templateURL=https://awsome-distributed-training.s3.us-east-1.amazonaws.com/templates/cluster-observability-with-os-grafana.yaml&stackName=Cluster-Observability)
+
 ### Connect to the cluster
 Connect to the controller node of your cluster via ssm:
 >[!NOTE]
