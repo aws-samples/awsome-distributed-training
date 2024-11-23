@@ -85,7 +85,8 @@ Convert the container image to a squash file via Enroot
 
 ### Amazon EKS
 
-To run the NCCL tests on EKS, you will need to build the container image, then push it to a container registry, such as the private [ECR](https://aws.amazon.com/ecr/) in your AWS account.
+To run the NCCL tests on EKS with the local image you built in the previous step, you will need to build the container image, then push it to a container registry, such as the private [ECR](https://aws.amazon.com/ecr/) in your AWS account.
+You can skip this part if you use pre-built image on `public.ecr.aws/hpc-cloud/nccl-tests`.
 
 1. Create the ECR repository if it does not exist
    ```bash
@@ -223,7 +224,7 @@ To change the type of collective to test, modify the line with `srun` in the fil
    Edit file `kubernetes/nccl-tests.yaml` and adjust the following values:
 
    - `slotsPerWorker: 8`: set to the number of GPUs per node in your cluster
-   - `image: <account>.dkr.ecr.<region>.amazonaws.com/<image>:<tag>`: set to your container image URI. Note: change both locations in the file. You may use `echo ${REGISTRY}${IMAGE}${TAG}` to print the image URI.
+   - `image: public.ecr.aws/hpc-cloud/nccl-tests:latest`: set to your container image URI. By default, it is set to use prebuilt image on the public ECR repository. You may specify private ECR image instead as `image: <account>.dkr.ecr.<region>.amazonaws.com/<image>:<tag>`. Note: change both locations in the file. You may use `echo ${REGISTRY}${IMAGE}${TAG}` to print the image URI.
    - `-np 16`: set -np option in mpirun to (*`number_of_worker_nodes`* * *`number_of_gpus_per_node`*), other mpirun parameters if needed for your instance type, please refer to [aws-ofi-nccl](https://github.com/aws/aws-ofi-nccl/blob/master/doc/efa-env-var.md)
    - `replicas: 2`: set to number of worker pods you would like the test to run on. This must be less than or eaqual to the number of nodes in your cluster.
    - `node.kubernetes.io/instance-type: "p5.48xlarge"`: set to the instance type of the nodes in your cluster against which you would like the nccl test to be run
