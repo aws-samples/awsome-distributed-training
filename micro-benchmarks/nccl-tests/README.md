@@ -41,7 +41,8 @@ The NCCL tests are packaged in a container.
 > |`NCCL_VERSION`         | `v2.23.4-1` | [link](https://github.com/NVIDIA/nccl)                                                      |
 > |`NCCL_TESTS_VERSION`   | `v2.13.10`   | [link](https://github.com/NVIDIA/nccl-tests)                                                |
 
-### Build the container
+### Prepare the container
+
 1. Build the container image with the command below:
    ```bash
    EFA_INSTALLER_VERSION=1.36.0
@@ -57,7 +58,14 @@ The NCCL tests are packaged in a container.
           .
    ```
 
-1. Once the container image is built, you can check if it is present with `docker images`. You should see an output similar to this one:
+   or alternatively pull the image from public ECR repository:
+   ```bash
+   docker pull public.ecr.aws/hpc-cloud/nccl-tests:${EFA_INSTALLER_VERSION}-${AWS_OFI_NCCL_VERSION}-${NCCL_VERSION}-${NCCL_TESTS_VERSION}
+   # or
+   docker pull public.ecr.aws/hpc-cloud/nccl-tests:latest
+   ```
+ 
+1. Once the container image is prepared, you can check if it is present with `docker images`. You should see an output similar to this one:
    ```
    REPOSITORY               TAG                        IMAGE ID       CREATED         SIZE
    nccl                     latest                     6e981e5cf6a5   5 hours ago     8.61GB
