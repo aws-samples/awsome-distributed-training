@@ -21,7 +21,7 @@
 
 
 # default variables for Enroot
-: "${APPS_PATH:=/apps}"
+: "${APPS_PATH:=/fsx}"
 : "${NCCL_TESTS_PATH:=/opt/nccl-tests/build}"
 
 : "${IMAGE:=$APPS_PATH/nccl.sqsh}"

@@ -79,9 +79,9 @@ To run the NCCL tests on Slurm, you will need to convert the container into a Sq
 
 Convert the container image to a squash file via Enroot
    ```bash
-   enroot import -o /apps/nccl.sqsh  dockerd://nccl-tests:${EFA_INSTALLER_VERSION}-${AWS_OFI_NCCL_VERSION}-${NCCL_VERSION}-${NCCL_TESTS_VERSION}
+   enroot import -o /fsx/nccl.sqsh  dockerd://nccl-tests:${EFA_INSTALLER_VERSION}-${AWS_OFI_NCCL_VERSION}-${NCCL_VERSION}-${NCCL_TESTS_VERSION}
    ```
-   The file will be stored in the `/apps` directory.
+   The file will be stored in the `/fsx` directory.
 
 ### Amazon EKS
 
