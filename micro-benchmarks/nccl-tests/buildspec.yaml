@@ -16,7 +16,7 @@ env:
 phases:
   pre_build:
     commands:
-      - export TAG="${EFA_INSTALLER_VERSION}-${AWS_OFI_NCCL_VERSION}-${NCCL_VERSION}-${NCCL_TESTS_VERSION}"
+      - export TAG="efa${EFA_INSTALLER_VERSION}-ofi${AWS_OFI_NCCL_VERSION}-nccl${NCCL_VERSION}-tests${NCCL_TESTS_VERSION}"
       - echo "TAG=$TAG"
       - export REPO_COUNT="$(aws ecr describe-repositories | grep repositoryName | grep \"${ECR_REPOSITORY_NAME}\" | wc -l)"
       - if [ "$REPO_COUNT" == 0 ]; then aws ecr create-repository --repository-name ${ECR_REPOSITORY_NAME}; else echo "Repository ${ECR_REPOSITORY_NAME} already exists"; fi

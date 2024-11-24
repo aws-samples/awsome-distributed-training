@@ -41,28 +41,30 @@ The NCCL tests are packaged in a container.
 > |`NCCL_VERSION`         | `v2.23.4-1` | [link](https://github.com/NVIDIA/nccl)                                                      |
 > |`NCCL_TESTS_VERSION`   | `v2.13.10`   | [link](https://github.com/NVIDIA/nccl-tests)                                                |
 
-### Prepare the container
+The rest of this guide assumes that you have set following variables:
+
+```bash
+EFA_INSTALLER_VERSION=1.36.0
+AWS_OFI_NCCL_VERSION=v1.12.1-aws
+NCCL_VERSION=v2.23.4-1
+NCCL_TESTS_VERSION=v2.13.10
+TAG="efa${EFA_INSTALLER_VERSION}-ofi${AWS_OFI_NCCL_VERSION}-nccl${NCCL_VERSION}-tests${NCCL_TESTS_VERSION}"
+IMAGE="nccl-tests:${TAG}"
+```
+
+### Build the container
+
+If you wish to build the containar image by yourself, follow this section. Alternatively, you can use a prebuild image on a public ECR repository `public.ecr.aws/hpc-cloud/nccl-tests`. If you wish to do so, skip this section.
 
 1. Build the container image with the command below:
    ```bash
-   EFA_INSTALLER_VERSION=1.36.0
-   AWS_OFI_NCCL_VERSION=v1.12.1-aws
-   NCCL_VERSION=v2.23.4-1
-   NCCL_TESTS_VERSION=v2.13.10
    docker build  -f nccl-tests.Dockerfile \
           --build-arg="EFA_INSTALLER_VERSION=${EFA_INSTALLER_VERSION}" \
           --build-arg="AWS_OFI_NCCL_VERSION=${AWS_OFI_NCCL_VERSION}" \
           --build-arg="NCCL_VERSION=${NCCL_VERSION}" \
           --build-arg="NCCL_TESTS_VERSION=${NCCL_TESTS_VERSION}" \
-          -t nccl-tests:${EFA_INSTALLER_VERSION}-${AWS_OFI_NCCL_VERSION}-${NCCL_VERSION}-${NCCL_TESTS_VERSION} \
+          -t ${IMAGE}
           .
-   ```
-
-   or alternatively pull the image from public ECR repository:
-   ```bash
-   docker pull public.ecr.aws/hpc-cloud/nccl-tests:${EFA_INSTALLER_VERSION}-${AWS_OFI_NCCL_VERSION}-${NCCL_VERSION}-${NCCL_TESTS_VERSION}
-   # or
-   docker pull public.ecr.aws/hpc-cloud/nccl-tests:latest
    ```
  
 1. Once the container image is prepared, you can check if it is present with `docker images`. You should see an output similar to this one:
@@ -77,11 +79,19 @@ The NCCL tests are packaged in a container.
 
 To run the NCCL tests on Slurm, you will need to convert the container into a Squash file using Enroot.
 
-Convert the container image to a squash file via Enroot
+Convert the container image to a squash file via Enroot. If you have the built image locally use the following command:
+
    ```bash
-   enroot import -o /fsx/nccl.sqsh  dockerd://nccl-tests:${EFA_INSTALLER_VERSION}-${AWS_OFI_NCCL_VERSION}-${NCCL_VERSION}-${NCCL_TESTS_VERSION}
+   enroot import -o /fsx/nccl.sqsh  dockerd://${IMAGE}
    ```
-   The file will be stored in the `/fsx` directory.
+
+If you want to pull the image from the public ECR use the following command:
+
+   ```bash
+   enroot import -o /fsx/nccl.sqsh  dockerd://public.ecr.aws/hpc-cloud/${IMAGE}
+   ```
+
+The file will be stored in the `/fsx` directory.
 
 ### Amazon EKS
 
@@ -90,13 +100,7 @@ You can skip this part if you use pre-built image on `public.ecr.aws/hpc-cloud/n
 
 1. Create the ECR repository if it does not exist
    ```bash
-   EFA_INSTALLER_VERSION=1.36.0
-   AWS_OFI_NCCL_VERSION=v1.12.1-aws
-   NCCL_VERSION=v2.23.4-1
-   NCCL_TESTS_VERSION=v2.13.10
    ECR_REPOSITORY_NAME="nccl-tests"
-   TAG="${EFA_INSTALLER_VERSION}-${AWS_OFI_NCCL_VERSION}-${NCCL_VERSION}-${NCCL_TESTS_VERSION}"
-
    aws ecr create-repository --repository-name ${ECR_REPOSITORY_NAME}
    ```
 
