@@ -82,7 +82,7 @@ To run the NCCL tests on Slurm, you will need to convert the container into a Sq
 Convert the container image to a squash file via Enroot. If you have the built image locally use the following command:
 
    ```bash
-   enroot import -o /fsx/nccl.sqsh  dockerd://${IMAGE}
+   enroot import -o /fsx/nccl-tests.sqsh  dockerd://${IMAGE}
    ```
 
 If you want to pull the image from the public ECR use the following command:
