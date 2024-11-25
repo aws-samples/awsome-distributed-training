@@ -116,7 +116,6 @@ clone_adt() {
             echo -e "${BLUE}Cloning repository...${NC}"
             git clone --depth=1 https://github.com/aws-samples/awsome-distributed-training/
             echo -e "${GREEN}✅ Repository cloned successfully${NC}"
-            echo -e "${BLUE}Press Enter to continue...${NC}"
         else
             echo -e "${BLUE}Using existing directory...${NC}"
         fi
@@ -124,7 +123,6 @@ clone_adt() {
         echo -e "${BLUE}Cloning repository $REPO_NAME...${NC}"
         git clone --depth=1 https://github.com/aws-samples/awsome-distributed-training/
         echo -e "${GREEN}✅ Repository cloned successfully${NC}"
-        "${BLUE}Press Enter to continue...${NC}"
     fi
 }
 
@@ -135,8 +133,9 @@ setup_env_vars() {
     clone_adt
 
     # echo -e "${BLUE}Enter the name of the SageMaker VPC CloudFormation stack that was deployed as a prerequisite (default: sagemaker-hyperpod):${NC}"
-    read -e STACK_ID_VPC
-    export STACK_ID_VPC=${STACK_ID_VPC:-sagemaker-hyperpod}
+    # read -e STACK_ID_VPC
+    export STACK_ID_VPC="sagemaker-hyperpod"
+    # export STACK_ID_VPC=${STACK_ID_VPC:-sagemaker-hyperpod}
 
     echo -e "${GREEN}🏗️ Using default workshop stack name: ${YELLOW}$STACK_ID_VPC${NC}"
 
@@ -481,6 +480,12 @@ display_important_prereqs() {
     echo -e "\n${GREEN}5. 🔧 Packages required for this script to run:${NC}"
     echo "   Because this is an AWS Event, SageMaker Studio Code Editor already has the following pre-requiste packages installed: pip, jq, boto3, and jsonschema"
 
+    echo -e "\n${BLUE}NOTE: You will be prompted to enter details for setting up your cluster. This would look like${NC}"
+    echo -e "\n${YELLOW}<Question>[default value]: ${NC}"
+    echo -e "\n${BLUE}For example,${NC}"
+    echo -e "\n${YELLOW}**This is an example** Enter the instance type for your worker group [ml.c5.4xlarge]: **This is an example**${NC}"
+    echo -e "\n${BLUE}Since this is a workshop, you may choose the default values! To do so, hit ENTER for each question that comes up!${NC}"
+
     echo -e "\n${YELLOW}Ready to proceed? Press Enter to continue or Ctrl+C to exit...${NC}"
     read
 }
@@ -624,7 +629,8 @@ main() {
     echo -e "${GREEN}Congratulations! You've completed all the preparatory steps.${NC}"
     echo -e "${YELLOW}Next Steps:${NC}"
 
-    read -e -p "Do you want the script to create the cluster for you now? (yes/no): " CREATE_CLUSTER
+    CREATE_CLUSTER=$(get_input "Do you want the script to create the cluster for you now? (yes/no):" "yes")
+    # read -e -p "Do you want the script to create the cluster for you now? (yes/no): " CREATE_CLUSTER
     if [[ "$CREATE_CLUSTER" == "yes" ]]; then
         warning
         create_cluster
