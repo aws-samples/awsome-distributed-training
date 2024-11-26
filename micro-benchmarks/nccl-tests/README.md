@@ -63,7 +63,7 @@ If you wish to build the containar image by yourself, follow this section. Alter
           --build-arg="AWS_OFI_NCCL_VERSION=${AWS_OFI_NCCL_VERSION}" \
           --build-arg="NCCL_VERSION=${NCCL_VERSION}" \
           --build-arg="NCCL_TESTS_VERSION=${NCCL_TESTS_VERSION}" \
-          -t ${IMAGE}
+          -t ${CONTAINER_IMAGE_NAME_TAG}
           .
    ```
  
