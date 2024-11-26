@@ -41,7 +41,7 @@ The NCCL tests are packaged in a container.
 > |`NCCL_VERSION`         | `v2.23.4-1` | [link](https://github.com/NVIDIA/nccl)                                                      |
 > |`NCCL_TESTS_VERSION`   | `v2.13.10`   | [link](https://github.com/NVIDIA/nccl-tests)                                                |
 
-The rest of this guide assumes that you have set following variables:
+You must pick each version of the library and set them as variables before proceed:
 
 ```bash
 EFA_INSTALLER_VERSION=1.36.0
@@ -49,7 +49,7 @@ AWS_OFI_NCCL_VERSION=v1.12.1-aws
 NCCL_VERSION=v2.23.4-1
 NCCL_TESTS_VERSION=v2.13.10
 TAG="efa${EFA_INSTALLER_VERSION}-ofi${AWS_OFI_NCCL_VERSION}-nccl${NCCL_VERSION}-tests${NCCL_TESTS_VERSION}"
-IMAGE="nccl-tests:${TAG}"
+CONTAINER_IMAGE_NAME_TAG="nccl-tests:${TAG}"
 ```
 
 ### Build the container
@@ -82,13 +82,13 @@ To run the NCCL tests on Slurm, you will need to convert the container into a Sq
 Convert the container image to a squash file via Enroot. If you have the built image locally use the following command:
 
    ```bash
-   enroot import -o /fsx/nccl-tests.sqsh  dockerd://${IMAGE}
+   enroot import -o /fsx/nccl-tests.sqsh  dockerd://${CONTAINER_IMAGE_NAME_TAG}
    ```
 
 If you want to pull the image from the public ECR use the following command:
 
    ```bash
-   enroot import -o /fsx/nccl.sqsh  dockerd://public.ecr.aws/hpc-cloud/${IMAGE}
+   enroot import -o /fsx/nccl.sqsh  dockerd://public.ecr.aws/hpc-cloud/${CONTAINER_IMAGE_NAME_TAG}
    ```
 
 The file will be stored in the `/fsx` directory.
