@@ -545,7 +545,7 @@ create_cluster() {
 # Warning message function
 warning() {
     echo -e "${BLUE}⚠️  Please note:${NC}"
-    echo -e "   - Cluster creation may take some time (~15-20 min)"
+    echo -e "   - Cluster creation may take some time (~10-20 min)"
     echo -e "   - This operation may incur costs on your AWS account"
     echo -e "   - Ensure you understand the implications before proceeding\n"
 }
