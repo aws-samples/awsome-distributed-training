@@ -232,6 +232,66 @@ Resources:
 
             ldapadd -x -D cn=admin,dc=example,dc=com -f /tmp/groups.ldif -w "$PASSWD"
 
+            # Setup Apache SSL encryption
+            mkdir -p /etc/apache2/ssl
+
+            openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+            -subj "/C=US/ST=WA/L=Seattle/O=AnyCompany/CN=www.example.com" \
+            -keyout /etc/apache2/ssl/apache.key -out /etc/apache2/ssl/apache.crt
+
+            a2enmod ssl
+
+            cat > /etc/apache2/sites-available/ldap.conf << EOF
+            <VirtualHost *:80>
+            ServerName ldapserver@localhost
+            RewriteEngine On
+            RewriteCond %{HTTPS} off
+            RewriteRule ^/?(.*) https://%{SERVER_NAME}/\$1 [R,L]
+            </VirtualHost>
+            EOF
+
+            cat > /etc/apache2/sites-available/ldap_ssl.conf << EOF
+            <IfModule mod_ssl.c>
+              <VirtualHost _default_:443>
+
+                  ServerAdmin admin@example.com
+                  ServerName ldapserver@localhost
+
+                  DocumentRoot /var/www/html
+
+                  ErrorLog \${!APACHE_LOG_DIR}/error.log
+                  CustomLog \${!APACHE_LOG_DIR}/access.log combined
+
+                  SSLEngine on
+
+                  SSLCertificateFile /etc/apache2/ssl/apache.crt
+                  SSLCertificateKeyFile /etc/apache2/ssl/apache.key
+
+                  <FilesMatch "\.(cgi|shtml|phtml|php)$">
+                    SSLOptions +StdEnvVars
+                  </FilesMatch>
+
+                  <Directory /usr/lib/cgi-bin>
+                    SSLOptions +StdEnvVars
+                  </Directory>
+
+              </VirtualHost>
+
+            </IfModule>
+            EOF
+
+            ## Disable default
+            a2dissite 000-default.conf
+
+            ## Enable site
+            a2ensite ldap.conf ldap_ssl.conf
+
+            ## Restart apache
+            a2enmod ssl rewrite
+            systemctl restart apache2.service
+
+
+            # Notify CloudFormation once completed
             /usr/local/bin/cfn-init -v --stack ${AWS::StackName} \
               --resource LdapServer \
               --configsets full_install \
@@ -261,6 +321,6 @@ Outputs:
   LdapServerInstanceId:
     Value: !GetAtt LdapServer.InstanceId
   LdapUIUrl:
-    Value: !Join ['',[!GetAtt LdapServer.PublicIp,'/phpldapadmin']]
+    Value: !Join ['',['https://',!GetAtt LdapServer.PublicIp,'/phpldapadmin']]
   LdapPassword:
     Value: !Ref LdapPassword
