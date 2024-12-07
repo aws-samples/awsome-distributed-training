@@ -446,6 +446,7 @@ Resources:
   SSMSessionManagerRunShellAsUbuntu:
     Type: AWS::SSM::Document
     Properties:
+      Name: "SSM-SessionManagerRunShellAsUbuntu"
       DocumentType: "Session"
       Content:
         schemaVersion: "1.0"
