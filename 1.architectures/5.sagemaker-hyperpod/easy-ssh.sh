@@ -59,9 +59,6 @@ parse_args() {
 check_ssh_config() {
     if grep -q "Host ${cluster_name}" ~/.ssh/config; then
         echo -e "${BLUE}1. Detected ${GREEN}${cluster_name}${BLUE} in  ${GREEN}~/.ssh/config${BLUE}. Skipping adding...${NC}"
-
-        echo -e "\nFYI instead of this script you can do:\n"
-        echo -e "$ ${GREEN}ssh ${cluster_name}${NC}"
     else
         echo -e "${BLUE}Would you like to add ${GREEN}${cluster_name}${BLUE} to  ~/.ssh/config (yes/no)?${NC}"
         read -p "> " ADD_CONFIG
@@ -77,11 +74,38 @@ Host ${cluster_name}
     User ubuntu
     ProxyCommand sh -c "aws ssm start-session ${aws_cli_args[@]} --target sagemaker-cluster:${cluster_id}_${node_group}-${instance_id} --document-name AWS-StartSSHSession --parameters 'portNumber=%p'"
 EOL
-            echo -e "\nNext add your ssh public key to ~/.ssh/authorized_keys on the cluster and then you can do:\n"
-            echo -e "$ ${GREEN}ssh ${cluster_name}${NC}"
         else
             echo -e "${GREEN}❌ skipping adding ml-cluster to  ~/.ssh/config:"
         fi      
+    fi
+}
+
+escape_spaces() {
+    local input="$1"
+    echo "${input// /\\ }"
+}
+
+# Function to add the user's SSH public key to the cluster
+add_keypair_to_cluster() {
+    PUBLIC_KEY=$(cat ~/.ssh/id_rsa.pub)
+
+    # Check if the fingerprint already exists in the cluster's authorized_keys
+    EXISTING_KEYS=$(aws ssm start-session --target sagemaker-cluster:${cluster_id}_${node_group}-${instance_id} --document-name AmazonEKS-ExecuteNonInteractiveCommand --parameters command="cat /fsx/ubuntu/.ssh/authorized_keys")
+    
+    if echo "$EXISTING_KEYS" | grep -q "$PUBLIC_KEY"; then
+        echo -e "${BLUE}2. Detected SSH public key ${GREEN}~/.ssh/id_rsa.pub${BLUE} on the cluster. Skipping adding...${NC}" 
+        return
+    else
+        echo -e "${BLUE}2. Do you want to add your SSH public key ${GREEN}~/.ssh/id_rsa.pub${BLUE} to the cluster (yes/no)?${NC}" 
+        read -p "> " ADD_KEYPAIR
+        if [[ $ADD_KEYPAIR == "yes" ]]; then
+            echo "Adding ... ${PUBLIC_KEY}"
+            command="sed -i \$a$(escape_spaces "$PUBLIC_KEY") /fsx/ubuntu/.ssh/authorized_keys"
+            aws ssm start-session --target sagemaker-cluster:${cluster_id}_${node_group}-${instance_id}  --document-name AmazonEKS-ExecuteNonInteractiveCommand  --parameters command="$command"
+            echo "✅ Your SSH public key ~/.ssh/id_rsa.pub has been added to the cluster."
+        else
+            echo "❌ Skipping adding SSH public key to the cluster."
+        fi
     fi
 }
 
@@ -113,6 +137,10 @@ echo -e "Instance id: ${GREEN}${instance_id}${NC}"
 echo -e "Node Group: ${GREEN}${node_group}${NC}"
 
 check_ssh_config
+add_keypair_to_cluster
+
+echo -e "\nNow you can run:\n"
+echo -e "$ ${GREEN}ssh ${cluster_name}${NC}"
 
 [[ DRY_RUN -eq 1 ]] && exit 0
 
