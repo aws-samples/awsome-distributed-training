@@ -465,7 +465,7 @@ Resources:
           runAsDefaultUser: "ubuntu"
           shellProfile:
             windows: ""
-            linux: "/bin/bash -c 'cd ~ && exec bash'"
+            linux: "/bin/bash -c 'sudo su - ubuntu'"
 
 #############
 ## Outputs ##
