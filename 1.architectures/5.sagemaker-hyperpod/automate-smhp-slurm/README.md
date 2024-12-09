@@ -1,4 +1,4 @@
-# SageMaker Hyperpod Cluster Automation Script
+# Amazon SageMaker Hyperpod Cluster Automation Script
 
 This project provides a script to automate the creation and setup of a Amazon SageMaker Hyperpod cluster with SLURM integration.
 
