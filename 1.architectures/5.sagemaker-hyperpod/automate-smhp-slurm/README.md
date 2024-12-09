@@ -1,6 +1,6 @@
 # SageMaker Hyperpod Cluster Automation Script
 
-This project provides a script to automate the creation and setup of a SageMaker Hyperpod cluster with SLURM integration.
+This project provides a script to automate the creation and setup of a Amazon SageMaker Hyperpod cluster with SLURM integration.
 
 The automation script streamlines the process of setting up a distributed training environment using AWS SageMaker Hyperpod.
 It installs necessary tools, clones the required repository, sets up environment variables, and configures lifecycle scripts for the SageMaker Hyperpod architecture.
