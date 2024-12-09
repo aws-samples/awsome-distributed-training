@@ -30,14 +30,8 @@ Parameters:
     Description: 'Security Group Ids'
 
 ############################
-## LDAP Server
+## LDAP Resources
 Resources:
-  LdapKeyPair:
-    Type: AWS::EC2::KeyPair
-    Properties:
-      KeyName: !Sub '${AWS::StackName}-key'
-      KeyType: ed25519
-
   LdapPassword:
     Type: AWS::SecretsManager::Secret
     Properties:
@@ -137,7 +131,6 @@ Resources:
           Iops: 3000
           VolumeSize: !Ref EBSBootSize
           VolumeType: 'gp3'
-      KeyName: !Ref LdapKeyPair
       IamInstanceProfile: !Ref LdapInstanceProfile
       ImageId: !Ref LatestUbuntuAmiId
       InstanceType: !Ref InstanceType
