@@ -132,18 +132,15 @@ setup_env_vars() {
     echo -e "${GREEN}Cloning awsome-distributed-training${NC}"
     clone_adt
 
-    # echo -e "${BLUE}Enter the name of the SageMaker VPC CloudFormation stack that was deployed as a prerequisite (default: sagemaker-hyperpod):${NC}"
-    # read -e STACK_ID_VPC
-    export STACK_ID_VPC="sagemaker-hyperpod"
-    # export STACK_ID_VPC=${STACK_ID_VPC:-sagemaker-hyperpod}
+    echo -e "${BLUE}Enter the name of the SageMaker VPC CloudFormation stack that was deployed as a prerequisite (default: sagemaker-hyperpod):${NC}"
+    read -e STACK_ID_VPC
+    export STACK_ID_VPC=${STACK_ID_VPC:-sagemaker-hyperpod}
 
-    echo -e "${GREEN}🏗️ Using default workshop stack name: ${YELLOW}$STACK_ID_VPC${NC}"
-
-    # if [ "$CF_STACK_NAME" != "sagemaker-hyperpod" ]; then
-    #     echo -e "${GREEN}✅ Configuration script updated with stack name: $STACK_ID_VPC${NC}"
-    # else
-    #     echo -e "${GREEN}🌐 Using default stack name: sagemaker-hyperpod${NC}"
-    # fi
+    if [ "$CF_STACK_NAME" != "sagemaker-hyperpod" ]; then
+        echo -e "${GREEN}✅ Configuration script updated with stack name: $STACK_ID_VPC${NC}"
+    else
+        echo -e "${GREEN}Using default stack name: sagemaker-hyperpod${NC}"
+    fi
 
     # Clear env_vars from previous runs
     > env_vars
@@ -188,64 +185,71 @@ setup_lifecycle_scripts() {
 
     cd awsome-distributed-training/1.architectures/5.sagemaker-hyperpod/LifecycleScripts/
 
-    echo -e "${BLUE}Enabling observability in LCS...${NC}"
-    sed -i.bak 's/enable_observability = False/enable_observability = True/' base-config/config.py
-    rm base-config/config.py.bak
-    echo -e "${GREEN}✅ Lifecycle Scripts modified successfully! Observability enabled in config.py${NC}"
+    echo -e "${YELLOW}Did you deploy the optional hyperpod-observability CloudFormation stack? (yes/no)${NC}"
+    read -e DEPLOYED_OBSERVABILITY
 
-    echo -e "${BLUE}Attaching IAM policies for observability to $ROLENAME${NC}"
+    if [ "$DEPLOYED_OBSERVABILITY" == "yes" ]; then
+        echo -e "${BLUE}Enabling observability in LCS...${NC}"
+        sed -i.bak 's/enable_observability = False/enable_observability = True/' base-config/config.py
+        rm base-config/config.py.bak
+        echo -e "${GREEN}✅ Lifecycle Scripts modified successfully! Observability enabled in config.py${NC}"
 
-    # Helper function for attaching IAM policies (specific to observability stack only!)
-    attach_policies() {
-        aws iam attach-role-policy --role-name $ROLENAME --policy-arn arn:aws:iam::aws:policy/AmazonPrometheusRemoteWriteAccess --output json
-        aws iam attach-role-policy --role-name $ROLENAME --policy-arn arn:aws:iam::aws:policy/AWSCloudFormationReadOnlyAccess --output json
-    }
+        echo -e "${BLUE}Attaching IAM policies for observability to $ROLENAME${NC}"
 
-    # Capture stdout + stderr
+        # Helper function for attaching IAM policies (specific to observability stack only!)
+        attach_policies() {
+            aws iam attach-role-policy --role-name $ROLENAME --policy-arn arn:aws:iam::aws:policy/AmazonPrometheusRemoteWriteAccess --output json
+            aws iam attach-role-policy --role-name $ROLENAME --policy-arn arn:aws:iam::aws:policy/AWSCloudFormationReadOnlyAccess --output json
+        }
 
-    if ! error_output=$(attach_policies 2>&1); then
-        echo -e "${YELLOW}⚠️  Failed to attach IAM policies. This operation requires admin permissions${NC}"
-        echo -e "${YELLOW}   This was the error received${NC}"
-        echo -e "${YELLOW}$error_output${NC}"
-        echo -e "Options:"
-        echo -e "1. Run 'aws configure' as an admin user as part of this script."
-        echo -e "2. Press Ctrl+C to exit and run 'aws configure' as an admin user outside this script."
-        echo -e "3. Press Enter to continue with the rest of the script without configuring this step."
+        # Capture stdout + stderr
 
-        read -e -p "Choose an option (1, 2, or 3): " choice   
-        
-        case $choice in
-            1)
-                echo -e "${BLUE}Running 'aws configure'. Please enter your **admin** credentials..${NC}"
-                aws configure
-                echo -e "${GREEN}✅ AWS CLI configured successfully${NC}"
-                echo -e "${BLUE}Retrying to attach IAM policies!${NC}"
-                if ! attach_policies; then
-                    echo -e "${YELLOW}⚠️  Failed to attach IAM policies. Please attach the following policies manually:${NC}"
-                    echo -e "1. AmazonPrometheusRemoteWriteAccess"
-                    echo -e "2. AWSCloudFormationReadOnlyAccess"
-                    echo -e "Press Enter to continue with the rest of the script without configuring this step."
-                    read -e -p "Press Enter to continue: "
+        if ! error_output=$(attach_policies 2>&1); then
+            echo -e "${YELLOW}⚠️  Failed to attach IAM policies. This operation requires admin permissions${NC}"
+            echo -e "${YELLOW}   This was the error received${NC}"
+            echo -e "${YELLOW}$error_output${NC}"
+            echo -e "Options:"
+            echo -e "1. Run 'aws configure' as an admin user as part of this script."
+            echo -e "2. Press Ctrl+C to exit and run 'aws configure' as an admin user outside this script."
+            echo -e "3. Press Enter to continue with the rest of the script without configuring this step."
+
+            read -e -p "Choose an option (1, 2, or 3): " choice   
+            
+            case $choice in
+                1)
+                    echo -e "${BLUE}Running 'aws configure'. Please enter your **admin** credentials..${NC}"
+                    aws configure
+                    echo -e "${GREEN}✅ AWS CLI configured successfully${NC}"
+                    echo -e "${BLUE}Retrying to attach IAM policies!${NC}"
+                    if ! attach_policies; then
+                        echo -e "${YELLOW}⚠️  Failed to attach IAM policies. Please attach the following policies manually:${NC}"
+                        echo -e "1. AmazonPrometheusRemoteWriteAccess"
+                        echo -e "2. AWSCloudFormationReadOnlyAccess"
+                        echo -e "Press Enter to continue with the rest of the script without configuring this step."
+                        read -e -p "Press Enter to continue: "
+                        echo -e "${BLUE}Continuing with the rest of the script without configuring this step.${NC}"
+                    else
+                        echo -e "${GREEN}✅ IAM policies attached successfully${NC}"
+                    fi
+                    ;;
+                2)
+                    echo -e "${BLUE}Please run 'aws configure' as an admin user outside this script.${NC}"
+                    exit 1
+                    ;;
+                3)
                     echo -e "${BLUE}Continuing with the rest of the script without configuring this step.${NC}"
-                else
-                    echo -e "${GREEN}✅ IAM policies attached successfully${NC}"
-                fi
-                ;;
-            2)
-                echo -e "${BLUE}Please run 'aws configure' as an admin user outside this script.${NC}"
-                exit 1
-                ;;
-            3)
-                echo -e "${BLUE}Continuing with the rest of the script without configuring this step.${NC}"
-                ;;
-            *)
-                echo -e "${BLUE}Invalid choice. Continuing with the rest of the script without configuring this step.${NC}"
-                ;;
-        esac
+                    ;;
+                *)
+                    echo -e "${BLUE}Invalid choice. Continuing with the rest of the script without configuring this step.${NC}"
+                    ;;
+            esac
+        else
+            echo -e "${GREEN}✅ IAM policies attached successfully${NC}"
+        fi    
+        echo -e "${GREEN}✅ Observability setup complete!${NC}"
     else
-        echo -e "${GREEN}✅ IAM policies attached successfully${NC}"
-    fi    
-    echo -e "${GREEN}✅ Observability setup complete!${NC}"
+        echo -e "${YELLOW}Observability not enabled. Continuing with default configuration${NC}"
+    fi
 
     echo -e "${BLUE}Uploading your lifecycle scripts to S3 bucket ${YELLOW}${BUCKET}${NC}"
     # upload data
@@ -292,13 +296,41 @@ create_config() {
 
     # Get controller machine details
     CONTROLLER_NAME=$(get_input "Enter the name for the controller instance group" "controller-machine")
-    # Re: Invent 2024 AIM403: Use ml.m5.4xlarge
-    CONTROLLER_TYPE=$(get_input "Enter the instance type for the controller" "ml.m5.4xlarge")
+    CONTROLLER_TYPE=$(get_input "Enter the instance type for the controller" "ml.m5.12xlarge")
 
     # Initialize instance groups array
     INSTANCE_GROUPS="["
 
-    # Add controller group. Re: Invent 2024 AIM403: Removing login group
+    # Add login group
+    echo -e "${GREEN}Do you want to add a login group? (yes/no): ${NC}"
+    read -e ADD_LOGIN_GROUP
+
+    if [[ $ADD_LOGIN_GROUP == "yes" ]]; then
+        LOGIN_TYPE=$(get_input "Enter the instance type for the login group" "ml.m5.4xlarge")
+
+        INSTANCE_GROUPS+="{
+            \"InstanceGroupName\": \"login-group\",
+            \"InstanceType\": \"$LOGIN_TYPE\",
+            \"InstanceStorageConfigs\": [
+                {
+                    \"EbsVolumeConfig\": {
+                        \"VolumeSizeInGB\": 500
+                    }
+                }
+            ],
+            \"InstanceCount\": 1,
+            \"LifeCycleConfig\": {
+                \"SourceS3Uri\": \"s3://${BUCKET}/src\",
+                \"OnCreate\": \"on_create.sh\"
+            },
+            \"ExecutionRole\": \"${ROLE}\",
+            \"ThreadsPerCore\": 2
+        },"
+        
+        echo -e "${GREEN}✅ Login Group added${NC}"
+    fi
+
+    # Add controller group
     INSTANCE_GROUPS+="{
         \"InstanceGroupName\": \"$CONTROLLER_NAME\",
         \"InstanceType\": \"$CONTROLLER_TYPE\",
@@ -332,10 +364,12 @@ create_config() {
         fi
 
         echo -e "${YELLOW}Configuring Worker Group $WORKER_GROUP_COUNT${NC}"
-        # Re: Invent 2024 AIM403: Use ml.c5.4xlarge
         INSTANCE_TYPE=$(get_input "Enter the instance type for worker group $WORKER_GROUP_COUNT" "ml.c5.4xlarge")
         INSTANCE_COUNT=$(get_input "Enter the instance count for worker group $WORKER_GROUP_COUNT" "4")
-                
+        
+        echo -e "${GREEN}Are you using training plans (Beta feature)? (yes/no): ${NC}"
+        read -e USE_TRAINING_PLAN
+        
         INSTANCE_GROUPS+=",
         {
             \"InstanceGroupName\": \"worker-group-$WORKER_GROUP_COUNT\",
@@ -355,7 +389,134 @@ create_config() {
             \"ExecutionRole\": \"${ROLE}\",
             \"ThreadsPerCore\": 1"
 
-        # More coming Re:Invent 2024!!!   
+        # Training Plans Logic goes here!!!
+
+        if [[ $USE_TRAINING_PLAN == "yes" ]]; then
+            echo -e "\n${BLUE}=== Training Plan Configuration ===${NC}"
+            # aws iam attach-role-policy --role-name $ROLENAME --policy-arn arn:aws:iam::aws:policy/AmazonEC2FullAccess
+
+            TRAINING_PLAN=$(get_input "Enter the training plan name" "")
+
+            count=0
+            while true; do
+                # Attempt to describe the training plan
+                echo -e "${YELLOW}Attempting to retrieve training plan details...${NC}"
+                
+                if ! TRAINING_PLAN_DESCRIPTION=$(aws sagemaker describe-training-plan --training-plan-name "$TRAINING_PLAN" --output json 2>&1); then
+                    echo -e "${BLUE}❌Error: Training plan '$TRAINING_PLAN' not found. Please try again.${NC}"
+                    echo -e "${GREEN}Are you using training plans (Beta feature)? (yes/no)${NC}"
+                    read -e USE_TRAINING_PLAN
+                    if [[ $USE_TRAINING_PLAN != "yes" ]]; then
+                        echo -e "${YELLOW}Exiting training plan configuration.${NC}"
+                        break
+                    else
+                        TRAINING_PLAN=$(get_input "Enter the training plan name" "")   
+                    fi
+                else
+                    # Extract relevant information from the description
+                    TRAINING_PLAN_ARN=$(echo "$TRAINING_PLAN_DESCRIPTION" | jq -r '.TrainingPlanArn')
+                    AVAILABLE_INSTANCE_COUNT=$(echo "$TRAINING_PLAN_DESCRIPTION" | jq -r '.AvailableInstanceCount')
+                    TOTAL_INSTANCE_COUNT=$(echo "$TRAINING_PLAN_DESCRIPTION" | jq -r '.TotalInstanceCount')
+                    TRAINING_PLAN_AZ=$(echo "$TRAINING_PLAN_DESCRIPTION" | jq -r '.ReservedCapacitySummaries[0].AvailabilityZone')
+                    TP_INSTANCE_TYPE=$(echo "$TRAINING_PLAN_DESCRIPTION" | jq -r '.ReservedCapacitySummaries[0].InstanceType')
+
+                    CF_AZ=$(aws ec2 describe-subnets --subnet-ids $SUBNET_ID --output json | jq -r '.Subnets[0].AvailabilityZone')
+
+                    # Only print if count=0
+                    if [[ $count -eq 0 ]]; then
+                        echo -e "${GREEN}Training Plan Details:${NC}"
+                        echo -e "  ${YELLOW}Name:${NC} $TRAINING_PLAN"
+                        echo -e "  ${YELLOW}Available Instance Count:${NC} $AVAILABLE_INSTANCE_COUNT"
+                        echo -e "  ${YELLOW}Total Instance Count:${NC} $TOTAL_INSTANCE_COUNT"
+                        echo -e "  ${YELLOW}Training Plan Availability Zone:${NC} $TRAINING_PLAN_AZ"
+                        echo -e "  ${YELLOW}Training Plan Instance Type:${NC} $TP_INSTANCE_TYPE"
+                    fi
+
+                    # Compare INSTANCE_COUNT with AVAILABLE_INSTANCE_COUNT
+                    INSTANCE_COUNT_OK="n"
+                    if [[ $INSTANCE_COUNT -gt $AVAILABLE_INSTANCE_COUNT ]]; then
+                        echo -e "${YELLOW}Warning: The requested instance count ($INSTANCE_COUNT) is greater than the available instances in the training plan ($AVAILABLE_INSTANCE_COUNT).${NC}"
+                        echo -e "${BLUE}Do you want to continue anyway?(yes/no)${NC}"
+                        read -e CONTINUE
+                        if [[ $CONTINUE != "yes" ]]; then
+                            NEW_INSTANCE_COUNT=$(get_input "Enter the new number of instances" "1")
+                            # Update INSTANCE_GROUPS with new INSTANCE_COUNT for the current worker group
+                            INSTANCE_GROUPS=$(echo "$INSTANCE_GROUPS" | perl -pe '
+                                BEGIN {
+                                    $group = "worker-group-'"$WORKER_GROUP_COUNT"'";
+                                    $count = '"$NEW_INSTANCE_COUNT"';
+                                    $in_group = 0;
+                                }
+                                if (/"InstanceGroupName":\s*"$group"/) {
+                                    $in_group = 1;
+                                }
+                                if ($in_group && /"InstanceCount":\s*\d+/) {
+                                    s/("InstanceCount":\s*)\d+/$1$count/;
+                                    $in_group = 0;
+                                }
+                            ')
+                            INSTANCE_COUNT=$NEW_INSTANCE_COUNT
+                            echo -e "${GREEN}Updated instance count for worker-group-$WORKER_GROUP_COUNT to $INSTANCE_COUNT${NC}"
+                        fi
+                        INSTANCE_COUNT_OK="y"
+                    else
+                        INSTANCE_COUNT_OK="y"    
+                    fi
+
+                    if [[ $INSTANCE_COUNT_OK == "y" ]]; then
+                        INSTANCE_TYPE_OK="n"
+                        # Compare INSTANCE_TYPE with TP_INSTANCE_TYPE
+                        if [[ $INSTANCE_TYPE != $TP_INSTANCE_TYPE ]]; then
+                            echo -e "${YELLOW}Warning: The requested instance type ($INSTANCE_TYPE) does not match the instance type in the training plan ($TP_INSTANCE_TYPE).${NC}"
+                            echo -e "${BLUE}Do you want to continue anyway? If you choose "no", then the script will update instance type for you and proceed. (yes/no)${NC}"
+                            read -e CONTINUE
+                            if [[ $CONTINUE != "yes" ]]; then
+                                NEW_INSTANCE_TYPE=$TP_INSTANCE_TYPE
+                                # Update INSTANCE_GROUPS with new INSTANCE_TYPE for the current worker group
+                                INSTANCE_GROUPS=$(echo "$INSTANCE_GROUPS" | perl -pe '
+                                    BEGIN {
+                                        $group = "worker-group-'$WORKER_GROUP_COUNT'";
+                                        $type = "'$NEW_INSTANCE_TYPE'";
+                                        $in_group = 0;
+                                    }
+                                    if (/"InstanceGroupName":\s*"$group"/) {
+                                        $in_group = 1;
+                                    }
+                                    if ($in_group && /"InstanceType":\s*"[^"]*"/) {
+                                        s/("InstanceType":\s*")[^"]*"/$1$type"/;
+                                        $in_group = 0;
+                                    }
+                                ')
+                                INSTANCE_TYPE=$NEW_INSTANCE_TYPE
+                                echo -e "${GREEN}Updated instance type for worker-group-$WORKER_GROUP_COUNT to $INSTANCE_TYPE${NC}"
+                            fi
+                            INSTANCE_TYPE_OK="y"
+                        else
+                            INSTANCE_TYPE_OK="y"    
+                        fi       
+
+                        if [[ $INSTANCE_TYPE_OK == "y" ]]; then
+                            # Compare TRAINING_PLAN_AZ with CF_AZ
+                            if [[ $TRAINING_PLAN_AZ != $CF_AZ ]]; then
+                                echo -e "${YELLOW}Warning: The training plan availability zone ($TRAINING_PLAN_AZ) does not match the cluster availability zone ($CF_AZ).${NC}"
+                                echo -e "${BLUE}Do you want to continue anyway? (yes/no)${NC}"
+                                read -e CONTINUE
+                                if [[ $CONTINUE != "yes" ]]; then
+                                    echo -e "${YELLOW}Please ensure that your VPC is in the same Availability Zone as your training plan (or vice versa). If you used the workshop, this should be the CF stack \"sagemaker-hyperpod\". Exiting training plan configuration.${NC}"
+                                    continue
+                                fi
+                            fi
+                        fi  
+                    fi   
+
+                    echo -e "${GREEN}Adding Training Plan ARN to instance group configuration.${NC}"    
+                    INSTANCE_GROUPS+=",
+                    \"TrainingPlanArn\": \"$TRAINING_PLAN_ARN\""  
+                    break
+                fi
+                count+=1
+            done       
+        fi  
 
         INSTANCE_GROUPS+="
         }"  
@@ -404,6 +565,19 @@ EOL
     WORKER_GROUPS+="
         ]"
 
+    if [[ $ADD_LOGIN_GROUP == "yes" ]]; then    
+        cat > provisioning_parameters.json << EOL
+        {
+            "version": "1.0.0",
+            "workload_manager": "slurm",
+            "controller_group": "$CONTROLLER_NAME",
+            "login_group": "login-group",
+            "worker_groups": $WORKER_GROUPS,
+            "fsx_dns_name": "${FSX_ID}.fsx.${AWS_REGION}.amazonaws.com",
+            "fsx_mountname": "${FSX_MOUNTNAME}"
+        }
+EOL
+    else
         cat > provisioning_parameters.json << EOL
         {
             "version": "1.0.0",
@@ -414,6 +588,7 @@ EOL
             "fsx_mountname": "${FSX_MOUNTNAME}"
         }
 EOL
+    fi
     
     echo -e "${GREEN}✅ provisioning_parameters.json created successfully${NC}"
 
@@ -461,30 +636,25 @@ display_important_prereqs() {
     echo -e "${BLUE}Before running this script, please ensure the following:${NC}\n"
 
     echo -e "${GREEN}1. 🔑 IAM Credentials:${NC}"
-    echo "   Because this is AWS Event you will use the IAM role inherited from the SaeMaker Studio Instance."
-    echo "   The current role is: `aws sts get-caller-identity --query "Arn" --output text`"
-    echo "   This role is pre-provisioned in the workshop with sufficient to perform the following steps"
+    echo "   You have Administrator Access Credentials in IAM."
+    echo "   This is crucial as we'll be using CloudFormation to create IAM roles and policies."
+    echo "   Run 'aws configure' to set up your credentials."
 
     echo -e "\n${GREEN}2. 🌐 VPC Stack:${NC}"
-    echo "   Because this is an AWS Event, this stack is already deployed in your account"
-    echo "   This stack includes the following resources: VPC, subnets, FSx Lustre FileSystem,"
-    echo "   S3 bucket, security groups and IAM role for your SageMaker HyperPod cluster."
+    echo "   Deploy the sagemaker-hyperpod VPC stack using:"
+    echo "   https://catalog.workshops.aws/sagemaker-hyperpod/en-US/00-setup/02-own-account"
+    echo "   This creates essential resources: VPC, subnets, FSx Lustre volumes,"
+    echo "   S3 bucket, and IAM role for your SageMaker HyperPod cluster."
 
     echo -e "\n${GREEN}3. 📊 Observability Stack:${NC}"
-    echo "   Because this is an AWS Event, this stack is already deployed in your account "
-    echo "   This stack includes Amazon Managed Prometheus workspace, and an EC2 instance running OS Grafana"
+    echo "   It's highly recommended to deploy the observability stack as well."
+    echo "   Navigate to https://catalog.workshops.aws/sagemaker-hyperpod/en-US/00-setup/02-own-account#2.-deploy-cluster-observability-stack-(recommended) to deploy the stack"
 
     echo -e "\n${GREEN}4. 💻 Development Environment:${NC}"
-    echo "   Because this is an AWS Event, the SageMaker Studio Code Editor is a sufficient Linux-based development environment."
+    echo "   Ensure you have a Linux-based development environment (macOS works great too)."
 
     echo -e "\n${GREEN}5. 🔧 Packages required for this script to run:${NC}"
-    echo "   Because this is an AWS Event, SageMaker Studio Code Editor already has the following pre-requiste packages installed: pip, jq, boto3, and jsonschema"
-
-    echo -e "\n${BLUE}NOTE: You will be prompted to enter details for setting up your cluster. This would look like${NC}"
-    echo -e "\n${YELLOW}<Question>[default value]: ${NC}"
-    echo -e "\n${BLUE}For example,${NC}"
-    echo -e "\n${YELLOW}**This is an example** Enter the instance type for your worker group [ml.c5.4xlarge]: **This is an example**${NC}"
-    echo -e "\n${BLUE}Since this is a workshop, you may choose the default values! To do so, hit ENTER for each question that comes up!${NC}"
+    echo "   Ensure you install the following: pip, jq, boto3, and jsonschema"
 
     echo -e "\n${YELLOW}Ready to proceed? Press Enter to continue or Ctrl+C to exit...${NC}"
     read
@@ -515,7 +685,8 @@ create_cluster() {
 
     if ! output=$(aws sagemaker create-cluster \
         --cli-input-json file://cluster-config.json \
-        --region $AWS_REGION --output json 2>&1); then
+        --region $AWS_REGION \
+        --output json 2>&1); then
 
         echo -e "${YELLOW}⚠️  Error occurred while creating the cluster:${NC}"
         echo -e "${YELLOW}$output${NC}"
@@ -545,7 +716,7 @@ create_cluster() {
 # Warning message function
 warning() {
     echo -e "${BLUE}⚠️  Please note:${NC}"
-    echo -e "   - Cluster creation may take some time (~10-20 min)"
+    echo -e "   - Cluster creation may take some time (~15-20 min)"
     echo -e "   - This operation may incur costs on your AWS account"
     echo -e "   - Ensure you understand the implications before proceeding\n"
 }
