@@ -142,7 +142,7 @@ add_keypair_to_cluster
 echo -e "\nNow you can run:\n"
 echo -e "$ ${GREEN}ssh ${cluster_name}${NC}"
 
-[[ DRY_RUN -eq 1 ]] && exit 0
+[[ DRY_RUN -eq 1 ]] && echo -e  "\n${GREEN}aws ssm start-session "${aws_cli_args[@]}" --target sagemaker-cluster:${cluster_id}_${node_group}-${instance_id}${NC}\n" && exit 0
 
 # Start session as Ubuntu only if the SSM-SessionManagerRunShellAsUbuntu document exists.
 if aws ssm describe-document "${aws_cli_args[@]}" --name SSM-SessionManagerRunShellAsUbuntu > /dev/null 2>&1; then
