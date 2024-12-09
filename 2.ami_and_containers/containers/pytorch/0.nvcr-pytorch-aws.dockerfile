@@ -19,13 +19,13 @@
 #     # Load image to local docker registry -> on head node, or new compute/build node.
 #     docker load < /fsx/nvidia-pt-od__latest.tar
 ####################################################################################################
-FROM nvcr.io/nvidia/pytorch:23.12-py3
+FROM nvcr.io/nvidia/pytorch:24.09-py3
 ENV DEBIAN_FRONTEND=noninteractive
 
 # The three must-be-built packages.
 # Efa-installer>=1.29.1 required for nccl>=2.19.0 to avoid libfabric NCCL error.
-ENV EFA_INSTALLER_VERSION=1.30.0
-ENV AWS_OFI_NCCL_VERSION=1.8.1-aws
+ENV EFA_INSTALLER_VERSION=1.35.0
+ENV AWS_OFI_NCCL_VERSION=1.12.1-aws
 ENV NCCL_TESTS_VERSION=master
 
 ## Uncomment below when this Dockerfile builds a container image with efa-installer<1.29.1 and

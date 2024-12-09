@@ -23,7 +23,7 @@ You can follow the workshop below to train models on AWS. Each contains examples
 | ------------------------------------------------------------------------------ | ------------------------------------------------------------------- |
 | [Amazon SageMaker HyperPod](https://catalog.workshops.aws/sagemaker-hyperpod/en-US)   | Workshop for SageMaker HyperPod, shows how to deploy and monitor it |
 | [AWS ParallelCluster](https://catalog.workshops.aws/ml-on-aws-parallelcluster) | Similar workshop as HyperPod but on ParallelCluster                 |
-
+| [Amazon SageMaker HyperPod EKS](https://catalog.workshops.aws/sagemaker-hyperpod-eks)   | Workshop for SageMaker HyperPod EKS, shows how to deploy and monitor it |
 
 ## 1. Architectures
 

@@ -367,7 +367,7 @@ create_config() {
         INSTANCE_TYPE=$(get_input "Enter the instance type for worker group $WORKER_GROUP_COUNT" "ml.c5.4xlarge")
         INSTANCE_COUNT=$(get_input "Enter the instance count for worker group $WORKER_GROUP_COUNT" "4")
         
-        echo -e "${GREEN}Are you using training plans (Beta feature)? (yes/no): ${NC}"
+        echo -e "${GREEN}Are you using training plans? (yes/no): ${NC}"
         read -e USE_TRAINING_PLAN
         
         INSTANCE_GROUPS+=",

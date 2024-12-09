@@ -24,9 +24,6 @@ class Config:
     # You need to configure parameters in SssdConfig as well.
     enable_sssd = False
 
-    # Set true to install quality-of-live improvements
-    enable_initsmhp = False
-
     # Set true if you want to use mountpoint for s3 on cluster nodes. 
     # If enabled, a systemctl mount-s3.service file will be writen that will mount at /mnt/<BucketName>.
     # requires s3 permissions to be added to cluster execution role. 

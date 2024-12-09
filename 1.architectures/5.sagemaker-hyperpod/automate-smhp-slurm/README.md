@@ -14,7 +14,7 @@ This demo gif showcases the step-by-step process of creating and setting up a Sa
 - `automate-cluster-creation.sh`: The main script that automates the cluster creation process.
 - `README.md`: This file, providing information about the project.
 
-## Usage Instructions
+## 🚀 Usage Instructions
 
 ### Prerequisites
 

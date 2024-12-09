@@ -32,8 +32,11 @@ generate_targets() {
 }
 
 # Retrieve the latest Prometheus version from GitHub releases
-echo "Retrieving the latest Prometheus version..."
-LATEST_VERSION=$(curl -s https://api.github.com/repos/prometheus/prometheus/releases/latest | grep -oP '"tag_name": "\K(.*?)(?=")' | sed 's/^v//')
+#echo "Retrieving the latest Prometheus version..."
+#LATEST_VERSION=$(curl -s https://api.github.com/repos/prometheus/prometheus/releases/latest | grep -oP '"tag_name": "\K(.*?)(?=")' | sed 's/^v//')
+
+echo "Using pinned Prometheus version 2.55.1"
+LATEST_VERSION=2.55.1
 
 # Check if the latest version retrieval was successful
 if [ -z "$LATEST_VERSION" ]; then
