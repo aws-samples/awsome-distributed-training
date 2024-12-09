@@ -24,20 +24,17 @@ Parameters:
     Description: 'Size in GiB of EBS root volume'
   SubnetId:
     Type: AWS::EC2::Subnet::Id
-    Description: 'Subnet Id'
-  SecurityGroupIds:
-    Type: List<AWS::EC2::SecurityGroup::Id>
-    Description: 'Security Group Ids'
+    Description: 'Public Subnet Id'
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: 'Vpc Id'
+  IpCidrUIAccess:
+    Type: String
+    Description: 'IP cidr for UI access'
 
 ############################
-## LDAP Server
+## LDAP Resources
 Resources:
-  LdapKeyPair:
-    Type: AWS::EC2::KeyPair
-    Properties:
-      KeyName: !Sub '${AWS::StackName}-key'
-      KeyType: ed25519
-
   LdapPassword:
     Type: AWS::SecretsManager::Secret
     Properties:
@@ -86,6 +83,52 @@ Resources:
       Roles:
         - !Ref LdapInstanceRole
 
+#################
+# Security groups
+  UISecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: 'Allow communication to UI and from Internet'
+      GroupName: 'ldap-ui-external'
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: 'Communication to the internet'
+          FromPort: -1
+          IpProtocol: -1
+          ToPort: -1
+      SecurityGroupIngress:
+        - CidrIp: !Ref IpCidrUIAccess
+          Description: 'Communications to UI'
+          FromPort: 443
+          IpProtocol: 'tcp'
+          ToPort: 443
+      Tags:
+        - Key: 'Name'
+          Value: 'ldap-ui'
+      VpcId: !Ref VpcId
+
+  LDAPSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: 'Allow communication to LDAP'
+      GroupName: 'ldap-cluster'
+      Tags:
+        - Key: 'Name'
+          Value: 'ldap-cluster'
+      VpcId: !Ref VpcId
+
+  LDAPSecurityGroupIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      Description: 'Allow communication to LDAP'
+      IpProtocol: -1
+      FromPort: -1
+      ToPort: -1
+      GroupId: !Ref LDAPSecurityGroup
+      SourceSecurityGroupId: !Ref LDAPSecurityGroup
+
+################
+# Ldap Instance
   LdapServer:
     Type: 'AWS::EC2::Instance'
     Metadata:
@@ -137,11 +180,12 @@ Resources:
           Iops: 3000
           VolumeSize: !Ref EBSBootSize
           VolumeType: 'gp3'
-      KeyName: !Ref LdapKeyPair
       IamInstanceProfile: !Ref LdapInstanceProfile
       ImageId: !Ref LatestUbuntuAmiId
       InstanceType: !Ref InstanceType
-      SecurityGroupIds: !Ref SecurityGroupIds
+      SecurityGroupIds:
+        - !Ref UISecurityGroup
+        - !Ref LDAPSecurityGroup
       SubnetId: !Ref SubnetId
       Tags:
         - Key: Name
@@ -235,7 +279,7 @@ Resources:
             # Setup Apache SSL encryption
             mkdir -p /etc/apache2/ssl
 
-            openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+            openssl req -x509 -nodes -days 365 -newkey rsa:4096 \
             -subj "/C=US/ST=WA/L=Seattle/O=AnyCompany/CN=www.example.com" \
             -keyout /etc/apache2/ssl/apache.key -out /etc/apache2/ssl/apache.crt
 
