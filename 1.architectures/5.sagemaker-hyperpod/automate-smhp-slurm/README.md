@@ -54,7 +54,7 @@ The script will guide you through the following steps:
 
 ### Configuration
 
-During execution, you'll be prompted to provide the following information:
+During execution, you will provide the following information:
 
 - Name of the SageMaker VPC CloudFormation stack (default: sagemaker-hyperpod)
 - Confirmation if you deployed the optional hyperpod-observability CloudFormation stack
