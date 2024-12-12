@@ -41,23 +41,33 @@ The NCCL tests are packaged in a container.
 > |`NCCL_VERSION`         | `v2.23.4-1` | [link](https://github.com/NVIDIA/nccl)                                                      |
 > |`NCCL_TESTS_VERSION`   | `v2.13.10`   | [link](https://github.com/NVIDIA/nccl-tests)                                                |
 
+You must pick each version of the library and set them as variables before proceed:
+
+```bash
+EFA_INSTALLER_VERSION=1.37.0
+AWS_OFI_NCCL_VERSION=v1.13.2-aws
+NCCL_VERSION=v2.23.4-1
+NCCL_TESTS_VERSION=v2.13.10
+TAG="efa${EFA_INSTALLER_VERSION}-ofi${AWS_OFI_NCCL_VERSION}-nccl${NCCL_VERSION}-tests${NCCL_TESTS_VERSION}"
+CONTAINER_IMAGE_NAME_TAG="nccl-tests:${TAG}"
+```
+
 ### Build the container
+
+If you wish to build the containar image by yourself, follow this section. Alternatively, you can use a prebuild image on a public ECR repository `public.ecr.aws/hpc-cloud/nccl-tests`. If you wish to do so, skip this section.
+
 1. Build the container image with the command below:
    ```bash
-   EFA_INSTALLER_VERSION=1.37.0
-   AWS_OFI_NCCL_VERSION=v1.13.2-aws
-   NCCL_VERSION=v2.23.4-1
-   NCCL_TESTS_VERSION=v2.13.10
    docker build  -f nccl-tests.Dockerfile \
           --build-arg="EFA_INSTALLER_VERSION=${EFA_INSTALLER_VERSION}" \
           --build-arg="AWS_OFI_NCCL_VERSION=${AWS_OFI_NCCL_VERSION}" \
           --build-arg="NCCL_VERSION=${NCCL_VERSION}" \
           --build-arg="NCCL_TESTS_VERSION=${NCCL_TESTS_VERSION}" \
-          -t nccl-tests:${EFA_INSTALLER_VERSION}-${AWS_OFI_NCCL_VERSION}-${NCCL_VERSION}-${NCCL_TESTS_VERSION} \
+          -t ${CONTAINER_IMAGE_NAME_TAG} \
           .
    ```
-
-1. Once the container image is built, you can check if it is present with `docker images`. You should see an output similar to this one:
+ 
+1. Once the container image is prepared, you can check if it is present with `docker images`. You should see an output similar to this one:
    ```
    REPOSITORY               TAG                        IMAGE ID       CREATED         SIZE
    nccl                     latest                     6e981e5cf6a5   5 hours ago     8.61GB
@@ -69,25 +79,28 @@ The NCCL tests are packaged in a container.
 
 To run the NCCL tests on Slurm, you will need to convert the container into a Squash file using Enroot.
 
-Convert the container image to a squash file via Enroot
+Convert the container image to a squash file via Enroot. If you have the built image locally use the following command:
+
    ```bash
-   enroot import -o /apps/nccl.sqsh  dockerd://nccl-tests:${EFA_INSTALLER_VERSION}-${AWS_OFI_NCCL_VERSION}-${NCCL_VERSION}-${NCCL_TESTS_VERSION}
+   enroot import -o /fsx/nccl-tests.sqsh  dockerd://${CONTAINER_IMAGE_NAME_TAG}
    ```
-   The file will be stored in the `/apps` directory.
+
+If you want to pull the image from the public ECR use the following command:
+
+   ```bash
+   enroot import -o /fsx/nccl.sqsh  dockerd://public.ecr.aws/hpc-cloud/${CONTAINER_IMAGE_NAME_TAG}
+   ```
+
+The file will be stored in the `/fsx` directory.
 
 ### Amazon EKS
 
-To run the NCCL tests on EKS, you will need to build the container image, then push it to a container registry, such as the private [ECR](https://aws.amazon.com/ecr/) in your AWS account.
+To run the NCCL tests on EKS with the local image you built in the previous step, you will need to build the container image, then push it to a container registry, such as the private [ECR](https://aws.amazon.com/ecr/) in your AWS account.
+You can skip this part if you use pre-built image on `public.ecr.aws/hpc-cloud/nccl-tests`.
 
 1. Create the ECR repository if it does not exist
    ```bash
-   EFA_INSTALLER_VERSION=1.37.0
-   AWS_OFI_NCCL_VERSION=v1.13.2-aws
-   NCCL_VERSION=v2.23.4-1
-   NCCL_TESTS_VERSION=v2.13.10
    ECR_REPOSITORY_NAME="nccl-tests"
-   TAG="${EFA_INSTALLER_VERSION}-${AWS_OFI_NCCL_VERSION}-${NCCL_VERSION}-${NCCL_TESTS_VERSION}"
-
    aws ecr create-repository --repository-name ${ECR_REPOSITORY_NAME}
    ```
 
@@ -215,7 +228,7 @@ To change the type of collective to test, modify the line with `srun` in the fil
    Edit file `kubernetes/nccl-tests.yaml` and adjust the following values:
 
    - `slotsPerWorker: 8`: set to the number of GPUs per node in your cluster
-   - `image: <account>.dkr.ecr.<region>.amazonaws.com/<image>:<tag>`: set to your container image URI. Note: change both locations in the file. You may use `echo ${REGISTRY}${IMAGE}${TAG}` to print the image URI.
+   - `<account>.dkr.ecr.<region>.amazonaws.com/<image>:<tag>`: set to your container image URI. You may specify the public ECR image instead as `image: public.ecr.aws/hpc-cloud/nccl-tests:<tag>`. Note: change both locations in the file. You may use `echo ${CONTAINER_IMAGE_NAME_TAG}` to print the image URI.
    - `-np 16`: set -np option in mpirun to (*`number_of_worker_nodes`* * *`number_of_gpus_per_node`*), other mpirun parameters if needed for your instance type, please refer to [aws-ofi-nccl](https://github.com/aws/aws-ofi-nccl/blob/master/doc/efa-env-var.md)
    - `replicas: 2`: set to number of worker pods you would like the test to run on. This must be less than or eaqual to the number of nodes in your cluster.
    - `node.kubernetes.io/instance-type: "p5.48xlarge"`: set to the instance type of the nodes in your cluster against which you would like the nccl test to be run
