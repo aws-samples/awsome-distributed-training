@@ -79,7 +79,7 @@ Similar to the VPC we just created, you can create an FSx for Lustre volume usin
 
 <img src="../../0.docs/fsx-lustre-template.png" width="800">
 
-Change the name, capacity, throughput, and compression configurations as you wish. Select the latest Lustre version (2.15 by default). On NetworkStack, make sure this matches the name (case sensitive) of the VPC CloudFormation stack you used in the previous step. Once again, you can leave the IAM role blank.
+Change the stack name, capacity, throughput, and compression configurations as you wish. Select the latest Lustre version (2.15 by default). Under Network Options, select the Security Group ID and Private Subnet ID you created using the VPC CloudFormation stack in the previous step. Once again, you can leave the IAM role blank.
 
 Your FSx for Lustre volume will take about 10 minutes to deploy. In the meantime, we can setup our lifecycle scripts.
 

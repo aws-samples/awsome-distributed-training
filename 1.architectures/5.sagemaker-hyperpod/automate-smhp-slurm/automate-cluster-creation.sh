@@ -359,6 +359,7 @@ create_config() {
         else
             ADD_WORKER=$(get_input "Do you want to add another worker instance group? (yes/no):" "no")
         fi
+
         if [[ $ADD_WORKER != "yes" ]]; then
             break
         fi
@@ -369,7 +370,7 @@ create_config() {
         
         echo -e "${GREEN}Are you using training plans? (yes/no): ${NC}"
         read -e USE_TRAINING_PLAN
-        
+
         INSTANCE_GROUPS+=",
         {
             \"InstanceGroupName\": \"worker-group-$WORKER_GROUP_COUNT\",
@@ -388,8 +389,6 @@ create_config() {
             },
             \"ExecutionRole\": \"${ROLE}\",
             \"ThreadsPerCore\": 1"
-
-        # Training Plans Logic goes here!!!
 
         if [[ $USE_TRAINING_PLAN == "yes" ]]; then
             echo -e "\n${BLUE}=== Training Plan Configuration ===${NC}"
@@ -679,6 +678,7 @@ region_check() {
     echo -e "${BLUE}Press Enter to continue...${NC}"
     read
 }
+
 # Function to create the cluster
 create_cluster() {
     echo -e "${GREEN}✅ Creating cluster for you!${NC}"
