@@ -198,8 +198,8 @@ setup_lifecycle_scripts() {
 
         # Helper function for attaching IAM policies (specific to observability stack only!)
         attach_policies() {
-            aws iam attach-role-policy --role-name $ROLENAME --policy-arn arn:aws:iam::aws:policy/AmazonPrometheusRemoteWriteAccess
-            aws iam attach-role-policy --role-name $ROLENAME --policy-arn arn:aws:iam::aws:policy/AWSCloudFormationReadOnlyAccess 
+            aws iam attach-role-policy --role-name $ROLENAME --policy-arn arn:aws:iam::aws:policy/AmazonPrometheusRemoteWriteAccess --output json
+            aws iam attach-role-policy --role-name $ROLENAME --policy-arn arn:aws:iam::aws:policy/AWSCloudFormationReadOnlyAccess --output json
         }
 
         # Capture stdout + stderr
@@ -254,7 +254,7 @@ setup_lifecycle_scripts() {
     echo -e "${BLUE}Uploading your lifecycle scripts to S3 bucket ${YELLOW}${BUCKET}${NC}"
     # upload data
     upload_to_s3() {
-        aws s3 cp --recursive base-config/ s3://${BUCKET}/src
+        aws s3 cp --recursive base-config/ s3://${BUCKET}/src --output json
     }
 
     if error_output=$(upload_to_s3 2>&1); then
@@ -355,11 +355,11 @@ create_config() {
     echo -e "\n${BLUE}=== Worker Group Configuration ===${NC}"
     while true; do
         if [[ $WORKER_GROUP_COUNT -eq 1 ]]; then
-            echo -e "${GREEN}Do you want to add a worker instance group? (yes/no): ${NC}"
+            ADD_WORKER=$(get_input "Do you want to add a worker instance group? (yes/no):" "yes")
         else
-            echo -e "${GREEN}Do you want to add another worker instance group? (yes/no): ${NC}"
+            ADD_WORKER=$(get_input "Do you want to add another worker instance group? (yes/no):" "no")
         fi
-        read -e ADD_WORKER
+
         if [[ $ADD_WORKER != "yes" ]]; then
             break
         fi
@@ -367,7 +367,10 @@ create_config() {
         echo -e "${YELLOW}Configuring Worker Group $WORKER_GROUP_COUNT${NC}"
         INSTANCE_TYPE=$(get_input "Enter the instance type for worker group $WORKER_GROUP_COUNT" "ml.c5.4xlarge")
         INSTANCE_COUNT=$(get_input "Enter the instance count for worker group $WORKER_GROUP_COUNT" "4")
-                
+        
+        echo -e "${GREEN}Are you using training plans? (yes/no): ${NC}"
+        read -e USE_TRAINING_PLAN
+
         INSTANCE_GROUPS+=",
         {
             \"InstanceGroupName\": \"worker-group-$WORKER_GROUP_COUNT\",
@@ -387,7 +390,132 @@ create_config() {
             \"ExecutionRole\": \"${ROLE}\",
             \"ThreadsPerCore\": 1"
 
-        # More coming Re:Invent 2024!!!   
+        if [[ $USE_TRAINING_PLAN == "yes" ]]; then
+            echo -e "\n${BLUE}=== Training Plan Configuration ===${NC}"
+            # aws iam attach-role-policy --role-name $ROLENAME --policy-arn arn:aws:iam::aws:policy/AmazonEC2FullAccess
+
+            TRAINING_PLAN=$(get_input "Enter the training plan name" "")
+
+            count=0
+            while true; do
+                # Attempt to describe the training plan
+                echo -e "${YELLOW}Attempting to retrieve training plan details...${NC}"
+                
+                if ! TRAINING_PLAN_DESCRIPTION=$(aws sagemaker describe-training-plan --training-plan-name "$TRAINING_PLAN" --output json 2>&1); then
+                    echo -e "${BLUE}❌Error: Training plan '$TRAINING_PLAN' not found. Please try again.${NC}"
+                    echo -e "${GREEN}Are you using training plans (Beta feature)? (yes/no)${NC}"
+                    read -e USE_TRAINING_PLAN
+                    if [[ $USE_TRAINING_PLAN != "yes" ]]; then
+                        echo -e "${YELLOW}Exiting training plan configuration.${NC}"
+                        break
+                    else
+                        TRAINING_PLAN=$(get_input "Enter the training plan name" "")   
+                    fi
+                else
+                    # Extract relevant information from the description
+                    TRAINING_PLAN_ARN=$(echo "$TRAINING_PLAN_DESCRIPTION" | jq -r '.TrainingPlanArn')
+                    AVAILABLE_INSTANCE_COUNT=$(echo "$TRAINING_PLAN_DESCRIPTION" | jq -r '.AvailableInstanceCount')
+                    TOTAL_INSTANCE_COUNT=$(echo "$TRAINING_PLAN_DESCRIPTION" | jq -r '.TotalInstanceCount')
+                    TRAINING_PLAN_AZ=$(echo "$TRAINING_PLAN_DESCRIPTION" | jq -r '.ReservedCapacitySummaries[0].AvailabilityZone')
+                    TP_INSTANCE_TYPE=$(echo "$TRAINING_PLAN_DESCRIPTION" | jq -r '.ReservedCapacitySummaries[0].InstanceType')
+
+                    CF_AZ=$(aws ec2 describe-subnets --subnet-ids $SUBNET_ID --output json | jq -r '.Subnets[0].AvailabilityZone')
+
+                    # Only print if count=0
+                    if [[ $count -eq 0 ]]; then
+                        echo -e "${GREEN}Training Plan Details:${NC}"
+                        echo -e "  ${YELLOW}Name:${NC} $TRAINING_PLAN"
+                        echo -e "  ${YELLOW}Available Instance Count:${NC} $AVAILABLE_INSTANCE_COUNT"
+                        echo -e "  ${YELLOW}Total Instance Count:${NC} $TOTAL_INSTANCE_COUNT"
+                        echo -e "  ${YELLOW}Training Plan Availability Zone:${NC} $TRAINING_PLAN_AZ"
+                        echo -e "  ${YELLOW}Training Plan Instance Type:${NC} $TP_INSTANCE_TYPE"
+                    fi
+
+                    # Compare INSTANCE_COUNT with AVAILABLE_INSTANCE_COUNT
+                    INSTANCE_COUNT_OK="n"
+                    if [[ $INSTANCE_COUNT -gt $AVAILABLE_INSTANCE_COUNT ]]; then
+                        echo -e "${YELLOW}Warning: The requested instance count ($INSTANCE_COUNT) is greater than the available instances in the training plan ($AVAILABLE_INSTANCE_COUNT).${NC}"
+                        echo -e "${BLUE}Do you want to continue anyway?(yes/no)${NC}"
+                        read -e CONTINUE
+                        if [[ $CONTINUE != "yes" ]]; then
+                            NEW_INSTANCE_COUNT=$(get_input "Enter the new number of instances" "1")
+                            # Update INSTANCE_GROUPS with new INSTANCE_COUNT for the current worker group
+                            INSTANCE_GROUPS=$(echo "$INSTANCE_GROUPS" | perl -pe '
+                                BEGIN {
+                                    $group = "worker-group-'"$WORKER_GROUP_COUNT"'";
+                                    $count = '"$NEW_INSTANCE_COUNT"';
+                                    $in_group = 0;
+                                }
+                                if (/"InstanceGroupName":\s*"$group"/) {
+                                    $in_group = 1;
+                                }
+                                if ($in_group && /"InstanceCount":\s*\d+/) {
+                                    s/("InstanceCount":\s*)\d+/$1$count/;
+                                    $in_group = 0;
+                                }
+                            ')
+                            INSTANCE_COUNT=$NEW_INSTANCE_COUNT
+                            echo -e "${GREEN}Updated instance count for worker-group-$WORKER_GROUP_COUNT to $INSTANCE_COUNT${NC}"
+                        fi
+                        INSTANCE_COUNT_OK="y"
+                    else
+                        INSTANCE_COUNT_OK="y"    
+                    fi
+
+                    if [[ $INSTANCE_COUNT_OK == "y" ]]; then
+                        INSTANCE_TYPE_OK="n"
+                        # Compare INSTANCE_TYPE with TP_INSTANCE_TYPE
+                        if [[ $INSTANCE_TYPE != $TP_INSTANCE_TYPE ]]; then
+                            echo -e "${YELLOW}Warning: The requested instance type ($INSTANCE_TYPE) does not match the instance type in the training plan ($TP_INSTANCE_TYPE).${NC}"
+                            echo -e "${BLUE}Do you want to continue anyway? If you choose "no", then the script will update instance type for you and proceed. (yes/no)${NC}"
+                            read -e CONTINUE
+                            if [[ $CONTINUE != "yes" ]]; then
+                                NEW_INSTANCE_TYPE=$TP_INSTANCE_TYPE
+                                # Update INSTANCE_GROUPS with new INSTANCE_TYPE for the current worker group
+                                INSTANCE_GROUPS=$(echo "$INSTANCE_GROUPS" | perl -pe '
+                                    BEGIN {
+                                        $group = "worker-group-'$WORKER_GROUP_COUNT'";
+                                        $type = "'$NEW_INSTANCE_TYPE'";
+                                        $in_group = 0;
+                                    }
+                                    if (/"InstanceGroupName":\s*"$group"/) {
+                                        $in_group = 1;
+                                    }
+                                    if ($in_group && /"InstanceType":\s*"[^"]*"/) {
+                                        s/("InstanceType":\s*")[^"]*"/$1$type"/;
+                                        $in_group = 0;
+                                    }
+                                ')
+                                INSTANCE_TYPE=$NEW_INSTANCE_TYPE
+                                echo -e "${GREEN}Updated instance type for worker-group-$WORKER_GROUP_COUNT to $INSTANCE_TYPE${NC}"
+                            fi
+                            INSTANCE_TYPE_OK="y"
+                        else
+                            INSTANCE_TYPE_OK="y"    
+                        fi       
+
+                        if [[ $INSTANCE_TYPE_OK == "y" ]]; then
+                            # Compare TRAINING_PLAN_AZ with CF_AZ
+                            if [[ $TRAINING_PLAN_AZ != $CF_AZ ]]; then
+                                echo -e "${YELLOW}Warning: The training plan availability zone ($TRAINING_PLAN_AZ) does not match the cluster availability zone ($CF_AZ).${NC}"
+                                echo -e "${BLUE}Do you want to continue anyway? (yes/no)${NC}"
+                                read -e CONTINUE
+                                if [[ $CONTINUE != "yes" ]]; then
+                                    echo -e "${YELLOW}Please ensure that your VPC is in the same Availability Zone as your training plan (or vice versa). If you used the workshop, this should be the CF stack \"sagemaker-hyperpod\". Exiting training plan configuration.${NC}"
+                                    continue
+                                fi
+                            fi
+                        fi  
+                    fi   
+
+                    echo -e "${GREEN}Adding Training Plan ARN to instance group configuration.${NC}"    
+                    INSTANCE_GROUPS+=",
+                    \"TrainingPlanArn\": \"$TRAINING_PLAN_ARN\""  
+                    break
+                fi
+                count+=1
+            done       
+        fi  
 
         INSTANCE_GROUPS+="
         }"  
@@ -468,7 +596,7 @@ EOL
 
     # upload data
     upload_to_s3() {
-        aws s3 cp provisioning_parameters.json s3://${BUCKET}/src/
+        aws s3 cp provisioning_parameters.json s3://${BUCKET}/src/ --output json
     }
 
     if error_output=$(upload_to_s3 2>&1); then
@@ -557,7 +685,8 @@ create_cluster() {
 
     if ! output=$(aws sagemaker create-cluster \
         --cli-input-json file://cluster-config.json \
-        --region $AWS_REGION 2>&1); then
+        --region $AWS_REGION \
+        --output json 2>&1); then
 
         echo -e "${YELLOW}⚠️  Error occurred while creating the cluster:${NC}"
         echo -e "${YELLOW}$output${NC}"
@@ -569,7 +698,7 @@ create_cluster() {
         # Command to create the cluster
         echo -e "${GREEN} aws sagemaker create-cluster \\"
         echo -e "${GREEN}    --cli-input-json file://cluster-config.json \\"
-        echo -e "${GREEN}    --region $AWS_REGION${NC}\n"
+        echo -e "${GREEN}    --region $AWS_REGION --output json${NC}\n"
 
         read -e -p "Select an option (Enter/Ctrl+C): " choice
 
@@ -602,7 +731,6 @@ goodbye() {
     # Exit message
     echo -e "\n${BLUE}Exiting script. Good luck with your SageMaker HyperPod journey! 👋${NC}\n"
 }  
-
 
 #===Main Script===
 main() {
@@ -672,7 +800,8 @@ main() {
     echo -e "${GREEN}Congratulations! You've completed all the preparatory steps.${NC}"
     echo -e "${YELLOW}Next Steps:${NC}"
 
-    read -e -p "Do you want the script to create the cluster for you now? (yes/no): " CREATE_CLUSTER
+    CREATE_CLUSTER=$(get_input "Do you want the script to create the cluster for you now? (yes/no):" "yes")
+    # read -e -p "Do you want the script to create the cluster for you now? (yes/no): " CREATE_CLUSTER
     if [[ "$CREATE_CLUSTER" == "yes" ]]; then
         warning
         create_cluster
@@ -683,7 +812,7 @@ main() {
         # Command to create the cluster
         echo -e "${GREEN} aws sagemaker create-cluster \\"
         echo -e "${GREEN}    --cli-input-json file://cluster-config.json \\"
-        echo -e "${GREEN}    --region $AWS_REGION${NC}\n"
+        echo -e "${GREEN}    --region $AWS_REGION --output json${NC}\n"
 
         echo -e "${YELLOW}To monitor the progress of cluster creation, you can either check the SageMaker console, or you can run:.${NC}"    
         echo -e "${GREEN}watch -n 1 aws sagemaker list-clusters --output table${NC}"
