@@ -1,7 +1,10 @@
 #!/bin/bash
 
-echo ""
-echo "Versions:"
+if [ -f /etc/os-release ]; then
+	echo ""
+	echo "OS info:"
+	cat /etc/os-release | head -n 4
+fi
 
 echo ""
 echo "Linux family:"
