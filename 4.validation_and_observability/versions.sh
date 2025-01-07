@@ -53,7 +53,7 @@ echo $LUSTRE_CLIENT_VERSION
 
 echo ""
 if [ -f /opt/amazon/efa_installed_packages ]; then
-	echo "EFA Installer version:"
+	echo "EFA version:"
 	EFA_LIBS=($(cat /opt/amazon/efa_installed_packages))
 	EFA_INSTALLER_VERSION=${EFA_LIBS[-1]}
 	echo $EFA_INSTALLER_VERSION
