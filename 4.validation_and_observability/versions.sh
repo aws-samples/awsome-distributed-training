@@ -31,6 +31,11 @@ if [ "$?" == "0" ]; then
 	OFI_NCCL_LIB=$(strings /opt/aws-ofi-nccl/lib/libnccl-net.so | grep "Initializing aws-ofi-nccl")
 	OFI_NCCL_VERSION=$(echo $OFI_NCCL_LIB | cut -d ' ' -f 4)
 	echo "AWS OFI NCCL version: $OFI_NCCL_VERSION"
+
+	if [ -f /usr/local/cuda/gds/tools/gdscheck ]; then
+		echo "NVIDIA GDS:"
+		/usr/local/cuda/gds/tools/gdscheck -v
+	fi
 else
 	echo "not present"
 fi
@@ -49,7 +54,7 @@ echo $LUSTRE_CLIENT_VERSION
 echo ""
 if [ -f /opt/amazon/efa_installed_packages ]; then
 	echo "EFA Installer version:"
-	EFA_LIBS=($(cat /opt/amazon/efa_installed_package))
+	EFA_LIBS=($(cat /opt/amazon/efa_installed_packages))
 	EFA_INSTALLER_VERSION=${EFA_LIBS[-1]}
 	echo $EFA_INSTALLER_VERSION
 
