@@ -17,7 +17,7 @@ else
 fi
 if [[ $GENERATE_KEYPAIR == 1 ]]; then
     echo Generate a new keypair...
-    ssh-keygen -t rsa -q -f id_rsa -N ""
+    ssh-keygen -t rsa  -b 4096 -q -f id_rsa -N ""
     cat id_rsa.pub >> authorized_keys
     # Set permissions for the ssh keypair
     chmod 600 id_rsa
