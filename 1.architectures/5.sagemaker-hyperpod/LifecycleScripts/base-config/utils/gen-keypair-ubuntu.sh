@@ -4,10 +4,20 @@ set -exuo pipefail
 
 mkdir -p /fsx/ubuntu/.ssh
 cd /fsx/ubuntu/.ssh
-{ test -f id_rsa && grep "^$(cat id_rsa.pub)$" authorized_keys &> /dev/null ; } && GENERATE_KEYPAIR=0 || GENERATE_KEYPAIR=1
+
+# Check if id_rsa exists
+if [ ! -f id_rsa ]; then
+    GENERATE_KEYPAIR=1
+else
+    GENERATE_KEYPAIR=0
+    # Check if id_rsa.pub exists in authorized_keys
+    if ! grep -qF "$(cat id_rsa.pub)" authorized_keys 2>/dev/null; then
+        # If not, add the public key to authorized_keys
+        cat id_rsa.pub >> authorized_keys
+fi
 if [[ $GENERATE_KEYPAIR == 1 ]]; then
     echo Generate a new keypair...
-    ssh-keygen -t rsa -q -f id_rsa -N ""
+    ssh-keygen -t rsa  -b 4096 -q -f id_rsa -N ""
     cat id_rsa.pub >> authorized_keys
     # Set permissions for the ssh keypair
     chmod 600 id_rsa
