@@ -14,6 +14,7 @@ else
     if ! grep -qF "$(cat id_rsa.pub)" authorized_keys 2>/dev/null; then
         # If not, add the public key to authorized_keys
         cat id_rsa.pub >> authorized_keys
+    fi
 fi
 if [[ $GENERATE_KEYPAIR == 1 ]]; then
     echo Generate a new keypair...
