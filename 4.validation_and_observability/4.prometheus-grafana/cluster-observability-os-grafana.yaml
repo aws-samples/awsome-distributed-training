@@ -8,15 +8,6 @@ Parameters:
     Description: "The latest Amazon Linux 2 AMI ID."
 
 Resources:
-  MySecurityGroup:
-    Type: "AWS::EC2::SecurityGroup"
-    Properties:
-      GroupDescription: "Allow ingress on port 3000 for Grafana access"
-      SecurityGroupIngress:
-        - IpProtocol: "tcp"
-          FromPort: 3000
-          ToPort: 3000
-          CidrIp: "0.0.0.0/0"
 
   GrafanaEC2Role:
     Type: "AWS::IAM::Role"
@@ -65,8 +56,6 @@ Resources:
       InstanceType: "t2.medium"
       ImageId: !Ref LatestAmiId
       IamInstanceProfile: !Ref MyInstanceProfile
-      SecurityGroupIds:
-        - !Ref MySecurityGroup
       BlockDeviceMappings:
         - DeviceName: "/dev/xvda"
           Ebs:
