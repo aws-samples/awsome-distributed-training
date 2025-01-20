@@ -206,6 +206,7 @@ mkdir -p /fsx/ubuntu/llama3_70B/pretrained_weight
 sbatch --job-name=convert-checkpoint --output=logs/convert-checkpoint.out \
        --wrap "\ 
               srun python convert_checkpoints.py \
+              --hw_backend trn1 \
               --tp_size 32 --pp_size 8 --n_layers 80 \
               --save_xser 1 \
               --kv_size_multiplier 4 \
