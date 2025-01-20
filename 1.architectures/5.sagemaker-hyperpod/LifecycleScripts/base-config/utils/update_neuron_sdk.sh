@@ -29,5 +29,5 @@ then
     # Remove pre-installed package and Install Neuron Tools
     sudo apt-get remove aws-neuron-tools  -y
     sudo apt-get remove aws-neuronx-tools  -y
-    sudo apt-get install aws-neuronx-tools=2.19.0.0 -y
+    sudo apt-get install aws-neuronx-tools=2.20.204.0 -y
 fi
