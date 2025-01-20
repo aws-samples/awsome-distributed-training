@@ -48,7 +48,7 @@ python -m pip install wget awscli huggingface_hub
 python -m pip install --upgrade neuronx-cc==2.* torch-neuronx==2.1.* torchvision neuronx_distributed-0.10.1 safetensors-0.5.2
 ```
 
-This test case tested with  Neuron SDK 2.19.1 which includes the following software stack:
+This test case tested with  Neuron SDK 2.21.0 which includes the following software stack:
 
 ```bash
 $ srun -N1 dpkg -l | grep neuron This command runs on a compute instance (trn1.32xlarge)
