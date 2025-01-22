@@ -1,13 +1,15 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 
-FROM nvcr.io/nvidia/pytorch:24.08-py3
+FROM nvcr.io/nvidia/pytorch:25.01-py3
 
 ARG GDRCOPY_VERSION=v2.4.1
-ARG EFA_INSTALLER_VERSION=1.34.0
-ARG AWS_OFI_NCCL_VERSION=v1.11.0-aws
-ARG TRANSFORMERS_VERSION=4.44.2
-ARG MEGATRON_LM_VERSION=core_r0.8.0
+ARG EFA_INSTALLER_VERSION=1.37.0
+ARG AWS_OFI_NCCL_VERSION=v1.13.2-aws
+ARG NCCL_VERSION=v2.23.4-1
+ARG NCCL_TESTS_VERSION=v2.13.10
+ARG MEGATRON_LM_VERSION=core_r0.10.0
+ARG TRANSFORMERS_VERSION=4.48.1
 
 ARG OPEN_MPI_PATH=/opt/amazon/openmpi
 
@@ -109,7 +111,7 @@ RUN rm -rf /var/lib/apt/lists/*
 RUN echo "hwloc_base_binding_policy = none" >> /opt/amazon/openmpi/etc/openmpi-mca-params.conf \
  && echo "rmaps_base_mapping_policy = slot" >> /opt/amazon/openmpi/etc/openmpi-mca-params.conf
 
-RUN pip3 install awscli pynvml
+RUN pip3 install awscli pynvml wandb
 
 RUN mv $OPEN_MPI_PATH/bin/mpirun $OPEN_MPI_PATH/bin/mpirun.real \
  && echo '#!/bin/bash' > $OPEN_MPI_PATH/bin/mpirun \
@@ -125,10 +127,11 @@ RUN pip install transformers==${TRANSFORMERS_VERSION} sentencepiece python-etcd
 # Install megatron-lm
 #####################
 RUN pip install -U setuptools==75.1.0
+RUN apt-get remove -y python3-blinker # https://github.com/triton-inference-server/server/issues/7243
 RUN cd /workspace && git clone --depth 1 --branch ${MEGATRON_LM_VERSION} https://github.com/NVIDIA/Megatron-LM.git \
     && cd Megatron-LM \
     && python3 -m pip install nltk  \
-    && python -m pip install .
+    && python3 -m pip install .
 
 ## Set Open MPI variables to exclude network interface and conduit.
 ENV OMPI_MCA_pml=^cm,ucx            \
