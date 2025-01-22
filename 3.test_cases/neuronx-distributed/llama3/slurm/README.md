@@ -45,12 +45,21 @@ python -m pip config set global.extra-index-url https://pip.repos.neuron.amazona
 python -m pip install wget awscli huggingface_hub 
 
 # Install Neuron Compiler and Framework
-python -m pip install --upgrade neuronx-cc==2.* torch-neuronx==2.1.* torchvision neuronx_distributed-0.10.1 safetensors-0.5.2
+python -m pip install --upgrade neuronx-cc==2.* torch-neuronx==2.1.* torchvision
+
+#Install the neuronx-distributed package 
+python -m pip install neuronx_distributed --extra-index-url https://pip.repos.neuron.amazonaws.com
 ```
 
 This test case tested with  Neuron SDK 2.21.0 which includes the following software stack:
 
 ```bash
+(aws_neuron_venv_pytorch) ubuntu:~$ pip list | grep neuron
+libneuronxla              2.1.714.0
+neuronx-cc                2.16.372.0+4a9b2326
+neuronx-distributed       0.10.1
+torch-neuronx             2.1.2.2.4.0
+
 $ srun -N1 dpkg -l | grep neuron This command runs on a compute instance (trn1.32xlarge)
 ii  aws-neuronx-collectives                2.23.133.0-3e70920f2                  amd64        neuron_ccom built using CMake
 ii  aws-neuronx-dkms                       2.19.64.0                             amd64        aws-neuronx driver in DKMS format.
@@ -111,7 +120,7 @@ source /fsx/ubuntu/aws_neuron_venv_pytorch/bin/activate
 
 ### Step1: Download llama3 model and tokenizer
 
-First, create a Hugging Face account to retrieve a [token](https://huggingface.co/settings/tokens.). Log in to your account and create an access token from Hugging Face Tokens. Then apply for Llama3 weight access from [Meta-Llama-3.1-70B](https://huggingface.co/meta-llama/Meta-Llama-3.1-70B) page.
+First, create a Hugging Face account to retrieve a [token](https://huggingface.co/settings/tokens.). Log in to your account and create an access token from Hugging Face Tokens. Then apply for Llama3 weight access from [Meta-Llama-3-70B](https://huggingface.co/meta-llama/Meta-Llama-3-70B) page.
 
 Save the token onto the head node and download the Llama model:
 
@@ -141,13 +150,13 @@ Now you are ready to grab llama3 model weights:
 
 
 ```bash
-huggingface-cli download meta-llama/Meta-Llama-3.1-70B --local-dir /fsx/ubuntu/Meta-Llama-3.1-70B
+huggingface-cli download meta-llama/Meta-Llama-3-70B --local-dir /fsx/ubuntu/Meta-Llama-3-70B
 ```
 
 Once the download process is completed, you will see the following structure:
 
 ```bash
-/fsx/ubuntu/Meta-Llama-3.1-70B/
+/fsx/ubuntu/Meta-Llama-3-70B/
 ├── LICENSE
 ├── README.md
 ├── USE_POLICY.md
@@ -171,7 +180,7 @@ Once the download process is completed, you will see the following structure:
 Copy tokenizer configs under the test case repository.
 
 ```bash
-cp /fsx/ubuntu/Meta-Llama-3.1-70B/*token* /fsx/ubuntu/llama
+cp /fsx/ubuntu/Meta-Llama-3-70B/*token* /fsx/ubuntu/llama
 ```
 #### Convert Llama3 model weighs
 
@@ -183,7 +192,7 @@ Neuron Distributed requires its checkpoints to be pre-sharded based on the paral
 First, we need to save the original checkpoint into a single binary file. Below is a small script named `save-llama3-70B-model.py` to accomplish this:
 
 ```
-cat <<EOF > save-llama3-70B-model.py
+cat > save-llama3-70B-model.py << EOF
 from transformers import AutoTokenizer, AutoModelForCausalLM
 import torch
 
@@ -211,6 +220,7 @@ sbatch --job-name=convert-checkpoint --output=logs/convert-checkpoint.out \
               --save_xser 1 \
               --kv_size_multiplier 4 \
               --qkv_linear 1 \
+              --fuse_qkv True \
               --input_dir /fsx/ubuntu/llama-3-70b.pt \
               --output_dir /fsx/ubuntu/llama3_70B/pretrained_weight \
               --config /fsx/ubuntu/Meta-Llama-3-70B/config.json \
@@ -251,26 +261,25 @@ The resultant checkpoints will be used in the next continual pretraining stage.
 Next, we will download `wiki-corpus` dataset and tokenize it for later training with `get_dataset.py` script inside the `llama` directory. We use `sbatch`  command to submit the data processing job to the cluster:
 
 ```bash
-sbatch --job-name=get_dataset --output=logs/get_dataset.out \
-       --wrap="srun python get_dataset.py --llama-version 3"
-```
-
-It will create a job named `get_dataset`  and dump outputs into `logs/get_dataset.out` . You can track the progress with the following command:
-
-```bash
-tail -f logs/get_dataset.out 
+python3 get_dataset.py --llama-version 3
 ```
 
 The example output is as follows:
 
 ```bash
-Downloading data: 100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1.35G/1.35G [02:57<00:00, 7.60MB/s]
-Generating train split: 100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1359146/1359146 [01:11<00:00, 19136.12 examples/s]
-Running tokenizer on dataset:  37%|██████████████████████████████████████████████████████████████▌                                                                                                            | 497000/1359146 [02:53<05:13, 2753.71 examples/s]Token indices sequence length is longer than the specified maximum sequence length for this model (172677 > 131072). Running this sequence through the model will result in indexing errors
-Running tokenizer on dataset: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1359146/1359146 [07:31<00:00, 3011.73 examples/s]
-Grouping texts in chunks of 8192: 100%|██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1359146/1359146 [10:21<00:00, 2187.64 examples/s]
+$ python get_dataset.py --llama-version 3
+The repository for wikicorpus contains custom code which must be executed to correctly load the dataset. You can inspect the repository content at https://hf.co/datasets/wikicorpus.
+You can avoid this prompt in future by passing the argument `trust_remote_code=True`.
+
+Do you wish to run the custom code? [y/N] y
+Downloading data: 100%|███████████████████████████████████████████████████████████████████████████████████████████| 1.35G/1.35G [03:02<00:00, 7.36MB/s]
+Generating train split: 100%|██████████████████████████████████████████████████████████████████████| 1359146/1359146 [01:12<00:00, 18644.90 examples/s]
+Running tokenizer on dataset:  37%|████████████████████████▏                                         | 497000/1359146 [02:28<04:18, 3341.01 examples/s]
+Token indices sequence length is longer than the specified maximum sequence length for this model (172677 > 131072). Running this sequence through the model will result in indexing errors
+Running tokenizer on dataset: 100%|█████████████████████████████████████████████████████████████████| 1359146/1359146 [06:45<00:00, 3352.65 examples/s]
+Grouping texts in chunks of 8192: 100%|█████████████████████████████████████████████████████████████| 1359146/1359146 [09:48<00:00, 2308.18 examples/s]
 94025
-Saving the dataset (21/21 shards): 100%|█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 94025/94025 [00:22<00:00, 4121.42 examples/s]
+Saving the dataset (21/21 shards): 100%|████████████████████████████████████████████████████████████████| 94025/94025 [00:18<00:00, 4951.30 examples/s]
 ```
 
 and resultant data will be saved under `/fsx/ubuntu/examples_datasets` directory.
@@ -320,6 +329,7 @@ Before submitting the job, we need to modify a few arguments in `torchrun`  in `
 ```bash
 torchrun $DISTRIBUTED_ARGS run_llama_nxd.py \
         ...
+        --fuse_qkv 1 \
         --pretrained_weight 1 \ # Change value
         ...
         --checkpoint_freq 5 \ # change value
