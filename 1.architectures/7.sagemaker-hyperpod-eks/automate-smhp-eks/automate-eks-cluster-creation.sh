@@ -472,7 +472,7 @@ setup_env_vars() {
     unset EKS_CLUSTER_NAME EKS_CLUSTER_ARN BUCKET_NAME EXECUTION_ROLE VPC_ID SUBNET_ID SECURITY_GROUP HP_CLUSTER_NAME ACCEL_INSTANCE_TYPE ACCEL_COUNT ACCEL_VOLUME_SIZE GEN_INSTANCE_TYPE GEN_COUNT GEN_VOLUME_SIZE NODE_RECOVERY
 
     echo -e "${BLUE}Enter the name of the SageMaker VPC CloudFormation stack that was deployed as a prerequisite (default: hyperpod-eks-full-stack):${NC}"
-    read -e STACK_ID
+    read -e STACK_ID_VPC
     export STACK_ID=${STACK_ID_VPC:-hyperpod-eks-full-stack}
 
     if [ "$STACK_ID" != "hyperpod-eks-full-stack" ]; then
