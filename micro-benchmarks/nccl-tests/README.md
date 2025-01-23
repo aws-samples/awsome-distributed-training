@@ -323,7 +323,7 @@ This section demonstrates NCCL tests tips and tricks useful to diagnose cluster 
 
 #### Test EFA 
 
-You can force inter-GPU communications to go through EFA with the following environment variables:
+You can force inter-GPU communications to go through EFA network interfaces instead of shared memory of NVLink with the following environment variables:
 
 
 ```bash
