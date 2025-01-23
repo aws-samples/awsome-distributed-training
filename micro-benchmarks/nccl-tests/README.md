@@ -316,3 +316,20 @@ The formula defines the maximum theoretical bandwidth that can be achieved on di
 * `t` : time to complete the operation. (similar to sec for Algbw and Busbw)
 * `S` : number of elements being communicated (similar to count for Algbw and Busbw)
 * `B` : theoretical peak bandwidth.
+
+## 4. Tips and Tricks
+
+This section demonstrates NCCL tests tips and tricks useful to diagnose cluster nodes.
+
+#### Test EFA 
+
+You can force inter-GPU communications to go through EFA with the following environment variables:
+
+
+```bash
+# NCCL Environment force disable P2P through NVlink, PCI and SHM.
+export NCCL_P2P_DISABLE=1
+export NCCL_SHM_DISABLE=1
+export NCCL_NVLS_ENABLE=0
+export NCCL_NET='AWS Libfabric'
+```
