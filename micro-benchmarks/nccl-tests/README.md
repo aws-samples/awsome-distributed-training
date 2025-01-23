@@ -327,6 +327,11 @@ You can force inter-GPU communications to go through EFA with the following envi
 
 
 ```bash
+#Single node EFA
+# libfabric flags
+export FI_PROVIDER=efa
+export FI_EFA_USE_DEVICE_RDMA=1
+
 # NCCL Environment force disable P2P through NVlink, PCI and SHM.
 export NCCL_P2P_DISABLE=1
 export NCCL_SHM_DISABLE=1
