@@ -49,7 +49,10 @@ cd $SLURM_INSTALL_DIR/pyxis/
 CPPFLAGS='-I /opt/slurm/include/' make -j $(nproc)
 CPPFLAGS='-I /opt/slurm/include/' make install
 mkdir -p $SLURM_INSTALL_DIR/etc/plugstack.conf.d/
-echo -e "include $SLURM_INSTALL_DIR/etc/plugstack.conf.d/pyxis.conf" >> $SLURM_INSTALL_DIR/etc/plugstack.conf
+# Check if the line exists before adding it to handle multi headnode conf
+if ! grep -q "include $SLURM_INSTALL_DIR/etc/plugstack.conf.d/pyxis.conf" "$SLURM_INSTALL_DIR/etc/plugstack.conf"; then
+    echo -e "include $SLURM_INSTALL_DIR/etc/plugstack.conf.d/pyxis.conf" >> $SLURM_INSTALL_DIR/etc/plugstack.conf
+fi
 ln -fs /usr/local/share/pyxis/pyxis.conf $SLURM_INSTALL_DIR/etc/plugstack.conf.d/pyxis.conf
 
 mkdir -p /run/pyxis/ /tmp/enroot/data /opt/enroot/
