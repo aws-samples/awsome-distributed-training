@@ -11,9 +11,6 @@ wget -qO - https://apt.repos.neuron.amazonaws.com/GPG-PUB-KEY-AMAZON-AWS-NEURON.
 # Update OS packages
 sudo apt-get update -y
 
-# Install git
-sudo apt-get install git -y
-
 # Remove preinstalled packages and Install Neuron Driver and Runtime
 sudo apt-get remove aws-neuron-dkms -y
 sudo apt-get remove aws-neuronx-dkms -y

@@ -19,7 +19,7 @@ In this step, you will prepare the software stack and scripts needed for the nex
 
 #### Python virtual environment preparation
 
-First, we create python virtual environment installing `torch-neuronx` and `neuronx-distributed` .
+First, you will create python virtual environment to install `torch-neuronx` and `neuronx-distributed` .
 
 ```bash
 # Install Python venv 
@@ -31,12 +31,6 @@ python3.8 -m venv /fsx/ubuntu/aws_neuron_venv_pytorch
 # Activate Python venv 
 source /fsx/ubuntu/aws_neuron_venv_pytorch/bin/activate 
 python -m pip install -U pip 
-
-# Install Jupyter notebook kernel
-pip install ipykernel 
-python3.8 -m ipykernel install --user --name aws_neuron_venv_pytorch --display-name "Python (torch-neuronx)"
-pip install jupyter notebook
-pip install environment_kernels
 
 # Set pip repository pointing to the Neuron repository 
 python -m pip config set global.extra-index-url https://pip.repos.neuron.amazonaws.com
