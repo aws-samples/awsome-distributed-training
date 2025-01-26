@@ -54,7 +54,7 @@ neuronx-cc                2.16.372.0+4a9b2326
 neuronx-distributed       0.10.1
 torch-neuronx             2.1.2.2.4.0
 
-$ srun -N1 dpkg -l | grep neuron This command runs on a compute instance (trn1.32xlarge)
+$ srun -N1 dpkg -l | grep neuron # This command runs on a compute instance (trn1.32xlarge)
 ii  aws-neuronx-collectives                2.23.133.0-3e70920f2                  amd64        neuron_ccom built using CMake
 ii  aws-neuronx-dkms                       2.19.64.0                             amd64        aws-neuronx driver in DKMS format.
 ii  aws-neuronx-oci-hook                   2.6.36.0                              amd64        neuron_oci_hook built using CMake
@@ -440,7 +440,7 @@ sbatch --job-name run_llama3_70B \
        --wrap="srun bash $(pwd)/run_llama3_70B_tp_pp.sh"
 ```
 
-If you are on HyperPod add the `--auto-resume=1` flag as follows:
+If you are on HyperPod add the `--auto-resume=1` flag as follows to indicate that the `srun` command should be automatically retried in case of hardware failure:
 ```bash
 sbatch --job-name run_llama3_70B \
        --output logs/run_llama3_70B.out \
