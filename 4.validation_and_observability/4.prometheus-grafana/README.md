@@ -9,7 +9,7 @@ To get started, you will initiate the provisioning of an Amazon CloudFormation S
   * [Amazon Managed Grafana Workspace](https://aws.amazon.com/grafana/)
   * Associated IAM roles and permissions
 
-If you are using an environment which does not allow to use IAM Identity Center, consider alternative OS grafana option. TODO: update doc
+If you are using an environment which does not allow to use IAM Identity Center or SAML, consider [alternative OS grafana option](./README-OS-grafana.md).
 
 ![observability_architecture](./assets/observability_architecture.png)
 
