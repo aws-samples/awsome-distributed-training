@@ -25,6 +25,7 @@ Metadata:
           default: General configuration
         Parameters:
           - VPCName
+          - SSMDocumentName
       - Label:
           default: Availability Zone configuration for the subnets
         Parameters:
@@ -45,6 +46,8 @@ Metadata:
     ParameterLabels:
       VPCName:
         default: Name of your VPC
+      SSMDocumentName:
+        default: True/False; Create SSM Session Manager Document. Only set to False if SSM-SessionManagerRunShellAsUbuntu document exists in your account.
       PrimarySubnetAZ:
         default: Availability zone id to deploy the primary subnets
       BackupSubnetAZ:
@@ -118,6 +121,14 @@ Parameters:
       - "2.12"
     Default: "2.15"
 
+  SSMDocumentName:
+    Type: String
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Description: Boolean on whether or not to create the SSM Session Manager Document (choose false only if it already exists in your account).
+
 ###############################
 ## Conditions for Parameters ##
 ###############################
@@ -125,6 +136,7 @@ Parameters:
 Conditions:
   S3EndpointCondition: !Equals [!Ref 'CreateS3Endpoint', 'true']
   BackupSubnetCondition: !Not [ !Equals [!Ref 'BackupSubnetAZ', ''] ]
+  CreateSSMDocument: !Equals [!Ref 'SSMDocumentName', 'true']
 
 
 ##########################
@@ -445,6 +457,7 @@ Resources:
 
   SSMSessionManagerRunShellAsUbuntu:
     Type: AWS::SSM::Document
+    Condition: CreateSSMDocument
     Properties:
       Name: "SSM-SessionManagerRunShellAsUbuntu"
       DocumentType: "Session"
@@ -512,7 +525,6 @@ Outputs:
     Value: !GetAtt AmazonSagemakerClusterExecutionRole.Arn
     Export:
       Name: !Sub ${AWS::StackName}-AmazonSagemakerClusterExecutionRoleArn
-
   AmazonS3BucketName:
     Description: The S3 bucket where Lifecycle scripts are stored
     Value: !Ref LCScriptsBucket
