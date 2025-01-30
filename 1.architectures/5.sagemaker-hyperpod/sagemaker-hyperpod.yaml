@@ -48,7 +48,7 @@ Metadata:
       PrimarySubnetAZ:
         default: Availability zone id to deploy the primary subnets
       BackupSubnetAZ:
-        default: Availability zone id to deploy the backup private subnet
+        default: (Optional) Availability zone id to deploy the backup private subnet
       CreateS3Endpoint:
         default: Create an S3 endpoint
 
@@ -70,7 +70,7 @@ Parameters:
   BackupSubnetAZ:
     Description: Availability zone id in which the backup private subnet will be created. Specify it when you need multiple AZs for other AWS services (e.g. AWS Directory Service). Leave empty if you don't need it.
     Type: String
-    Default: usw2-az1
+    Default: ''
 
   CreateS3Endpoint:
     AllowedValues:
@@ -487,11 +487,6 @@ Outputs:
     Description: ID of the primary private subnet
     Export:
       Name: !Sub ${AWS::StackName}-PrimaryPrivateSubnet
-  BackupPrivateSubnet:
-    Value: !Ref BackupPrivateSubnet
-    Description: ID of the backup private subnet
-    Export:
-      Name: !Sub ${AWS::StackName}-BackupPrivateSubnet
   SecurityGroup:
     Value: !Ref SecurityGroup
     Description: SecurityGroup for Batch
