@@ -81,5 +81,5 @@ if [ -d "/opt/sagemaker_cluster" ]; then
     AUTO_RESUME="--auto-resume=1"
 fi
 export LD_PRELOAD=/opt/nccl/build/lib/libnccl.so
-export export NCCL_SOCKET_IFNAME=^docker,lo,veth_def_agent,eth
+export NCCL_SOCKET_IFNAME=^docker,lo,veth_def_agent,eth
 srun ${AUTO_RESUME} -l ${TORCHRUN} "${TORCHRUN_ARGS[@]}" $TRAIN_SCRIPT "${TRAINING_ARGS[@]}"
