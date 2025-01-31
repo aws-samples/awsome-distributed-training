@@ -80,6 +80,6 @@ if [ -d "/opt/sagemaker_cluster" ]; then
     echo "Detected Hyperpod cluster.. enabling --auto-resume=1"
     AUTO_RESUME="--auto-resume=1"
 fi
-export LD_PRELOAD=/opt/nccl/build/lib/libnccl.so
+export LD_PRELOAD=/usr/local/cuda-12.1/lib/libnccl.so
 export NCCL_SOCKET_IFNAME=^docker,lo,veth_def_agent,eth
 srun ${AUTO_RESUME} -l ${TORCHRUN} "${TORCHRUN_ARGS[@]}" $TRAIN_SCRIPT "${TRAINING_ARGS[@]}"
