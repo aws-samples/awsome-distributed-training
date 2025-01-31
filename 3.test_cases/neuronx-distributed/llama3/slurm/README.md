@@ -19,11 +19,12 @@ In this step, you will prepare the software stack and scripts needed for the nex
 
 #### Python virtual environment preparation
 
-First, we create python virtual environment installing `torch-neuronx` and `neuronx-distributed` .
+First, you will create python virtual environment to install `torch-neuronx` and `neuronx-distributed` .
 
 ```bash
-# Install Python
-sudo apt-get install -y python3.8 python3.8-venv
+# Install Python venv 
+sudo apt-get install -y python3.8-venv g++ 
+
 # Create Python venv
 python3.8 -m venv /fsx/ubuntu/aws_neuron_venv_pytorch 
 
@@ -31,24 +32,34 @@ python3.8 -m venv /fsx/ubuntu/aws_neuron_venv_pytorch
 source /fsx/ubuntu/aws_neuron_venv_pytorch/bin/activate 
 python -m pip install -U pip 
 
-# Install wget, awscli, and huggingface-cli
-python -m pip install wget awscli huggingface_hub
-
 # Set pip repository pointing to the Neuron repository 
 python -m pip config set global.extra-index-url https://pip.repos.neuron.amazonaws.com
+
+# Install wget, awscli, and huggingface-cli 
+python -m pip install wget awscli huggingface_hub 
+
 # Install Neuron Compiler and Framework
-python -m pip install torch-neuronx=="1.13.1.1.15.0" neuronx-cc=="2.14.213.0" neuronx_distributed=="0.8.0" torchvision
+python -m pip install --upgrade neuronx-cc==2.* torch-neuronx==2.1.* torchvision
+
+#Install the neuronx-distributed package 
+python -m pip install neuronx_distributed --extra-index-url https://pip.repos.neuron.amazonaws.com
 ```
 
-This test case tested with  Neuron SDK 2.19.1 which includes the following software stack:
+This test case tested with  Neuron SDK 2.21.0 which includes the following software stack:
 
 ```bash
+(aws_neuron_venv_pytorch) ubuntu:~$ pip list | grep neuron
+libneuronxla              2.1.714.0
+neuronx-cc                2.16.372.0+4a9b2326
+neuronx-distributed       0.10.1
+torch-neuronx             2.1.2.2.4.0
+
 $ srun -N1 dpkg -l | grep neuron # This command runs on a compute instance (trn1.32xlarge)
-aws-neuronx-collectives 2.21.46.0-69b77134b amd64 neuron_ccom built using CMake
-aws-neuronx-dkms 2.17.17.0 amd64 aws-neuronx driver in DKMS format.
-aws-neuronx-oci-hook 2.4.4.0 amd64 neuron_oci_hook built using CMake
-aws-neuronx-runtime-lib 2.21.41.0-fb1705f5f amd64 neuron_runtime built using CMake
-aws-neuronx-tools 2.18.3.0 amd64 Neuron profile and debug tools
+ii  aws-neuronx-collectives                2.23.133.0-3e70920f2                  amd64        neuron_ccom built using CMake
+ii  aws-neuronx-dkms                       2.19.64.0                             amd64        aws-neuronx driver in DKMS format.
+ii  aws-neuronx-oci-hook                   2.6.36.0                              amd64        neuron_oci_hook built using CMake
+ii  aws-neuronx-runtime-lib                2.23.110.0-9b5179492                  amd64        neuron_runtime built using CMake
+ii  aws-neuronx-tools                      2.20.204.0                            amd64        Neuron profile and debug tools
 ```
 
 
@@ -65,7 +76,6 @@ then copy the llama3 test case under home directory, then move to the directory:
 
 ```bash
 cp -r /fsx/ubuntu/neuronx-distributed/examples/training/llama /fsx/ubuntu/llama
-cp /fsx/ubuntu/neuronx-distributed/examples/training/checkpoint_converter.py /fsx/ubuntu/llama
 cd /fsx/ubuntu/llama
 ```
 
@@ -164,9 +174,8 @@ Once the download process is completed, you will see the following structure:
 Copy tokenizer configs under the test case repository.
 
 ```bash
-cp /fsx/ubuntu/Meta-Llama-3-70B/tokenizer* /fsx/ubuntu/llama
+cp /fsx/ubuntu/Meta-Llama-3-70B/*token* /fsx/ubuntu/llama
 ```
-
 #### Convert Llama3 model weighs
 
 Neuron Distributed requires its checkpoints to be pre-sharded based on the parallel processing configuration (tensor parallel degree and pipeline parallel degree). This preprocessing involves two main steps:
@@ -177,7 +186,7 @@ Neuron Distributed requires its checkpoints to be pre-sharded based on the paral
 First, we need to save the original checkpoint into a single binary file. Below is a small script named `save-llama3-70B-model.py` to accomplish this:
 
 ```
-cat <<EOF > save-llama3-70B-model.py
+cat > save-llama3-70B-model.py << EOF
 from transformers import AutoTokenizer, AutoModelForCausalLM
 import torch
 
@@ -198,12 +207,14 @@ Next, we use the `convert_checkpoints.py` script to shard the checkpoints. Execu
 ```bash
 mkdir -p /fsx/ubuntu/llama3_70B/pretrained_weight
 sbatch --job-name=convert-checkpoint --output=logs/convert-checkpoint.out \
-       --wrap "\
+       --wrap "\ 
               srun python convert_checkpoints.py \
+              --hw_backend trn1 \
               --tp_size 32 --pp_size 8 --n_layers 80 \
               --save_xser 1 \
               --kv_size_multiplier 4 \
               --qkv_linear 1 \
+              --fuse_qkv True \
               --input_dir /fsx/ubuntu/llama-3-70b.pt \
               --output_dir /fsx/ubuntu/llama3_70B/pretrained_weight \
               --config /fsx/ubuntu/Meta-Llama-3-70B/config.json \
@@ -227,7 +238,6 @@ Saving to /fsx/ubuntu/llama3_70B/pretrained_weight/model/dp_rank_00_tp_rank_00_p
 Saving to /fsx/ubuntu/llama3_70B/pretrained_weight/model/dp_rank_00_tp_rank_00_pp_rank_05.pt
 ...
 ```
-
 This process will shard the model per tensor parallel and pipeline parallel dimensions. In this case, we have `32x8=256` checkpoints.
 Verify the number of checkpoints with:
 
@@ -238,35 +248,35 @@ ls /fsx/ubuntu/llama3_70B/pretrained_weight/model/dp_rank_*_tp_rank_*_pp_rank_*.
 
 As mentioned in the introduction of this section, the sharding ought to take hardware and cluster setup into account. Specifically, in our example, we have 16 trn1.32xlarge instances deployed on the HyperPod cluster. Each trn1.32xlarge instance has 16 Trainium Neuron Devices, each with 2 NeuronCore-v2, totaling 32 NeuronCore-v2 per instance, and 512 NeuronCore-v2 in the entire cluster.
 We divide the Llama3-70B model’s 80 layers into different stages, each containing the first 10 layers, second 10 layers, ..., 8th 10 layers, and assign them to 8 Trn1 instances. Each stage is further split with Tensor Parallelism, dividing the stage’s parameters across 32 NeuronCore-v2. Since we will have two replicas of the sharded models, we employ data parallelism with a degree of two to speed up the training process.
-The resultant checkpoints will be used in the next continual pretraining stage. 
+The resultant checkpoints will be used in the next continual pretraining stage.
 
 ### **Step 2: Download and preprocess wiki-corpus datasets**
 
 Next, we will download `wiki-corpus` dataset and tokenize it for later training with `get_dataset.py` script inside the `llama` directory. We use `sbatch`  command to submit the data processing job to the cluster:
 
 ```bash
-sbatch --job-name=get_dataset --output=logs/get_dataset.out \
-       --wrap="srun python get_dataset.py"
-```
-
-It will create a job named `get_dataset`  and dump outputs into `logs/get_dataset.out` . You can track the progress with the following command:
-
-```bash
-tail -f logs/get_dataset.out 
+python3 get_dataset.py --llama-version 3
 ```
 
 The example output is as follows:
 
 ```bash
-Downloading data: 100%|██████████| 1.35G/1.35G [02:49<00:00, 7.94MB/s] 
-Generating train split: 100%|██████████| 1359146/1359146 [01:11<00:00, 19139.43 examples/s]
-Running tokenizer on dataset: 100%|██████████| 1359146/1359146 [07:13<00:00, 3132.18 examples/s]
-Grouping texts in chunks of 8192: 100%|██████████| 1359146/1359146 [10:19<00:00, 2194.09 examples/s]
+$ python get_dataset.py --llama-version 3
+The repository for wikicorpus contains custom code which must be executed to correctly load the dataset. You can inspect the repository content at https://hf.co/datasets/wikicorpus.
+You can avoid this prompt in future by passing the argument `trust_remote_code=True`.
+
+Do you wish to run the custom code? [y/N] y
+Downloading data: 100%|███████████████████████████████████████████████████████████████████████████████████████████| 1.35G/1.35G [03:02<00:00, 7.36MB/s]
+Generating train split: 100%|██████████████████████████████████████████████████████████████████████| 1359146/1359146 [01:12<00:00, 18644.90 examples/s]
+Running tokenizer on dataset:  37%|████████████████████████▏                                         | 497000/1359146 [02:28<04:18, 3341.01 examples/s]
+Token indices sequence length is longer than the specified maximum sequence length for this model (172677 > 131072). Running this sequence through the model will result in indexing errors
+Running tokenizer on dataset: 100%|█████████████████████████████████████████████████████████████████| 1359146/1359146 [06:45<00:00, 3352.65 examples/s]
+Grouping texts in chunks of 8192: 100%|█████████████████████████████████████████████████████████████| 1359146/1359146 [09:48<00:00, 2308.18 examples/s]
 94025
-Saving the dataset (21/21 shards): 100%|██████████| 94025/94025 [00:18<00:00, 5139.19 examples/s]
+Saving the dataset (21/21 shards): 100%|████████████████████████████████████████████████████████████████| 94025/94025 [00:18<00:00, 4951.30 examples/s]
 ```
 
-and resultant data will be saved under `examples_datasets` directory.
+and resultant data will be saved under `/fsx/ubuntu/examples_datasets` directory.
 
 ```bash
 /fsx/ubuntu/examples_datasets/wikicorpus_llama3_tokenized_8k/
@@ -313,6 +323,7 @@ Before submitting the job, we need to modify a few arguments in `torchrun`  in `
 ```bash
 torchrun $DISTRIBUTED_ARGS run_llama_nxd.py \
         ...
+        --fuse_qkv 1 \
         --pretrained_weight 1 \ # Change value
         ...
         --checkpoint_freq 5 \ # change value
@@ -321,22 +332,120 @@ torchrun $DISTRIBUTED_ARGS run_llama_nxd.py \
         --tb_dir $tb_dir |& tee $LOG_PATH/log
 exit ${PIPESTATUS[0]}        
 ```
-
-Using the updated `run_llama3_70B_tp_pp.sh` script, submit the training job as follows:
-
-```bash
+Using the updated `run_llama3_70B_tp_pp.sh` script, we first pre-compile the graphs using the neuron_parallel_compile. Let’s run the command below:
+```
 sbatch --job-name run_llama3_70B \
        --output logs/run_llama3_70B.out \
        --exclusive --nodes 16 \
-       --wrap="srun bash run_llama3_70B_tp_pp.sh"
+       --cpus-per-task 64 \
+       --wrap="srun neuron_parallel_compile bash $(pwd)/run_llama3_70B_tp_pp.sh"
+```
+The 1st-time compilation effort could take up to 25 min. After the compilation completes, it is expected to see this output:
+```
+.........
+Compiler status PASS
+2025-01-17 01:16:07.000934:  42821  INFO ||NEURON_PARALLEL_COMPILE||: worker 6 finished with num of tasks 1....
+2025-01-17 01:16:07.000970:  42821  INFO ||NEURON_CACHE||: Current remaining items are 0, locked are 2, failed are 0, done are 32, total is 34
+2025-01-17 01:16:07.000981:  32201  INFO ||NEURON_PARALLEL_COMPILE||: {
+    "compilation_summary": {
+        "true": 2
+    },
+    "compilation_report": {
+        "/fsx/ubuntu/cache_dir_neuron/neuronxcc-2.16.372.0+4a9b2326/MODULE_9993940051196728623+3cc9a3cb/model.hlo_module.pb": {
+            "status": true,
+            "retry": 0,
+            "compile_time": 9.770226240158081
+        },
+        "/fsx/ubuntu/cache_dir_neuron/neuronxcc-2.16.372.0+4a9b2326/MODULE_7470829644182149778+3cc9a3cb/model.hlo_module.pb": {
+            "status": true,
+            "retry": 0,
+            "compile_time": 192.86727905273438
+        }
+    },
+    "start_time": 1737076372.654127,
+    "compilation_time": 195.32730412483215
+}
+2025-01-17 01:16:07.000981:  32201  INFO ||NEURON_PARALLEL_COMPILE||: Total graphs: 2
+2025-01-17 01:16:07.000981:  32201  INFO ||NEURON_PARALLEL_COMPILE||: Total successful compilations: 2
+2025-01-17 01:16:07.000981:  32201  INFO ||NEURON_PARALLEL_COMPILE||: Total failed compilations: 0
+..............
+Compiler status PASS
+2025-01-17 01:16:20.000242:  48243  INFO ||NEURON_PARALLEL_COMPILE||: worker 0 finished with num of tasks 1....
+2025-01-17 01:16:20.000264:  48243  INFO ||NEURON_CACHE||: Current remaining items are 0, locked are 1, failed are 0, done are 33, total is 34
+.
+Compiler status PASS
+2025-01-17 01:16:38.000143:  48247  INFO ||NEURON_PARALLEL_COMPILE||: worker 4 finished with num of tasks 1....
+2025-01-17 01:16:38.000162:  48247  INFO ||NEURON_CACHE||: Current remaining items are 0, locked are 0, failed are 0, done are 34, total is 34
+2025-01-17 01:16:38.000177:  37654  INFO ||NEURON_PARALLEL_COMPILE||: {
+    "compilation_summary": {
+        "true": 8
+    },
+    "compilation_report": {
+        "/fsx/ubuntu/cache_dir_neuron/neuronxcc-2.16.372.0+4a9b2326/MODULE_13896381258680072431+3cc9a3cb/model.hlo_module.pb": {
+            "status": true,
+            "retry": 0,
+            "compile_time": 207.77499103546143
+        },
+        "/fsx/ubuntu/cache_dir_neuron/neuronxcc-2.16.372.0+4a9b2326/MODULE_15605214078085204741+3cc9a3cb/model.hlo_module.pb": {
+            "status": true,
+            "retry": 0,
+            "compile_time": 62.078277826309204
+        },
+        "/fsx/ubuntu/cache_dir_neuron/neuronxcc-2.16.372.0+4a9b2326/MODULE_17180165851576277373+3cc9a3cb/model.hlo_module.pb": {
+            "status": true,
+            "retry": 0,
+            "compile_time": 13.69736123085022
+        },
+        "/fsx/ubuntu/cache_dir_neuron/neuronxcc-2.16.372.0+4a9b2326/MODULE_17186493308924889042+3cc9a3cb/model.hlo_module.pb": {
+            "status": true,
+            "retry": 0,
+            "compile_time": 13.605631828308105
+        },
+        "/fsx/ubuntu/cache_dir_neuron/neuronxcc-2.16.372.0+4a9b2326/MODULE_17656286827372360109+3cc9a3cb/model.hlo_module.pb": {
+            "status": true,
+            "retry": 0,
+            "compile_time": 224.9934914112091
+        },
+        "/fsx/ubuntu/cache_dir_neuron/neuronxcc-2.16.372.0+4a9b2326/MODULE_15118541367256155893+3cc9a3cb/model.hlo_module.pb": {
+            "status": true,
+            "retry": 0,
+            "compile_time": 69.67782711982727
+        },
+        "/fsx/ubuntu/cache_dir_neuron/neuronxcc-2.16.372.0+4a9b2326/MODULE_6234946551864249267+3cc9a3cb/model.hlo_module.pb": {
+            "status": true,
+            "retry": 0,
+            "compile_time": 73.62903022766113
+        },
+        "/fsx/ubuntu/cache_dir_neuron/neuronxcc-2.16.372.0+4a9b2326/MODULE_2285528399009206869+3cc9a3cb/model.hlo_module.pb": {
+            "status": true,
+            "retry": 0,
+            "compile_time": 52.13106894493103
+        }
+    },
+    "start_time": 1737076372.4143333,
+    "compilation_time": 225.76303887367249
+}
+2025-01-17 01:16:38.000177:  37654  INFO ||NEURON_PARALLEL_COMPILE||: Total graphs: 8
+2025-01-17 01:16:38.000177:  37654  INFO ||NEURON_PARALLEL_COMPILE||: Total successful compilations: 8
+2025-01-17 01:16:38.000177:  37654  INFO ||NEURON_PARALLEL_COMPILE||: Total failed compilations: 0
+
 ```
 
-If you are on HyperPod add the `--auto-resume=1` flag as follows:
+Now we can submit the real training job as follows:
+
 ```bash
 sbatch --job-name run_llama3_70B \
        --output logs/run_llama3_70B.out \
        --exclusive --nodes 16 \
-       --wrap="srun `--auto-resume=1 `bash run_llama3_70B_tp_pp.sh"
+       --wrap="srun bash $(pwd)/run_llama3_70B_tp_pp.sh"
+```
+
+If you are on HyperPod add the `--auto-resume=1` flag as follows to indicate that the `srun` command should be automatically retried in case of hardware failure:
+```bash
+sbatch --job-name run_llama3_70B \
+       --output logs/run_llama3_70B.out \
+       --exclusive --nodes 16 \
+       --wrap="srun --auto-resume=1 bash run_llama3_70B_tp_pp.sh"
 ```
 
 This flag indicates that the `srun` command should be automatically retried in case of hardware failure.
@@ -350,13 +459,11 @@ tail -f logs/run_llama3_70B.out
 After a while you will see the following outputs in the log, indicating that the training progressing as expected:
 
 ```bash
-step 1 step_time 433.9763135910034s throughput 2.3233670754725364 seq/s loss 1.686337987310253 grad norm 10.75
-step 2 step_time 287.74868535995483s throughput 2.782773814597335 seq/s loss 1.6844543347833678 grad norm 11.0625
-step 3 step_time 285.0779552459717s throughput 2.9877511544511997 seq/s loss 1.6992562628001906 grad norm 11.4375
-step 4 step_time 285.1162803173065s throughput 3.102014096248735 seq/s loss 1.6663736239424907 grad norm 10.8125
-step 5 step_time 285.26683378219604s throughput 3.1748703415103368 seq/s loss 1.6787556377821602 grad norm 11.25
-[2024-07-30 08:36:48.284: I neuronx_distributed/trainer/checkpoint.py:135] synced saving of checkpoint step_5 completed
-...
+step 1 step_time 244.7649691104889s throughput 3.935193537274158 seq/s loss 13.412860887125134 grad norm 1.9788274765014648
+step 2 step_time 243.86105298995972s throughput 3.9816862016317915 seq/s loss 13.413119042292237 grad norm 1.9752838611602783
+step 3 step_time 243.8063349723816s throughput 4.004761851017232 seq/s loss 13.412440737709403 grad norm 1.976004958152771
+step 4 step_time 243.819584608078s throughput 4.018679872757218 seq/s loss 13.4128421805799 grad norm 1.9743479490280151
+step 5 step_time 243.8718819618225s throughput 4.027843716250589 seq/s loss 13.411852965131402 grad norm 1.970628261566162
 ```
 
 and the training process creates checkpoints in every `m` steps as follows:
