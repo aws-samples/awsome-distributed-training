@@ -1,0 +1,198 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  This CloudFormation stack creates all the necessary pre-requisites for Amazon SageMaker Hyperpod Slurm multiple headnode.
+  These include SNS, RDS for mariaDb, IAM Role, and Secret manager. The SNS topic is meant for slurm failover notifications.
+  SNS notification is optional and can be disabled by removing the SNSSubEmailAddress parameter, SlurmFailOverSNSTopic and 
+  SlurmFailOverTopicSubscription resources, and SlurmFailOverSNSTopicArn output from the CFN before deploying.
+  The RDS for mariaDb and Secret manager secerte are meant for slurm Accounting database.
+  A IAM role is also created which helps to execute HyperPod cluster headnode operations.
+
+######################
+## Stack Parameters ##
+######################
+
+Parameters:
+  SlurmDBUsername:
+    Description: Username for MariaDB database access, the default is admin. (common options are "admin" or "slurm")
+    Default: admin
+    Type: String
+    AllowedPattern: "[a-zA-Z0-9]*"
+    ConstraintDescription: Must contain only alphanumeric characters.
+  SlurmDBInstanceClass:
+    Type: String
+    Default: db.t3.medium
+    AllowedValues:
+      - db.t3.medium # 2vCPU 4GB RAM
+      - db.t3.large # 2vCPU 8GB RAM
+      - db.m5.large # 2vCPU 8GB RAM
+  SlurmDBSecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: A security group ID for RDS instance
+    ConstraintDescription: Must be an existing security group IDs
+  SlurmDBSubnetGroupId1:
+    Type: AWS::EC2::Subnet::Id
+    Description: A DB subnet group ID for RDS instance
+    ConstraintDescription: Must be an existing DB subnet group IDs
+  SlurmDBSubnetGroupId2:
+    Type: AWS::EC2::Subnet::Id
+    Description: A DB subnet group ID for RDS instance
+    ConstraintDescription: Must be an existing DB subnet group IDs
+  SlurmDBSubnetGroupId3:
+    Type: String
+    Description: (Optional) An DB subnet group ID for RDS instance
+    ConstraintDescription: Must be an existing DB subnet group IDs
+    Default: ""
+  SlurmDBSubnetGroupId4:
+    Type: String
+    Description: (Optional) An DB subnet group ID for RDS instance
+    ConstraintDescription: Must be an existing DB subnet group IDs
+    Default: ""
+  SNSSubEmailAddress:
+    Type: String
+    Description: Email address to subscribe to the SNS topic
+    Default: <user@example.com>
+
+###############################
+## Conditions for Parameters ##
+###############################
+
+Conditions:
+  Subnet3NotProvided: !Equals [!Ref SlurmDBSubnetGroupId3, ""]
+  Subnet4NotProvided: !Equals [!Ref SlurmDBSubnetGroupId4, ""]
+
+Resources:
+  SlurmDBSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub '${AWS::StackName}-db-secret-${AWS::Region}'
+      Description: Credentials for the MariaDB database
+      GenerateSecretString:
+        SecretStringTemplate: !Sub '{"username": "${SlurmDBUsername}"}'
+        GenerateStringKey: password
+        PasswordLength: 32
+        ExcludePunctuation: true
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+
+  SlurmDBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Subnet group for Slurm DB instance
+      SubnetIds:
+        - !Ref SlurmDBSubnetGroupId1
+        - !Ref SlurmDBSubnetGroupId2
+        - !If [Subnet3NotProvided, !Ref "AWS::NoValue", !Ref SlurmDBSubnetGroupId3]
+        - !If [Subnet4NotProvided, !Ref "AWS::NoValue", !Ref SlurmDBSubnetGroupId4]
+      Tags:
+        - Key: Name
+          Value: SlurmDBSubnetGroup
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+
+  SlurmDBInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBName: scuderiaslurmdb
+      Engine: mariadb
+      EngineVersion: 10.11.8 # You can adjust this to the desired MariaDB version
+      MasterUsername: !Ref SlurmDBUsername
+      MasterUserPassword: !Sub
+        - '{{resolve:secretsmanager:${SecretArn}:SecretString:password}}'
+        - SecretArn: !Ref SlurmDBSecret
+      DBSubnetGroupName: !Ref SlurmDBSubnetGroup
+      VPCSecurityGroups:
+        - !Ref SlurmDBSecurityGroupId
+      DBInstanceClass: !Ref SlurmDBInstanceClass
+      AllocatedStorage: '20'
+      StorageType: gp2
+      PubliclyAccessible: false
+      MultiAZ: true
+      EnablePerformanceInsights: true
+      EnableCloudwatchLogsExports:
+        - error
+        - slowquery
+        - audit
+      PerformanceInsightsKMSKeyId: alias/aws/rds
+      PerformanceInsightsRetentionPeriod: 7
+      BackupRetentionPeriod: 7
+      DeletionProtection: true
+      StorageEncrypted: true
+      EnableIAMDatabaseAuthentication: true
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+
+  SlurmFailOverSNSTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub '${AWS::StackName}SlurmFailOverTopic-${AWS::Region}'
+      KmsMasterKeyId: alias/aws/sns
+
+  SlurmFailOverTopicSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref SlurmFailOverSNSTopic
+      Protocol: email
+      Endpoint: !Ref SNSSubEmailAddress
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+
+  SlurmExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${AWS::StackName}SlurmExecutionRole-${AWS::Region}'
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - sagemaker.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/AmazonSageMakerClusterInstanceRolePolicy"
+      Policies:
+        - PolicyName: SecretsManagerAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource: !Ref SlurmDBSecret
+        - PolicyName: SNSAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: sns:Publish
+                Resource: !Ref SlurmFailOverSNSTopic
+
+Outputs:
+  SlurmDBSecretArn:
+    Description: The ARN of the database secret
+    Value: !Ref SlurmDBSecret
+    Export:
+      Name: !Sub '${AWS::StackName}-SlurmDBSecretArn'
+  SlurmDBEndpointAddress:
+    Description: The endpoint address of the database
+    Value: !GetAtt SlurmDBInstance.Endpoint.Address
+    Export:
+      Name: !Sub '${AWS::StackName}-SlurmDBEndpointAddress'
+  SlurmDBEndpointPort:
+    Description: The endpoint port of the database
+    Value: !GetAtt SlurmDBInstance.Endpoint.Port
+    Export:
+      Name: !Sub '${AWS::StackName}-SlurmDBEndpointPort'
+  SlurmFailOverSNSTopicArn:
+    Description: The ARN of the SNS topic
+    Value: !Ref SlurmFailOverSNSTopic
+    Export:
+      Name: !Sub '${AWS::StackName}-SlurmFailOverSNSTopicArn'
+  SlurmExecutionRoleArn:
+    Description: The ARN of the execution role
+    Value: !GetAtt SlurmExecutionRole.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-SlurmExecutionRoleArn'

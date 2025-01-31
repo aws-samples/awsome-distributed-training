@@ -60,6 +60,7 @@ class ProvisioningParameters:
     WORKLOAD_MANAGER_KEY: str = "workload_manager"
     FSX_DNS_NAME: str = "fsx_dns_name"
     FSX_MOUNT_NAME: str = "fsx_mountname"
+    SLURM_CONFIGURATIONS: str = "slurm_configurations"
 
     def __init__(self, path: str):
         with open(path, "r") as f:
@@ -80,6 +81,14 @@ class ProvisioningParameters:
     @property
     def login_group(self) -> Optional[str]:
         return self._params.get("login_group")
+
+    @property
+    def slurm_configurations(self) -> Dict[str, Any]:
+        slurm_configurations = self._params.get(ProvisioningParameters.SLURM_CONFIGURATIONS)
+        if not slurm_configurations:
+            return {}
+
+        return slurm_configurations
 
 def get_ip_address():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -176,7 +185,10 @@ def main(args):
             node_type = SlurmNodeType.LOGIN_NODE
 
         if node_type == SlurmNodeType.HEAD_NODE:
-            ExecuteBashScript("./setup_mariadb_accounting.sh").run()
+            if params.slurm_configurations:
+                ExecuteBashScript("./multi_headnode_setup/headnode_setup.sh").run()
+            else:
+                ExecuteBashScript("./setup_mariadb_accounting.sh").run()
 
         ExecuteBashScript("./apply_hotfix.sh").run(node_type)
         ExecuteBashScript("./utils/motd.sh").run(node_type, ",".join(head_node_ip), ",".join(login_node_ip))

@@ -500,6 +500,12 @@ Outputs:
     Description: ID of the primary private subnet
     Export:
       Name: !Sub ${AWS::StackName}-PrimaryPrivateSubnet
+  BackupPrivateSubnet:
+    Value: !Ref BackupPrivateSubnet
+    Description: ID of the backup private subnet
+    Export:
+      Name: !Sub ${AWS::StackName}-BackupPrivateSubnet
+    Condition: BackupSubnetCondition
   SecurityGroup:
     Value: !Ref SecurityGroup
     Description: SecurityGroup for Batch
