@@ -5,6 +5,7 @@
 
 #SBATCH --nodes=4 # number of nodes to use
 #SBATCH --job-name=FSDP # name of your job
+#SBATCH --output=logs/%x-%j.out # output file
 #SBATCH --exclusive # job has exclusive use of the resource, no sharing
 
 set -ex;
@@ -20,20 +21,21 @@ GPUS_PER_NODE=8 # 4 for G5.12x, 8 for P4/P5
 ###########################
 
 ## Plenty of EFA level variables
-## Comment out for non-efa instances (G4d, P3)
-## For G5.12x, Comment out RDMA and Fork safe
 ## For G4dn and other G5, comment out all
-
-export FI_EFA_USE_DEVICE_RDMA=1 # use for p4d
-export FI_EFA_FORK_SAFE=1
-export FI_LOG_LEVEL=1
-export FI_PROVIDER=efa
+export FI_LOG_LEVEL=warn
 export NCCL_DEBUG=INFO
+export FI_PROVIDER=efa
+export FI_EFA_USE_HUGE_PAGE=0    # Set to 0 when you see os.fork() causes OSError: Cannot allocate memory.  Disabling huge page causes minor performance hit.
 ## Switching SYNC_MEMOPS to zero can boost throughput with FSDP
 ## Disables CU_POINTER_ATTRIBUTE_SYNC_MEMOPS
 ## Reduces memory synchronizations
 ## https://docs.nvidia.com/cuda/cuda-driver-api/group__CUDA__UNIFIED.html
 export FI_EFA_SET_CUDA_SYNC_MEMOPS=0
+export LD_PRELOAD=/usr/local/cuda-12.1/lib/libnccl.so
+export NCCL_SOCKET_IFNAME=^docker,lo,veth_def_agent,eth
+
+## Set HuggingFace metadata timeout (in seconds) for large clusters
+export HF_HUB_ETAG_TIMEOUT=60
 
 ###########################
 ####### Torch Dist  #######
@@ -103,5 +105,4 @@ if [ -d "/opt/sagemaker_cluster" ]; then
 	echo "Detected Hyperpod cluster.. enabling --auto-resume=1"
 	AUTO_RESUME="--auto-resume=1"
 fi
-
 srun ${AUTO_RESUME} -l ${TORCHRUN} "${TORCHRUN_ARGS[@]}" $TRAIN_SCRIPT "${TRAINING_ARGS[@]}"
