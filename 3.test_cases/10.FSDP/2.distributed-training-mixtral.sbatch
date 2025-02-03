@@ -22,7 +22,7 @@ GPUS_PER_NODE=8 # 4 for G5.12x, 8 for P4/P5
 
 ## Plenty of EFA level variables
 ## For G4dn and other G5, comment out all
-export FI_LOG_LEVEL=warn
+#export FI_LOG_LEVEL=warn
 export NCCL_DEBUG=INFO
 export FI_PROVIDER=efa
 export FI_EFA_USE_HUGE_PAGE=0    # Set to 0 when you see os.fork() causes OSError: Cannot allocate memory.  Disabling huge page causes minor performance hit.
