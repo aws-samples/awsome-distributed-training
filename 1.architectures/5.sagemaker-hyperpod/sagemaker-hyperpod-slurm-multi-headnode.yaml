@@ -196,3 +196,13 @@ Outputs:
     Value: !GetAtt SlurmExecutionRole.Arn
     Export:
       Name: !Sub '${AWS::StackName}-SlurmExecutionRoleArn'
+  SNSSubEmailAddress:
+    Description: The email address for sns topic notification
+    Value: !Ref SNSSubEmailAddress
+    Export:
+      Name: !Sub '${AWS::StackName}-SNSSubEmailAddress'
+  SlurmDBUsername:
+    Description: The database user name that you should use when login to slurm accounting database
+    Value: !Ref SlurmDBUsername
+    Export:
+      Name: !Sub '${AWS::StackName}-SlurmDBUsername'
