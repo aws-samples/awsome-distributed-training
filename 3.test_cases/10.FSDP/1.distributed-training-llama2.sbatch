@@ -5,7 +5,8 @@
 
 #SBATCH --nodes=4 # number of nodes to use
 #SBATCH --job-name=FSDP # name of your job
-#SBATCH --output=logs/%x-%j.out # output file
+#SBATCH --output=logs/%x_%j.out # logfile for stdout
+#SBATCH --error=logs/%x_%j.err # logfile for stderr, remove it to merge both outputs
 #SBATCH --exclusive # job has exclusive use of the resource, no sharing
 
 set -ex;
