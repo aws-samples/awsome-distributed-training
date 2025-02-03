@@ -71,6 +71,22 @@ else
     return 1
 fi
 
+# Grab the backup subnet id
+export BACKUP_SUBNET=`aws cloudformation describe-stacks \
+    --stack-name $STACK_ID_VPC \
+    --query 'Stacks[0].Outputs[?OutputKey==\`BackupPrivateSubnet\`].OutputValue' \
+    --region ${AWS_REGION} \
+    --output text`
+
+if [[ ! -z $BACKUP_SUBNET ]]; then
+    echo "export BACKUP_SUBNET=${BACKUP_SUBNET}" >> env_vars
+    echo "[INFO] BACKUP_SUBNET = ${BACKUP_SUBNET}"
+else
+    echo "[ERROR] failed to retrieve BACKUP SUBNET ID"
+    return 1
+fi
+
+
 # Grab the subnet id
 export PUBLIC_SUBNET_ID=`aws cloudformation describe-stacks \
     --stack-name $STACK_ID_VPC \
