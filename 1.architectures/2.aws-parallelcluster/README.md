@@ -173,7 +173,7 @@ Wait until the output becomes `AVAILABLE` . You also can check the status of DRA
 To create cluster, please refer to [deployment-guides](./deployment-guides). Under the directory we have instructions for following patterns of cluster deployments:
 
 * [Vanilla cluster deployment](./deployment-guides/vanilla-pcluster.md)
-* [Pcluster with observability stack deployment](./deployment-guides/vanilla-pcluster.md)
+* [Pcluster with observability stack deployment](./deployment-guides/pcluster-observability.md)
 
 ## 4. (For Reference) Anatomy of AWS Parallel Cluster
 
