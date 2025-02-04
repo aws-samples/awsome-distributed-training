@@ -1,0 +1,116 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: CloudFormation template to monitor SageMaker Hyperpod - launches a t2.medium instance with 30GB of storage, security group, IAM role for Prometheus access, Grafana setup, and a Prometheus workspace.
+
+Parameters:
+  LatestAmiId:
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
+    Description: "The latest Amazon Linux 2 AMI ID."
+
+Resources:
+
+  GrafanaEC2Role:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: "sts:AssumeRole"
+      Policies:
+        - PolicyName: "PrometheusAccessPolicy"
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - aps:ListWorkspaces
+                  - aps:DescribeWorkspace
+                  - aps:QueryMetrics
+                  - aps:GetLabels
+                  - aps:GetSeries
+                  - aps:GetMetricMetadata
+                Resource: "*"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+
+  MyInstanceProfile:
+    Type: "AWS::IAM::InstanceProfile"
+    Properties:
+      Roles:
+        - !Ref GrafanaEC2Role
+
+  APSWorkspace:
+    Type: "AWS::APS::Workspace"
+    Properties:
+      Alias: !Sub "${AWS::StackName}-Hyperpod-WorkSpace"
+      Tags:
+        - Key: "Name"
+          Value: "SageMaker Hyperpod PrometheusMetrics"
+
+  MyInstance:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      InstanceType: "t2.medium"
+      ImageId: !Ref LatestAmiId
+      IamInstanceProfile: !Ref MyInstanceProfile
+      BlockDeviceMappings:
+        - DeviceName: "/dev/xvda"
+          Ebs:
+            VolumeSize: 30
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+
+          # Update system packages
+          sudo yum update -y
+
+          # Install Docker
+          echo "Installing Docker..."
+          sudo amazon-linux-extras install docker -y
+
+          # Start Docker service
+          echo "Starting Docker service..."
+          sudo systemctl start docker
+
+          # Enable Docker to start on boot
+          sudo systemctl enable docker
+
+          # Add the current user (ec2-user) to the Docker group to run Docker commands without sudo
+          echo "Adding ec2-user to Docker group..."
+          sudo usermod -aG docker ec2-user
+
+          # Pull the latest Grafana image
+          echo "Pulling the latest Grafana Docker image..."
+          docker pull grafana/grafana:10.4.14-ubuntu
+
+          # Run Grafana container with automatic restart
+          echo "Starting Grafana container with restart policy..."
+          docker run --env GF_AUTH_SIGV4_AUTH_ENABLED=true --env AWS_SDK_LOAD_CONFIG=true -d -p 3000:3000 --name=grafana --restart always grafana/grafana:10.4.14-ubuntu
+
+          # Print Grafana access info
+          echo "Docker and Grafana setup complete."
+          echo "Grafana is running at http://$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4):3000"
+          echo "Default Grafana login credentials are admin/admin. Please change the password after the first login."
+
+          # Note: Log out and log back in for Docker permissions to take effect
+          echo "Please log out and back in for Docker group permissions to apply."
+      Tags:
+        - Key: "Name"
+          Value: "OS-Grafana"
+
+
+Outputs:
+  InstanceId:
+    Description: "Instance ID of the EC2 instance"
+    Value: !Ref MyInstance
+  PrometheusWorkspaceId:
+    Description: "ID of the Amazon Managed Prometheus Workspace"
+    Value: !Ref APSWorkspace
+  AMPRemoteWriteURL:
+    Value: !Join ["" , [ !GetAtt APSWorkspace.PrometheusEndpoint , "api/v1/remote_write" ]]
+  GrafanaInstanceAddress:
+    Description: "Grafana address with port 3000 for the EC2 instance"
+    Value: !Sub "http://${MyInstance.PublicIp}:3000"
