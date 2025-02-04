@@ -5,6 +5,8 @@
 
 #SBATCH --nodes=4 # number of nodes to use
 #SBATCH --job-name=FSDP # name of your job
+#SBATCH --output=logs/%x_%j.out # logfile for stdout
+#SBATCH --error=logs/%x_%j.err # logfile for stderr, remove it to merge both outputs
 #SBATCH --exclusive # job has exclusive use of the resource, no sharing
 
 set -ex;
@@ -21,15 +23,20 @@ GPUS_PER_NODE=8 # 4 for G5.12x, 8 for P4/P5
 
 ## Plenty of EFA level variables
 ## For G4dn and other G5, comment out all
-export FI_LOG_LEVEL=warn
-export FI_PROVIDER=efa
-# export FI_EFA_USE_HUGE_PAGE=0    # Set to 0 when you see os.fork() causes OSError: Cannot allocate memory.  Disabling huge page causes minor performance hit.
+#export FI_LOG_LEVEL=warn
 export NCCL_DEBUG=INFO
+export FI_PROVIDER=efa
+export FI_EFA_USE_HUGE_PAGE=0    # Set to 0 when you see os.fork() causes OSError: Cannot allocate memory.  Disabling huge page causes minor performance hit.
 ## Switching SYNC_MEMOPS to zero can boost throughput with FSDP
 ## Disables CU_POINTER_ATTRIBUTE_SYNC_MEMOPS
 ## Reduces memory synchronizations
 ## https://docs.nvidia.com/cuda/cuda-driver-api/group__CUDA__UNIFIED.html
 export FI_EFA_SET_CUDA_SYNC_MEMOPS=0
+# LD_PRELOAD is required for PyTorch to find the NCCL library
+# This path assumes you are using the Deep Learning AMI
+# If you are not using the DLAMI, you may need to update this path
+export LD_PRELOAD=/usr/local/cuda-12.1/lib/libnccl.so
+export NCCL_SOCKET_IFNAME=^docker,lo,veth_def_agent,eth
 
 ## Set HuggingFace metadata timeout (in seconds) for large clusters
 export HF_HUB_ETAG_TIMEOUT=60
@@ -66,7 +73,7 @@ declare -a TRAINING_ARGS=(
     --validation_freq=500
     --max_steps=5000
     --checkpoint_dir=./checkpoints
-    --dataset='c4'
+    --dataset='allenai/c4'
     --dataset_config_name='en'
     --resume_from_checkpoint=./checkpoints
     --train_batch_size=1
@@ -80,5 +87,4 @@ if [ -d "/opt/sagemaker_cluster" ]; then
     echo "Detected Hyperpod cluster.. enabling --auto-resume=1"
     AUTO_RESUME="--auto-resume=1"
 fi
-
 srun ${AUTO_RESUME} -l ${TORCHRUN} "${TORCHRUN_ARGS[@]}" $TRAIN_SCRIPT "${TRAINING_ARGS[@]}"
