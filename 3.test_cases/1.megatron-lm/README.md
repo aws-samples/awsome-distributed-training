@@ -11,7 +11,7 @@ To run a test case you will go through a series of steps described below:
 2. Build a container, download, and pre-process the data
 3. Train!
 
-We describe the steps below for Slurm and Kubernetes users.
+We describe the steps below for Slurm and Kubernetes users.  For detailed instructions, proceed to the slurm or kubernetes subdirectory.
 
 ## 1. Preparation
 

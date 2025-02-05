@@ -33,7 +33,7 @@ set -ex;
 # default variables for Enroot
 : "${IMAGE:=$(pwd)/megatron-training.sqsh}"
 : "${DATA_PATH:=/fsx}"
-: "${FSX_MOUNT:=$(pwd):$DATA_PATH}"
+: "${FSX_MOUNT:=/fsx:/fsx}"
 
 ###########################
 ## Environment Variables ##
@@ -87,6 +87,7 @@ if [ -d "/opt/sagemaker_cluster" ]; then
     AUTO_RESUME="--auto-resume=1"
 fi
 
+export WANDB_API_KEY=913e68f42d3ee4e7bdadf92dcd1e5a40b214aa24
 srun ${AUTO_RESUME} -l "${ARGS[@]}" python -m torch.distributed.run "${TORCHRUN_ARGS[@]}" /workspace/Megatron-LM/pretrain_gpt.py \
         "${MEGATRON_PARALLELISM[@]}" \
         "${MEGATRON_ARGS[@]}" \
@@ -108,5 +109,8 @@ srun ${AUTO_RESUME} -l "${ARGS[@]}" python -m torch.distributed.run "${TORCHRUN_
         --adam-beta1 0.9 \
         --adam-beta2 0.95 \
         --init-method-std 0.006 \
+        --wandb-name "gpt" \
+        --wandb-project "megatron-lm" \
+        --wandb-entity "gpt-entity" \
         --fp16 \
         --recompute-activations
