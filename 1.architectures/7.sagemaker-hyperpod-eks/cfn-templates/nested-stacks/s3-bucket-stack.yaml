@@ -1,0 +1,57 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: S3 Bucket Stack
+
+Parameters: 
+
+  ResourceNamePrefix:
+    Description: Prefix to be used for all resources created by this template. 
+    Type: String
+    Default: sagemaker-hyperpod-eks
+
+  VpcId: 
+    Description: The ID of the VPC you wish to use to create an  S3 endpoint
+    Type: String
+    Default: vpc-1234567890abcdef0
+
+  PrivateRouteTableId: 
+    Description: The Id of your private route table. 
+    Type: String
+    Default: rtb-1234567890abcdef0
+
+Resources: 
+
+  Bucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Sub '${ResourceNamePrefix}-bucket-${AWS::AccountId}-${AWS::Region}'
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+
+  S3Endpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+            - Effect: Allow
+              Principal: '*'
+              Action:
+                - '*'
+              Resource:
+                - '*'
+      RouteTableIds:
+        - !Ref PrivateRouteTableId
+      ServiceName: !Join
+        - ''
+        - - com.amazonaws.
+          - !Ref AWS::Region
+          - .s3
+      VpcId: !Ref VpcId
+
+Outputs: 
+
+  S3BucketName: 
+    Description: S3 Bucket Name
+    Value: !Ref Bucket

@@ -70,7 +70,7 @@ Set the following parameters accordingly if you want to use minimal deployment m
 
 We can launch the cloudformation using the below . Depending on the deployment option that works for you , update the parameters in the stack accordingly.
 
-You can create a VPC using the configuration in [hyperpod-eks-full-stack.yaml](./hyperpod-eks-full-stack.yaml). Which is also available via [<kbd> <br> 1-Click Deploy 🚀 <br> </kbd>](https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/quickcreate?templateURL=https://awsome-distributed-training.s3.amazonaws.com/templates/hyperpod-eks-full-stack.yaml?&stackName=hyperpod-eks-full-stack)
+You can create a VPC using the configuration in [hyperpod-eks-full-stack.yaml](./cfn-templates/hyperpod-eks-full-stack.yaml). Which is also available via [<kbd> <br> 1-Click Deploy 🚀 <br> </kbd>](https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/quickcreate?templateURL=https://awsome-distributed-training.s3.amazonaws.com/templates/hyperpod-eks-full-stack.yaml?&stackName=hyperpod-eks-full-stack)
 
 ### 2.5 Connect to EKS cluster 
 
