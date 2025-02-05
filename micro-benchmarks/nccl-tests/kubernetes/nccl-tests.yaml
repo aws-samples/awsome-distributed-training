@@ -1,7 +1,7 @@
 apiVersion: kubeflow.org/v2beta1
 kind: MPIJob
 metadata:
-  name: test-nccl
+  name: nccl-tests
 spec:
   runPolicy:
     cleanPodPolicy: Running
@@ -12,16 +12,16 @@ spec:
       replicas: 1
       template:
          spec:
-          imagePullPolicy: IfNotPresent
           restartPolicy: OnFailure
           containers:
           - image: <account>.dkr.ecr.<region>.amazonaws.com/<image>:<tag>
+            imagePullPolicy: IfNotPresent
             name: test-nccl-launcher
             env:
-             - name: LD_LIBRARY_PATH
-               value: /opt/amazon/openmpi/lib:/opt/nccl/build/lib:/opt/amazon/efa/lib:/opt/aws-ofi-nccl/install/lib:/usr/local/nvidia/lib:$LD_LIBRARY_PATH
              - name: PATH
                value: $PATH:/opt/amazon/efa/bin:/usr/bin
+             - name: LD_LIBRARY_PATH
+               value: /opt/amazon/openmpi/lib:/opt/nccl/build/lib:/opt/amazon/efa/lib:/opt/aws-ofi-nccl/install/lib:/usr/local/nvidia/lib:$LD_LIBRARY_PATH
             command:
             - /opt/amazon/openmpi/bin/mpirun
             - --allow-run-as-root
@@ -78,10 +78,10 @@ spec:
         spec:
           nodeSelector:
             node.kubernetes.io/instance-type: "p5.48xlarge"
-          imagePullPolicy: IfNotPresent
           containers:
           - image: <account>.dkr.ecr.<region>.amazonaws.com/<image>:<tag>
-            name: test-nccl-worker
+            imagePullPolicy: IfNotPresent
+            name: nccl-tests-worker
             volumeMounts:
             - name: shmem
               mountPath: /dev/shm

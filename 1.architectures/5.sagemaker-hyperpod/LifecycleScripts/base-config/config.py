@@ -2,13 +2,20 @@
 # Basic configuration parameters
 class Config:
 
-    # Set true if you want to install Docker/Enroot/Pyxis.
+    # Default is true to install Docker/Enroot/Pyxis.
     enable_docker_enroot_pyxis = True
 
     # Set true if you want to install metric exporter software and Prometheus for observability
     # DCGM Exporter and EFA Node Exporter are installed on compute nodes,
     # Slurm Exporter and Prometheus are installed on controller node.
     enable_observability = False
+
+    # Set true if you want to:
+    # - fix Slurm slurmctld being not responsive at restart
+    # - install pam_slurm_adopt PAM module to:
+    #    - Limit host memory usage at 99% MaxRAMPercent using cgroup enforcement
+    #    - Prevent user to ssh without jobs running on that node
+    enable_pam_slurm_adopt = False
 
     # Set true if you want to update default Neuron SDK version on compute nodes (only applies to trn and inf clusters)
     enable_update_neuron_sdk = False
@@ -17,8 +24,16 @@ class Config:
     # You need to configure parameters in SssdConfig as well.
     enable_sssd = False
 
-    # Set true to install quality-of-live improvements
-    enable_initsmhp = False
+    # Set true if you want to use mountpoint for s3 on cluster nodes. 
+    # If enabled, a systemctl mount-s3.service file will be writen that will mount at /mnt/<BucketName>.
+    # requires s3 permissions to be added to cluster execution role. 
+    enable_mount_s3 = False
+
+    s3_bucket = "" # required when enable_mount_s3 = True, replace with your actual data bucket name in quotes, ie. "my-dataset-bucket"
+
+    if enable_mount_s3 and not s3_bucket:
+        raise ValueError("Error: A bucket name must be specified when enable_mount_s3 is True")
+
 
 # Configuration parameters for ActiveDirectory/LDAP/SSSD
 class SssdConfig:
