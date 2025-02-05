@@ -14,6 +14,8 @@ training_cfg:
 cluster:
   cluster_type: k8s
   instance_type: ml.g5.8xlarge
+  custom_labels:
+    kueue.x-k8s.io/priority-class: training-priority
   cluster_config:
     namespace: hyperpod-ns-team-b
     label_selector:

@@ -5,6 +5,7 @@ metadata:
   namespace: hyperpod-ns-team-a
   labels:
       kueue.x-k8s.io/queue-name: hyperpod-ns-team-a-localqueue
+      kueue.x-k8s.io/priority-class: training-priority
 spec:
   ports:
     - name: etcd-client-port
@@ -21,6 +22,7 @@ metadata:
   labels:
     app: etcd-gpu
     kueue.x-k8s.io/queue-name: hyperpod-ns-team-a-localqueue
+    kueue.x-k8s.io/priority-class: training-priority
   name: etcd-gpu
   namespace: hyperpod-ns-team-a
 spec:
@@ -33,6 +35,7 @@ spec:
       labels:
         app: etcd-gpu
         kueue.x-k8s.io/queue-name: hyperpod-ns-team-a-localqueue
+        kueue.x-k8s.io/priority-class: training-priority
     spec:
       nodeSelector:
         node.kubernetes.io/instance-type: ml.g5.8xlarge
@@ -67,6 +70,7 @@ metadata:
   namespace: hyperpod-ns-team-a
   labels:
       kueue.x-k8s.io/queue-name: hyperpod-ns-team-a-localqueue
+      kueue.x-k8s.io/priority-class: training-priority
   annotations: {
     sagemaker.amazonaws.com/enable-job-auto-resume: "true",
     sagemaker.amazonaws.com/job-max-retry-count: "2"
@@ -95,6 +99,7 @@ spec:
           labels:
             app: imagenet
             kueue.x-k8s.io/queue-name: hyperpod-ns-team-a-localqueue
+            kueue.x-k8s.io/priority-class: training-priority
         spec:
           nodeSelector:
             node.kubernetes.io/instance-type: "ml.g5.8xlarge"

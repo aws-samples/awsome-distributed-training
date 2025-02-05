@@ -142,7 +142,7 @@ kubectl get pods -n hyperpod-ns-team-b
 kubectl apply -f 3-imagenet-gpu-team-b-higher-prio.yaml --namespace hyperpod-ns-team-b
 ```
 
-Since this job uses a **priority-class**, the lower-priority Job 2 is preempted:
+Since this job uses a **priority-class** with a higher weight than the other jobs, the lower-priority Job 2 is preempted:
 
 ```
 kubectl get pods -n hyperpod-ns-team-b
