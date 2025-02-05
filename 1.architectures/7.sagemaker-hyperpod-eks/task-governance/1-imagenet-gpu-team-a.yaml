@@ -1,0 +1,132 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: etcd-gpu
+  namespace: hyperpod-ns-team-a
+  labels:
+      kueue.x-k8s.io/queue-name: hyperpod-ns-team-a-localqueue
+      kueue.x-k8s.io/priority-class: training-priority
+spec:
+  ports:
+    - name: etcd-client-port
+      port: 2379
+      protocol: TCP
+      targetPort: 2379
+  selector:
+    app: etcd-gpu
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: etcd-gpu
+    kueue.x-k8s.io/queue-name: hyperpod-ns-team-a-localqueue
+    kueue.x-k8s.io/priority-class: training-priority
+  name: etcd-gpu
+  namespace: hyperpod-ns-team-a
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: etcd-gpu
+  template:
+    metadata:
+      labels:
+        app: etcd-gpu
+        kueue.x-k8s.io/queue-name: hyperpod-ns-team-a-localqueue
+        kueue.x-k8s.io/priority-class: training-priority
+    spec:
+      nodeSelector:
+        node.kubernetes.io/instance-type: ml.g5.8xlarge
+      containers:
+        - name: etcd
+          command: ["/usr/local/bin/etcd"]
+          args:
+            - "--data-dir"
+            - "/var/lib/etcd"
+            - "--enable-v2"
+            - "--listen-client-urls"
+            - "http://0.0.0.0:2379"
+            - "--advertise-client-urls"
+            - "http://0.0.0.0:2379"
+            - "--initial-cluster-state"
+            - "new"
+          image: quay.io/coreos/etcd:latest
+          ports:
+            - containerPort: 2379
+              name: client
+              protocol: TCP
+            - containerPort: 2380
+              name: server
+              protocol: TCP
+      restartPolicy: Always
+---
+# Example from: https://github.com/kubeflow/training-operator/tree/master/examples/pytorch/elastic/imagenet
+apiVersion: "kubeflow.org/v1"
+kind: PyTorchJob
+metadata:
+  name: imagenet-gpu-team-a-1
+  namespace: hyperpod-ns-team-a
+  labels:
+      kueue.x-k8s.io/queue-name: hyperpod-ns-team-a-localqueue
+      kueue.x-k8s.io/priority-class: training-priority
+  annotations: {
+    sagemaker.amazonaws.com/enable-job-auto-resume: "true",
+    sagemaker.amazonaws.com/job-max-retry-count: "2"
+  }
+spec:
+  elasticPolicy:
+    rdzvBackend: etcd
+    rdzvHost: etcd-gpu
+    rdzvPort: 2379
+    minReplicas: 1
+    maxReplicas: 36
+    maxRestarts: 200
+    metrics:
+      - type: Resource
+        resource:
+          name: cpu
+          target:
+            type: Utilization
+            averageUtilization: 80
+  pytorchReplicaSpecs:
+    Worker:
+      replicas: 3
+      restartPolicy: OnFailure
+      template:
+        metadata:
+          labels:
+            app: imagenet
+            kueue.x-k8s.io/queue-name: hyperpod-ns-team-a-localqueue
+            kueue.x-k8s.io/priority-class: training-priority
+        spec:
+          nodeSelector:
+            node.kubernetes.io/instance-type: "ml.g5.8xlarge"
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchExpressions:
+                  - key: app
+                    operator: In
+                    values:
+                    - imagenet
+                topologyKey: "topology.kubernetes.io/zone"
+          containers:
+            - name: pytorch
+              image: kubeflow/pytorch-elastic-example-imagenet:latest
+              imagePullPolicy: IfNotPresent
+              resources:
+                requests:
+                  nvidia.com/gpu: 1
+                limits:
+                  nvidia.com/gpu: 1
+              env:
+              - name: LOGLEVEL
+                value: DEBUG
+              command:
+                - bash
+                - -c
+                - "wget https://raw.githubusercontent.com/pytorch/elastic/master/examples/imagenet/main.py -O /workspace/examples/imagenet.py; /usr/local/bin/torchrun --nproc_per_node=1 --nnodes=3 /workspace/examples/imagenet.py --arch=resnet18 --epochs=50 --batch-size=32 --workers=0 --checkpoint-file=/workspace/checkpoint.pth.tar /workspace/data/tiny-imagenet-200"
+
