@@ -43,7 +43,7 @@ class ResourceConfig:
 
     def find_instance_by_address(self, address) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
         for group in self._config["InstanceGroups"]:
-            for instance in group["Instances"]:
+            for instance in group.get("Instances") or []:
                 if instance.get(ResourceConfig.CUSTOMER_IP_ADDRESS) == address:
                     return group, instance
         return None, None
@@ -52,7 +52,7 @@ class ResourceConfig:
         for group in self._config["InstanceGroups"]:
             if group.get(ResourceConfig.INSTANCE_GROUP_NAME) != group_name:
                 continue
-            return [i.get(ResourceConfig.CUSTOMER_IP_ADDRESS) for i in group["Instances"]]
+            return [i.get(ResourceConfig.CUSTOMER_IP_ADDRESS) for i in group.get("Instances") or []]
         return []
 
 
