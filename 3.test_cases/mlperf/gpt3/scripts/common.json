@@ -1,0 +1,45 @@
+{
+  "optimizer_states": [
+    {
+      "optimizer": {
+        "param_groups": [
+          {
+            "wd_mult": 1.0,
+            "lr_mult": 1.0,
+            "lr": 2e-05,
+            "bias_correction": true,
+            "betas": [
+              0.9,
+              0.95
+            ],
+            "eps": 1e-08,
+            "weight_decay": 0.1,
+            "step": 4000,
+            "initial_lr": 2e-05
+          }
+        ]
+      }
+    }
+  ],
+  "global_step": 4000,
+  "epoch": 0,
+  "lr_schedulers": [
+    {
+      "max_steps": 108865,
+      "warmup_steps": 265,
+      "constant_steps": 0,
+      "decay_steps": 108600,
+      "min_lr": 2e-06,
+      "base_lrs": [
+        2e-05
+      ],
+      "last_epoch": 4000,
+      "_last_lr": [
+        1.99472610733e-05
+      ],
+      "_step_count": 4000,
+      "verbose": false,
+      "_get_lr_called_within_step": false
+    }
+  ]
+}
