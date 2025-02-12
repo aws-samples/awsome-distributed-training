@@ -1,0 +1,49 @@
+image:
+  trainingImage: docker.io/kubeflowkatib/pytorch-mnist-cpu:v1beta1-bc09cfd
+  pullPolicy: IfNotPresent
+trainingConfig:
+  jobName: hyperpod-cli-mnist-team-b
+  namespace: hyperpod-ns-team-b
+  scriptPath: /opt/pytorch-mnist/mnist.py
+  scriptArgs: ''
+  customScript: true
+  annotations: null
+  customLabels:
+    kueue.x-k8s.io/queue-name: hyperpod-ns-team-b-localqueue
+  priority_class_name: null
+  device: gpu
+  numEFADevices: 1
+  ntasksPerNode: 1
+  nodes: 2
+  restartPolicy: Never
+  wandbKey: nil
+  serviceAccountName: null
+  persistentVolumeClaims: null
+  volumes: null
+  git:
+    repo_url: null
+    branch: null
+    commit: null
+    token: null
+  pre_script: []
+  post_script: []
+  labelSelector:
+    preferred:
+      sagemaker.amazonaws.com/deep-health-check-status:
+      - Passed
+    required:
+      sagemaker.amazonaws.com/node-health-status:
+      - Schedulable
+    weights:
+    - 100
+  envVars:
+    NCCL_DEBUG: INFO
+    CUDA_VISIBLE_DEVICES: '0'
+    FI_PROVIDER: efa
+    NCCL_PROTO: simple
+    NCCL_SOCKET_IFNAME: ^lo,docker0
+    NCCL_IGNORE_DISABLED_P2P: '1'
+    TORCH_NCCL_ASYNC_ERROR_HANDLING: '1'
+    TORCH_DIST_INIT_BARRIER: '1'
+    CUDA_DEVICE_MAX_CONNECTIONS: '1'
+    FI_EFA_FORK_SAFE: '1'
