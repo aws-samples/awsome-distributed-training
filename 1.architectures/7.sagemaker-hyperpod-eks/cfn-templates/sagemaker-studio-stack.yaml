@@ -3,6 +3,11 @@ Description: AWS CloudFormation Template for SageMaker Studio Code Editor
 
 Parameters:
 
+  ResourceNamePrefix:
+    Description: Prefix to be used for all resources created by this template. 
+    Type: String
+    Default: sagemaker-hyperpod-eks
+
   AutoStopIdleTimeInMinutes:
     Description: Idle time (in minutes) before auto-stop of Code Editor, disabled if 0 (Must be 60 or greater, or 0.)
     Type: Number
@@ -279,7 +284,7 @@ Resources:
       RoleName:
         Fn::Join:
         - '-'
-        - - Fn::Sub: ${AWS::StackName}-DefaultVpcLookupFunction-Role
+        - - Fn::Sub: DefaultVpcLookupFunction-Role
           - Fn::Select:
             - 0
             - Fn::Split:
@@ -664,7 +669,7 @@ Resources:
       RoleName:
         Fn::Join:
         - '-'
-        - - Fn::Sub: ${AWS::StackName}-CodeEditorFunction-Role
+        - - Fn::Sub: CodeEditorFunction-Role
           - Fn::Select:
             - 0
             - Fn::Split:
@@ -881,7 +886,7 @@ Resources:
       RoleName:
         Fn::Join:
         - '-'
-        - - Fn::Sub: ${AWS::StackName}-DomainCleanupFunction-Role
+        - - Fn::Sub: DomainCleanupFunction-Role
           - Fn::Select:
             - 0
             - Fn::Split:
@@ -909,7 +914,7 @@ Resources:
       RoleName:
         Fn::Join:
         - '-'
-        - - Fn::Sub: ${AWS::StackName}-SageMaker-Execution-Role
+        - - Fn::Sub: SageMaker-Execution-Role
           - Fn::Select:
             - 0
             - Fn::Split:
@@ -1238,4 +1243,4 @@ Outputs:
     Description: "ARN of the SageMaker Studio Execution Role"
     Value: !GetAtt SageMakerStudioExecutionRole.Arn
     Export:
-      Name: SageMakerStudioExecutionRoleArn
+      Name: !Sub ${ResourceNamePrefix}-SageMakerStudioExecutionRoleArn
