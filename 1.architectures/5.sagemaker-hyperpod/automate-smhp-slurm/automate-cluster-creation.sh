@@ -954,7 +954,7 @@ configure_cluster_users() {
                         read -p "Hit ENTER once step is complete: "
                         
                         echo -e "\n3. Change the Linux shell profile."
-                        echo -e "   It should have 'exec /bin/bash' in its first and only line"
+                        echo -e "   It should have '/bin/bash -c 'export HOME=/fsx/\$(whoami) && cd \${HOME} && exec /bin/bash' in its first and only line"
                         read -p "Hit ENTER once you've added this line in: "
                         
                         echo -e "\n${GREEN}✅ SSM Run As support configured successfully${NC}"
