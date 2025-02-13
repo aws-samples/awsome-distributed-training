@@ -59,6 +59,7 @@ Metadata:
           - EnableInstanceStressCheck
           - EnableInstanceConnectivityCheck
           - AcceleratedLifeCycleConfigOnCreate
+          - CreateGeneralPurposeInstanceGroup
           - GeneralPurposeInstanceGroupName
           - GeneralPurposeInstanceType
           - GeneralPurposeInstanceCount
@@ -363,6 +364,14 @@ Parameters:
 
   ### ----------------  General Purpose Instance Group 2 Params ----------------###
 
+  CreateGeneralPurposeInstanceGroup: 
+    Description: Whether to create a general purpose instance group for the HyperPod cluster.
+    Type: String
+    Default: true
+    AllowedValues: 
+      - true
+      - false
+
   GeneralPurposeInstanceGroupName:
     Description: The name of the general purpose instance group for the HyperPod cluster.
     Type: String
@@ -558,11 +567,13 @@ Resources:
           - CreateVPCStack
           - !GetAtt VPCStack.Outputs.VpcId
           - !Ref VpcId
-        CrossSGEnabled: !If
+        # Create new security group with a new EKS cluster
+        CreateNewSG: !If
           - CreateEKSClusterStack
-          - 'false'
           - 'true'
-        CrossSecurityGroupId: !Ref SecurityGroupId
+          - 'false'
+        # Always passed, conditionally used to add rules
+        SecurityGroupId: !Ref SecurityGroupId
         
   EKSClusterStack:
     Type: AWS::CloudFormation::Stack
@@ -660,6 +671,7 @@ Resources:
         EnableInstanceStressCheck: !Ref EnableInstanceStressCheck
         EnableInstanceConnectivityCheck: !Ref EnableInstanceConnectivityCheck
         AcceleratedLifeCycleConfigOnCreate: !Ref AcceleratedLifeCycleConfigOnCreate
+        CreateGeneralPurposeInstanceGroup: !Ref CreateGeneralPurposeInstanceGroup
         GeneralPurposeInstanceGroupName: !Ref GeneralPurposeInstanceGroupName
         GeneralPurposeInstanceType: !Ref GeneralPurposeInstanceType
         GeneralPurposeInstanceCount: !Ref GeneralPurposeInstanceCount

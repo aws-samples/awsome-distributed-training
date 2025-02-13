@@ -83,7 +83,7 @@ Resources:
   HelmCustomResourceLayer:
     Type: AWS::Lambda::LayerVersion
     Properties:
-      LayerName: helm-chart-installer-lambda-layer
+      LayerName: !Sub '${ResourceNamePrefix}-helm-chart-installer-lambda-layer'
       Description: 'Lambda Layer for kubectl, helm, and git tools'
       Content:
         S3Bucket: !Ref CustomResourceS3Bucket
@@ -102,7 +102,7 @@ Resources:
     DependsOn: 
       - HelmCustomResourceAccessEntry
     Properties:
-      FunctionName: helm-chart-installer
+      FunctionName: !Sub '${ResourceNamePrefix}-helm-chart-installer'
       Environment: 
         Variables:
           CLUSTER_NAME: !Ref EKSClusterName

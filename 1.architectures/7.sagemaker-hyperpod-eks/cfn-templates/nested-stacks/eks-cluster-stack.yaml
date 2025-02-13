@@ -146,7 +146,9 @@ Resources:
     Condition: UsingSMCodeEditor
     Properties:
       ClusterName: !Ref EKSCluster
-      PrincipalArn: !ImportValue SageMakerStudioExecutionRoleArn
+      PrincipalArn: 
+        Fn::ImportValue:
+            !Sub ${ResourceNamePrefix}-SageMakerStudioExecutionRoleArn
       AccessPolicies: 
         - PolicyArn: 'arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy'
           AccessScope:
