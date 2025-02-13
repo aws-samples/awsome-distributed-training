@@ -906,27 +906,86 @@ deploy_stack() {
     fi
 }
 
-# Helper function to validate CIDR ranges
-validate_cidr() {
+# Helper function to validate basic CIDR format
+validate_cidr_format() {
     local cidr=$1
-    # Check for valid IPv4 CIDR format and ensure it's in private IP range
+    # Check for valid IPv4 CIDR format and prefix length
     if [[ $cidr =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}/([0-9]|[1-2][0-9]|3[0-2])$ ]]; then
         # Extract the IP parts
-        IFS='/' read -r ip_part prefix_length <<< "$cidr"
+        IFS='/' read -r ip_part prefix_length <<< "$cidr" 
         IFS='.' read -r a b c d <<< "$ip_part"
         
         # Validate each octet is <= 255
         if [[ $a -le 255 && $b -le 255 && $c -le 255 && $d -le 255 ]]; then
-            # Validate it's a private IP range (10.0.0.0/8, 172.16.0.0/12, or 192.168.0.0/16)
-            if [[ $a == 10 ]] || \
-               [[ $a == 172 && $b -ge 16 && $b -le 31 ]] || \
-               [[ $a == 192 && $b == 168 ]]; then
-                return 0
+            # Check if it's not a reserved/special use IP range
+            # 0.0.0.0/8 (Current network)
+            # 127.0.0.0/8 (Loopback)
+            # 169.254.0.0/16 (Link-local)
+            # 224.0.0.0/4 (Multicast)
+            # 240.0.0.0/4 (Reserved)
+            if ! { \
+                [[ $a == 0 ]] || \
+                [[ $a == 127 ]] || \
+                [[ $a == 169 && $b == 254 ]] || \
+                [[ $a == 224 ]] || \
+                [[ $a == 240 ]] || \
+                [[ $a == 255 && $b == 255 && $c == 255 && $d == 255 ]]; # 255.255.255.255 (Broadcast)
+            }; then
+                return 0  # Valid CIDR format
             fi
         fi
     fi
-    return 1
+    return 1  # Invalid CIDR format
 }
+
+# Validate AWS VPC CIDR range
+validate_vpc_cidr() {
+    local cidr=$1
+    
+    # First check basic CIDR format
+    if ! validate_cidr_format "$cidr"; then
+        echo "Invalid CIDR format"
+        return 1
+    fi 
+    
+    # Extract prefix length
+    local prefix_length
+    prefix_length=$(echo "$cidr" | cut -d'/' -f2)
+    
+    # Check if prefix length is within AWS VPC limits (between /16 and /28)
+    if [[ $prefix_length -lt 16 || $prefix_length -gt 28 ]]; then
+        echo "VPC CIDR block size must be between /16 and /28"
+        return 1
+    fi 
+    
+    # Extract IP parts
+    local ip_part
+    ip_part=$(echo "$cidr" | cut -d'/' -f1)
+    IFS='.' read -r a b c d <<< "$ip_part"
+    
+    # Check for reserved AWS ranges
+    if [[ $a == 198 && $b == 19 && $c == 255 ]]; then
+        echo "198.19.255.0/24 is reserved for use by AWS"
+        return 1
+    fi
+    
+    # Check for restricted ranges
+    # 0.0.0.0/8
+    # 127.0.0.0/8 (Loopback)
+    # 169.254.0.0/16 (Link Local)
+    # 224.0.0.0/4 (Multicast)
+    if [[ $a == 0 ]] || \
+       [[ $a == 127 ]] || \
+       [[ $a == 169 && $b == 254 ]] || \
+       [[ $a == 224 ]] || \
+       [[ $a == 255 && $b == 255 && $c == 255 && $d == 255 ]]; then # Broadcast
+        echo "Reserved or restricted IP range"
+        return 1
+    fi
+
+    return 0
+}
+
 
 # Helper function to validate resource IDs
 validate_resource_id() {
@@ -1031,21 +1090,41 @@ config_vpc_stack() {
         default_vpc_cidr=$(get_input "Do you want to use the default VPC CIDR range 10.192.0.0/16? (y/n)" "y")
         # Using an alternate VPC CIDR ranges
         if [[ $default_vpc_cidr == "n" ]]; then
+
             while true; do 
                 VPC_CIDR=$(get_input "Enter the VPC CIDR range" "10.192.0.0/16")
-                if validate_cidr "$VPC_CIDR"; then
+                if validate_vpc_cidr "$VPC_CIDR"; then
                     break
                 else
                     echo -e "${RED}Invalid VPC CIDR range. Please try again.${NC}"
                 fi
             done
+
+            while true; do
+                PUBLIC_SUBNET1_CIDR=$(get_input "Enter the CIDR range to use for public subnet 1" "10.192.10.0/24")
+                if validate_cidr_format "$PUBLIC_SUBNET1_CIDR"; then
+                    break
+                else
+                    echo -e "${RED}Invalid CIDR range for public subnet 1. Please try again.${NC}"
+                fi  
+            done
+
+            while true; do
+                PUBLIC_SUBNET2_CIDR=$(get_input "Enter the CIDR range to use for public subnet 2" "10.192.11.0/24")
+                if validate_cidr_format "$PUBLIC_SUBNET2_CIDR"; then
+                    break
+                else
+                    echo -e "${RED}Invalid CIDR range for public subnet 2. Please try again.${NC}"
+                fi
+            done
+
         else 
             default_pub_subnet1_cidr=$(get_input "Do you want to use the default CIDR range 10.192.10.0/24 for public subnet 1? (y/n)" "y")
             # Using an alternate CIDR range for public subnet 1
             if [[ $default_pub_subnet1_cidr == "n" ]]; then
                 while true; do
                     PUBLIC_SUBNET1_CIDR=$(get_input "Enter the CIDR range to use for public subnet 1" "10.192.10.0/24")
-                    if validate_cidr "$PUB_SUBNET1_CIDR"; then
+                    if validate_cidr_format "$PUBLIC_SUBNET1_CIDR"; then
                         break
                     else
                         echo -e "${RED}Invalid CIDR range for public subnet 1. Please try again.${NC}"
@@ -1058,7 +1137,7 @@ config_vpc_stack() {
             if [[ $default_pub_subnet2_cidr == "n" ]]; then
                 while true; do
                     PUBLIC_SUBNET2_CIDR=$(get_input "Enter the CIDR range to use for public subnet 2" "10.192.11.0/24")
-                    if validate_cidr "$PUB_SUBNET2_CIDR"; then
+                    if validate_cidr_format "$PUBLIC_SUBNET2_CIDR"; then
                         break
                     else
                         echo -e "${RED}Invalid CIDR range for public subnet 2. Please try again.${NC}"
@@ -1108,7 +1187,7 @@ config_private_subnet_stack() {
         if [[ $default_priv_subnet1_cidr == "n" ]]; then 
             while true; do
                 PRIVATE_SUBNET1_CIDR=$(get_input "Enter the CIDR range you want to use for the private subnet" "10.1.0.0/16")
-                if validate_cidr "$PRIVATE_SUBNET1_CIDR"; then
+                if validate_cidr_format "$PRIVATE_SUBNET1_CIDR"; then
                     break
                 else
                     echo -e "${RED}Invalid CIDR range for the private subnet. Please try again.${NC}"
@@ -1147,7 +1226,7 @@ config_eks_cluster_stack() {
         if [[ $default_eks_priv_subnet1_cidr == "n" ]]; then
             while true; do
                 EKS_PRIVATE_SUBNET1_CIDR=$(get_input "Enter the CIDR range you want to use for EKS private subnet 1" "10.192.7.0/28")
-                if validate_cidr "$EKS_PRIVATE_SUBNET1_CIDR"; then 
+                if validate_cidr_format "$EKS_PRIVATE_SUBNET1_CIDR"; then 
                     break
                 else
                     echo -e "${RED}Invalid CIDR range for EKS private subnet 1. Please try again.${NC}"
@@ -1159,7 +1238,7 @@ config_eks_cluster_stack() {
         if [[ $default_eks_priv_subnet2_cidr == "n" ]]; then 
             while true; do
                 EKS_PRIVATE_SUBNET2_CIDR=$(get_input "Enter the CIDR range you want to use for EKS private subnet 2" "10.192.8.0/28")
-                if validate_cidr "$EKS_PRIVATE_SUBNET2_CIDR"; then 
+                if validate_cidr_format "$EKS_PRIVATE_SUBNET2_CIDR"; then 
                     break
                 else
                     echo -e "${RED}Invalid CIDR range for EKS private subnet 2. Please try again.${NC}"
