@@ -43,9 +43,6 @@ Metadata:
           - HelmRepoUrl
           - HelmRepoPath
           - HelmRelease
-          - CustomResourceS3Bucket
-          - LayerS3Key
-          - FunctionS3Key
       - Label: 
           default: Parameter Checks Recommended If CreateHyperPodClusterStack == true
         Parameters: 
@@ -85,7 +82,7 @@ Metadata:
       - Label: 
           default: |
             Parameter Overrides Required If CreateSecurityGroupStack == false and Any(CreateEKSClusterStack, CreateHyperPodClusterStack) == true;
-            OR If CreateEKSClusterStack == false and CreateSecurityGroupStack == true (For Cross-SG Comms with an existing EKS Cluster)
+            OR If CreateEKSClusterStack == false and CreateSecurityGroupStack == true (For adding rules to an existing EKS Cluster security group)
         Parameters: 
           - SecurityGroupId
       - Label: 
@@ -100,10 +97,6 @@ Metadata:
           default: Parameter Overrides Required If CreateSageMakerIAMRoleStack == false and CreateHyperPodClusterStack == true
         Parameters: 
           - SageMakerIAMRoleName
-      - Label: 
-          default: Do Not Change if you want to use the AWS hosted CloudFormation stacks
-        Parameters: 
-          - AssetS3BucketUrl
       - Label: 
           default: For AWS Hosted Workshops Only - Do Not Change
         Parameters:
@@ -129,14 +122,45 @@ Metadata:
       CreateHyperPodClusterStack:
         default: "Create HyperPod Cluster Stack"
 
+Mappings:
+  AssetS3Buckets: 
+    eu-north-1:
+      BucketName: ws-assets-prod-iad-r-arn-580aeca3990cef5a
+    ap-south-1:
+      BucketName: ws-assets-prod-iad-r-bom-431207042d319a2d
+    eu-west-3:
+      BucketName: ws-assets-prod-iad-r-cdg-9e76383c31ad6229
+    us-east-2:
+      BucketName: ws-assets-prod-iad-r-cmh-8d6e9c21a4dec77d
+    eu-west-1:
+      BucketName: ws-assets-prod-iad-r-dub-85e3be25bd827406
+    eu-central-1:
+      BucketName: ws-assets-prod-iad-r-fra-b129423e91500967
+    sa-east-1:
+      BucketName: ws-assets-prod-iad-r-gru-527b8c19222c1182
+    us-east-1:
+      BucketName: ws-assets-prod-iad-r-iad-ed304a55c2ca1aee
+    ap-northeast-2:
+      BucketName: ws-assets-prod-iad-r-icn-ced060f0d38bc0b0
+    ap-northeast-3:
+      BucketName: ws-assets-prod-iad-r-kix-c2a28ad4e55ea53a
+    eu-west-2:
+      BucketName: ws-assets-prod-iad-r-lhr-cc4472a651221311
+    ap-northeast-1:
+      BucketName: ws-assets-prod-iad-r-nrt-2cb4b4649d0e0f94
+    us-west-2:
+      BucketName: ws-assets-prod-iad-r-pdx-f3b3f9f1a7d6a3d0
+    us-west-1:
+      BucketName: ws-assets-prod-iad-r-sfo-f61fc67057535f1b
+    ap-southeast-1:
+      BucketName: ws-assets-prod-iad-r-sin-694a125e41645312
+    ap-southeast-2:
+      BucketName: ws-assets-prod-iad-r-syd-b04c62a5f16f7b2e
+    ca-central-1:
+      BucketName: ws-assets-prod-iad-r-yul-5c2977cd61bca1f3
+
 Parameters:
-  ### ---------------- Asset S3 Bucket URL Param ----------------###
-
-  AssetS3BucketUrl:
-    Description: The S3 Bucket URL for nested CloudFormation stacks
-    Type: String
-    Default: https://ws-assets-prod-iad-r-pdx-f3b3f9f1a7d6a3d0.s3.us-west-2.amazonaws.com/2433d39e-ccfe-4c00-9d3d-9917b729258e
-
+  
   ### ---------------- Resource Prefix Param ----------------###
 
   ResourceNamePrefix:
@@ -265,21 +289,6 @@ Parameters:
     Description: The name of the Helm release. 
     Type: String
     Default: hyperpod-dependencies
-
-  CustomResourceS3Bucket: 
-    Description: The name of the S3 Bucket that stores the Helm Chart Injector Lambda layer and function code. 
-    Type: String
-    Default: ws-assets-prod-iad-r-pdx-f3b3f9f1a7d6a3d0
-
-  LayerS3Key: 
-    Description: The S3 key for the Helm Chart Injector Lambda layer zip file
-    Type: String
-    Default: 2433d39e-ccfe-4c00-9d3d-9917b729258e/lambda-layer.zip
-
-  FunctionS3Key: 
-    Description: The S3 key for the Helm Chart Injector Lambda function code zip file
-    Type: String
-    Default: 2433d39e-ccfe-4c00-9d3d-9917b729258e/function.zip
 
   ### ---------------- HyperPod Params ----------------###
 
@@ -531,7 +540,9 @@ Resources:
     Type: AWS::CloudFormation::Stack
     Condition: CreateVPCStack
     Properties:
-      TemplateURL: !Sub ${AssetS3BucketUrl}/vpc-stack.yaml
+      TemplateURL: !Sub
+        - 'https://${BucketName}.s3.{AWS::Region}.amazonaws.com/2433d39e-ccfe-4c00-9d3d-9917b729258e/vpc-stack.yaml'
+        - BucketName: !FindInMap [AssetS3Buckets, !Ref 'AWS::Region', BucketName]
       Parameters:
         ResourceNamePrefix: !Ref ResourceNamePrefix
         VpcCIDR: !Ref VpcCIDR
@@ -542,7 +553,9 @@ Resources:
     Type: AWS::CloudFormation::Stack
     Condition: CreatePrivateSubnetStack
     Properties:
-      TemplateURL: !Sub ${AssetS3BucketUrl}/private-subnet-stack.yaml
+      TemplateURL: !Sub 
+        - "https://${BucketName}.s3.{AWS::Region}.amazonaws.com/2433d39e-ccfe-4c00-9d3d-9917b729258e/private-subnet-stack.yaml"
+        - BucketName: !FindInMap [AssetS3Buckets, !Ref 'AWS::Region', BucketName]
       Parameters:
         ResourceNamePrefix: !Ref ResourceNamePrefix
         AvailabilityZoneId: !Ref AvailabilityZoneId
@@ -560,7 +573,9 @@ Resources:
     Type: AWS::CloudFormation::Stack
     Condition: CreateSecurityGroupStack
     Properties:
-      TemplateURL: !Sub ${AssetS3BucketUrl}/security-group-stack.yaml
+      TemplateURL: !Sub 
+        - "https://${BucketName}.s3.{AWS::Region}.amazonaws.com/2433d39e-ccfe-4c00-9d3d-9917b729258e/security-group-stack.yaml"
+        - BucketName: !FindInMap [AssetS3Buckets, !Ref 'AWS::Region', BucketName]
       Parameters:
         ResourceNamePrefix: !Ref ResourceNamePrefix
         VpcId: !If
@@ -579,7 +594,9 @@ Resources:
     Type: AWS::CloudFormation::Stack
     Condition: CreateEKSClusterStack
     Properties:
-      TemplateURL: !Sub ${AssetS3BucketUrl}/eks-cluster-stack.yaml
+      TemplateURL: !Sub 
+        - "https://${BucketName}.s3.{AWS::Region}.amazonaws.com/2433d39e-ccfe-4c00-9d3d-9917b729258e/eks-cluster-stack.yaml"
+        - BucketName: !FindInMap [AssetS3Buckets, !Ref 'AWS::Region', BucketName]
       Parameters:
         ResourceNamePrefix: !Ref ResourceNamePrefix
         EKSPrivateSubnet1CIDR: !Ref EKSPrivateSubnet1CIDR
@@ -601,7 +618,9 @@ Resources:
     Type: AWS::CloudFormation::Stack
     Condition: CreateS3BucketStack
     Properties:
-      TemplateURL: !Sub ${AssetS3BucketUrl}/s3-bucket-stack.yaml
+      TemplateURL: !Sub 
+        - "https://${BucketName}.s3.{AWS::Region}.amazonaws.com/2433d39e-ccfe-4c00-9d3d-9917b729258e/s3-bucket-stack.yaml"
+        - BucketName: !FindInMap [AssetS3Buckets, !Ref 'AWS::Region', BucketName]
       Parameters:
         ResourceNamePrefix: !Ref ResourceNamePrefix
         VpcId: !If
@@ -617,7 +636,9 @@ Resources:
     Type: AWS::CloudFormation::Stack
     Condition: CreateLifeCycleScriptStack
     Properties:
-      TemplateURL: !Sub ${AssetS3BucketUrl}/lifecycle-script-stack.yaml
+      TemplateURL: !Sub 
+        - "https://${BucketName}.s3.{AWS::Region}.amazonaws.com/2433d39e-ccfe-4c00-9d3d-9917b729258e/lifecycle-script-stack.yaml"
+        - BucketName: !FindInMap [AssetS3Buckets, !Ref 'AWS::Region', BucketName]
       Parameters:
         ResourceNamePrefix: !Ref ResourceNamePrefix
         S3BucketName: !If
@@ -629,7 +650,9 @@ Resources:
     Type: AWS::CloudFormation::Stack
     Condition: CreateSageMakerIAMRoleStack
     Properties:
-      TemplateURL: !Sub ${AssetS3BucketUrl}/sagemaker-iam-role-stack.yaml
+      TemplateURL: !Sub 
+        - "https://${BucketName}.s3.{AWS::Region}.amazonaws.com/2433d39e-ccfe-4c00-9d3d-9917b729258e/sagemaker-iam-role-stack.yaml"
+        - BucketName: !FindInMap [AssetS3Buckets, !Ref 'AWS::Region', BucketName]
       Parameters:
         ResourceNamePrefix: !Ref ResourceNamePrefix
         S3BucketName: !If
@@ -641,15 +664,21 @@ Resources:
     Type: AWS::CloudFormation::Stack
     Condition: CreateHelmChartStack
     Properties:
-      TemplateURL: !Sub ${AssetS3BucketUrl}/helm-chart-stack.yaml
+      TemplateURL: !Sub 
+        - "https://${BucketName}.s3.{AWS::Region}.amazonaws.com/2433d39e-ccfe-4c00-9d3d-9917b729258e/helm-chart-stack.yaml"
+        - BucketName: !FindInMap [AssetS3Buckets, !Ref 'AWS::Region', BucketName]
       Parameters:
         ResourceNamePrefix: !Ref ResourceNamePrefix
         HelmRepoUrl: !Ref HelmRepoUrl
         HelmRepoPath: !Ref HelmRepoPath
         HelmRelease: !Ref HelmRelease
-        CustomResourceS3Bucket: !Ref CustomResourceS3Bucket
-        LayerS3Key: !Ref LayerS3Key
-        FunctionS3Key: !Ref FunctionS3Key
+        CustomResourceS3Bucket: !FindInMap [AssetS3Buckets, !Ref 'AWS::Region', BucketName]
+        LayerS3Key: !Sub 
+          - "${BucketName}/lambda-layer.zip"
+          - BucketName: !FindInMap [AssetS3Buckets, !Ref 'AWS::Region', BucketName]
+        FunctionS3Key: !Sub 
+          - "${BucketName}/function.zip"
+          - BucketName: !FindInMap [AssetS3Buckets, !Ref 'AWS::Region', BucketName]
         EKSClusterName: !If
           - CreateEKSClusterStack
           - !GetAtt EKSClusterStack.Outputs.EKSClusterName
@@ -659,7 +688,9 @@ Resources:
     Type: AWS::CloudFormation::Stack
     Condition: CreateHyperPodClusterStack
     Properties:
-      TemplateURL: !Sub ${AssetS3BucketUrl}/hyperpod-cluster-stack.yaml
+      TemplateURL: !Sub 
+        - "https://${BucketName}.s3.{AWS::Region}.amazonaws.com/2433d39e-ccfe-4c00-9d3d-9917b729258e/hyperpod-cluster-stack.yaml"
+        - BucketName: !FindInMap [AssetS3Buckets, !Ref 'AWS::Region', BucketName]
       Parameters:
         HyperPodClusterName: !Ref HyperPodClusterName
         NodeRecovery: !Ref NodeRecovery
