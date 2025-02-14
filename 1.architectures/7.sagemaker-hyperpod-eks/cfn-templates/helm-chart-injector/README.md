@@ -32,3 +32,8 @@ aws s3 sync ./outputs s3://$BUCKET_NAME --delete
 
 After completing these steps, you can proceed to deploy the [helm-chart-stack.yaml](./../nested-stacks/helm-chart-stack.yaml) template by itself, or as part of the nested stack configuration in the [main-stack.yaml](./../nested-stacks/main-stack.yaml) template. See the main [README.md](./../README.md) for details. 
 
+> **IMPORTANT**: Be sure to update the following parameters to reference your S3 Bucket and the artifacts you uploaded there:    
+- `CustomResourceS3Bucket`
+- `LayerS3Key`
+- `FunctionS3Key`
+
