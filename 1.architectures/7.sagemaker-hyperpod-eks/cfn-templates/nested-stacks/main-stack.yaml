@@ -540,9 +540,14 @@ Resources:
     Type: AWS::CloudFormation::Stack
     Condition: CreateVPCStack
     Properties:
-      TemplateURL: !Sub
-        - 'https://${BucketName}.s3.{AWS::Region}.amazonaws.com/2433d39e-ccfe-4c00-9d3d-9917b729258e/vpc-stack.yaml'
-        - BucketName: !FindInMap [AssetS3Buckets, !Ref 'AWS::Region', BucketName]
+      TemplateURL: 
+        Fn::Sub: 
+        - 'https://${BucketName}.s3.${AWS::Region}.amazonaws.com/2433d39e-ccfe-4c00-9d3d-9917b729258e/vpc-stack.yaml'
+        - BucketName: 
+            Fn::FindInMap: 
+            - AssetS3Buckets
+            - Ref: 'AWS::Region'
+            - BucketName
       Parameters:
         ResourceNamePrefix: !Ref ResourceNamePrefix
         VpcCIDR: !Ref VpcCIDR
@@ -553,9 +558,14 @@ Resources:
     Type: AWS::CloudFormation::Stack
     Condition: CreatePrivateSubnetStack
     Properties:
-      TemplateURL: !Sub 
-        - "https://${BucketName}.s3.{AWS::Region}.amazonaws.com/2433d39e-ccfe-4c00-9d3d-9917b729258e/private-subnet-stack.yaml"
-        - BucketName: !FindInMap [AssetS3Buckets, !Ref 'AWS::Region', BucketName]
+      TemplateURL: 
+        Fn::Sub: 
+        - "https://${BucketName}.s3.${AWS::Region}.amazonaws.com/2433d39e-ccfe-4c00-9d3d-9917b729258e/private-subnet-stack.yaml"
+        - BucketName: 
+            Fn::FindInMap: 
+            - AssetS3Buckets
+            - Ref: 'AWS::Region'
+            - BucketName
       Parameters:
         ResourceNamePrefix: !Ref ResourceNamePrefix
         AvailabilityZoneId: !Ref AvailabilityZoneId
@@ -573,9 +583,14 @@ Resources:
     Type: AWS::CloudFormation::Stack
     Condition: CreateSecurityGroupStack
     Properties:
-      TemplateURL: !Sub 
-        - "https://${BucketName}.s3.{AWS::Region}.amazonaws.com/2433d39e-ccfe-4c00-9d3d-9917b729258e/security-group-stack.yaml"
-        - BucketName: !FindInMap [AssetS3Buckets, !Ref 'AWS::Region', BucketName]
+      TemplateURL: 
+        Fn::Sub: 
+        - "https://${BucketName}.s3.${AWS::Region}.amazonaws.com/2433d39e-ccfe-4c00-9d3d-9917b729258e/security-group-stack.yaml"
+        - BucketName: 
+            Fn::FindInMap: 
+            - AssetS3Buckets
+            - Ref: 'AWS::Region'
+            - BucketName
       Parameters:
         ResourceNamePrefix: !Ref ResourceNamePrefix
         VpcId: !If
@@ -594,9 +609,14 @@ Resources:
     Type: AWS::CloudFormation::Stack
     Condition: CreateEKSClusterStack
     Properties:
-      TemplateURL: !Sub 
-        - "https://${BucketName}.s3.{AWS::Region}.amazonaws.com/2433d39e-ccfe-4c00-9d3d-9917b729258e/eks-cluster-stack.yaml"
-        - BucketName: !FindInMap [AssetS3Buckets, !Ref 'AWS::Region', BucketName]
+      TemplateURL:
+        Fn::Sub:
+        - "https://${BucketName}.s3.${AWS::Region}.amazonaws.com/2433d39e-ccfe-4c00-9d3d-9917b729258e/eks-cluster-stack.yaml"
+        - BucketName: 
+            Fn::FindInMap: 
+            - AssetS3Buckets
+            - Ref: 'AWS::Region'
+            - BucketName
       Parameters:
         ResourceNamePrefix: !Ref ResourceNamePrefix
         EKSPrivateSubnet1CIDR: !Ref EKSPrivateSubnet1CIDR
@@ -618,9 +638,14 @@ Resources:
     Type: AWS::CloudFormation::Stack
     Condition: CreateS3BucketStack
     Properties:
-      TemplateURL: !Sub 
-        - "https://${BucketName}.s3.{AWS::Region}.amazonaws.com/2433d39e-ccfe-4c00-9d3d-9917b729258e/s3-bucket-stack.yaml"
-        - BucketName: !FindInMap [AssetS3Buckets, !Ref 'AWS::Region', BucketName]
+      TemplateURL:
+        Fn::Sub:
+        - "https://${BucketName}.s3.${AWS::Region}.amazonaws.com/2433d39e-ccfe-4c00-9d3d-9917b729258e/s3-bucket-stack.yaml"
+        - BucketName: 
+            Fn::FindInMap: 
+            - AssetS3Buckets
+            - Ref: 'AWS::Region'
+            - BucketName
       Parameters:
         ResourceNamePrefix: !Ref ResourceNamePrefix
         VpcId: !If
@@ -636,9 +661,14 @@ Resources:
     Type: AWS::CloudFormation::Stack
     Condition: CreateLifeCycleScriptStack
     Properties:
-      TemplateURL: !Sub 
-        - "https://${BucketName}.s3.{AWS::Region}.amazonaws.com/2433d39e-ccfe-4c00-9d3d-9917b729258e/lifecycle-script-stack.yaml"
-        - BucketName: !FindInMap [AssetS3Buckets, !Ref 'AWS::Region', BucketName]
+      TemplateURL: 
+        Fn::Sub: 
+        - "https://${BucketName}.s3.${AWS::Region}.amazonaws.com/2433d39e-ccfe-4c00-9d3d-9917b729258e/lifecycle-script-stack.yaml"
+        - BucketName: 
+            Fn::FindInMap: 
+            - AssetS3Buckets
+            - Ref: 'AWS::Region'
+            - BucketName
       Parameters:
         ResourceNamePrefix: !Ref ResourceNamePrefix
         S3BucketName: !If
@@ -650,9 +680,14 @@ Resources:
     Type: AWS::CloudFormation::Stack
     Condition: CreateSageMakerIAMRoleStack
     Properties:
-      TemplateURL: !Sub 
-        - "https://${BucketName}.s3.{AWS::Region}.amazonaws.com/2433d39e-ccfe-4c00-9d3d-9917b729258e/sagemaker-iam-role-stack.yaml"
-        - BucketName: !FindInMap [AssetS3Buckets, !Ref 'AWS::Region', BucketName]
+      TemplateURL: 
+        Fn::Sub:
+        - "https://${BucketName}.s3.${AWS::Region}.amazonaws.com/2433d39e-ccfe-4c00-9d3d-9917b729258e/sagemaker-iam-role-stack.yaml"
+        - BucketName: 
+            Fn::FindInMap: 
+            - AssetS3Buckets
+            - Ref: 'AWS::Region'
+            - BucketName
       Parameters:
         ResourceNamePrefix: !Ref ResourceNamePrefix
         S3BucketName: !If
@@ -664,21 +699,26 @@ Resources:
     Type: AWS::CloudFormation::Stack
     Condition: CreateHelmChartStack
     Properties:
-      TemplateURL: !Sub 
-        - "https://${BucketName}.s3.{AWS::Region}.amazonaws.com/2433d39e-ccfe-4c00-9d3d-9917b729258e/helm-chart-stack.yaml"
-        - BucketName: !FindInMap [AssetS3Buckets, !Ref 'AWS::Region', BucketName]
+      TemplateURL: 
+        Fn::Sub:
+        - "https://${BucketName}.s3.${AWS::Region}.amazonaws.com/2433d39e-ccfe-4c00-9d3d-9917b729258e/helm-chart-stack.yaml"
+        - BucketName: 
+            Fn::FindInMap: 
+            - AssetS3Buckets
+            - Ref: 'AWS::Region'
+            - BucketName
       Parameters:
         ResourceNamePrefix: !Ref ResourceNamePrefix
         HelmRepoUrl: !Ref HelmRepoUrl
         HelmRepoPath: !Ref HelmRepoPath
         HelmRelease: !Ref HelmRelease
-        CustomResourceS3Bucket: !FindInMap [AssetS3Buckets, !Ref 'AWS::Region', BucketName]
-        LayerS3Key: !Sub 
-          - "${BucketName}/lambda-layer.zip"
-          - BucketName: !FindInMap [AssetS3Buckets, !Ref 'AWS::Region', BucketName]
-        FunctionS3Key: !Sub 
-          - "${BucketName}/function.zip"
-          - BucketName: !FindInMap [AssetS3Buckets, !Ref 'AWS::Region', BucketName]
+        CustomResourceS3Bucket: 
+          Fn::FindInMap: 
+            - AssetS3Buckets
+            - Ref: 'AWS::Region'
+            - BucketName
+        LayerS3Key: '2433d39e-ccfe-4c00-9d3d-9917b729258e/lambda-layer.zip'
+        FunctionS3Key: '2433d39e-ccfe-4c00-9d3d-9917b729258e/function.zip'
         EKSClusterName: !If
           - CreateEKSClusterStack
           - !GetAtt EKSClusterStack.Outputs.EKSClusterName
@@ -688,9 +728,14 @@ Resources:
     Type: AWS::CloudFormation::Stack
     Condition: CreateHyperPodClusterStack
     Properties:
-      TemplateURL: !Sub 
-        - "https://${BucketName}.s3.{AWS::Region}.amazonaws.com/2433d39e-ccfe-4c00-9d3d-9917b729258e/hyperpod-cluster-stack.yaml"
-        - BucketName: !FindInMap [AssetS3Buckets, !Ref 'AWS::Region', BucketName]
+      TemplateURL:
+        Fn::Sub:
+        - "https://${BucketName}.s3.${AWS::Region}.amazonaws.com/2433d39e-ccfe-4c00-9d3d-9917b729258e/hyperpod-cluster-stack.yaml"
+        - BucketName: 
+            Fn::FindInMap: 
+            - AssetS3Buckets
+            - Ref: 'AWS::Region'
+            - BucketName
       Parameters:
         HyperPodClusterName: !Ref HyperPodClusterName
         NodeRecovery: !Ref NodeRecovery

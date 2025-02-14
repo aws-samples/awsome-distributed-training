@@ -46,6 +46,40 @@ progress_bar() {
 
 #===Function Definitions===
 
+# Helper function to enforce the use of Yy or Nn in binary responses
+get_yes_no() {
+    local prompt="$1"
+    local default="$2"
+    local answer
+    local prompt_text
+    
+    # Set up prompt text based on default
+    if [ "$default" = "y" ]; then
+        prompt_text="$prompt (Y/n): "
+    else
+        prompt_text="$prompt (y/N): "
+    fi
+    
+    while true; do
+        echo -e -n "${Green}$prompt_text${NC}"
+        read -r -n 1 answer
+        
+        # Handle the enter key (empty input)
+        if [ -z "$answer" ]; then
+            echo
+            [ "$default" = "y" ] && return 0 || return 1
+        fi
+        
+        echo # Move to a new line
+        
+        case $answer in
+            [Yy]) return 0 ;;
+            [Nn]) return 1 ;;
+            *) echo "Please answer 'y' or 'n' or press enter for default" ;;
+        esac
+    done
+}
+
 # Helper function to install AWS CLI depending on OS
 install_aws_cli() {
     if [[ $DEVICE == *"Darwin"* ]]; then
@@ -316,9 +350,7 @@ clone_adt() {
     REPO_NAME="awsome-distributed-training"
     if [ -d "$REPO_NAME" ]; then
         echo -e "${YELLOW}⚠️  The directory '$REPO_NAME' already exists.${NC}"
-        echo -e "${GREEN}Do you want to remove it and clone again? (yes/no): ${NC}"
-        read -e REMOVE_AND_CLONE
-        if [[ $REMOVE_AND_CLONE == "yes" ]]; then
+        if get_yes_no "Do you want to remove it and clone again?" "n"; then
             echo -e "${YELLOW}Removing existing directory...${NC}"
             rm -rf "$REPO_NAME"
             echo -e "${BLUE}Cloning repository...${NC}"
@@ -453,7 +485,7 @@ configure_eks_cluster() {
     # Using the current IAM entity (user or role) from this script 
     # Attempt to create if the EKS Cluster was previously created
     # Possibly by another IAM entity
-    if [[ $CREATE_EKSCluster_STACK == false ]]; then 
+    if [[ $CREATE_EKSCluster_STACK == "false" ]]; then 
 
         if [[ $PRINCIPAL_TYPE == "assumed-role" ]]; then
             # Extract the role name from assumed-role ARN
@@ -509,10 +541,7 @@ configure_eks_cluster() {
     else
         current_context=$(kubectl config current-context)
         echo -e "${GREEN}Current context: ${current_context}${NC}"
-        
-        confirm_context=$(get_input "Is this the correct context? (y/n)" "y")
-        
-        if [[ "$confirm_context" == "n" || "$confirm_context" == "N" ]]; then
+        if ! get_yes_no "Is this the correct context?" "y"; then
             echo -e "${YELLOW}Available contexts:${NC}"
             kubectl config get-contexts -o name | nl
             
@@ -556,9 +585,7 @@ configure_eks_cluster() {
     fi
 
     # Offer to add additional users
-    add_users=$(get_input "Would you like to add additional ADMIN users to the cluster? (y/n)" "n")
-
-    if [[ $add_users == "y" ]]; then
+    if get_yes_no "Would you like to add additional ADMIN users to the cluster?" "n"; then
         echo -e "${YELLOW}Please enter usernames (one per line). Press Ctrl+D when finished:${NC}"
         TMP_USERS_FILE=$(mktemp)
         cat > "$TMP_USERS_FILE"
@@ -608,15 +635,15 @@ create_hyperpod_cluster_config() {
     # Initialize instance groups array
     local instance_groups="["
     local group_count=1
-    local first_group=true
+    local first_group="true"
 
     # Configure accelerator groups
     while true; do
-        if [[ $first_group == true ]]; then
+        if [[ $first_group == "true" ]]; then
             echo -e "${BLUE}=== Configuring primary accelerator worker group ===${NC}"
-            first_group=false
+            first_group="false"
         else
-            if [[ $(get_input "Do you want to add another accelerator worker group? (yes/no)" "no") == "yes" ]]; then
+            if get_yes_no "Do you want to add another accelerator worker group?" "n"; then
                 echo -e "${BLUE}=== Configuring additional accelerator worker group ===${NC}"
                 instance_groups+=","
             else
@@ -631,7 +658,7 @@ create_hyperpod_cluster_config() {
 
         # Training plan configuration for this worker group
         local TRAINING_PLAN_ARN=""
-        if [[ $(get_input "Are you using training plans for this worker group? (yes/no)" "no") == "yes" ]]; then
+        if get_yes_no "Are you using training plans for this worker group?" "n"; then
             while true; do
                 TRAINING_PLAN=$(get_input "Enter the training plan name" "")
 
@@ -640,7 +667,7 @@ create_hyperpod_cluster_config() {
                 
                 if ! TRAINING_PLAN_DESCRIPTION=$(aws sagemaker describe-training-plan --training-plan-name "$TRAINING_PLAN" --output json 2>&1); then
                     echo -e "${BLUE}❌Error: Training plan '$TRAINING_PLAN' not found. Please try again.${NC}"
-                    if [[ $(get_input "Would you like to try another training plan? (yes/no)" "yes") != "yes" ]]; then
+                    if ! get_yes_no "Would you like to try another training plan?" "y"; then
                         echo -e "${YELLOW}Exiting training plan configuration.${NC}"
                         break
                     fi
@@ -662,26 +689,25 @@ create_hyperpod_cluster_config() {
                     echo -e "  ${YELLOW}Training Plan Instance Type:${NC} $TP_INSTANCE_TYPE"
 
                     # Validate configuration against training plan
-                    local validation_passed=true
+                    local validation_passed="true"
 
                     if [[ $instance_count -gt $AVAILABLE_INSTANCE_COUNT ]]; then
                         echo -e "${YELLOW}Warning: The requested instance count ($instance_count) is greater than the available instances in the training plan ($AVAILABLE_INSTANCE_COUNT).${NC}"
-                        if [[ $(get_input "Do you want to continue anyway? (yes/no)" "no") != "yes" ]]; then
-                            echo -e "${BLUE}Would you like to update the instance count? (yes/no)${NC}"
-                            if [[ $(get_input "Update instance count?" "yes") == "yes" ]]; then
+                        if ! get_yes_no "Do you want to continue anyway?" "n"; then
+                            if get_yes_no "Would you like to update the instance count?" "y"; then
                                 instance_count=$(get_input "Enter the new number of instances" "1")
                                 echo -e "${GREEN}Updated instance count to $instance_count${NC}"
-                                validation_passed=true
+                                validation_passed="true"
                             else
-                                validation_passed=false
+                                validation_passed="false"
                             fi
                         fi
                     fi
 
                     if [[ $instance_type != $TP_INSTANCE_TYPE ]]; then
                         echo -e "${YELLOW}Warning: The requested instance type ($instance_type) does not match the instance type in the training plan ($TP_INSTANCE_TYPE).${NC}"
-                        echo -e "${BLUE}Do you want to continue anyway? If you choose \"no\", then the script will update instance type for you and proceed. (yes/no)${NC}"
-                        if [[ $(get_input "Continue with mismatched instance type?" "no") != "yes" ]]; then
+                        echo -e "${BLUE}Do you want to continue anyway? If you choose \"n\", then the script will update instance type for you and proceed.${NC}"
+                        if ! get_yes_no "Continue with mismatched instance type?" "n"; then
                             instance_type=$TP_INSTANCE_TYPE
                             echo -e "${GREEN}Updated instance type to $instance_type${NC}"
                         fi
@@ -689,16 +715,16 @@ create_hyperpod_cluster_config() {
 
                     if [[ $TRAINING_PLAN_AZ != $CF_AZ ]]; then
                         echo -e "${YELLOW}Warning: The training plan availability zone ($TRAINING_PLAN_AZ) does not match the cluster availability zone ($CF_AZ).${NC}"
-                        if [[ $(get_input "Do you want to continue anyway? (yes/no)" "no") != "yes" ]]; then
-                            validation_passed=false
+                        if ! get_yes_no "Do you want to continue anyway?" "n"; then
+                            validation_passed="false"
                         fi
                     fi
 
-                    if [[ $validation_passed == true ]]; then
+                    if [[ $validation_passed == "true" ]]; then
                         break
                     else
                         echo -e "${YELLOW}Training plan validation failed. Please try another training plan.${NC}"
-                        if [[ $(get_input "Would you like to try another training plan? (yes/no)" "yes") != "yes" ]]; then
+                        if ! get_yes_no "Would you like to try another training plan?" "y"; then
                             echo -e "${YELLOW}Exiting training plan configuration.${NC}"
                             TRAINING_PLAN_ARN=""
                             break
@@ -711,14 +737,12 @@ create_hyperpod_cluster_config() {
         # Get health check configuration
         echo -e "${BLUE}=== Configuring health checks ===${NC}"
         local health_checks=()
-
-        if [[ $(get_input "Would you like to enable instance stress test? (yes/no)" "yes") == "yes" ]]; then
+        if get_yes_no "Would you like to enable instance stress test?" "y"; then
             health_checks+=("InstanceStress")
         fi
-        if [[ $(get_input "Would you like to enable instance connectivity test? (yes/no)" "yes") == "yes" ]]; then
+        if get_yes_no "Would you like to enable instance connectivity test?" "y"; then
             health_checks+=("InstanceConnectivity")
         fi
-
 
         # Add accelerator group configuration
         instance_groups+="    
@@ -768,7 +792,7 @@ create_hyperpod_cluster_config() {
     done
 
     # Configure general purpose groups
-    while [[ $(get_input "Do you want to add a general purpose worker group? (yes/no)" "no") == "yes" ]]; do
+    while get_yes_no "Do you want to add a general purpose worker group?" "n"; do
         echo -e "${BLUE}=== Configuring general purpose worker group ===${NC}"
         instance_groups+=","
 
@@ -800,7 +824,7 @@ create_hyperpod_cluster_config() {
         
         group_count=$((group_count + 1))
 
-        if [[ $(get_input "Do you want to add another general purpose worker group? (yes/no)" "no") != "yes" ]]; then
+        if ! get_yes_no "Do you want to add another general purpose worker group?" "n"; then
             break
         fi
         instance_groups+=","
@@ -891,7 +915,7 @@ deploy_stack() {
     fi 
 
     # Dry-run?
-    if [[ "${DRY_RUN:-false}" == "true" ]]; then
+    if [[ "${DRY_RUN:-"false"}" == "true" ]]; then
         echo "Would execute:"
         echo "$deploy_cmd"
 
@@ -1057,8 +1081,7 @@ config_resource_prefix() {
 }
 
 deploy_code_editor_stack() {
-    local deploy_smce_stack=$(get_input "Do you want to deploy the SageMaker Studio Code Editor CloudFormation Stack to create an IDE? (y/n)" "y")
-    if [[ $deploy_smce_stack != "y" ]]; then
+    if ! get_yes_no "Do you want to deploy the SageMaker Studio Code Editor CloudFormation Stack to create an IDE?" "y"; then
         echo -e "${YELLOW}Skipping SageMaker Studio Code Editor CloudFormation Stack deployment...${NC}"
         return 0
     fi
@@ -1072,9 +1095,7 @@ deploy_code_editor_stack() {
     parameter_overrides+=("ResourceNamePrefix=${RESOURCE_PREFIX}")
     
     # Handle VPC parameter
-    local default_vpc=$(get_input "Do you want to use the default VPC for SageMaker Studio Code Editor? (y/n)" "y")
-
-    if [[ $default_vpc == "n" ]]; then
+    if ! get_yes_no "Do you want to use the default VPC for SageMaker Studio Code Editor?" "y"; then
         echo -e "${GREEN}Creating a new VPC for Studio Code Editor.${NC}"
         parameter_overrides+=("UseDefaultVpc=false")
     fi
@@ -1085,11 +1106,9 @@ deploy_code_editor_stack() {
 
 # Configure parameters for the VPC Stack
 config_vpc_stack() {
-    new_vpc=$(get_input "Do you want to create a new VPC to use with HyperPod? (y/n)" "y")
-    if [[ $new_vpc == "y" ]]; then 
-        default_vpc_cidr=$(get_input "Do you want to use the default VPC CIDR range 10.192.0.0/16? (y/n)" "y")
+    if get_yes_no "Do you want to create a new VPC to use with HyperPod?" "y"; then 
         # Using an alternate VPC CIDR ranges
-        if [[ $default_vpc_cidr == "n" ]]; then
+        if ! get_yes_no "Do you want to use the default VPC CIDR range 10.192.0.0/16?" "y"; then
 
             while true; do 
                 VPC_CIDR=$(get_input "Enter the VPC CIDR range" "10.192.0.0/16")
@@ -1119,9 +1138,8 @@ config_vpc_stack() {
             done
 
         else 
-            default_pub_subnet1_cidr=$(get_input "Do you want to use the default CIDR range 10.192.10.0/24 for public subnet 1? (y/n)" "y")
             # Using an alternate CIDR range for public subnet 1
-            if [[ $default_pub_subnet1_cidr == "n" ]]; then
+            if ! get_yes_no "Do you want to use the default CIDR range 10.192.10.0/24 for public subnet 1?" "y"; then
                 while true; do
                     PUBLIC_SUBNET1_CIDR=$(get_input "Enter the CIDR range to use for public subnet 1" "10.192.10.0/24")
                     if validate_cidr_format "$PUBLIC_SUBNET1_CIDR"; then
@@ -1132,9 +1150,8 @@ config_vpc_stack() {
                 done
             fi
 
-            default_pub_subnet2_cidr=$(get_input "Do you want to use the default CIDR range 10.192.11.0/24 for public subnet 2? (y/n)" "y")
             # Using an alternate CIDR range for public subnet 2
-            if [[ $default_pub_subnet2_cidr == "n" ]]; then
+            if ! get_yes_no "Do you want to use the default CIDR range 10.192.11.0/24 for public subnet 2?" "y"; then
                 while true; do
                     PUBLIC_SUBNET2_CIDR=$(get_input "Enter the CIDR range to use for public subnet 2" "10.192.11.0/24")
                     if validate_cidr_format "$PUBLIC_SUBNET2_CIDR"; then
@@ -1147,7 +1164,7 @@ config_vpc_stack() {
         fi
     # Using an existing VPC 
     else 
-        export CREATE_VPC_STACK=false
+        export CREATE_VPC_STACK="false"
         # Get the VPC ID
         while true; do 
             VPC_ID=$(get_input "Enter the VPC ID you want to use" "")
@@ -1171,8 +1188,7 @@ config_vpc_stack() {
 
 # Configure parameters for the Private Subnet Stack
 config_private_subnet_stack() {
-    new_private_subnet=$(get_input "Do you want to create a new private subnet to use with HyperPod? (y/n)" "y")
-    if [[ $new_private_subnet == "y" ]]; then 
+    if get_yes_no "Do you want to create a new private subnet to use with HyperPod?" "y"; then 
         # Get the availability zone ID
         while true; do 
             AZ_ID=$(get_input "Enter the ID of the Availability Zone where you want to create the private subnet" "usw2-az2")
@@ -1183,8 +1199,7 @@ config_private_subnet_stack() {
             fi
         done
         # Get the private subnet cidr range
-        default_priv_subnet1_cidr=$(get_input "Do you want to use the default CIDR range 10.1.0.0/16 for the private subnet? (y/n)" "y")
-        if [[ $default_priv_subnet1_cidr == "n" ]]; then 
+        if ! get_yes_no "Do you want to use the default CIDR range 10.1.0.0/16 for the private subnet?" "y"; then 
             while true; do
                 PRIVATE_SUBNET1_CIDR=$(get_input "Enter the CIDR range you want to use for the private subnet" "10.1.0.0/16")
                 if validate_cidr_format "$PRIVATE_SUBNET1_CIDR"; then
@@ -1196,7 +1211,7 @@ config_private_subnet_stack() {
         fi
     # Using an existing Private Subnet
     else
-        export CREATE_PrivateSubnet_STACK=false
+        export CREATE_PrivateSubnet_STACK="false"
         # Get the private subnet ID
         while true; do
             PRIVATE_SUBNET_ID=$(get_input "Enter the private subnet ID you want to use" "")
@@ -1220,10 +1235,8 @@ config_private_subnet_stack() {
 
 # Configure parameters for the EKS Cluster Stack
 config_eks_cluster_stack() {
-    new_eks_cluster=$(get_input "Do you want to create a new EKS cluster to use with HyperPod? (y/n)" "y")
-    if [[ $new_eks_cluster == "y" ]]; then 
-        default_eks_priv_subnet1_cidr=$(get_input "Do you want to use the default CIDR range 10.192.7.0/28 for EKS private subnet 1? (y/n)" "y")
-        if [[ $default_eks_priv_subnet1_cidr == "n" ]]; then
+    if get_yes_no "Do you want to create a new EKS cluster to use with HyperPod?" "y"; then 
+        if ! get_yes_no "Do you want to use the default CIDR range 10.192.7.0/28 for EKS private subnet 1?" "y"; then
             while true; do
                 EKS_PRIVATE_SUBNET1_CIDR=$(get_input "Enter the CIDR range you want to use for EKS private subnet 1" "10.192.7.0/28")
                 if validate_cidr_format "$EKS_PRIVATE_SUBNET1_CIDR"; then 
@@ -1233,9 +1246,7 @@ config_eks_cluster_stack() {
                 fi 
             done
         fi
-
-        default_eks_priv_subnet2_cidr=$(get_input "Do you want to use the default CIDR range 10.192.8.0/28 for EKS private subnet 2? (y/n)" "y")
-        if [[ $default_eks_priv_subnet2_cidr == "n" ]]; then 
+        if ! get_yes_no "Do you want to use the default CIDR range 10.192.8.0/28 for EKS private subnet 2?" "y"; then 
             while true; do
                 EKS_PRIVATE_SUBNET2_CIDR=$(get_input "Enter the CIDR range you want to use for EKS private subnet 2" "10.192.8.0/28")
                 if validate_cidr_format "$EKS_PRIVATE_SUBNET2_CIDR"; then 
@@ -1245,9 +1256,7 @@ config_eks_cluster_stack() {
                 fi 
             done
         fi 
-
-        latest_k8s_version=$(get_input "Do you want to use the latest supported version of Kubernetes ($K8S_VERSION)? (y/n)" "y")
-        if [[ $latest_k8s_version == "n" ]]; then
+        if ! get_yes_no "Do you want to use the latest supported version of Kubernetes ($K8S_VERSION)?" "y"; then
             while true; do
                 K8S_VERSION=$(get_input "Enter the Kubernetes version you want to use (1.29, 1.30, 1.31)" "1.31")
                 case "$K8S_VERSION" in
@@ -1260,9 +1269,7 @@ config_eks_cluster_stack() {
                 esac 
             done
         fi 
-
-        default_eks_cluster_name=$(get_input "Do you want to use the default EKS cluster name sagemaker-hyperpod-eks-cluster? (y/n)" "y")
-        if [[ $default_eks_cluster_name == "n" ]]; then
+        if ! get_yes_no "Do you want to use the default EKS cluster name sagemaker-hyperpod-eks-cluster?" "y"; then
             while true; do
                 EKS_CLUSTER_NAME=$(get_input "Enter the EKS cluster name you want to use" "sagemaker-hyperpod-eks-cluster")
                 if [[ $EKS_CLUSTER_NAME =~ ^[[:alnum:]][[:alnum:]_-]{0,99}$ ]]; then
@@ -1274,7 +1281,7 @@ config_eks_cluster_stack() {
         fi
     # Using an existing EKS cluster
     else 
-        export CREATE_EKSCluster_STACK=false
+        export CREATE_EKSCluster_STACK="false"
         while true; do 
             EKS_CLUSTER_NAME=$(get_input "Enter the name of the EKS cluster you want to use" "")
             if validate_resource_id "$EKS_CLUSTER_NAME" "eks"; then
@@ -1300,15 +1307,14 @@ config_eks_cluster_stack() {
         echo -e "${GREEN}Creating an EKS access entry for SageMaker Studio Code Editor.${NC}"
 
         # Create an access entry for an existing EKS cluster
-        if [[ $CREATE_EKSCluster_STACK == false ]]; then 
+        if [[ $CREATE_EKSCluster_STACK == "false" ]]; then 
             # Get role arn
             if ! SMCE_ROLE_ARN=$(aws cloudformation describe-stacks \
                 --stack-name "$SMCE_STACK_NAME" \
                 --query 'Stacks[].Outputs[?OutputKey==`SageMakerStudioExecutionRoleArn`][].OutputValue' \
                 --output text); then
                 echo "Failed to get SageMaker Studio execution role ARN from stack $SMCE_STACK_NAME"
-                skip=$(get_input "Skip and continue? (y/n):" "y")
-                if [[ skip == "y" ]]; then
+                if get_yes_no "Skip and continue?" "y"; then
                     echo -e "${YELLOW}Skipping SageMaker Studio Code Editor access entry creation...${NC}"
                     return 0
                 else 
@@ -1318,8 +1324,7 @@ config_eks_cluster_stack() {
             # Validate we got a role ARN
             if [[ -z "$SMCE_ROLE_ARN" ]]; then
                 echo "SageMaker Studio execution role ARN not found in stack $SMCE_STACK_NAME outputs"
-                skip=$(get_input "Skip and continue? (y/n):" "y")
-                if [[ $skip == "y" ]]; then
+                if get_yes_no "Skip and continue?" "y"; then
                     echo -e "${YELLOW}Skipping SageMaker Studio Code Editor access entry creation...${NC}"
                     return 0
                 else
@@ -1332,8 +1337,7 @@ config_eks_cluster_stack() {
                 --principal-arn "$SMCE_ROLE_ARN" \
                 --type STANDARD; then
                 echo "Failed to create EKS access entry"
-                skip=$(get_input "Skip and continue? (y/n):" "y")
-                if [[ $skip == "y" ]]; then
+                if get_yes_no "Skip and continue?" "y"; then
                     echo -e "${YELLOW}Skipping SageMaker Studio Code Editor access entry creation...${NC}"
                     return 0
                 else 
@@ -1347,8 +1351,7 @@ config_eks_cluster_stack() {
                 --policy-arn arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy \
                 --access-scope type=cluster; then
                 echo "Failed to associate admin access policy"
-                skip=$(get_input "Skip and continue? (y/n):" "y")
-                if [[ $skip == "y" ]]; then
+                if get_yes_no "Skip and continue?" "y"; then
                     echo -e "${YELLOW}Skipping SageMaker Studio Code Editor access entry creation...${NC}"
                     return 0
                 else 
@@ -1357,16 +1360,15 @@ config_eks_cluster_stack() {
             fi
         # Create an access entry for the new EKS cluster
         else 
-            USING_SM_CODE_EDITOR=true
+            USING_SM_CODE_EDITOR="true"
         fi
     fi 
 }
 
 # Configure parameters for the S3 Bucket Stack 
 config_s3_bucket_stack() {
-    new_s3_bucket=$(get_input "Do you want to create a new S3 bucket to store the HyperPod lifecycle script? (y/n)" "y")
-    if [[ $new_s3_bucket == "n" ]]; then
-        export CREATE_S3Bucket_STACK=false
+    if ! get_yes_no "Do you want to create a new S3 bucket to store the HyperPod lifecycle script?" "y"; then
+        export CREATE_S3Bucket_STACK="false"
         while true; do
             S3_BUCKET_NAME=$(get_input "Enter the name of the S3 bucket you want to use to store the HyperPod lifecycle script." "")
             if validate_resource_id "$S3_BUCKET_NAME" "s3"; then
@@ -1380,9 +1382,8 @@ config_s3_bucket_stack() {
 
 # Configure parameters for the SageMaker IAM Role Stack
 config_sagemaker_iam_role_stack() {
-    new_iam_role_for_sagemaker=$(get_input "Do you want to create a new IAM role for HyperPod? (y/n)" "y")
-    if [[ $new_iam_role_for_sagemaker == "n" ]]; then
-        export CREATE_SagemakerIAMRole_STACK=false
+    if ! get_yes_no "Do you want to create a new IAM role for HyperPod?" "y"; then
+        export CREATE_SagemakerIAMRole_STACK="false"
         while true; do
             SAGEMAKER_IAM_ROLE_NAME=$(get_input "Enter the name of the IAM role you want to use for HyperPod." "")
             if validate_resource_id "$SAGEMAKER_IAM_ROLE_NAME" "iam"; then
@@ -1396,10 +1397,48 @@ config_sagemaker_iam_role_stack() {
 
 # Deploy the Main Stacks
 deploy_main_stack() {
-    local deploy_main_stack=$(get_input "Do you want to deploy the Main CloudFormation Stack? (y/n)" "y")
-    if [[ $deploy_main_stack != "y" ]]; then
-        return 0
-        echo -e "${YELLOW}Skipping Main CloudFormation Stack deployment...${NC}"
+    echo -e "${GREEN}The Main CloudFormation Stack is now configured and ready to create the supporting workshop infrastructure.${NC}"
+    
+    # Print stack creation summary
+    echo -e "\n${GREEN}The Main CloudFormation Stack will deploy the following resources:${NC}"
+    # Print resources (excludes HyperPodCluster from display)
+    for stack in VPC PrivateSubnet SecurityGroup EKSCluster S3Bucket LifeCycleScript SageMakerIAMRole HelmChart; do
+        env_var="CREATE_${stack}_STACK"
+        if [[ "${!env_var}" != "false" ]]; then
+            echo -e "  ${CYAN}✓${NC} $stack"
+        else
+            # Get the corresponding resource ID based on stack type
+            resource_id=""
+            case $stack in
+                "VPC")
+                    [[ -n "$VPC_ID" ]] && resource_id=" (Using existing VPC: $VPC_ID)"
+                    ;;
+                "PrivateSubnet")
+                    [[ -n "$PRIVATE_SUBNET_ID" ]] && resource_id=" (Using existing Subnet: $PRIVATE_SUBNET_ID)"
+                    ;;
+                "SecurityGroup")
+                    [[ -n "$SECURITY_GROUP_ID" ]] && resource_id=" (Using existing Security Group: $SECURITY_GROUP_ID)"
+                    ;;
+                "EKSCluster")
+                    [[ -n "$EKS_CLUSTER_NAME" ]] && resource_id=" (Using existing EKS Cluster: $EKS_CLUSTER_NAME)"
+                    ;;
+                "S3Bucket")
+                    [[ -n "$S3_BUCKET_NAME" ]] && resource_id=" (Using existing S3 Bucket: $S3_BUCKET_NAME)"
+                    ;;
+                "SageMakerIAMRole")
+                    [[ -n "$SAGEMAKER_IAM_ROLE_NAME" ]] && resource_id=" (Using existing IAM Role: $SAGEMAKER_IAM_ROLE_NAME)"
+                    ;;
+            esac
+            echo -e "  ${RED}✗${NC} $stack${YELLOW}${resource_id}${NC}"
+        fi
+    done
+    echo ""
+
+    if ! get_yes_no "Do you want to deploy the Main CloudFormation Stack now?" "y"; then
+        echo -e "${YELLOW}The Main CloudFormation Stack must be deployed to create the supporting workshop infrastructure.${NC}"
+        echo -e "${YELLOW}This includes networking, security, and IAM resources required by SageMaker HyperPod.${NC}"
+        echo -e "${RED}Exiting script - please run again when ready to deploy the infrastructure.${NC}"
+        exit 0
     fi
 
     local stack_name=$(validate_stack_name "" "hyperpod-eks-full-stack")
@@ -1486,9 +1525,9 @@ deploy_main_stack() {
     # add_parameter_if_set "GeneralPurposeLifeCycleConfigOnCreate" "GENERAL_PURPOSE_LIFECYCLE_CONFIG_ON_CREATE"
 
     # Disable HyperPod CloudFormation 
-    export CREATE_HyperPodCluster_STACK=false
+    export CREATE_HyperPodCluster_STACK="false"
 
-    # Stack Creation Flags
+    # Stack Creation Flags (includes HyperPodCluster to disable)
     for stack in VPC PrivateSubnet SecurityGroup EKSCluster S3Bucket LifeCycleScript SageMakerIAMRole HelmChart HyperPodCluster; do
         env_var="CREATE_${stack}_STACK"
         add_parameter_if_set "Create${stack}Stack" "$env_var"
@@ -1620,13 +1659,12 @@ main() {
     echo -e "${GREEN}Congratulations! You've completed all the preparatory steps.${NC}"
     echo -e "${YELLOW}Next Steps:${NC}"
 
-    CREATE_CLUSTER=$(get_input "Do you want the script to create the cluster for you now? (yes/no):" "yes")
-    if [[ "$CREATE_CLUSTER" == "yes" ]]; then
+    if get_yes_no "Do you want the script to create the HyperPod cluster for you now?" "y"; then
         warning
         create_cluster
         goodbye
     else
-        echo -e "${YELLOW}Run the following command to create the cluster. Exiting this script!${NC}"
+        echo -e "${YELLOW}Run the following command to create the HyperPod cluster. Exiting this script!${NC}"
 
         # Command to create the HyperPod Cluster
         echo -e "${GREEN} aws sagemaker create-cluster \\"
