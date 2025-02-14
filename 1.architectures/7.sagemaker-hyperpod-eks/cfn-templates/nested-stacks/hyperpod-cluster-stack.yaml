@@ -31,7 +31,7 @@ Parameters:
   AcceleratedInstanceType:
     Description: The instance type of the accelerated instance group for the HyperPod cluster.
     Type: String
-    Default: ml.g5.xlarge
+    Default: ml.g5.8xlarge
 
   AcceleratedInstanceCount: 
     Description: The number of instances in the accelerated instance group for the HyperPod cluster.
