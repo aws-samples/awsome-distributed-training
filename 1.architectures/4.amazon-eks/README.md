@@ -171,7 +171,7 @@ kubectl get nodes
 5. Apply [K8 Nvidia CNI Plugin](https://github.com/NVIDIA/k8s-device-plugin):
 
 ```bash
-kubectl create -f https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/v0.15.0/deployments/static/nvidia-device-plugin.yml
+kubectl create -f https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/v0.17.0/deployments/static/nvidia-device-plugin.yml
 ```
 
 6. If using EFA, make sure to install the [EFA CNI Plugin](https://docs.aws.amazon.com/eks/latest/userguide/node-efa.html).

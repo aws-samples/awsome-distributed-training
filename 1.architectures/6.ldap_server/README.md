@@ -8,24 +8,32 @@ It contains two groups:
 
 It provides a UI based on `phpldapadmin` that enable you to create groups and users.
 
-## Prerequesites
+## Security groups
 
-This solution requires a security group with the following rules:
+This solution creates two security groups with the following rules:
+
+1. ldap-ui-external to allow communication to LDAP UI and from internet.
+
+Inbound rules
+
+| Type  | Protocol | Port Range | Source                                                                                    | Description                          |
+| ----- | -------- | ---------- | ----------------------------------------------------------------------------------------- | ------------------------------------ |
+| HTTPS | TCP      | 443        | Enter IP range or security group Id from which you want to access the UI from             | Allows access to the UI              |
+
+Outbound rules
+
+| Type     | Protocol | Port Range | Source                                                                                    | Description                       |
+| -------- | -------- | ---------- | ----------------------------------------------------------------------------------------- | ----------------------------------|
+| Internet | All      | All        | 0.0.0.0/0                                                                                 | Allows access to the internet     |
+
+
+2. ldap-cluster to allow communication to LDAP server in the cluster.
 
 Inbound rules
 
 | Type | Protocol | Port Range | Source                                                                                    | Description                          |
 | ---- | -------- | ---------- | ----------------------------------------------------------------------------------------- | ------------------------------------ |
 | LDAP | TCP      | 389        | Choose Custom and enter the security group ID of the security group that you just created | Allows access to the OpenLDAP server |
-| HTTP | TCP      | 80         | Enter IP range or security group Id from which you want to access the UI from             | Allows access to the UI              |
-| HTTPS | TCP     | 443        | Enter IP range or security group Id from which you want to access the UI from             | Allows access to the UI              |
-
-Outbound rules
-
-| Type  | Protocol | Port Range | Source                                                                                    | Description                          |
-| ----- | -------- | ---------- | ----------------------------------------------------------------------------------------- | ------------------------------------ |
-| LDAP  | TCP      | 389        | Choose Custom and enter the security group ID of the security group that you just created | Allows access to the OpenLDAP server |
-| HTTPS | TCP      | 443        | 0.0.0.0/0                                                                                 | Allows access to the internet        |
 
 ## Deploy
 
@@ -35,7 +43,7 @@ Outbound rules
   aws cloudformation deploy --stack-name ldap-server \
   --template-file cf_ldap_server.yaml \
   --capabilities CAPABILITY_IAM \
-  --parameter-overrides SubnetId=XXX SecurityGroupIds=XXX,XXX
+  --parameter-overrides SubnetId=XXX SecurityGroupIds=XXX,XXX VpcId=XXX IpCidrUIAccess=XXX
   ```
 
 ## Connect to the UI

@@ -1,0 +1,34 @@
+defaults:
+  - override hydra/job_logging: stdout
+hydra:
+  run:
+    dir: .
+  output_subdir: null
+training_cfg:
+  entry_script: /opt/pytorch-mnist/mnist.py
+  script_args: []
+  run:
+    name: hyperpod-cli-mnist-team-b
+    nodes: 2
+    ntasks_per_node: 1
+cluster:
+  cluster_type: k8s
+  instance_type: ml.g5.8xlarge
+  custom_labels:
+    kueue.x-k8s.io/priority-class: training-priority
+  cluster_config:
+    namespace: hyperpod-ns-team-b
+    label_selector:
+      required:
+        sagemaker.amazonaws.com/node-health-status:
+          - Schedulable
+      preferred:
+        sagemaker.amazonaws.com/deep-health-check-status:
+          - Passed
+      weights:
+        - 100
+    pullPolicy: IfNotPresent
+base_results_dir: ./result
+container: docker.io/kubeflowkatib/pytorch-mnist-cpu:v1beta1-bc09cfd
+env_vars:
+  NCCL_DEBUG: INFO
