@@ -42,11 +42,11 @@ The templates takes parameters that are mandatory and optional, see below for mo
 If you'd like to deploy through the AWS CLI instead of the quick create link above, the command to deploy the template is shown below. Please edit the parameters values with your own configuration.
 
 ```bash
-aws cloudformation create-stack --stack-name batch-distributed-training \
-                                --template-body file://0.aws-batch-distributed-training.yaml \
-                                --parameters ParameterKey=VPCStackParameter,ParameterValue="vpc-stack-ml" \
-                                             ParameterKey=CapacityReservationId,ParameterValue="cr-123567890abc" \
-                                --capabilities CAPABILITY_IAM
+aws cloudformation create-stack --stack-name aws-batch-p5 \
+                                --template-body file://0.aws-batch-distributed-training-p5.yaml \
+                                --parameters ParameterKey=VPCStackParameter,ParameterValue="aws-batch-vpc" \
+                                             ParameterKey=CapacityReservationId,ParameterValue="cr-1234567890" \
+                                --capabilities CAPABILITY_NAMED_IAM
 ```
 
 ## Gotchas

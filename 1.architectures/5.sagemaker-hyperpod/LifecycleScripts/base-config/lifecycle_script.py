@@ -43,7 +43,7 @@ class ResourceConfig:
 
     def find_instance_by_address(self, address) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
         for group in self._config["InstanceGroups"]:
-            for instance in group["Instances"]:
+            for instance in group.get("Instances") or []:
                 if instance.get(ResourceConfig.CUSTOMER_IP_ADDRESS) == address:
                     return group, instance
         return None, None
@@ -52,7 +52,7 @@ class ResourceConfig:
         for group in self._config["InstanceGroups"]:
             if group.get(ResourceConfig.INSTANCE_GROUP_NAME) != group_name:
                 continue
-            return [i.get(ResourceConfig.CUSTOMER_IP_ADDRESS) for i in group["Instances"]]
+            return [i.get(ResourceConfig.CUSTOMER_IP_ADDRESS) for i in group.get("Instances") or []]
         return []
 
 
@@ -60,6 +60,7 @@ class ProvisioningParameters:
     WORKLOAD_MANAGER_KEY: str = "workload_manager"
     FSX_DNS_NAME: str = "fsx_dns_name"
     FSX_MOUNT_NAME: str = "fsx_mountname"
+    SLURM_CONFIGURATIONS: str = "slurm_configurations"
 
     def __init__(self, path: str):
         with open(path, "r") as f:
@@ -80,6 +81,14 @@ class ProvisioningParameters:
     @property
     def login_group(self) -> Optional[str]:
         return self._params.get("login_group")
+
+    @property
+    def slurm_configurations(self) -> Dict[str, Any]:
+        slurm_configurations = self._params.get(ProvisioningParameters.SLURM_CONFIGURATIONS)
+        if not slurm_configurations:
+            return {}
+
+        return slurm_configurations
 
 def get_ip_address():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -160,6 +169,8 @@ def main(args):
 
         print("This is a slurm cluster. Do additional slurm setup")
         self_ip = get_ip_address()
+        head_node_ip = resource_config.get_list_of_addresses(params.controller_group)
+        login_node_ip = resource_config.get_list_of_addresses(params.login_group)
         print(f"This node ip address is {self_ip}")
 
         group, instance = resource_config.find_instance_by_address(self_ip)
@@ -174,13 +185,17 @@ def main(args):
             node_type = SlurmNodeType.LOGIN_NODE
 
         if node_type == SlurmNodeType.HEAD_NODE:
-            ExecuteBashScript("./setup_mariadb_accounting.sh").run()
+            if params.slurm_configurations:
+                ExecuteBashScript("./multi_headnode_setup/headnode_setup.sh").run()
+            else:
+                ExecuteBashScript("./setup_mariadb_accounting.sh").run()
 
         ExecuteBashScript("./apply_hotfix.sh").run(node_type)
-        ExecuteBashScript("./utils/motd.sh").run(node_type)
+        ExecuteBashScript("./utils/motd.sh").run(node_type, ",".join(head_node_ip), ",".join(login_node_ip))
         ExecuteBashScript("./utils/fsx_ubuntu.sh").run()
-
         ExecuteBashScript("./start_slurm.sh").run(node_type, ",".join(controllers))
+        ExecuteBashScript("./utils/gen-keypair-ubuntu.sh").run()
+        ExecuteBashScript("./utils/ssh-to-compute.sh").run()
 
         # Install metric exporting software and Prometheus for observability
         if Config.enable_observability:
@@ -205,17 +220,17 @@ def main(args):
         if Config.enable_update_neuron_sdk:
             if node_type == SlurmNodeType.COMPUTE_NODE:
                 ExecuteBashScript("./utils/update_neuron_sdk.sh").run()
-
+        
         # Install and configure SSSD for ActiveDirectory/LDAP integration
         if Config.enable_sssd:
             subprocess.run(["python3", "-u", "setup_sssd.py", "--node-type", node_type], check=True)
 
-        if Config.enable_initsmhp:
-            ExecuteBashScript("./initsmhp.sh").run(node_type)
-
         if Config.enable_pam_slurm_adopt:
             ExecuteBashScript("./utils/slurm_fix_plugstackconf.sh").run()
             ExecuteBashScript("./utils/pam_adopt_cgroup_wheel.sh").run()
+
+        if Config.enable_mount_s3:
+            ExecuteBashScript("./utils/mount-s3.sh").run(Config.s3_bucket)
 
     print("[INFO]: Success: All provisioning scripts completed")
 

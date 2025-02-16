@@ -24,20 +24,17 @@ Parameters:
     Description: 'Size in GiB of EBS root volume'
   SubnetId:
     Type: AWS::EC2::Subnet::Id
-    Description: 'Subnet Id'
-  SecurityGroupIds:
-    Type: List<AWS::EC2::SecurityGroup::Id>
-    Description: 'Security Group Ids'
+    Description: 'Public Subnet Id'
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: 'Vpc Id'
+  IpCidrUIAccess:
+    Type: String
+    Description: 'IP cidr for UI access'
 
 ############################
-## LDAP Server
+## LDAP Resources
 Resources:
-  LdapKeyPair:
-    Type: AWS::EC2::KeyPair
-    Properties:
-      KeyName: !Sub '${AWS::StackName}-key'
-      KeyType: ed25519
-
   LdapPassword:
     Type: AWS::SecretsManager::Secret
     Properties:
@@ -86,6 +83,52 @@ Resources:
       Roles:
         - !Ref LdapInstanceRole
 
+#################
+# Security groups
+  UISecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: 'Allow communication to UI and from Internet'
+      GroupName: 'ldap-ui-external'
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: 'Communication to the internet'
+          FromPort: -1
+          IpProtocol: -1
+          ToPort: -1
+      SecurityGroupIngress:
+        - CidrIp: !Ref IpCidrUIAccess
+          Description: 'Communications to UI'
+          FromPort: 443
+          IpProtocol: 'tcp'
+          ToPort: 443
+      Tags:
+        - Key: 'Name'
+          Value: 'ldap-ui'
+      VpcId: !Ref VpcId
+
+  LDAPSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: 'Allow communication to LDAP'
+      GroupName: 'ldap-cluster'
+      Tags:
+        - Key: 'Name'
+          Value: 'ldap-cluster'
+      VpcId: !Ref VpcId
+
+  LDAPSecurityGroupIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      Description: 'Allow communication to LDAP'
+      IpProtocol: -1
+      FromPort: -1
+      ToPort: -1
+      GroupId: !Ref LDAPSecurityGroup
+      SourceSecurityGroupId: !Ref LDAPSecurityGroup
+
+################
+# Ldap Instance
   LdapServer:
     Type: 'AWS::EC2::Instance'
     Metadata:
@@ -137,11 +180,12 @@ Resources:
           Iops: 3000
           VolumeSize: !Ref EBSBootSize
           VolumeType: 'gp3'
-      KeyName: !Ref LdapKeyPair
       IamInstanceProfile: !Ref LdapInstanceProfile
       ImageId: !Ref LatestUbuntuAmiId
       InstanceType: !Ref InstanceType
-      SecurityGroupIds: !Ref SecurityGroupIds
+      SecurityGroupIds:
+        - !Ref UISecurityGroup
+        - !Ref LDAPSecurityGroup
       SubnetId: !Ref SubnetId
       Tags:
         - Key: Name
@@ -232,6 +276,66 @@ Resources:
 
             ldapadd -x -D cn=admin,dc=example,dc=com -f /tmp/groups.ldif -w "$PASSWD"
 
+            # Setup Apache SSL encryption
+            mkdir -p /etc/apache2/ssl
+
+            openssl req -x509 -nodes -days 365 -newkey rsa:4096 \
+            -subj "/C=US/ST=WA/L=Seattle/O=AnyCompany/CN=www.example.com" \
+            -keyout /etc/apache2/ssl/apache.key -out /etc/apache2/ssl/apache.crt
+
+            a2enmod ssl
+
+            cat > /etc/apache2/sites-available/ldap.conf << EOF
+            <VirtualHost *:80>
+            ServerName ldapserver@localhost
+            RewriteEngine On
+            RewriteCond %{HTTPS} off
+            RewriteRule ^/?(.*) https://%{SERVER_NAME}/\$1 [R,L]
+            </VirtualHost>
+            EOF
+
+            cat > /etc/apache2/sites-available/ldap_ssl.conf << EOF
+            <IfModule mod_ssl.c>
+              <VirtualHost _default_:443>
+
+                  ServerAdmin admin@example.com
+                  ServerName ldapserver@localhost
+
+                  DocumentRoot /var/www/html
+
+                  ErrorLog \${!APACHE_LOG_DIR}/error.log
+                  CustomLog \${!APACHE_LOG_DIR}/access.log combined
+
+                  SSLEngine on
+
+                  SSLCertificateFile /etc/apache2/ssl/apache.crt
+                  SSLCertificateKeyFile /etc/apache2/ssl/apache.key
+
+                  <FilesMatch "\.(cgi|shtml|phtml|php)$">
+                    SSLOptions +StdEnvVars
+                  </FilesMatch>
+
+                  <Directory /usr/lib/cgi-bin>
+                    SSLOptions +StdEnvVars
+                  </Directory>
+
+              </VirtualHost>
+
+            </IfModule>
+            EOF
+
+            ## Disable default
+            a2dissite 000-default.conf
+
+            ## Enable site
+            a2ensite ldap.conf ldap_ssl.conf
+
+            ## Restart apache
+            a2enmod ssl rewrite
+            systemctl restart apache2.service
+
+
+            # Notify CloudFormation once completed
             /usr/local/bin/cfn-init -v --stack ${AWS::StackName} \
               --resource LdapServer \
               --configsets full_install \
@@ -261,6 +365,6 @@ Outputs:
   LdapServerInstanceId:
     Value: !GetAtt LdapServer.InstanceId
   LdapUIUrl:
-    Value: !Join ['',[!GetAtt LdapServer.PublicIp,'/phpldapadmin']]
+    Value: !Join ['',['https://',!GetAtt LdapServer.PublicIp,'/phpldapadmin']]
   LdapPassword:
     Value: !Ref LdapPassword
