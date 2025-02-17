@@ -99,7 +99,7 @@ Resources:
       VpcId: !Ref VPC
       Tags:
         - Key: Name
-          Value: !Sub ${ResourceNamePrefix} Public Routes
+          Value: !Sub ${ResourceNamePrefix}-SMHP-Public-Routes
 
   DefaultPublicRoute:
     Type: AWS::EC2::Route
