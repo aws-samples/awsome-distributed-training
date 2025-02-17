@@ -65,7 +65,7 @@ Resources:
                 Resource: 
                   - !Sub 'arn:aws:s3:::${S3BucketName}'
                   - !Sub 'arn:aws:s3:::${S3BucketName}/*'
-      RoleName: !Sub '${ResourceNamePrefix}-ExecutionRole-${AWS::Region}'
+      RoleName: !Sub '${ResourceNamePrefix}-SMHP-Exec-Role-${AWS::Region}'
 
 Outputs: 
   SageMakerIAMRoleName:

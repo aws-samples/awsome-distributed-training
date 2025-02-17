@@ -51,7 +51,7 @@ Resources:
       MapPublicIpOnLaunch: false
       Tags:
         - Key: Name
-          Value: !Sub ${ResourceNamePrefix} Private Subnet 1
+          Value: !Sub ${ResourceNamePrefix}-SMHP-Private1
     DependsOn: 
         - AdditionalCidrBlock1
   
@@ -61,7 +61,7 @@ Resources:
       VpcId: !Ref VpcId
       Tags:
         - Key: Name
-          Value: !Sub ${ResourceNamePrefix} Private Routes (AZ1)
+          Value: !Sub ${ResourceNamePrefix}-SMHP-Private-Routes
   
   PrivateSubnet1RouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation

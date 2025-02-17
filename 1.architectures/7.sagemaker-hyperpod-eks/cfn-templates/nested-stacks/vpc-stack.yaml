@@ -32,14 +32,14 @@ Resources:
       EnableDnsHostnames: true
       Tags:
         - Key: Name
-          Value: !Sub '${ResourceNamePrefix}-vpc'
+          Value: !Sub '${ResourceNamePrefix}-SMHP-VPC'
 
   InternetGateway:
     Type: AWS::EC2::InternetGateway
     Properties:
       Tags:
         - Key: Name
-          Value: !Sub ${ResourceNamePrefix}-igw
+          Value: !Sub ${ResourceNamePrefix}-SMHP-IGW
   
   InternetGatewayAttachment:
     Type: AWS::EC2::VPCGatewayAttachment
@@ -56,7 +56,7 @@ Resources:
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
-          Value: !Sub ${ResourceNamePrefix} Public Subnet (AZ1)
+          Value: !Sub ${ResourceNamePrefix}-SMHP-Public1
 
   PublicSubnet2:
     Type: AWS::EC2::Subnet
@@ -67,7 +67,7 @@ Resources:
       MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
-          Value: !Sub ${ResourceNamePrefix} Public Subnet (AZ2)
+          Value: !Sub ${ResourceNamePrefix}-SMHP-Public2
 
   NatGateway1EIP:
     Type: AWS::EC2::EIP
