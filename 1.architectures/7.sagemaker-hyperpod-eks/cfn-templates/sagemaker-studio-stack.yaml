@@ -250,7 +250,6 @@ Resources:
             Effect: Allow
             Resource: '*'
           - Action:
-            - logs:CreateLogGroup
             - logs:CreateLogStream
             - logs:PutLogEvents
             Effect: Allow
@@ -599,7 +598,6 @@ Resources:
             Effect: Allow
             Resource: '*'
           - Action:
-            - logs:CreateLogGroup
             - logs:CreateLogStream
             - logs:PutLogEvents
             Effect: Allow
@@ -768,7 +766,6 @@ Resources:
             Effect: Allow
             Resource: '*'
           - Action:
-            - logs:CreateLogGroup
             - logs:CreateLogStream
             - logs:PutLogEvents
             Effect: Allow
