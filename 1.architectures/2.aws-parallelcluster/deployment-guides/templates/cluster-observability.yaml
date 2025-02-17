@@ -59,7 +59,7 @@ Scheduling:
         SubnetIds:
           - ${PRIVATE_SUBNET_ID}
         PlacementGroup:
-          Enabled: true  # set this to false if using a targeted ODCR
+          Enabled: false  # set this to false if using a targeted ODCR
         AdditionalSecurityGroups:
           - ${SECURITY_GROUP}
       ComputeSettings:
