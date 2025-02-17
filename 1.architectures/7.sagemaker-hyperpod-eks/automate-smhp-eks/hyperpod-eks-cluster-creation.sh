@@ -1231,8 +1231,14 @@ config_vpc_stack() {
 config_private_subnet_stack() {
     if get_yes_no "Do you want to create a new private subnet to use with HyperPod?" "y"; then 
         # Get the availability zone ID
+        # Get the first available AZ ID from the region
+        DEFAULT_AZ_ID=$(aws ec2 describe-availability-zones \
+            --region $AWS_REGION \
+            --query 'AvailabilityZones[0].ZoneId' \
+            --output text)
+
         while true; do 
-            AZ_ID=$(get_input "Enter the ID of the Availability Zone where you want to create the private subnet" "usw2-az2")
+            AZ_ID=$(get_input "Enter the ID of the Availability Zone where you want to create the private subnet" "$DEFAULT_AZ_ID")
             if validate_resource_id "$AZ_ID" "az"; then
                 break
             else
