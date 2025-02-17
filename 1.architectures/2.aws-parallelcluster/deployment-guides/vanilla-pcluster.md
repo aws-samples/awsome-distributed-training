@@ -52,7 +52,7 @@ You will see the output like follows:
 ```
 {
   "cluster": {
-    "clusterName": "ml-cluster-p5",
+    "clusterName": "ml-cluster",
     "cloudformationStackStatus": "CREATE_IN_PROGRESS",
     "cloudformationStackArn": "arn:aws:cloudformation:ap-northeast-1:483026362307:stack/ml-cluster-p5/f0f12000-9012-11ef-8989-060ea463320f",
     "region": "ap-northeast-1",
@@ -67,11 +67,6 @@ You will see the output like follows:
       "level": "WARNING",
       "type": "DetailedMonitoringValidator",
       "message": "Detailed Monitoring is enabled for EC2 instances in your compute fleet. The Amazon EC2 console will display monitoring graphs with a 1-minute period for these instances. Note that this will increase the cost. If you want to avoid this and use basic monitoring instead, please set `Monitoring / DetailedMonitoring` to false."
-    },
-    {
-      "level": "WARNING",
-      "type": "PlacementGroupCapacityReservationValidator",
-      "message": "When using an open or targeted capacity reservation with an unrelated placement group, insufficient capacity errors may occur due to placement constraints outside of the reservation even if the capacity reservation has remaining capacity. Please consider either not using a placement group for the compute resource or creating a new capacity reservation in a related placement group."
     }
   ]
 }
