@@ -1072,10 +1072,11 @@ validate_resource_id() {
 config_resource_prefix() {
     while true; do 
         export RESOURCE_PREFIX=$(get_input "Enter the prefix you want to use to name CloudFormation resources" "sagemaker-hyperpod-eks")
-        if [[ $RESOURCE_PREFIX =~ ^[A-Za-z][A-Za-z0-9]*([-][A-Za-z0-9]+)*$ ]]; then
+        if [[ $RESOURCE_PREFIX =~ ^[A-Za-z][A-Za-z0-9]*([-][A-Za-z0-9]+)*$ && ${#RESOURCE_PREFIX} -le 28 ]]; then
             break
         else
-            echo -e "${RED}Invalid resource prefix. Please try again. ensure that it begins with a letter; contain only ASCII letters, digits, and hyphens; and does not end with a hyphen or contain two consecutive hyphens.${NC}"
+            echo -e "${RED}Invalid resource prefix. Please try again.${NC}"
+            echo -e "${RED}Ensure that the resource prefix is between 1-28 characters long, begins with a letter; contain only ASCII letters, digits, and hyphens; and does not end with a hyphen or contain two consecutive hyphens.${NC}"
         fi
     done
 }
