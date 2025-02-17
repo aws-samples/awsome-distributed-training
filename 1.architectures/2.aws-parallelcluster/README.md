@@ -34,7 +34,7 @@ python3 -m pip install --user --upgrade virtualenv
 python3 -m virtualenv ${VIRTUAL_ENV_PATH} # create the virtual env
 source ${VIRTUAL_ENV_PATH}/bin/activate # activate the environment
 pip3 install awscli # install the AWS CLI
-pip3 install aws-parallelcluster==3.11.1 # then AWS ParallelCluster
+pip3 install aws-parallelcluster==3.12.0 # then AWS ParallelCluster
 ```
 
 You can follow the [documentation](https://docs.aws.amazon.com/parallelcluster/latest/ug/commands-v3.html) to review the list of all AWS ParallelCluster commands.
