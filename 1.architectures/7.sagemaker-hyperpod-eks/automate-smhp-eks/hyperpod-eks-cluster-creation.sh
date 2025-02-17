@@ -921,12 +921,52 @@ deploy_stack() {
 
     # Execute deployment
     else
-        if ! eval "$deploy_cmd"; then
-            echo -e "${RED}Error: CloudFormation stack deployment for ${stack_name} failed${NC}"
-            exit 1
-        fi
+        # if ! eval "$deploy_cmd"; then
+        #     echo -e "${RED}Error: CloudFormation stack deployment for ${stack_name} failed${NC}"
+        #     exit 1
+        # fi
 
-        echo -e "${GREEN}✅ CloudFormation stack deployment for ${stack_name} completed successfully!${NC}"
+        # echo -e "${GREEN}✅ CloudFormation stack deployment for ${stack_name} completed successfully!${NC}"
+
+        eval "$deploy_cmd" > /dev/null 2>&1 &
+
+        # Give CloudFormation a moment to initiate the stack creation
+        sleep 10
+
+        # Wait for stack to complete (with timeout)
+        max_attempts=60 # 30 minutes
+        attempt=1
+        while [ $attempt -le $max_attempts ]; do
+            # Add error handling for the describe-stacks command
+            stack_status=$(aws cloudformation describe-stacks --stack-name "$stack_name" --query 'Stacks[0].StackStatus' --output text 2>/dev/null)
+            
+            if [ $? -ne 0 ]; then
+                if [ $attempt -eq $max_attempts ]; then
+                    echo -e "${RED}Error: Unable to get stack status after maximum attempts${NC}"
+                    exit 1
+                fi
+                echo -e "${YELLOW}Waiting for stack creation to begin...${NC}"
+                sleep 10
+                ((attempt++))
+                continue
+            fi
+            
+            if [[ $stack_status == *"ROLLBACK"* || $stack_status == *"FAILED"* ]]; then
+                echo -e "${RED}Error: CloudFormation stack deployment for ${stack_name} failed with status: ${stack_status}${NC}"
+                exit 1
+            elif [[ $stack_status == *"COMPLETE"* ]]; then
+                echo -e "${GREEN}✅ CloudFormation stack deployment for ${stack_name} completed successfully with status: ${stack_status}${NC}"
+                break
+            else
+                if [ $attempt -eq $max_attempts ]; then
+                    echo -e "${YELLOW}Warning: Reached maximum attempts waiting for stack completion. Current status: ${stack_status}${NC}"
+                    exit 1
+                fi
+                echo -e "${YELLOW}Stack ${stack_name} is still in progress (${stack_status}). Waiting...${NC}"
+                sleep 30
+                ((attempt++))
+            fi
+        done
     fi
 }
 
