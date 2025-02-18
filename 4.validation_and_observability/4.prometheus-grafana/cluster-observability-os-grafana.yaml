@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: CloudFormation template to monitor SageMaker Hyperpod - launches a t2.medium instance with 30GB of storage, security group, IAM role for Prometheus access, Grafana setup, and a Prometheus workspace.
+Description: Setup to monitor sagemaker hyperpod clusters on AWS. CloudFormation template to monitor SageMaker Hyperpod - launches a t2.medium instance with 30GB of storage, security group, IAM role for Prometheus access, Grafana setup, and a Prometheus workspace.
 
 Parameters:
   LatestAmiId:
