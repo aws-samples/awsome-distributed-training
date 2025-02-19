@@ -56,7 +56,6 @@ Resources:
       InstanceType: "t2.medium"
       ImageId: !Ref LatestAmiId
       IamInstanceProfile: !Ref MyInstanceProfile
-      # New: Configuring MDS
       MetaDataOptions:
         HttpTokens: optional
         HttpEndpoint: enabled
