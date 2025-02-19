@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: Setup to monitor sagemaker hyperpod clusters on AWS. CloudFormation template to monitor SageMaker Hyperpod - launches a t2.medium instance with 30GB of storage, security group, IAM role for Prometheus access, Grafana setup, and a Prometheus workspace.
+Description: CloudFormation template to monitor SageMaker Hyperpod - launches a t2.medium instance with 30GB of storage, security group, IAM role for Prometheus access, Grafana setup, and a Prometheus workspace.
 
 Parameters:
   LatestAmiId:
@@ -56,6 +56,11 @@ Resources:
       InstanceType: "t2.medium"
       ImageId: !Ref LatestAmiId
       IamInstanceProfile: !Ref MyInstanceProfile
+      # New: Configuring MDS
+      MetaDataOptions:
+        HttpTokens: optional
+        HttpEndpoint: enabled
+        HttpPutResponseHopLimit: 2
       BlockDeviceMappings:
         - DeviceName: "/dev/xvda"
           Ebs:
@@ -88,11 +93,14 @@ Resources:
 
           # Run Grafana container with automatic restart
           echo "Starting Grafana container with restart policy..."
-          docker run --env GF_AUTH_SIGV4_AUTH_ENABLED=true --env AWS_SDK_LOAD_CONFIG=true -d -p 3000:3000 --name=grafana --restart always grafana/grafana:10.4.14-ubuntu
+          # New: Editing docker run command to use "--network host" and "--env AWS_EC2_METADATA_DISABLED=false"
+          docker run --network host --env GF_AUTH_SIGV4_AUTH_ENABLED=true --env AWS_SDK_LOAD_CONFIG=true --env AWS_EC2_METADATA_DISABLED=false -d --name=grafana --restart always grafana/grafana:10.4.14-ubuntu
 
           # Print Grafana access info
           echo "Docker and Grafana setup complete."
-          echo "Grafana is running at http://$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4):3000"
+          # New: Changing to IMDSv2
+          TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+          echo "Grafana is running at http://$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -s http://169.254.169.254/latest/meta-data/public-ipv4):3000"
           echo "Default Grafana login credentials are admin/admin. Please change the password after the first login."
 
           # Note: Log out and log back in for Docker permissions to take effect
