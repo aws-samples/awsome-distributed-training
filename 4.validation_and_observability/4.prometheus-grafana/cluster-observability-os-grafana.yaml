@@ -77,10 +77,6 @@ Resources:
             echo "Installing Docker..."
             sudo amazon-linux-extras install docker -y
 
-            # Start Docker service
-            echo "Starting Docker service..."
-            sudo systemctl start docker
-
             # Enable Docker to start on boot
             sudo systemctl enable --now docker
 
