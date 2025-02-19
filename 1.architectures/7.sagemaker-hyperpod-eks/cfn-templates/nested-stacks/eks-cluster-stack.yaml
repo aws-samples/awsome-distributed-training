@@ -1,0 +1,194 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: EKS Cluster Stack
+
+Parameters: 
+
+  ResourceNamePrefix:
+    Description: Prefix to be used for all resources created by this template.
+    Type: String
+    Default: sagemaker-hyperpod-eks
+
+  VpcId: 
+    Description: The ID of the VPC you wish to use if you do not want to create a new VPC.
+    Type: String
+    Default: vpc-1234567890abcdef0
+
+  KubernetesVersion:
+    Description: The Kubernetes version to use for the EKS cluster. 
+    Type: String
+    Default: '1.30'
+
+  EKSClusterName: 
+    Description: The name of the newly created EKS cluster you wish to use.
+    Type: String
+    Default: sagemaker-hyperpod-eks-cluster
+  
+  EKSPrivateSubnet1CIDR:
+    Description: >
+      The IP range (CIDR notation) for the EKS private
+      subnet in the first Availability Zone. EKS will use this subnet to deploy
+      cross-account ENIs.
+    Type: String
+    Default: 10.192.7.0/28
+
+  EKSPrivateSubnet2CIDR:
+    Description:  > 
+      The IP range (CIDR notation) for the EKS private
+      subnet in the second Availability Zone. EKS will use this subnet to deploy
+      cross-account ENIs.
+    Type: String
+    Default: 10.192.8.0/28
+  
+  SecurityGroupId:
+    Description: The Id of your cluster security group.
+    Type: String
+    Default: sg-1234567890abcdef0
+  
+  # ParticipantRoleArn magic variable for Workshop Studio
+  ParticipantRoleArn:
+    Description: The ARN of the Workshop Studio Participant IAM role
+    Type: String
+    Default: ''
+
+  UsingSMCodeEditor: 
+    Description: Import the SageMaker Code Editor IAM Role to create an EKS access entry?
+    Type: String
+    Default: false
+    AllowedValues: 
+      - true
+      - false
+
+Conditions:
+  UsingWorkshopStudio: !Not [!Equals [!Ref ParticipantRoleArn, '']]
+
+  UsingSMCodeEditor: !Equals 
+    - !Ref UsingSMCodeEditor
+    - true
+
+Resources: 
+  EKSPrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VpcId
+      AvailabilityZone: !Select [ 0, !GetAZs  '' ]
+      CidrBlock: !Ref EKSPrivateSubnet1CIDR
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${ResourceNamePrefix} EKS Cluster Private Subnet 1
+  
+  EKSPrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VpcId
+      AvailabilityZone: !Select [ 1, !GetAZs  '' ]
+      CidrBlock: !Ref EKSPrivateSubnet2CIDR
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${ResourceNamePrefix} EKS Cluster Private Subnet 2
+
+  ClusterRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: !Sub '${ResourceNamePrefix}-cluster-role-${AWS::Region}'
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - eks.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
+
+  EKSCluster:
+    Type: 'AWS::EKS::Cluster'
+    Properties:
+      Name: !Ref EKSClusterName
+      Version: !Ref KubernetesVersion
+      RoleArn: !GetAtt ClusterRole.Arn
+      AccessConfig:
+        AuthenticationMode: API_AND_CONFIG_MAP
+      Logging:
+        ClusterLogging:
+          EnabledTypes:
+            - Type: api
+            - Type: audit
+            - Type: authenticator
+            - Type: controllerManager
+            - Type: scheduler
+      ResourcesVpcConfig:
+        SubnetIds:
+           - !Ref EKSPrivateSubnet1
+           - !Ref EKSPrivateSubnet2
+        SecurityGroupIds: 
+          - !Ref SecurityGroupId
+
+  # Note: This AccessEntry references the WSParticipantRole that is created by Workshop Studio via the ParticipantRoleArn magic variable
+  UserAccessEntry:
+    Type: AWS::EKS::AccessEntry
+    Condition: UsingWorkshopStudio
+    Properties:
+      ClusterName: !Ref EKSCluster
+      PrincipalArn: !Ref ParticipantRoleArn
+      AccessPolicies: 
+        - PolicyArn: 'arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy'
+          AccessScope:
+            Type: 'cluster'
+
+  # Note: This AccessEntry references the SageMakerStudioExecutionRoleArn from the sagemaker-studio stack for access via SageMaker Code Editor
+  SMCodeEditorAccessEntry:
+    Type: AWS::EKS::AccessEntry
+    Condition: UsingSMCodeEditor
+    Properties:
+      ClusterName: !Ref EKSCluster
+      PrincipalArn: 
+        Fn::ImportValue:
+            !Sub ${ResourceNamePrefix}-SageMakerStudioExecutionRoleArn
+      AccessPolicies: 
+        - PolicyArn: 'arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy'
+          AccessScope:
+            Type: 'cluster'
+
+  VpcCNIAddOn:
+    Type: 'AWS::EKS::Addon'
+    Properties:
+      AddonName: vpc-cni
+      ClusterName: !Ref EKSCluster
+      ResolveConflicts: OVERWRITE
+
+  KubeProxyAddOn:
+    Type: 'AWS::EKS::Addon'
+    Properties:
+      AddonName: kube-proxy
+      ClusterName: !Ref EKSCluster
+      ResolveConflicts: OVERWRITE
+
+  CoreDNSAddOn:
+    Type: 'AWS::EKS::Addon'
+    Properties:
+      AddonName: coredns
+      ClusterName: !Ref EKSCluster
+      ResolveConflicts: OVERWRITE
+
+  PodIdentityAddOn:
+    Type: 'AWS::EKS::Addon'
+    Properties:
+      AddonName: eks-pod-identity-agent
+      ClusterName: !Ref EKSCluster
+      ResolveConflicts: OVERWRITE
+
+Outputs: 
+
+  EKSClusterArn:
+    Description: ARN of the EKS Cluster
+    Value: !GetAtt EKSCluster.Arn
+  
+  EKSClusterName:
+    Description: Name of the EKS Cluster
+    Value: !Ref EKSCluster
+

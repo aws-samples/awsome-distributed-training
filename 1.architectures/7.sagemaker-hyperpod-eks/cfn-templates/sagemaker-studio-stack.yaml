@@ -1,0 +1,1099 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: AWS CloudFormation Template for SageMaker Studio Code Editor
+
+Parameters:
+
+  ResourceNamePrefix:
+    Description: Prefix to be used for all resources created by this template. 
+    Type: String
+    Default: sagemaker-hyperpod-eks
+
+  AutoStopIdleTimeInMinutes:
+    Description: Idle time (in minutes) before auto-stop of Code Editor, disabled if 0 (Must be 60 or greater, or 0.)
+    Type: Number
+    Default: 4320
+    MinValue: 0
+  
+  EbsSizeInGb:
+    Description: EBS volume size of Code Editor (This parameter cannot be decreased after creation.)
+    Type: Number
+    Default: 20
+    MinValue: 5
+  
+  InstanceType:
+    Description: Instance type of Code Editor (Fast launch is supported on ml.t3.medium, ml.t3.large, ml.m5.large, ml.m5.2xlarge, and ml.c5.large.)
+    Type: String
+    Default: ml.t3.medium
+    AllowedValues:
+    - ml.t3.medium
+    - ml.t3.large
+    - ml.t3.xlarge
+    - ml.m5.large
+    - ml.m5.xlarge
+    - ml.m5.2xlarge
+    - ml.m5.4xlarge
+    - ml.m6i.large
+    - ml.m6i.xlarge
+    - ml.m6i.2xlarge
+    - ml.m6i.4xlarge
+    - ml.c5.large
+    - ml.c5.xlarge
+    - ml.c5.2xlarge
+    - ml.c5.4xlarge
+    - ml.c6i.large
+    - ml.c6i.xlarge
+    - ml.c6i.2xlarge
+    - ml.c6i.4xlarge
+
+  UseDefaultVpc:
+    Description: Whether to use the default VPC (true) or create a new one (false)
+    Type: String
+    Default: 'true'
+    AllowedValues: 
+      - 'true'
+      - 'false'
+
+Mappings:
+  SageMakerImageArn:
+    af-south-1:
+      CPU: arn:aws:sagemaker:af-south-1:238384257742:image/sagemaker-distribution-cpu
+      GPU: arn:aws:sagemaker:af-south-1:238384257742:image/sagemaker-distribution-gpu
+    ap-east-1:
+      CPU: arn:aws:sagemaker:ap-east-1:523751269255:image/sagemaker-distribution-cpu
+      GPU: arn:aws:sagemaker:ap-east-1:523751269255:image/sagemaker-distribution-gpu
+    ap-northeast-1:
+      CPU: arn:aws:sagemaker:ap-northeast-1:010972774902:image/sagemaker-distribution-cpu
+      GPU: arn:aws:sagemaker:ap-northeast-1:010972774902:image/sagemaker-distribution-gpu
+    ap-northeast-2:
+      CPU: arn:aws:sagemaker:ap-northeast-2:064688005998:image/sagemaker-distribution-cpu
+      GPU: arn:aws:sagemaker:ap-northeast-2:064688005998:image/sagemaker-distribution-gpu
+    ap-northeast-3:
+      CPU: arn:aws:sagemaker:ap-northeast-3:564864627153:image/sagemaker-distribution-cpu
+      GPU: arn:aws:sagemaker:ap-northeast-3:564864627153:image/sagemaker-distribution-gpu
+    ap-south-1:
+      CPU: arn:aws:sagemaker:ap-south-1:245090515133:image/sagemaker-distribution-cpu
+      GPU: arn:aws:sagemaker:ap-south-1:245090515133:image/sagemaker-distribution-gpu
+    ap-southeast-1:
+      CPU: arn:aws:sagemaker:ap-southeast-1:022667117163:image/sagemaker-distribution-cpu
+      GPU: arn:aws:sagemaker:ap-southeast-1:022667117163:image/sagemaker-distribution-gpu
+    ap-southeast-2:
+      CPU: arn:aws:sagemaker:ap-southeast-2:648430277019:image/sagemaker-distribution-cpu
+      GPU: arn:aws:sagemaker:ap-southeast-2:648430277019:image/sagemaker-distribution-gpu
+    ap-southeast-3:
+      CPU: arn:aws:sagemaker:ap-southeast-3:370607712162:image/sagemaker-distribution-cpu
+      GPU: arn:aws:sagemaker:ap-southeast-3:370607712162:image/sagemaker-distribution-gpu
+    ca-central-1:
+      CPU: arn:aws:sagemaker:ca-central-1:481561238223:image/sagemaker-distribution-cpu
+      GPU: arn:aws:sagemaker:ca-central-1:481561238223:image/sagemaker-distribution-gpu
+    cn-north-1:
+      CPU: arn:aws:sagemaker:cn-north-1:674439102856:image/sagemaker-distribution-cpu
+      GPU: arn:aws:sagemaker:cn-north-1:674439102856:image/sagemaker-distribution-gpu
+    cn-northwest-1:
+      CPU: arn:aws:sagemaker:cn-northwest-1:651871951035:image/sagemaker-distribution-cpu
+      GPU: arn:aws:sagemaker:cn-northwest-1:651871951035:image/sagemaker-distribution-gpu
+    eu-central-1:
+      CPU: arn:aws:sagemaker:eu-central-1:545423591354:image/sagemaker-distribution-cpu
+      GPU: arn:aws:sagemaker:eu-central-1:545423591354:image/sagemaker-distribution-gpu
+    eu-north-1:
+      CPU: arn:aws:sagemaker:eu-north-1:175620155138:image/sagemaker-distribution-cpu
+      GPU: arn:aws:sagemaker:eu-north-1:175620155138:image/sagemaker-distribution-gpu
+    eu-south-1:
+      CPU: arn:aws:sagemaker:eu-south-1:810671768855:image/sagemaker-distribution-cpu
+      GPU: arn:aws:sagemaker:eu-south-1:810671768855:image/sagemaker-distribution-gpu
+    eu-west-1:
+      CPU: arn:aws:sagemaker:eu-west-1:819792524951:image/sagemaker-distribution-cpu
+      GPU: arn:aws:sagemaker:eu-west-1:819792524951:image/sagemaker-distribution-gpu
+    eu-west-2:
+      CPU: arn:aws:sagemaker:eu-west-2:021081402939:image/sagemaker-distribution-cpu
+      GPU: arn:aws:sagemaker:eu-west-2:021081402939:image/sagemaker-distribution-gpu
+    eu-west-3:
+      CPU: arn:aws:sagemaker:eu-west-3:856416204555:image/sagemaker-distribution-cpu
+      GPU: arn:aws:sagemaker:eu-west-3:856416204555:image/sagemaker-distribution-gpu
+    il-central-1:
+      CPU: arn:aws:sagemaker:il-central-1:080319125002:image/sagemaker-distribution-cpu
+      GPU: arn:aws:sagemaker:il-central-1:080319125002:image/sagemaker-distribution-gpu
+    me-central-1:
+      CPU: arn:aws:sagemaker:me-central-1:358593528301:image/sagemaker-distribution-cpu
+      GPU: arn:aws:sagemaker:me-central-1:358593528301:image/sagemaker-distribution-gpu
+    me-south-1:
+      CPU: arn:aws:sagemaker:me-south-1:523774347010:image/sagemaker-distribution-cpu
+      GPU: arn:aws:sagemaker:me-south-1:523774347010:image/sagemaker-distribution-gpu
+    sa-east-1:
+      CPU: arn:aws:sagemaker:sa-east-1:567556641782:image/sagemaker-distribution-cpu
+      GPU: arn:aws:sagemaker:sa-east-1:567556641782:image/sagemaker-distribution-gpu
+    us-east-1:
+      CPU: arn:aws:sagemaker:us-east-1:885854791233:image/sagemaker-distribution-cpu
+      GPU: arn:aws:sagemaker:us-east-1:885854791233:image/sagemaker-distribution-gpu
+    us-east-2:
+      CPU: arn:aws:sagemaker:us-east-2:037914896644:image/sagemaker-distribution-cpu
+      GPU: arn:aws:sagemaker:us-east-2:037914896644:image/sagemaker-distribution-gpu
+    us-gov-east-1:
+      CPU: arn:aws:sagemaker:us-gov-east-1:300993876623:image/sagemaker-distribution-cpu
+      GPU: arn:aws:sagemaker:us-gov-east-1:300993876623:image/sagemaker-distribution-gpu
+    us-gov-west-1:
+      CPU: arn:aws:sagemaker:us-gov-west-1:300992924816:image/sagemaker-distribution-cpu
+      GPU: arn:aws:sagemaker:us-gov-west-1:300992924816:image/sagemaker-distribution-gpu
+    us-west-1:
+      CPU: arn:aws:sagemaker:us-west-1:053634841547:image/sagemaker-distribution-cpu
+      GPU: arn:aws:sagemaker:us-west-1:053634841547:image/sagemaker-distribution-gpu
+    us-west-2:
+      CPU: arn:aws:sagemaker:us-west-2:542918446943:image/sagemaker-distribution-cpu
+      GPU: arn:aws:sagemaker:us-west-2:542918446943:image/sagemaker-distribution-gpu
+
+Conditions:
+  CreateNewVpc:
+    Fn::Equals:
+    - false
+    - Ref: UseDefaultVpc
+  EnableAutoStop:
+    Fn::Not:
+    - Fn::Equals:
+      - 0
+      - Ref: AutoStopIdleTimeInMinutes
+  UseDefaultVpc:
+    Fn::Equals:
+    - true
+    - Ref: UseDefaultVpc
+
+Resources:
+
+  DefaultVpcLookup:
+    Type: Custom::DefaultVpcLookup
+    Condition: UseDefaultVpc
+    Properties:
+      ServiceToken:
+        Fn::GetAtt: DefaultVpcLookupFunction.Arn
+
+  DefaultVpcLookupFunction:
+    Type: AWS::Lambda::Function
+    Condition: UseDefaultVpc
+    Properties:
+      Code:
+        ZipFile: |
+          import boto3
+          import json
+          import logging
+          import cfnresponse
+
+          logger = logging.getLogger()
+          logger.setLevel(logging.INFO)
+          ec2 = boto3.client("ec2")
+
+
+          def lambda_handler(event, context):
+              physical_resource_id = "default-vpc-lookup"
+              logger.info(f"Received event: {json.dumps(event)}")
+              try:
+                  if event["RequestType"] in ["Create", "Update"]:
+                      # get default vpc id
+                      res = ec2.describe_vpcs(Filters=[{"Name": "isDefault", "Values": ["true"]}])
+                      vpc_id = res["Vpcs"][0]["VpcId"]
+                      # get subnet ids
+                      res = ec2.describe_subnets(Filters=[{"Name": "vpc-id", "Values": [vpc_id]}])
+                      subnet_ids = ",".join([subnet["SubnetId"] for subnet in res["Subnets"]])
+                      data = {"VpcId": vpc_id, "SubnetIds": subnet_ids}
+                      send_success(event, context, data, physical_resource_id)
+                  elif event["RequestType"] == "Delete":
+                      send_success(event, context, {}, physical_resource_id)
+
+              except Exception as e:
+                  send_failure(event, context, e)
+
+
+          def send_failure(event, context, e):
+              logger.error(e)
+              cfnresponse.send(event, context, cfnresponse.FAILED, {"Error": str(e)}, event.get("PhysicalResourceId"), reason=str(e))
+
+
+          def send_success(event, context, data, physical_resource_id):
+              cfnresponse.send(event, context, cfnresponse.SUCCESS, data, physical_resource_id)
+      FunctionName: !Sub ${ResourceNamePrefix}-DefaultVpcLookupFunction
+      Handler: index.lambda_handler
+      LoggingConfig:
+        LogGroup:
+          Ref: DefaultVpcLookupFunctionLogGroup
+      Role:
+        Fn::GetAtt: DefaultVpcLookupFunctionRole.Arn
+      Runtime: python3.12
+      Timeout: 600
+
+  DefaultVpcLookupFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Condition: UseDefaultVpc
+    DeletionPolicy: Delete
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${ResourceNamePrefix}-DefaultVpcLookupFunction'
+      RetentionInDays: 7
+    UpdateReplacePolicy: Delete
+
+  DefaultVpcLookupFunctionRole:
+    Type: AWS::IAM::Role
+    Condition: UseDefaultVpc
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action: sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service: lambda.amazonaws.com
+        Version: '2012-10-17'
+      Policies:
+      - PolicyDocument:
+          Statement:
+          - Action:
+            - ec2:DescribeVpcs
+            - ec2:DescribeSubnets
+            Effect: Allow
+            Resource: '*'
+          - Action:
+            - cloudformation:DescribeStacks
+            Effect: Allow
+            Resource: '*'
+          - Action:
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            Effect: Allow
+            Resource: '*'
+          Version: '2012-10-17'
+        PolicyName: DefaultVpcLookupFn-Policy
+      RoleName: !Sub '${ResourceNamePrefix}-DefaultVpcLookupFn-Role-${AWS::Region}'
+
+  SageMakerStudioCodeEditor:
+    Type: Custom::SageMakerStudioCodeEditor
+    DependsOn:
+    - SageMakerStudioUserProfile
+    - SageMakerStudioDomainCleanup
+    Properties:
+      DomainId:
+        Ref: SageMakerStudioDomain
+      EbsSizeInGb:
+        Ref: EbsSizeInGb
+      InstanceType:
+        Ref: InstanceType
+      LifecycleConfigArn:
+        Fn::GetAtt: SageMakerStudioLifecycleConfig.StudioLifecycleConfigArn
+      SageMakerImageArn:
+        Fn::FindInMap:
+        - SageMakerImageArn
+        - Ref: AWS::Region
+        - CPU
+      SageMakerImageVersionAlias: 2.0.0
+      ServiceToken:
+        Fn::GetAtt: SageMakerStudioCodeEditorFunction.Arn
+      UserProfileName: DefaultUser
+
+  SageMakerStudioCodeEditorFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: |
+          import boto3
+          import json
+          import logging
+          import time
+          import cfnresponse
+          from typing import Optional
+
+          logger = logging.getLogger()
+          logger.setLevel(logging.INFO)
+          sagemaker = boto3.client("sagemaker")
+
+          SPACE_NAME = "default"
+          APP_NAME = "default"
+
+
+          def lambda_handler(event, context):
+              logger.info(f"Received event: {json.dumps(event)}")
+              domain_id = event["ResourceProperties"]["DomainId"]
+              user_profile_name = event["ResourceProperties"]["UserProfileName"]
+              instance_type = event["ResourceProperties"]["InstanceType"]
+              sagemaker_image_arn = event["ResourceProperties"]["SageMakerImageArn"]
+              sagemaker_image_version_alias = event["ResourceProperties"]["SageMakerImageVersionAlias"]
+              lifecycle_config_arn = event["ResourceProperties"]["LifecycleConfigArn"]
+              ebs_size = int(event["ResourceProperties"]["EbsSizeInGb"])
+              request_type = event["RequestType"]
+              physical_resource_id = f"{domain_id}-codeeditor"
+
+              try:
+                  # create
+                  if request_type == "Create":
+                      # create space
+                      create_space(
+                          domain_id=domain_id,
+                          space_name=SPACE_NAME,
+                          user_profile_name=user_profile_name,
+                          ebs_size=ebs_size,
+                          instance_type=instance_type,
+                          sagemaker_image_arn=sagemaker_image_arn,
+                          sagemaker_image_version_alias=sagemaker_image_version_alias,
+                          lifecycle_config_arn=lifecycle_config_arn,
+                      )
+                      logger.info(f"Space '{SPACE_NAME}' has been created: 'EbsSizeInGb={ebs_size},InstanceType={instance_type}'")
+                      # create app
+                      create_app(
+                          domain_id=domain_id,
+                          space_name=SPACE_NAME,
+                          app_name=APP_NAME,
+                          instance_type=instance_type,
+                          sagemaker_image_arn=sagemaker_image_arn,
+                          sagemaker_image_version_alias=sagemaker_image_version_alias,
+                          lifecycle_config_arn=lifecycle_config_arn,
+                      )
+                      logger.info(f"App '{APP_NAME}' has been created: 'InstanceType={instance_type}'")
+                      send_success(event, context, {}, physical_resource_id)
+
+                  # update
+                  elif request_type == "Update":
+                      # fail if ebs size has been descreased
+                      res = sagemaker.describe_space(DomainId=domain_id, SpaceName=SPACE_NAME)
+                      current_ebs_size = int(res["SpaceSettings"]["SpaceStorageSettings"]["EbsStorageSettings"]["EbsVolumeSizeInGb"])
+                      if ebs_size < current_ebs_size:
+                          e = ValueError("The decrease of 'EbsVolumeSizeInGb' is not supported.")
+                          raise e
+
+                      # delete existing app
+                      delete_app(domain_id=domain_id, space_name=SPACE_NAME, app_name=APP_NAME)
+                      logger.info(f"App '{APP_NAME}' has been deleted.")
+                      time.sleep(10)  # wait for app to be ready
+
+                      # update space
+                      update_space(
+                          domain_id=domain_id,
+                          space_name=SPACE_NAME,
+                          ebs_size=ebs_size,
+                          instance_type=instance_type,
+                      )
+                      logger.info(f"Space '{SPACE_NAME}' has been updated: 'EbsSizeInGb={ebs_size},InstanceType={instance_type}'")
+                      time.sleep(10)  # wait for space to be ready
+
+                      # recreate app
+                      create_app(
+                          domain_id=domain_id,
+                          space_name=SPACE_NAME,
+                          app_name=APP_NAME,
+                          instance_type=instance_type,
+                          sagemaker_image_arn=sagemaker_image_arn,
+                          sagemaker_image_version_alias=sagemaker_image_version_alias,
+                          lifecycle_config_arn=lifecycle_config_arn,
+                      )
+                      logger.info(f"App '{APP_NAME}' has been created again: 'InstanceType={instance_type}'")
+
+                      send_success(event, context, {}, physical_resource_id)
+
+                  # delete
+                  elif request_type == "Delete":
+                      # delete app
+                      delete_app(domain_id=domain_id, space_name=SPACE_NAME, app_name=APP_NAME)
+                      logger.info(f"App '{APP_NAME}' has been deleted.")
+                      # delete space
+                      delete_space(domain_id=domain_id, space_name=SPACE_NAME)
+                      logger.info(f"Space '{SPACE_NAME}' has been deleted.")
+                      send_success(event, context, {}, physical_resource_id)
+
+              except Exception as e:
+                  send_failure(event, context, e)
+
+
+          def send_failure(event, context, e):
+              logger.error(e)
+              cfnresponse.send(event, context, cfnresponse.FAILED, {"Error": str(e)}, event.get("PhysicalResourceId"), reason=str(e))
+
+
+          def send_success(event, context, data, physical_resource_id):
+              cfnresponse.send(event, context, cfnresponse.SUCCESS, data, physical_resource_id)
+
+
+          def wait_for_space_stability(domain_id, space_name, desired_status=None):
+              while True:
+                  res = sagemaker.describe_space(DomainId=domain_id, SpaceName=space_name)
+                  status = res["Status"]  # 'Deleting'|'Failed'|'InService'|'Pending'|'Updating'|'Update_Failed'|'Delete_Failed'
+                  if desired_status and status == desired_status:
+                      break
+                  if status in ["Failed", "Update_Failed", "Delete_Failed"]:
+                      raise RuntimeError(f"Space is in '{status}' state.")
+                  else:
+                      time.sleep(10)
+              return res
+
+
+          def create_space(
+              domain_id: str,
+              space_name: str,
+              user_profile_name: str,
+              ebs_size: int,
+              instance_type: str,
+              sagemaker_image_arn: str,
+              sagemaker_image_version_alias: str,
+              lifecycle_config_arn: str,
+          ):
+              sagemaker.create_space(
+                  DomainId=domain_id,
+                  SpaceName=space_name,
+                  SpaceSettings={
+                      "AppType": "CodeEditor",
+                      "SpaceStorageSettings": {"EbsStorageSettings": {"EbsVolumeSizeInGb": ebs_size}},
+                      "CodeEditorAppSettings": {
+                          "DefaultResourceSpec": {
+                              "SageMakerImageArn": sagemaker_image_arn,
+                              "SageMakerImageVersionAlias": sagemaker_image_version_alias,
+                              "InstanceType": instance_type,
+                              "LifecycleConfigArn": lifecycle_config_arn,
+                          },
+                      },
+                  },
+                  OwnershipSettings={"OwnerUserProfileName": user_profile_name},
+                  SpaceSharingSettings={"SharingType": "Private"},
+                  SpaceDisplayName=space_name,
+              )
+              return wait_for_space_stability(domain_id, space_name, "InService")
+
+
+          def update_space(
+              domain_id: str,
+              space_name: str,
+              ebs_size: int,
+              instance_type: str,
+          ):
+              sagemaker.update_space(
+                  DomainId=domain_id,
+                  SpaceName=space_name,
+                  SpaceSettings={
+                      "SpaceStorageSettings": {"EbsStorageSettings": {"EbsVolumeSizeInGb": ebs_size}},
+                      "CodeEditorAppSettings": {"DefaultResourceSpec": {"InstanceType": instance_type}},
+                  },
+              )
+              return wait_for_space_stability(domain_id, space_name, "InService")
+
+
+          def delete_space(domain_id: str, space_name: str):
+              try:
+                  spaces = sagemaker.list_spaces(DomainIdEquals=domain_id)["Spaces"]
+                  spaces = [space for space in spaces if space["SpaceName"] == space_name]
+                  for space in spaces:
+                      if space["Status"] != "Deleting":
+                          sagemaker.delete_space(
+                              DomainId=domain_id,
+                              SpaceName=space_name,
+                          )
+                      wait_for_space_stability(domain_id, space_name)
+              except sagemaker.exceptions.ResourceNotFound as e:
+                  logger.info(f"Space '{space_name}' has beed deleted. Recovering from exception: {str(e)}")
+              except Exception as e:
+                  raise e
+
+
+          def wait_for_app_stability(
+              domain_id: str,
+              space_name: str,
+              app_name: str,
+              desired_status: Optional[str] = None,
+          ):
+              while True:
+                  res = sagemaker.describe_app(DomainId=domain_id, AppType="CodeEditor", AppName=app_name, SpaceName=space_name)
+                  status = res["Status"]  # 'Deleted'|'Deleting'|'Failed'|'InService'|'Pending'
+                  if desired_status and status == desired_status:
+                      break
+                  if status in ["Failed"]:
+                      raise RuntimeError(f"Space is in '{status}' state.")
+                  else:
+                      time.sleep(10)
+              return res
+
+
+          def create_app(
+              domain_id: str,
+              space_name: str,
+              app_name: str,
+              instance_type: str,
+              sagemaker_image_arn: str,
+              sagemaker_image_version_alias: str,
+              lifecycle_config_arn: str,
+          ):
+              sagemaker.create_app(
+                  DomainId=domain_id,
+                  SpaceName=space_name,
+                  AppType="CodeEditor",
+                  AppName=app_name,
+                  ResourceSpec={
+                      "InstanceType": instance_type,
+                      "SageMakerImageArn": sagemaker_image_arn,
+                      "SageMakerImageVersionAlias": sagemaker_image_version_alias,
+                      "LifecycleConfigArn": lifecycle_config_arn,
+                  },
+              )
+              return wait_for_app_stability(domain_id, space_name, app_name, "InService")
+
+
+          def describe_app(domain_id, space_name, app_name):
+              try:
+                  return sagemaker.describe_app(
+                      DomainId=domain_id,
+                      AppType="CodeEditor",
+                      AppName=app_name,
+                      SpaceName=space_name,
+                  )
+              except sagemaker.exceptions.ResourceNotFound as e:
+                  # allow manual deletion of code editor app as it is considered short-lived
+                  logger.info(f"App '{APP_NAME}' has been deleted. Recovering from exception: {str(e)}")
+                  return None
+              except Exception as e:
+                  raise e
+
+
+          def delete_app(domain_id, space_name, app_name):
+              try:
+                  apps = sagemaker.list_apps(DomainIdEquals=domain_id, SpaceNameEquals=space_name)["Apps"]
+                  apps = [app for app in apps if app["AppName"] == app_name]
+                  for app in apps:
+                      if app["Status"] not in ["Deleted", "Deleting"]:
+                          sagemaker.delete_app(
+                              DomainId=domain_id,
+                              SpaceName=space_name,
+                              AppType="CodeEditor",
+                              AppName=app_name,
+                          )
+                      wait_for_app_stability(domain_id, space_name, app_name, "Deleted")
+              except sagemaker.exceptions.ResourceNotFound as e:
+                  logger.info(f"App '{app_name}' has been deleted. Recovering from exception: {str(e)}")
+              except Exception as e:
+                  raise e
+      FunctionName: !Sub ${ResourceNamePrefix}-CodeEditorFunction
+      Handler: index.lambda_handler
+      LoggingConfig:
+        LogGroup:
+          Ref: SageMakerStudioCodeEditorFunctionLogGroup
+      Role:
+        Fn::GetAtt: SageMakerStudioCodeEditorFunctionRole.Arn
+      Runtime: python3.12
+      Timeout: 600
+
+  SageMakerStudioCodeEditorFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Delete
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${ResourceNamePrefix}-CodeEditorFunction'
+      RetentionInDays: 7
+    UpdateReplacePolicy: Delete
+
+  SageMakerStudioCodeEditorFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action: sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service: lambda.amazonaws.com
+        Version: '2012-10-17'
+      Policies:
+      - PolicyDocument:
+          Statement:
+          - Action:
+            - sagemaker:*App*
+            - sagemaker:*Space*
+            Effect: Allow
+            Resource: '*'
+          - Action:
+            - cloudformation:DescribeStacks
+            Effect: Allow
+            Resource: '*'
+          - Action:
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            Effect: Allow
+            Resource: '*'
+          Version: '2012-10-17'
+        PolicyName: CodeEditorFn-Policy
+      RoleName: !Sub '${ResourceNamePrefix}-CodeEditorFn-Role-${AWS::Region}'
+  
+  SageMakerStudioDomain:
+    Type: AWS::SageMaker::Domain
+    Properties:
+      AppNetworkAccessType: PublicInternetOnly
+      AuthMode: IAM
+      DefaultUserSettings:
+        CodeEditorAppSettings:
+          AppLifecycleManagement:
+            IdleSettings:
+              IdleTimeoutInMinutes:
+                Fn::If:
+                - EnableAutoStop
+                - Ref: AutoStopIdleTimeInMinutes
+                - Ref: AWS::NoValue
+              LifecycleManagement:
+                Fn::If:
+                - EnableAutoStop
+                - ENABLED
+                - DISABLED
+          LifecycleConfigArns:
+          - Fn::GetAtt: SageMakerStudioLifecycleConfig.StudioLifecycleConfigArn
+        DefaultLandingUri: 'studio::'
+        ExecutionRole:
+          Fn::GetAtt: SageMakerStudioExecutionRole.Arn
+        SecurityGroups: []
+        StudioWebPortal: ENABLED
+      DomainName: !Sub ${ResourceNamePrefix}-Domain
+      DomainSettings:
+        DockerSettings:
+          EnableDockerAccess: ENABLED
+      SubnetIds:
+        Fn::If:
+        - UseDefaultVpc
+        - Fn::Split:
+          - ','
+          - Fn::GetAtt: DefaultVpcLookup.SubnetIds
+        - - Ref: SageMakerStudioVpcPrivateSubnetOne
+          - Ref: SageMakerStudioVpcPrivateSubnetTwo
+      VpcId:
+        Fn::If:
+        - UseDefaultVpc
+        - Fn::GetAtt: DefaultVpcLookup.VpcId
+        - Ref: SageMakerStudioVpc
+
+  SageMakerStudioDomainCleanup:
+    Type: Custom::SageMakerStudioDomainCleanup
+    Properties:
+      DomainId:
+        Ref: SageMakerStudioDomain
+      ServiceToken:
+        Fn::GetAtt: SageMakerStudioDomainCleanupFunction.Arn
+    
+  SageMakerStudioDomainCleanupFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: |
+          import boto3
+          import json
+          import logging
+          import time
+          import cfnresponse
+
+          logger = logging.getLogger()
+          logger.setLevel(logging.INFO)
+          sagemaker = boto3.client("sagemaker")
+
+
+          def lambda_handler(event, context):
+              logger.info(f"Received event: {json.dumps(event)}")
+              domain_id = event["ResourceProperties"]["DomainId"]
+              physical_resource_id = f"{domain_id}-cleanup"
+              request_type = event["RequestType"]
+
+              try:
+                  # create / update
+                  if request_type in ["Create", "Update"]:
+                      send_success(event, context, {}, physical_resource_id)
+
+                  # delete
+                  elif request_type == "Delete":
+                      delete_domain(domain_id)
+                      logger.info(f"Domain '{domain_id}' has been deleted.")
+                      time.sleep(10)  # wait for eni to be deleted
+                      send_success(event, context, {}, physical_resource_id)
+
+              except Exception as e:
+                  send_failure(event, context, e)
+
+
+          def send_failure(event, context, e):
+              logger.error(e)
+              cfnresponse.send(event, context, cfnresponse.FAILED, {"Error": str(e)}, event.get("PhysicalResourceId"), reason=str(e))
+
+
+          def send_success(event, context, data, physical_resource_id):
+              cfnresponse.send(event, context, cfnresponse.SUCCESS, data, physical_resource_id)
+
+
+          def wait_for_domain_stability(domain_id, desired_status=None):
+              while True:
+                  res = sagemaker.describe_domain(DomainId=domain_id)
+                  status = res["Status"]  # 'Deleting'|'Failed'|'InService'|'Pending'|'Updating'|'Update_Failed'|'Delete_Failed'
+                  if desired_status and status == desired_status:
+                      break
+                  if status in ["Failed", "Update_Failed", "Delete_Failed"]:
+                      raise RuntimeError(f"Space is in '{status}' state.")
+                  else:
+                      time.sleep(10)
+              return res
+
+
+          def delete_domain(domain_id):
+              try:
+                  sagemaker.delete_domain(DomainId=domain_id, RetentionPolicy={"HomeEfsFileSystem": "Delete"})
+                  wait_for_domain_stability(domain_id, "Deleted")
+              except sagemaker.exceptions.ResourceNotFound as e:
+                  logger.info(f"Domain '{domain_id}' has been deleted. Recovering from exception: {str(e)}")
+              except Exception as e:
+                  raise e
+      FunctionName: !Sub ${ResourceNamePrefix}-DomainCleanupFunction
+      Handler: index.lambda_handler
+      LoggingConfig:
+        LogGroup:
+          Ref: SageMakerStudioDomainCleanupFunctionLogGroup
+      Role:
+        Fn::GetAtt: SageMakerStudioDomainCleanupFunctionRole.Arn
+      Runtime: python3.12
+      Timeout: 600
+    
+  SageMakerStudioDomainCleanupFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Delete
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${ResourceNamePrefix}-DomainCleanupFunction'
+      RetentionInDays: 7
+    UpdateReplacePolicy: Delete
+
+  SageMakerStudioDomainCleanupFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action: sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service: lambda.amazonaws.com
+        Version: '2012-10-17'
+      Policies:
+      - PolicyDocument:
+          Statement:
+          - Action:
+            - sagemaker:*Domain*
+            Effect: Allow
+            Resource: '*'
+          - Action:
+            - cloudformation:DescribeStacks
+            Effect: Allow
+            Resource: '*'
+          - Action:
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            Effect: Allow
+            Resource: '*'
+          Version: '2012-10-17'
+        PolicyName: DomainCleanupFn-Policy
+      RoleName: !Sub '${ResourceNamePrefix}-DomainCleanupFn-Role-${AWS::Region}'
+
+  SageMakerStudioExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action: sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - sagemaker.amazonaws.com
+        Version: '2012-10-17'
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/AdministratorAccess
+      Path: /
+      RoleName: !Sub '${ResourceNamePrefix}-SMCE-Exec-Role-${AWS::Region}'
+  
+  SageMakerStudioLifecycleConfig:
+    Type: AWS::SageMaker::StudioLifecycleConfig
+    Properties:
+      StudioLifecycleConfigAppType: CodeEditor
+      StudioLifecycleConfigContent:
+        Fn::Base64: |
+          #!/bin/bash
+
+          # Exit on error
+          set -e
+
+          # Setup logging
+          exec > >(tee /var/log/studio-lifecycle-config.log) 2>&1
+
+          # install tools
+          echo 'debconf debconf/frontend select Noninteractive' | sudo debconf-set-selections
+          sudo apt update -qq
+          sudo apt install -y -qq vim git jq curl
+
+          # Create user bin directory
+          USER_BIN="/home/sagemaker-user/.local/bin"
+          mkdir -p $USER_BIN
+
+          # Add to PATH in both .bashrc and .bash_profile
+          grep -q "export PATH=$USER_BIN:\$PATH" /home/sagemaker-user/.bashrc || echo "export PATH=$USER_BIN:$PATH" >> /home/sagemaker-user/.bashrc
+          grep -q "export PATH=$USER_BIN:\$PATH" /home/sagemaker-user/.bash_profile || echo "export PATH=$USER_BIN:$PATH" >> /home/sagemaker-user/.bash_profile
+
+          # Set PATH for current session
+          export PATH=$USER_BIN:$PATH
+
+          # install kubectl if not present
+          if [ ! -f $USER_BIN/kubectl ]; then
+            curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+            chmod +x kubectl
+            mv kubectl $USER_BIN/
+          fi
+
+          # install eksctl if not present
+          if [ ! -f $USER_BIN/eksctl ]; then
+            curl -sLO "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_Linux_amd64.tar.gz"
+            tar -xzf eksctl_Linux_amd64.tar.gz
+            chmod +x eksctl
+            mv eksctl $USER_BIN/
+            rm eksctl_Linux_amd64.tar.gz
+          fi 
+
+          # install helm if not present
+          if ! command -v helm &> /dev/null; then
+            curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3
+            chmod 700 get_helm.sh
+            ./get_helm.sh
+            rm get_helm.sh
+          fi
+
+          # Function to compare versions
+          version_compare() {
+            if [ "$(printf '%s\n' "$1" "$2" | sort -V | head -n1)" = "$1" ]; then
+              return 0
+            else
+              return 1
+            fi
+          }
+
+          check_aws_cli_version() {
+            if [ -f ~/.local/bin/aws ]; then
+              current_version=$(~/.local/bin/aws --version 2>&1 | cut -d/ -f2 | cut -d' ' -f1)
+              required_version="2.17.47"
+              if version_compare "$current_version" "$required_version"; then
+                return 0  # Current version is >= required version
+              fi
+            fi
+            return 1  # AWS CLI needs to be installed or updated
+          }
+          
+          # Update AWS CLI if needed
+          if ! check_aws_cli_version; then
+            echo "Installing/Updating AWS CLI to version >= 2.17.47"
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip -o awscliv2.zip
+            ./aws/install -i ~/.local/aws-cli -b ~/.local/bin --update
+            rm -rf aws awscliv2.zip
+          fi
+          
+          # install docker if not present
+          if ! command -v docker &> /dev/null; then
+            sudo install -m 0755 -d /etc/apt/keyrings
+            sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+            sudo chmod a+r /etc/apt/keyrings/docker.asc
+            echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+            sudo apt update -qq
+            sudo apt install -y -qq docker-ce=5:20.10.24~3-0~ubuntu-jammy docker-ce-cli=5:20.10.24~3-0~ubuntu-jammy docker-buildx-plugin=0.17.1-1~ubuntu.22.04~jammy docker-compose-plugin=2.29.7-1~ubuntu.22.04~jammy
+          fi
+
+          # add completion if not present
+          LINE="complete -C '/usr/local/bin/aws_completer' aws"
+          grep -qxF "$LINE" /home/sagemaker-user/.bashrc || echo "$LINE" >> /home/sagemaker-user/.bashrc
+       
+          # remove metadata file
+          METADATA_FILE="/home/sagemaker-user/.sagemaker-last-active-timestamp"
+          if [ -f $METADATA_FILE ]; then
+              rm $METADATA_FILE
+          fi
+      StudioLifecycleConfigName: !Sub ${ResourceNamePrefix}-CodeEditorLifecycleConfig
+  
+  SageMakerStudioUserProfile:
+    Type: AWS::SageMaker::UserProfile
+    DependsOn: SageMakerStudioDomainCleanup
+    Properties:
+      DomainId:
+        Ref: SageMakerStudioDomain
+      UserProfileName: DefaultUser
+
+### ---------------- VPC Resources ----------------###
+
+  SageMakerStudioVpc:
+    Type: AWS::EC2::VPC
+    Condition: CreateNewVpc
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+      - Key: Name
+        Value:
+          Fn::Sub: ${ResourceNamePrefix}-SMCE-VPC
+
+  SageMakerStudioVpcGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Condition: CreateNewVpc
+    Properties:
+      InternetGatewayId:
+        Ref: SageMakerStudioVpcInternetGateway
+      VpcId:
+        Ref: SageMakerStudioVpc
+    
+  SageMakerStudioVpcInternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Condition: CreateNewVpc
+    Properties:
+      Tags:
+      - Key: Name
+        Value:
+          Fn::Sub: ${ResourceNamePrefix}-SMCE-IGW
+    
+  SageMakerStudioVpcPrivateOneRouteTableAssociationOne:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Condition: CreateNewVpc
+    Properties:
+      RouteTableId:
+        Ref: SageMakerStudioVpcPrivateRouteTableOne
+      SubnetId:
+        Ref: SageMakerStudioVpcPrivateSubnetOne
+    
+  SageMakerStudioVpcPrivateOneRouteTableAssociationTwo:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Condition: CreateNewVpc
+    Properties:
+      RouteTableId:
+        Ref: SageMakerStudioVpcPrivateRouteTableTwo
+      SubnetId:
+        Ref: SageMakerStudioVpcPrivateSubnetTwo
+    
+  SageMakerStudioVpcPrivateRouteTableOne:
+    Type: AWS::EC2::RouteTable
+    Condition: CreateNewVpc
+    Properties:
+      VpcId:
+        Ref: SageMakerStudioVpc
+    
+  SageMakerStudioVpcPrivateRouteTableTwo:
+    Type: AWS::EC2::RouteTable
+    Condition: CreateNewVpc
+    Properties:
+      VpcId:
+        Ref: SageMakerStudioVpc
+    
+  SageMakerStudioVpcPrivateSubnetOne:
+    Type: AWS::EC2::Subnet
+    Condition: CreateNewVpc
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+        - 0
+        - Fn::GetAZs: ''
+      CidrBlock: 10.0.10.0/24
+      MapPublicIpOnLaunch: true
+      Tags:
+      - Key: Name
+        Value:
+          Fn::Sub: ${ResourceNamePrefix}-SMCE-Private1
+      VpcId:
+        Ref: SageMakerStudioVpc
+
+  SageMakerStudioVpcPrivateSubnetTwo:
+    Type: AWS::EC2::Subnet
+    Condition: CreateNewVpc
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+        - 1
+        - Fn::GetAZs: ''
+      CidrBlock: 10.0.11.0/24
+      MapPublicIpOnLaunch: true
+      Tags:
+      - Key: Name
+        Value:
+          Fn::Sub: ${ResourceNamePrefix}-SMCE-Private2
+      VpcId:
+        Ref: SageMakerStudioVpc
+
+  SageMakerStudioVpcPublicOneRouteTableAssociationOne:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Condition: CreateNewVpc
+    Properties:
+      RouteTableId:
+        Ref: SageMakerStudioVpcPublicRouteTableOne
+      SubnetId:
+        Ref: SageMakerStudioVpcPublicSubnetOne
+
+  SageMakerStudioVpcPublicOneRouteTableAssociationTwo:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Condition: CreateNewVpc
+    Properties:
+      RouteTableId:
+        Ref: SageMakerStudioVpcPublicRouteTableTwo
+      SubnetId:
+        Ref: SageMakerStudioVpcPublicSubnetTwo
+
+  SageMakerStudioVpcPublicRouteOne:
+    Type: AWS::EC2::Route
+    Condition: CreateNewVpc
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: SageMakerStudioVpcInternetGateway
+      RouteTableId:
+        Ref: SageMakerStudioVpcPublicRouteTableOne
+
+  SageMakerStudioVpcPublicRouteTableOne:
+    Type: AWS::EC2::RouteTable
+    Condition: CreateNewVpc
+    Properties:
+      VpcId:
+        Ref: SageMakerStudioVpc
+
+  SageMakerStudioVpcPublicRouteTableTwo:
+    Type: AWS::EC2::RouteTable
+    Condition: CreateNewVpc
+    Properties:
+      VpcId:
+        Ref: SageMakerStudioVpc
+
+  SageMakerStudioVpcPublicRouteTwo:
+    Type: AWS::EC2::Route
+    Condition: CreateNewVpc
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: SageMakerStudioVpcInternetGateway
+      RouteTableId:
+        Ref: SageMakerStudioVpcPublicRouteTableTwo
+
+  SageMakerStudioVpcPublicSubnetOne:
+    Type: AWS::EC2::Subnet
+    Condition: CreateNewVpc
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+        - 0
+        - Fn::GetAZs: ''
+      CidrBlock: 10.0.0.0/24
+      MapPublicIpOnLaunch: true
+      Tags:
+      - Key: Name
+        Value:
+          Fn::Sub: ${ResourceNamePrefix}-SMCE-Public1
+      VpcId:
+        Ref: SageMakerStudioVpc
+
+  SageMakerStudioVpcPublicSubnetTwo:
+    Type: AWS::EC2::Subnet
+    Condition: CreateNewVpc
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+        - 1
+        - Fn::GetAZs: ''
+      CidrBlock: 10.0.1.0/24
+      MapPublicIpOnLaunch: true
+      Tags:
+      - Key: Name
+        Value:
+          Fn::Sub: ${ResourceNamePrefix}-SMCE-Public2
+      VpcId:
+        Ref: SageMakerStudioVpc
+
+Outputs:
+  SageMakerStudioUrl:
+    Description: The URL of SageMaker Studio domain
+    Value:
+      Fn::Sub: https://${AWS::Region}.console.aws.amazon.com/sagemaker/home?region=${AWS::Region}#/studio/open/${SageMakerStudioDomain}/DefaultUser
+
+  SageMakerStudioExecutionRoleArn:
+    Description: "ARN of the SageMaker Studio Execution Role"
+    Value: !GetAtt SageMakerStudioExecutionRole.Arn
+    Export:
+      Name: !Sub ${ResourceNamePrefix}-SageMakerStudioExecutionRoleArn
