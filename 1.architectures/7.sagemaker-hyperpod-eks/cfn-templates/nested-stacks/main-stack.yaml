@@ -1,0 +1,819 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Main Stack
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label: 
+          default: Resource Name Prefix
+        Parameters: 
+          - ResourceNamePrefix
+      - Label: 
+          default: Toggle Nested Stacks
+        Parameters: 
+          - CreateVPCStack
+          - CreatePrivateSubnetStack
+          - CreateSecurityGroupStack
+          - CreateEKSClusterStack
+          - CreateS3BucketStack
+          - CreateLifeCycleScriptStack
+          - CreateSageMakerIAMRoleStack
+          - CreateHelmChartStack
+          - CreateHyperPodClusterStack
+      - Label: 
+          default: Parameter Checks Recommended If CreateVPCStack == true
+        Parameters: 
+          - VpcCIDR
+          - PublicSubnet1CIDR
+          - PublicSubnet2CIDR
+      - Label: 
+          default: Parameter Checks Recommended If CreatePrivateSubnetStack == true
+        Parameters: 
+          - AvailabilityZoneId
+          - PrivateSubnet1CIDR
+      - Label: 
+          default: Parameter Checks Recommended If EKSClusterStack == true
+        Parameters: 
+          - EKSPrivateSubnet1CIDR
+          - EKSPrivateSubnet2CIDR
+          - KubernetesVersion
+          - UsingSMCodeEditor
+      - Label: 
+          default: Parameter Checks Recommended If CreateHelmChartStack == true
+        Parameters: 
+          - HelmRepoUrl
+          - HelmRepoPath
+          - HelmRelease
+      - Label: 
+          default: Parameter Checks Recommended If CreateHyperPodClusterStack == true
+        Parameters: 
+          - HyperPodClusterName
+          - NodeRecovery
+          - AcceleratedInstanceGroupName
+          - AcceleratedInstanceType
+          - AcceleratedInstanceCount
+          - AcceleratedEBSVolumeSize
+          - AcceleratedThreadsPerCore
+          - EnableInstanceStressCheck
+          - EnableInstanceConnectivityCheck
+          - AcceleratedLifeCycleConfigOnCreate
+          - CreateGeneralPurposeInstanceGroup
+          - GeneralPurposeInstanceGroupName
+          - GeneralPurposeInstanceType
+          - GeneralPurposeInstanceCount
+          - GeneralPurposeEBSVolumeSize
+          - GeneralPurposeThreadsPerCore
+          - GeneralPurposeLifeCycleConfigOnCreate
+      - Label: 
+          default: Parameter Overrides Required If CreateVPCStack == false and Any(CreatePrivateSubnetStack, CreateSecurityGroupStack, CreateEKSClusterStack, CreateS3BucketStack) == true
+        Parameters: 
+          - VpcId
+      - Label: 
+          default: Parameter Overrides Required If CreateVPCStack == false and CreatePrivateSubnetStack == true
+        Parameters: 
+          - NatGatewayId
+      - Label: 
+          default: Parameter Overrides Required If CreatePrivateSubnet == false and CreateS3BucketStack == true
+        Parameters: 
+          - PrivateRouteTableId
+      - Label: 
+          default: Parameter Overrides Required If CreatePrivateSubnet == false and CreateHyperPodClusterStack == true
+        Parameters: 
+          - PrivateSubnetId
+      - Label: 
+          default: |
+            Parameter Overrides Required If CreateSecurityGroupStack == false and Any(CreateEKSClusterStack, CreateHyperPodClusterStack) == true;
+            OR If CreateEKSClusterStack == false and CreateSecurityGroupStack == true (For adding rules to an existing EKS Cluster security group)
+        Parameters: 
+          - SecurityGroupId
+      - Label: 
+          default: Parameter Overrides Required If CreateEKSClusterStack == false and Any(CreateHelmChartStack, CreateHyperPodClusterStack) == true
+        Parameters: 
+          - EKSClusterName
+      - Label: 
+          default: Parameter Overrides Required If CreateS3BucketStack == false and Any(CreateLifeCycleScriptStack, CreateHyperPodClusterStack, CreateSageMakerIAMRoleStack) == true
+        Parameters: 
+          - S3BucketName
+      - Label: 
+          default: Parameter Overrides Required If CreateSageMakerIAMRoleStack == false and CreateHyperPodClusterStack == true
+        Parameters: 
+          - SageMakerIAMRoleName
+      - Label: 
+          default: For AWS Hosted Workshops Only - Do Not Change
+        Parameters:
+          - ParticipantRoleArn 
+
+    ParameterLabels: 
+      CreateVPCStack:
+        default: "Create VPC Stack"
+      CreatePrivateSubnetStack:
+        default: "Create Private Subnet Stack"
+      CreateSecurityGroupStack:
+        default: "Create Security Group Stack"
+      CreateEKSClusterStack:
+        default: "Create EKS Cluster Stack"
+      CreateS3BucketStack:
+        default: "Create S3 Bucket Stack"
+      CreateLifeCycleScriptStack:
+        default: "Create LifeCycle Script Stack"
+      CreateSageMakerIAMRoleStack:
+        default: "Create SageMaker IAM Role Stack"
+      CreateHelmChartStack:
+        default: "Create Helm Chart Stack"
+      CreateHyperPodClusterStack:
+        default: "Create HyperPod Cluster Stack"
+
+Mappings:
+  AssetS3Buckets: 
+    eu-north-1:
+      BucketName: ws-assets-prod-iad-r-arn-580aeca3990cef5a
+    ap-south-1:
+      BucketName: ws-assets-prod-iad-r-bom-431207042d319a2d
+    eu-west-3:
+      BucketName: ws-assets-prod-iad-r-cdg-9e76383c31ad6229
+    us-east-2:
+      BucketName: ws-assets-prod-iad-r-cmh-8d6e9c21a4dec77d
+    eu-west-1:
+      BucketName: ws-assets-prod-iad-r-dub-85e3be25bd827406
+    eu-central-1:
+      BucketName: ws-assets-prod-iad-r-fra-b129423e91500967
+    sa-east-1:
+      BucketName: ws-assets-prod-iad-r-gru-527b8c19222c1182
+    us-east-1:
+      BucketName: ws-assets-prod-iad-r-iad-ed304a55c2ca1aee
+    ap-northeast-2:
+      BucketName: ws-assets-prod-iad-r-icn-ced060f0d38bc0b0
+    ap-northeast-3:
+      BucketName: ws-assets-prod-iad-r-kix-c2a28ad4e55ea53a
+    eu-west-2:
+      BucketName: ws-assets-prod-iad-r-lhr-cc4472a651221311
+    ap-northeast-1:
+      BucketName: ws-assets-prod-iad-r-nrt-2cb4b4649d0e0f94
+    us-west-2:
+      BucketName: ws-assets-prod-iad-r-pdx-f3b3f9f1a7d6a3d0
+    us-west-1:
+      BucketName: ws-assets-prod-iad-r-sfo-f61fc67057535f1b
+    ap-southeast-1:
+      BucketName: ws-assets-prod-iad-r-sin-694a125e41645312
+    ap-southeast-2:
+      BucketName: ws-assets-prod-iad-r-syd-b04c62a5f16f7b2e
+    ca-central-1:
+      BucketName: ws-assets-prod-iad-r-yul-5c2977cd61bca1f3
+
+Parameters:
+  
+  ### ---------------- Resource Prefix Param ----------------###
+
+  ResourceNamePrefix:
+    Description: Prefix to be used for all resources created by this template. 
+    Type: String
+    Default: sagemaker-hyperpod-eks
+
+  ### ---------------- VPC Params ----------------###
+
+  VpcCIDR:
+    Description: The IP range (CIDR notation) for the VPC.
+    Type: String
+    Default: 10.192.0.0/16
+
+  PublicSubnet1CIDR:
+    Description: The IP range (CIDR notation) for the public subnet in the first Availability Zone.
+    Type: String
+    Default: 10.192.10.0/24
+
+  PublicSubnet2CIDR:
+    Description: The IP range (CIDR notation) for the public subnet in the second Availability Zone. 
+    Type: String
+    Default: 10.192.11.0/24
+
+  ### ---------------- Private Subnet Params ----------------###
+
+  AvailabilityZoneId:
+    Description: >
+      The Availability Zone Id you wish to create a private subnet in.
+      This private subnet will be used by HyperPod to deploy cross-account ENIs. 
+      The Availability Zone Id you specify should correspond to the location of your accelerated compute capacity.
+    Type: String
+    Default: usw2-az2
+    AllowedPattern: ^[a-z]{3,4}[0-9]-az[0-9]$
+    ConstraintDescription: The Availability Zone Id must match the expression
+      ^[a-z]{3,4}[0-9]-az[0-9]$. For example, use1-az4, usw2-az2, or apse1-az2.
+
+  PrivateSubnet1CIDR:
+    Description: The IP range (CIDR notation) for the private subnet to be created in the target Availability Zone. 
+    Type: String
+    Default: 10.1.0.0/16
+
+  VpcId:
+    Description: The ID of the VPC you wish to use if you do not want to create a new VPC. 
+    Type: String
+    Default: vpc-1234567890abcdef0
+
+  NatGatewayId:
+    Description: The Id of a NAT Gateway to route internet bound traffic to from the newly create private subnet. 
+    Type: String
+    Default: nat-1234567890abcdef0
+
+  ### ---------------- EKS Params ----------------###
+
+  KubernetesVersion:
+    Description: The Kubernetes version to use for the EKS cluster. 
+    Type: String
+    Default: '1.30'
+
+  EKSClusterName:
+    Description: The name of the newly created of preexisting EKS cluster you wish to use. 
+    Type: String
+    Default: sagemaker-hyperpod-eks-cluster
+
+  EKSPrivateSubnet1CIDR:
+    Description: >
+      The IP range (CIDR notation) for the EKS private
+      subnet in the first Availability Zone. EKS will use this subnet to deploy
+      cross-account ENIs.
+    Type: String
+    Default: 10.192.7.0/28
+
+  EKSPrivateSubnet2CIDR:
+    Description: > 
+      The IP range (CIDR notation) for the EKS private
+      subnet in the second Availability Zone. EKS will use this subnet to deploy
+      cross-account ENIs.
+    Type: String
+    Default: 10.192.8.0/28
+
+  SecurityGroupId:
+    Description: The Id of your existing EKS cluster security group (if applicable)
+    Type: String
+    Default: sg-1234567890abcdef0
+
+  UsingSMCodeEditor: 
+    Description: Import the SageMaker Code Editor IAM Role to create an EKS access entry?
+    Type: String
+    Default: false
+    AllowedValues: 
+      - true
+      - false
+
+  ParticipantRoleArn:
+    Description: The ARN of the Workshop Studio Participant IAM role
+    Type: String
+    Default: ''
+
+  ###  ---------------- S3 Bucket Params ----------------###
+
+  PrivateRouteTableId:
+    Description: The Id of your private route table. 
+    Type: String
+    Default: rtb-1234567890abcdef0
+
+  ### ---------------- Lifecycle Script Params ----------------###
+
+  S3BucketName:
+    Description: The name of the S3 bucket used to store the cluster lifecycle scripts.
+    Type: String
+    Default: sagemaker-hyperpod-eks-bucket
+
+  ### ---------------- Helm Installer Params ----------------###
+
+  HelmRepoUrl:
+    Description: The URL of the Helm repo containing the HyperPod Helm chart. 
+    Type: String
+    Default: https://github.com/aws/sagemaker-hyperpod-cli.git
+
+  HelmRepoPath:
+    Description: The path to the HyperPod Helm chart in the Helm repo. 
+    Type: String
+    Default: helm_chart/HyperPodHelmChart
+
+  HelmRelease:
+    Description: The name of the Helm release. 
+    Type: String
+    Default: hyperpod-dependencies
+
+  ### ---------------- HyperPod Params ----------------###
+
+  HyperPodClusterName:
+    Description: Name of SageMaker HyperPod Cluster.
+    Type: String
+    Default: ml-cluster
+
+  NodeRecovery:
+    Description: Specifies whether to enable or disable the automatic node recovery feature (Automatic or None).
+    Type: String
+    Default: Automatic
+    AllowedValues:
+      - Automatic
+      - None
+
+  SageMakerIAMRoleName:
+    Description: The name of the IAM role that SageMaker will use to access the AWS resources on your behalf. 
+    Type: String
+    Default: sagemaker-hyperpod-eks-role
+
+  PrivateSubnetId:
+    Description: > 
+      The Id of the private subnet you wish to use if not creating a new private subnet. 
+      This private subnet will be used by HyperPod to deploy cross-account ENIs.
+      The Availability Zone of the subnet should correspond to the location of your accelerated compute capacity.
+    Type: String
+    Default: subnet-1234567890abcdef0
+
+  ### ----------------  Accelerated Instance Group 1 Params----------------###
+
+  AcceleratedInstanceGroupName:
+    Description: The name of the accelerated instance group for the HyperPod cluster.
+    Type: String
+    Default: accelerated-worker-group-1
+
+  AcceleratedInstanceType:
+    Description: The instance type of the accelerated instance group for the HyperPod cluster.
+    Type: String
+    Default: ml.g5.8xlarge
+
+  AcceleratedInstanceCount:
+    Description: The number of instances in the accelerated instance group for the HyperPod cluster.
+    Type: Number
+    Default: 1
+
+  AcceleratedEBSVolumeSize:
+    Description: > 
+      The size in gigabytes (GB) of the additional EBS volume to be attached 
+      to the instances in the accelerated instance group for the HyperPod cluster.
+    Type: Number
+    Default: 500
+
+  AcceleratedThreadsPerCore:
+    Description: The number of threads per CPU core in the accelerated instance group for the HyperPod cluster.
+    Type: Number
+    AllowedValues:
+      - 1
+      - 2
+    Default: 1
+
+  EnableInstanceStressCheck:
+    Type: String
+    Description: Enable Instance Stress deep health check
+    Default: true
+    AllowedValues: 
+      - true
+      - false
+
+  EnableInstanceConnectivityCheck:
+    Type: String
+    Description: Enable Instance Connectivity deep health check
+    Default: true
+    AllowedValues: 
+      - true
+      - false
+
+  AcceleratedLifeCycleConfigOnCreate:
+    Description: The file name of lifecycle script for the accelerated instance group. This script runs during cluster creation.
+    Type: String
+    Default: on_create.sh
+
+  ### ----------------  General Purpose Instance Group 2 Params ----------------###
+
+  CreateGeneralPurposeInstanceGroup: 
+    Description: Whether to create a general purpose instance group for the HyperPod cluster.
+    Type: String
+    Default: true
+    AllowedValues: 
+      - true
+      - false
+
+  GeneralPurposeInstanceGroupName:
+    Description: The name of the general purpose instance group for the HyperPod cluster.
+    Type: String
+    Default: general-purpose-worker-group-2
+
+  GeneralPurposeInstanceType:
+    Description: The instance type of the general purpose instance group for the HyperPod cluster.
+    Type: String
+    Default: ml.m5.2xlarge
+
+  GeneralPurposeInstanceCount:
+    Description: The number of instances in the general purpose instance group for the HyperPod cluster.
+    Type: Number
+    Default: 1
+
+  GeneralPurposeEBSVolumeSize:
+    Description: > 
+      The size in gigabytes (GB) of the additional EBS volume to be attached 
+      to the instances in the general purpose instance group for the HyperPod cluster.
+    Type: Number
+    Default: 500
+
+  GeneralPurposeThreadsPerCore:
+    Description: The number of threads per CPU core in the general purpose instance group for the HyperPod cluster.
+    Type: Number
+    AllowedValues:
+      - 1
+      - 2
+    Default: 1
+
+  GeneralPurposeLifeCycleConfigOnCreate:
+    Description: The file name of lifecycle script for the general purpose instance group. This script runs during cluster creation.
+    Type: String
+    Default: on_create.sh
+
+  ### ---------------- Condition Params ----------------###
+
+  CreateVPCStack:
+    Description: Boolean to Create VPC Stack
+    Type: String
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Default: 'true'
+
+  CreatePrivateSubnetStack:
+    Description: Boolean to Create Private Subnet Stack
+    Type: String
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Default: 'true'
+
+  CreateSecurityGroupStack:
+    Description: Boolean to Create Security Group Stack
+    Type: String
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Default: 'true'
+
+  CreateEKSClusterStack:
+    Description: Boolean to Create EKS Cluster Stack
+    Type: String
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Default: 'true'
+
+  CreateS3BucketStack:
+    Description: Boolean to Create S3 Bucket Stack
+    Type: String
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Default: 'true'
+
+  CreateLifeCycleScriptStack:
+    Description: Boolean to Create Life Cycle Script Stack
+    Type: String
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Default: 'true'
+
+  CreateSageMakerIAMRoleStack:
+    Description: Boolean to Create SageMaker IAM Role Stack
+    Type: String
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Default: 'true'
+
+  CreateHelmChartStack:
+    Description: Boolean to Create Helm Chart Stack
+    Type: String
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Default: 'true'
+
+  CreateHyperPodClusterStack:
+    Description: Boolean to Create HyperPod Cluster Stack
+    Type: String
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Default: 'true'
+
+### ---------------- Conditions ----------------###
+
+Conditions:
+  CreateVPCStack: !Equals
+    - !Ref CreateVPCStack
+    - 'true'
+  CreatePrivateSubnetStack: !Equals
+    - !Ref CreatePrivateSubnetStack
+    - 'true'
+  CreateSecurityGroupStack: !Equals
+    - !Ref CreateSecurityGroupStack
+    - 'true'
+  CreateEKSClusterStack: !Equals
+    - !Ref CreateEKSClusterStack
+    - 'true'
+  CreateS3BucketStack: !Equals
+    - !Ref CreateS3BucketStack
+    - 'true'
+  CreateLifeCycleScriptStack: !Equals
+    - !Ref CreateLifeCycleScriptStack
+    - 'true'
+  CreateSageMakerIAMRoleStack: !Equals
+    - !Ref CreateSageMakerIAMRoleStack
+    - 'true'
+  CreateHelmChartStack: !Equals
+    - !Ref CreateHelmChartStack
+    - 'true'
+  # Note: this condition additionally prevents the invalid combination 
+  # where EKS cluster creation is enabled but Helm chart installation is disabled
+  CreateHyperPodClusterStack: !And
+    - !Equals
+      - !Ref CreateHyperPodClusterStack
+      - 'true'
+    - !Not
+      - !And
+        - !Equals
+          - !Ref CreateEKSClusterStack
+          - 'true'
+        - !Equals
+          - !Ref CreateHelmChartStack
+          - 'false'
+
+
+### ---------------- Resources ----------------###
+Resources:
+
+  VPCStack:
+    Type: AWS::CloudFormation::Stack
+    Condition: CreateVPCStack
+    Properties:
+      TemplateURL: 
+        Fn::Sub: 
+        - 'https://${BucketName}.s3.${AWS::Region}.amazonaws.com/2433d39e-ccfe-4c00-9d3d-9917b729258e/vpc-stack.yaml'
+        - BucketName: 
+            Fn::FindInMap: 
+            - AssetS3Buckets
+            - Ref: 'AWS::Region'
+            - BucketName
+      Parameters:
+        ResourceNamePrefix: !Ref ResourceNamePrefix
+        VpcCIDR: !Ref VpcCIDR
+        PublicSubnet1CIDR: !Ref PublicSubnet1CIDR
+        PublicSubnet2CIDR: !Ref PublicSubnet2CIDR
+
+  PrivateSubnetStack:
+    Type: AWS::CloudFormation::Stack
+    Condition: CreatePrivateSubnetStack
+    Properties:
+      TemplateURL: 
+        Fn::Sub: 
+        - "https://${BucketName}.s3.${AWS::Region}.amazonaws.com/2433d39e-ccfe-4c00-9d3d-9917b729258e/private-subnet-stack.yaml"
+        - BucketName: 
+            Fn::FindInMap: 
+            - AssetS3Buckets
+            - Ref: 'AWS::Region'
+            - BucketName
+      Parameters:
+        ResourceNamePrefix: !Ref ResourceNamePrefix
+        AvailabilityZoneId: !Ref AvailabilityZoneId
+        PrivateSubnet1CIDR: !Ref PrivateSubnet1CIDR
+        VpcId: !If
+          - CreateVPCStack
+          - !GetAtt VPCStack.Outputs.VpcId
+          - !Ref VpcId
+        NatGatewayId: !If
+          - CreateVPCStack
+          - !GetAtt VPCStack.Outputs.NatGatewayId
+          - !Ref NatGatewayId
+
+  SecurityGroupStack:
+    Type: AWS::CloudFormation::Stack
+    Condition: CreateSecurityGroupStack
+    Properties:
+      TemplateURL: 
+        Fn::Sub: 
+        - "https://${BucketName}.s3.${AWS::Region}.amazonaws.com/2433d39e-ccfe-4c00-9d3d-9917b729258e/security-group-stack.yaml"
+        - BucketName: 
+            Fn::FindInMap: 
+            - AssetS3Buckets
+            - Ref: 'AWS::Region'
+            - BucketName
+      Parameters:
+        ResourceNamePrefix: !Ref ResourceNamePrefix
+        VpcId: !If
+          - CreateVPCStack
+          - !GetAtt VPCStack.Outputs.VpcId
+          - !Ref VpcId
+        # Create new security group with a new EKS cluster
+        CreateNewSG: !If
+          - CreateEKSClusterStack
+          - 'true'
+          - 'false'
+        # Always passed, conditionally used to add rules
+        SecurityGroupId: !Ref SecurityGroupId
+        
+  EKSClusterStack:
+    Type: AWS::CloudFormation::Stack
+    Condition: CreateEKSClusterStack
+    Properties:
+      TemplateURL:
+        Fn::Sub:
+        - "https://${BucketName}.s3.${AWS::Region}.amazonaws.com/2433d39e-ccfe-4c00-9d3d-9917b729258e/eks-cluster-stack.yaml"
+        - BucketName: 
+            Fn::FindInMap: 
+            - AssetS3Buckets
+            - Ref: 'AWS::Region'
+            - BucketName
+      Parameters:
+        ResourceNamePrefix: !Ref ResourceNamePrefix
+        EKSPrivateSubnet1CIDR: !Ref EKSPrivateSubnet1CIDR
+        EKSPrivateSubnet2CIDR: !Ref EKSPrivateSubnet2CIDR
+        KubernetesVersion: !Ref KubernetesVersion
+        EKSClusterName: !Ref EKSClusterName
+        UsingSMCodeEditor: !Ref UsingSMCodeEditor
+        ParticipantRoleArn: !Ref ParticipantRoleArn
+        VpcId: !If
+          - CreateVPCStack
+          - !GetAtt VPCStack.Outputs.VpcId
+          - !Ref VpcId
+        SecurityGroupId: !If
+          - CreateSecurityGroupStack
+          - !GetAtt SecurityGroupStack.Outputs.SecurityGroupId
+          - !Ref SecurityGroupId
+
+  S3BucketStack:
+    Type: AWS::CloudFormation::Stack
+    Condition: CreateS3BucketStack
+    Properties:
+      TemplateURL:
+        Fn::Sub:
+        - "https://${BucketName}.s3.${AWS::Region}.amazonaws.com/2433d39e-ccfe-4c00-9d3d-9917b729258e/s3-bucket-stack.yaml"
+        - BucketName: 
+            Fn::FindInMap: 
+            - AssetS3Buckets
+            - Ref: 'AWS::Region'
+            - BucketName
+      Parameters:
+        ResourceNamePrefix: !Ref ResourceNamePrefix
+        VpcId: !If
+          - CreateVPCStack
+          - !GetAtt VPCStack.Outputs.VpcId
+          - !Ref VpcId
+        PrivateRouteTableId: !If
+          - CreatePrivateSubnetStack
+          - !GetAtt PrivateSubnetStack.Outputs.PrivateRouteTableId
+          - !Ref PrivateRouteTableId
+
+  LifeCycleScriptStack:
+    Type: AWS::CloudFormation::Stack
+    Condition: CreateLifeCycleScriptStack
+    Properties:
+      TemplateURL: 
+        Fn::Sub: 
+        - "https://${BucketName}.s3.${AWS::Region}.amazonaws.com/2433d39e-ccfe-4c00-9d3d-9917b729258e/lifecycle-script-stack.yaml"
+        - BucketName: 
+            Fn::FindInMap: 
+            - AssetS3Buckets
+            - Ref: 'AWS::Region'
+            - BucketName
+      Parameters:
+        ResourceNamePrefix: !Ref ResourceNamePrefix
+        S3BucketName: !If
+          - CreateS3BucketStack
+          - !GetAtt S3BucketStack.Outputs.S3BucketName
+          - !Ref S3BucketName
+
+  SageMakerIAMRoleStack:
+    Type: AWS::CloudFormation::Stack
+    Condition: CreateSageMakerIAMRoleStack
+    Properties:
+      TemplateURL: 
+        Fn::Sub:
+        - "https://${BucketName}.s3.${AWS::Region}.amazonaws.com/2433d39e-ccfe-4c00-9d3d-9917b729258e/sagemaker-iam-role-stack.yaml"
+        - BucketName: 
+            Fn::FindInMap: 
+            - AssetS3Buckets
+            - Ref: 'AWS::Region'
+            - BucketName
+      Parameters:
+        ResourceNamePrefix: !Ref ResourceNamePrefix
+        S3BucketName: !If
+          - CreateS3BucketStack
+          - !GetAtt S3BucketStack.Outputs.S3BucketName
+          - !Ref S3BucketName
+
+  HelmChartStack:
+    Type: AWS::CloudFormation::Stack
+    Condition: CreateHelmChartStack
+    Properties:
+      TemplateURL: 
+        Fn::Sub:
+        - "https://${BucketName}.s3.${AWS::Region}.amazonaws.com/2433d39e-ccfe-4c00-9d3d-9917b729258e/helm-chart-stack.yaml"
+        - BucketName: 
+            Fn::FindInMap: 
+            - AssetS3Buckets
+            - Ref: 'AWS::Region'
+            - BucketName
+      Parameters:
+        ResourceNamePrefix: !Ref ResourceNamePrefix
+        HelmRepoUrl: !Ref HelmRepoUrl
+        HelmRepoPath: !Ref HelmRepoPath
+        HelmRelease: !Ref HelmRelease
+        CustomResourceS3Bucket: 
+          Fn::FindInMap: 
+            - AssetS3Buckets
+            - Ref: 'AWS::Region'
+            - BucketName
+        LayerS3Key: '2433d39e-ccfe-4c00-9d3d-9917b729258e/lambda-layer.zip'
+        FunctionS3Key: '2433d39e-ccfe-4c00-9d3d-9917b729258e/function.zip'
+        EKSClusterName: !If
+          - CreateEKSClusterStack
+          - !GetAtt EKSClusterStack.Outputs.EKSClusterName
+          - !Ref EKSClusterName
+
+  HyperPodClusterStack:
+    Type: AWS::CloudFormation::Stack
+    Condition: CreateHyperPodClusterStack
+    Properties:
+      TemplateURL:
+        Fn::Sub:
+        - "https://${BucketName}.s3.${AWS::Region}.amazonaws.com/2433d39e-ccfe-4c00-9d3d-9917b729258e/hyperpod-cluster-stack.yaml"
+        - BucketName: 
+            Fn::FindInMap: 
+            - AssetS3Buckets
+            - Ref: 'AWS::Region'
+            - BucketName
+      Parameters:
+        HyperPodClusterName: !Ref HyperPodClusterName
+        NodeRecovery: !Ref NodeRecovery
+        AcceleratedInstanceGroupName: !Ref AcceleratedInstanceGroupName
+        AcceleratedInstanceType: !Ref AcceleratedInstanceType
+        AcceleratedInstanceCount: !Ref AcceleratedInstanceCount
+        AcceleratedEBSVolumeSize: !Ref AcceleratedEBSVolumeSize
+        AcceleratedThreadsPerCore: !Ref AcceleratedThreadsPerCore
+        EnableInstanceStressCheck: !Ref EnableInstanceStressCheck
+        EnableInstanceConnectivityCheck: !Ref EnableInstanceConnectivityCheck
+        AcceleratedLifeCycleConfigOnCreate: !Ref AcceleratedLifeCycleConfigOnCreate
+        CreateGeneralPurposeInstanceGroup: !Ref CreateGeneralPurposeInstanceGroup
+        GeneralPurposeInstanceGroupName: !Ref GeneralPurposeInstanceGroupName
+        GeneralPurposeInstanceType: !Ref GeneralPurposeInstanceType
+        GeneralPurposeInstanceCount: !Ref GeneralPurposeInstanceCount
+        GeneralPurposeEBSVolumeSize: !Ref GeneralPurposeEBSVolumeSize
+        GeneralPurposeThreadsPerCore: !Ref GeneralPurposeThreadsPerCore
+        GeneralPurposeLifeCycleConfigOnCreate: !Ref GeneralPurposeLifeCycleConfigOnCreate
+        # Used to conditionally force HyperPod to wait on the HelmChartStack (if deployed)
+        HelmChartStatus: !If
+          - CreateHelmChartStack
+          - !GetAtt HelmChartStack.Outputs.HelmChartDeploymentComplete
+          - HelmChartNotRequired
+        SageMakerIAMRoleName: !If
+          - CreateSageMakerIAMRoleStack
+          - !GetAtt SageMakerIAMRoleStack.Outputs.SageMakerIAMRoleName
+          - !Ref SageMakerIAMRoleName
+        PrivateSubnetId: !If
+          - CreatePrivateSubnetStack
+          - !GetAtt PrivateSubnetStack.Outputs.PrivateSubnetId
+          - !Ref PrivateSubnetId
+        SecurityGroupId: !If
+          - CreateSecurityGroupStack
+          - !GetAtt SecurityGroupStack.Outputs.SecurityGroupId
+          - !Ref SecurityGroupId
+        EKSClusterName: !If
+          - CreateEKSClusterStack
+          - !GetAtt EKSClusterStack.Outputs.EKSClusterName
+          - !Ref EKSClusterName
+        S3BucketName: !If
+          - CreateS3BucketStack
+          - !GetAtt S3BucketStack.Outputs.S3BucketName
+          - !Ref S3BucketName
+
+### ---------------- Outputs ----------------###
+Outputs:
+  VpcId:
+    Condition: CreateVPCStack
+    Value: !GetAtt VPCStack.Outputs.VpcId
+
+  PrivateSubnetId:
+    Condition: CreatePrivateSubnetStack
+    Value: !GetAtt PrivateSubnetStack.Outputs.PrivateSubnetId
+
+  SecurityGroupId:
+    Condition: CreateSecurityGroupStack
+    Value: !GetAtt SecurityGroupStack.Outputs.SecurityGroupId
+
+  EKSClusterArn:
+    Condition: CreateEKSClusterStack
+    Value: !GetAtt EKSClusterStack.Outputs.EKSClusterArn
+
+  EKSClusterName:
+    Condition: CreateEKSClusterStack
+    Value: !GetAtt EKSClusterStack.Outputs.EKSClusterName
+
+  SageMakerIAMRoleArn:
+    Condition: CreateSageMakerIAMRoleStack
+    Value: !GetAtt SageMakerIAMRoleStack.Outputs.SageMakerIAMRoleArn
+
+  S3BucketName:
+    Condition: CreateS3BucketStack
+    Value: !GetAtt S3BucketStack.Outputs.S3BucketName
+
+  HyperPodClusterName:
+    Condition: CreateHyperPodClusterStack
+    Value: !GetAtt HyperPodClusterStack.Outputs.HyperPodClusterName
+
+  HyperPodClusterArn:
+    Condition: CreateHyperPodClusterStack
+    Value: !GetAtt HyperPodClusterStack.Outputs.HyperPodClusterArn

@@ -1,0 +1,77 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: SageMaker IAM Role Stack
+
+Parameters: 
+  ResourceNamePrefix:
+    Description: Prefix to be used for all resources created by this template.
+    Type: String
+    Default: sagemaker-hyperpod-eks
+
+  S3BucketName: 
+    Description: The name of the S3 bucket used to store the cluster lifecycle scripts.
+    Type: String
+    Default: sagemaker-hyperpod-eks-bucket
+
+Resources: 
+
+  ExecutionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - sagemaker.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/AmazonSageMakerClusterInstanceRolePolicy'
+      Policies:
+        - PolicyName: !Sub '${ResourceNamePrefix}-ExecutionRolePolicy-${AWS::Region}'
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'ec2:AssignPrivateIpAddresses'
+                  - 'ec2:CreateNetworkInterface'
+                  - 'ec2:CreateNetworkInterfacePermission'
+                  - 'ec2:DeleteNetworkInterface'
+                  - 'ec2:DeleteNetworkInterfacePermission'
+                  - 'ec2:DescribeNetworkInterfaces'
+                  - 'ec2:DescribeVpcs'
+                  - 'ec2:DescribeDhcpOptions'
+                  - 'ec2:DescribeSubnets'
+                  - 'ec2:DescribeSecurityGroups'
+                  - 'ec2:DetachNetworkInterface'
+                  - 'ec2:ModifyNetworkInterfaceAttribute'
+                  - 'ec2:UnassignPrivateIpAddresses'
+                  - 'ecr:BatchGetImage'
+                  - 'ecr:GetAuthorizationToken'
+                  - 'ecr:GetDownloadUrlForLayer'
+                  - 'eks-auth:AssumeRoleForPodIdentity'
+                Resource: '*'
+              - Effect: Allow
+                Action: 
+                  - 'ec2:CreateTags'
+                Resource: 'arn:aws:ec2:*:*:network-interface/*'
+              - Effect: Allow
+                Action: 
+                  - 's3:ListBucket'
+                  - 's3:GetObject'
+                Resource: 
+                  - !Sub 'arn:aws:s3:::${S3BucketName}'
+                  - !Sub 'arn:aws:s3:::${S3BucketName}/*'
+      RoleName: !Sub '${ResourceNamePrefix}-SMHP-Exec-Role-${AWS::Region}'
+
+Outputs: 
+  SageMakerIAMRoleName:
+    Description: 'SageMaker IAM role Name'
+    Value: !Ref ExecutionRole
+
+  SageMakerIAMRoleArn:
+    Description: 'SageMaker IAM role Arn'
+    Value: !GetAtt ExecutionRole.Arn

@@ -1,0 +1,230 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: HyperPod Cluster Stack
+
+Parameters:
+
+  # Used to conditionally force HyperPod to wait on the HelmChartStack (if deployed)
+  HelmChartStatus:
+    Type: String
+    Default: "HelmChartNotRequired"
+
+### ---------------- HyperPod Params ----------------###
+  HyperPodClusterName: 
+    Description: Name of SageMaker HyperPod Cluster.
+    Type: String
+    Default: ml-cluster
+
+  NodeRecovery: 
+    Description: Specifies whether to enable or disable the automatic node recovery feature (Automatic or None)
+    Type: String
+    Default: Automatic
+    AllowedValues: 
+      - Automatic
+      - None
+
+### ----------------  Accelerated Instance Group 1 Params----------------###
+  AcceleratedInstanceGroupName: 
+    Description: The name of the accelerated instance group for the HyperPod cluster.
+    Type: String
+    Default: accelerated-worker-group-1
+
+  AcceleratedInstanceType:
+    Description: The instance type of the accelerated instance group for the HyperPod cluster.
+    Type: String
+    Default: ml.g5.8xlarge
+
+  AcceleratedInstanceCount: 
+    Description: The number of instances in the accelerated instance group for the HyperPod cluster.
+    Type: Number
+    Default: 1
+
+  AcceleratedEBSVolumeSize: 
+    Description: > 
+      The size in gigabytes (GB) of the additional EBS volume to be attached 
+      to the instances in the accelerated instance group for the HyperPod cluster.
+    Type: Number
+    Default: 500
+
+  AcceleratedThreadsPerCore: 
+    Description: The number of threads per CPU core in the accelerated instance group for the HyperPod cluster.
+    Type: Number
+    AllowedValues: 
+      - 1 
+      - 2
+    Default: 1
+
+  EnableInstanceStressCheck:
+    Type: String
+    Description: Enable Instance Stress deep health check
+    Default: true
+    AllowedValues: 
+      - true
+      - false
+
+  EnableInstanceConnectivityCheck:
+    Type: String
+    Description: Enable Instance Connectivity deep health check
+    Default: true
+    AllowedValues: 
+      - true
+      - false
+
+  AcceleratedLifeCycleConfigOnCreate: 
+    Description: The file name of lifecycle script for the accelerated instance group. This script runs during cluster creation.
+    Type: String
+    Default: on_create.sh
+
+  ### ----------------  General Purpose Instance Group 2 Params ----------------###
+  CreateGeneralPurposeInstanceGroup: 
+    Description: Whether to create a general purpose instance group for the HyperPod cluster.
+    Type: String
+    Default: true
+    AllowedValues: 
+      - true
+      - false
+
+  GeneralPurposeInstanceGroupName: 
+    Description: The name of the general purpose instance group for the HyperPod cluster.
+    Type: String
+    Default: general-purpose-worker-group-2
+
+  GeneralPurposeInstanceType: 
+    Description: The instance type of the general purpose instance group for the HyperPod cluster.
+    Type: String
+    Default: ml.m5.2xlarge
+
+  GeneralPurposeInstanceCount:
+    Description: The number of instances in the general purpose instance group for the HyperPod cluster.
+    Type: Number
+    Default: 1
+
+  GeneralPurposeEBSVolumeSize: 
+    Description: > 
+      The size in gigabytes (GB) of the additional EBS volume to be attached 
+      to the instances in the general purpose instance group for the HyperPod cluster.
+    Type: Number
+    Default: 500
+
+  GeneralPurposeThreadsPerCore:
+    Description: The number of threads per CPU core in the general purpose instance group for the HyperPod cluster.
+    Type: Number 
+    AllowedValues: 
+      - 1 
+      - 2
+    Default: 1
+
+  GeneralPurposeLifeCycleConfigOnCreate: 
+    Description: The file name of lifecycle script for the general purpose instance group. This script runs during cluster creation.
+    Type: String
+    Default: on_create.sh
+
+  SageMakerIAMRoleName:
+    Description: The name of the IAM role that SageMaker will use to access the AWS resources on your behalf. 
+    Type: String
+    Default: sagemaker-hyperpod-eks-role
+
+  PrivateSubnetId: 
+    Description: > 
+      The Id of the private subnet you wish to use. 
+      This private subnet will be used by HyperPod to deploy cross-account ENIs.
+      The Availability Zone of the subnet should correspond to the location of your accelerated compute capacity.
+    Type: String
+    Default: subnet-1234567890abcdef0 
+
+  SecurityGroupId:
+    Description: The Id of your cluster security group.
+    Type: String
+    Default: sg-1234567890abcdef0
+
+  EKSClusterName: 
+    Description: The name of the EKS cluster you wish to use. 
+    Type: String
+    Default: sagemaker-hyperpod-eks-cluster
+
+  S3BucketName: 
+    Description: The name of the S3 bucket used to store the cluster lifecycle scripts.
+    Type: String
+    Default: sagemaker-hyperpod-eks-bucket
+
+###---------------- Condition Params ----------------###
+
+Conditions:
+  IncludeStressCheck: !Equals [!Ref EnableInstanceStressCheck, true ]
+
+  IncludeConnectivityCheck: !Equals [!Ref EnableInstanceConnectivityCheck, true ]
+
+  IncludeBothChecks: !And 
+    - !Condition IncludeStressCheck
+    - !Condition IncludeConnectivityCheck
+
+  IncludeOnlyStressCheck: !And 
+    - !Condition IncludeStressCheck
+    - !Not [!Condition IncludeConnectivityCheck]
+
+  IncludeOnlyConnectivityCheck: !And 
+    - !Not [!Condition IncludeStressCheck]
+    - !Condition IncludeConnectivityCheck
+
+  ShouldCreateGeneralPurposeGroup: !Equals [!Ref CreateGeneralPurposeInstanceGroup, true ]
+  
+###--------------------------------------------------###
+Resources: 
+
+  HyperPodCluster:
+    Type: AWS::SageMaker::Cluster
+    Properties:
+      ClusterName: !Ref HyperPodClusterName
+      InstanceGroups:
+        - InstanceGroupName: !Ref AcceleratedInstanceGroupName
+          ExecutionRole: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${SageMakerIAMRoleName}'
+          InstanceType: !Ref AcceleratedInstanceType
+          InstanceCount: !Ref AcceleratedInstanceCount
+          ThreadsPerCore: !Ref AcceleratedThreadsPerCore
+          InstanceStorageConfigs: 
+            - EbsVolumeConfig: 
+                VolumeSizeInGB: !Ref AcceleratedEBSVolumeSize
+          LifeCycleConfig: 
+            OnCreate: !Ref AcceleratedLifeCycleConfigOnCreate
+            SourceS3Uri: !Sub 's3://${S3BucketName}'
+          OnStartDeepHealthChecks: !If
+            - IncludeBothChecks
+            - ["InstanceStress", "InstanceConnectivity"]
+            - !If
+              - IncludeOnlyStressCheck
+              - ["InstanceStress"]
+              - !If
+                - IncludeOnlyConnectivityCheck
+                - ["InstanceConnectivity"]
+                - []
+        - !If
+          - ShouldCreateGeneralPurposeGroup
+          - InstanceGroupName: !Ref GeneralPurposeInstanceGroupName
+            ExecutionRole: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${SageMakerIAMRoleName}'
+            InstanceType: !Ref GeneralPurposeInstanceType
+            InstanceCount: !Ref GeneralPurposeInstanceCount
+            ThreadsPerCore: !Ref GeneralPurposeThreadsPerCore
+            InstanceStorageConfigs: 
+              - EbsVolumeConfig: 
+                  VolumeSizeInGB: !Ref GeneralPurposeEBSVolumeSize
+            LifeCycleConfig: 
+              OnCreate: !Ref GeneralPurposeLifeCycleConfigOnCreate
+              SourceS3Uri: !Sub 's3://${S3BucketName}'
+          - !Ref AWS::NoValue
+      NodeRecovery: !Ref NodeRecovery
+      Orchestrator: 
+        Eks:
+          ClusterArn: !Sub 'arn:aws:eks:${AWS::Region}:${AWS::AccountId}:cluster/${EKSClusterName}'
+      VpcConfig: 
+        SecurityGroupIds:
+          - !Ref SecurityGroupId
+        Subnets:
+          - !Ref PrivateSubnetId
+
+Outputs: 
+  HyperPodClusterArn:
+    Description: The ARN of the HyperPod cluster
+    Value: !GetAtt HyperPodCluster.ClusterArn
+
+  HyperPodClusterName:
+    Description: The name of the HyperPod cluster
+    Value: !Ref HyperPodClusterName

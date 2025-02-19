@@ -1,0 +1,136 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Helm Chart Stack
+
+Parameters: 
+
+  ResourceNamePrefix:
+    Description: Prefix to be used for all resources created by this template. 
+    Type: String
+    Default: sagemaker-hyperpod-eks
+
+  EKSClusterName: 
+    Description: The name of the EKS cluster you wish to use. 
+    Type: String
+    Default: hyperpod-eks-cluster
+
+  HelmRepoUrl:
+    Description: The URL of the Helm repo containing the HyperPod Helm chart. 
+    Type: String
+    Default: https://github.com/aws/sagemaker-hyperpod-cli.git
+
+  HelmRepoPath:
+    Description: The path to the HyperPod Helm chart in the Helm repo. 
+    Type: String
+    Default: helm_chart/HyperPodHelmChart
+
+  HelmRelease: 
+    Description: The name of the Helm release. 
+    Type: String
+    Default: hyperpod-dependencies
+
+  CustomResourceS3Bucket: 
+    Description: The name of the S3 bucket containing the custom resource.
+    Type: String
+    Default: ws-assets-prod-iad-r-pdx-f3b3f9f1a7d6a3d0
+
+  LayerS3Key: 
+    Description: The S3 key for the lambda layer zip file.
+    Type: String
+    Default: 2433d39e-ccfe-4c00-9d3d-9917b729258e/lambda-layer.zip
+
+  FunctionS3Key: 
+    Description: The S3 key for the lambda function zip file.
+    Type: String
+    Default: 2433d39e-ccfe-4c00-9d3d-9917b729258e/function.zip
+
+Resources: 
+
+# Lambda Function Role
+  HelmCustomResourceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: !Sub '${ResourceNamePrefix}-EKSClusterAccess-${AWS::Region}'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - eks:DescribeCluster
+                Resource: !Sub 'arn:aws:eks:${AWS::Region}:${AWS::AccountId}:cluster/${EKSClusterName}'
+
+# Access Entry
+  HelmCustomResourceAccessEntry:
+    Type: AWS::EKS::AccessEntry
+    Properties:
+      ClusterName: !Ref EKSClusterName
+      PrincipalArn: !GetAtt HelmCustomResourceRole.Arn
+      AccessPolicies: 
+        - PolicyArn: 'arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy'
+          AccessScope:
+            Type: 'cluster'
+
+# Lambda Layer
+  HelmCustomResourceLayer:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      LayerName: !Sub '${ResourceNamePrefix}-helm-chart-installer-lambda-layer'
+      Description: 'Lambda Layer for kubectl, helm, and git tools'
+      Content:
+        S3Bucket: !Ref CustomResourceS3Bucket
+        S3Key: !Ref LayerS3Key
+      CompatibleArchitectures:
+        - x86_64
+      CompatibleRuntimes:
+        - python3.9
+        - python3.10
+        - python3.11
+        - python3.12
+
+# Lambda Function 
+  HelmCustomResourceFunction:
+    Type: AWS::Lambda::Function
+    DependsOn: 
+      - HelmCustomResourceAccessEntry
+    Properties:
+      FunctionName: !Sub '${ResourceNamePrefix}-helm-chart-installer'
+      Environment: 
+        Variables:
+          CLUSTER_NAME: !Ref EKSClusterName
+          PATH: '/opt/python/bin:/var/lang/bin:/usr/local/bin:/usr/bin/:/bin'
+          GIT_EXEC_PATH: '/opt/python/libexec/git-core'
+          KUBECONFIG: '/tmp/.kube/config'
+          GITHUB_REPO_URL: !Ref HelmRepoUrl
+          CHART_PATH: !Ref HelmRepoPath
+          RELEASE_NAME: !Ref HelmRelease
+          LD_LIBRARY_PATH: '/opt/python/lib'
+      Handler: lambda_function.lambda_handler
+      Role: !GetAtt HelmCustomResourceRole.Arn
+      Runtime: python3.12
+      Timeout: 600
+      Code: 
+        S3Bucket: !Ref CustomResourceS3Bucket
+        S3Key: !Ref FunctionS3Key
+      Layers: 
+        - !Ref HelmCustomResourceLayer
+
+# Custom Resource 
+  HelmCustomResource:
+    Type: AWS::CloudFormation::CustomResource
+    Properties: 
+      ServiceToken: !GetAtt HelmCustomResourceFunction.Arn
+
+Outputs:
+# Used to conditionally force HyperPod to wait on the HelmChartStack (if deployed)
+  HelmChartDeploymentComplete:
+    Description: Indicates Helm chart deployment is complete
+    Value: "HelmChartDeploymentComplete"
