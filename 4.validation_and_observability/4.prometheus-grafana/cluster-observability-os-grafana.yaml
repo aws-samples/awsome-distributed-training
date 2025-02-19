@@ -59,7 +59,7 @@ Resources:
         IamInstanceProfile: 
           Name: !Ref MyInstanceProfile
         MetadataOptions:
-          HttpTokens: optional
+          HttpTokens: required
           HttpEndpoint: enabled
           HttpPutResponseHopLimit: 2
         BlockDeviceMappings:
