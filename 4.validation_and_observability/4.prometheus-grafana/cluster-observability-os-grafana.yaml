@@ -94,7 +94,7 @@ Resources:
 
             # Run Grafana container with automatic restart
             echo "Starting Grafana container with restart policy..."
-            docker run --network host --env GF_AUTH_SIGV4_AUTH_ENABLED=true --env AWS_SDK_LOAD_CONFIG=true --env AWS_EC2_METADATA_DISABLED=false -d --name=grafana --restart always grafana/grafana:10.4.14-ubuntu
+            docker run -p 3000:3000 --add-host=metadata.aws:169.254.169.254 --env GF_AUTH_SIGV4_AUTH_ENABLED=true --env AWS_SDK_LOAD_CONFIG=true --env AWS_EC2_METADATA_DISABLED=false -d --name=grafana --restart always grafana/grafana:10.4.14-ubuntu
 
             # Print Grafana access info
             echo "Docker and Grafana setup complete."
