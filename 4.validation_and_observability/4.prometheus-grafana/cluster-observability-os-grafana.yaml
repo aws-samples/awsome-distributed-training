@@ -97,7 +97,6 @@ Resources:
 
           # Print Grafana access info
           echo "Docker and Grafana setup complete."
-          # New: Changing to IMDSv2
           TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
           echo "Grafana is running at http://$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -s http://169.254.169.254/latest/meta-data/public-ipv4):3000"
           echo "Default Grafana login credentials are admin/admin. Please change the password after the first login."
