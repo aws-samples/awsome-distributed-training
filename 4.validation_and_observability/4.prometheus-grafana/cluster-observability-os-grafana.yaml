@@ -82,7 +82,7 @@ Resources:
             sudo systemctl start docker
 
             # Enable Docker to start on boot
-            sudo systemctl enable docker
+            sudo systemctl enable --now docker
 
             # Add the current user (ec2-user) to the Docker group to run Docker commands without sudo
             echo "Adding ec2-user to Docker group..."
