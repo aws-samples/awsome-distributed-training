@@ -131,6 +131,12 @@ print_header "🚀 HyperPod Cluster Easy SSH Script! 🚀"
 cluster_id=$(aws sagemaker describe-cluster "${aws_cli_args[@]}" --cluster-name $cluster_name | jq '.ClusterArn' | awk -F/ '{gsub(/"/, "", $NF); print $NF}')
 instance_id=$(aws sagemaker list-cluster-nodes "${aws_cli_args[@]}" --cluster-name $cluster_name --instance-group-name-contains ${node_group} | jq '.ClusterNodeSummaries[0].InstanceId' | tr -d '"')
 
+# Exit immediately if cluster or instance ID is not found.
+if [[ -z "$cluster_id" || -z "$instance_id" ]]; then
+    echo "Error: Cluster or instance not found for the specified cluster name (${cluster_name}). Exiting."
+    exit 1
+fi
+
 # print_header
 echo -e "Cluster id: ${GREEN}${cluster_id}${NC}"
 echo -e "Instance id: ${GREEN}${instance_id}${NC}"
