@@ -591,43 +591,73 @@ configure_eks_cluster() {
         echo -e "${YELLOW}$(kubectl get svc)${NC}"
     fi
 
-    # Offer to add additional users
-    if get_yes_no "Would you like to add additional ADMIN users to the cluster?" "n"; then
-        echo -e "${YELLOW}Please enter usernames (one per line). Press Ctrl+D when finished:${NC}"
-        TMP_USERS_FILE=$(mktemp)
-        cat > "$TMP_USERS_FILE"
+    # Offer to add EKS access entries for other IAM principals (users or roles)
+    if get_yes_no "Would you like to create additional EKS access entries for IAM Users or Roles to allow ADMIN access to the EKS cluster?" "n"; then
+        while true; do
+            echo -e "${YELLOW}Select principal type to add:${NC}"
+            echo "1) IAM User"
+            echo "2) IAM Role"
+            echo "3) Done adding principals"
+            read -p "Enter your choice (1-3): " choice
 
-        while read -r username; do
-            echo -e "${YELLOW}Adding user: $username${NC}"
-            
-            # Create access entry
-            if ! error_output=$(aws eks create-access-entry \
-                --cluster-name "$EKS_CLUSTER_NAME" \
-                --principal-arn "arn:aws:iam::${ACCOUNT_ID}:user/${username}" \
-                --type "STANDARD" 2>&1); then
-                if ! handle_error "$error_output" "access entry creation for $username"; then
-                    rm -f "$TMP_USERS_FILE"
-                    return 1
-                fi
-            fi
+            case $choice in
+                1|2)
+                    if [ "$choice" -eq 1 ]; then
+                        principal_type="user"
+                        read -p "Enter username: " principal_name
+                    else
+                        principal_type="role"
+                        read -p "Enter role name: " principal_name
+                    fi
 
-            # Associate admin policy
-            if ! error_output=$(aws eks associate-access-policy \
-                --cluster-name "$EKS_CLUSTER_NAME" \
-                --principal-arn "arn:aws:iam::${ACCOUNT_ID}:user/${username}" \
-                --policy-arn "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy" \
-                --access-scope '{"type": "cluster"}' 2>&1); then
-                if ! handle_error "$error_output" "policy association for $username"; then
-                    rm -f "$TMP_USERS_FILE"
-                    return 1
-                fi
-            fi
+                    # Skip if empty input
+                    [ -z "$principal_name" ] && continue
 
-            echo -e "${GREEN}✅ Successfully added user $username${NC}"
-        done < "$TMP_USERS_FILE"
+                    # Validate principal name format
+                    if ! [[ "$principal_name" =~ ^[a-zA-Z0-9+=,.@_-]+$ ]]; then
+                        echo -e "${RED}Invalid $principal_type name format. Names can contain letters, numbers, and the following characters: +=,.@_-${NC}"
+                        continue
+                    fi
 
-        rm -f "$TMP_USERS_FILE"
-    fi
+                    # Check if principal exists
+                    if ! error_output=$(aws iam get-${principal_type} --${principal_type}-name "$principal_name" 2>&1); then
+                        echo -e "${RED}Error: $principal_type '$principal_name' does not exist or you don't have permission to access it.${NC}"
+                        continue
+                    fi
+                    
+                    echo -e "${YELLOW}Adding $principal_type: $principal_name${NC}"
+                    
+                    # Create access entry
+                    if ! error_output=$(aws eks create-access-entry \
+                        --cluster-name "$EKS_CLUSTER_NAME" \
+                        --principal-arn "arn:aws:iam::${ACCOUNT_ID}:${principal_type}/${principal_name}" \
+                        --type "STANDARD" 2>&1); then
+                        handle_error "$error_output" "access entry creation for $principal_name" || return 1
+                    fi
+
+                    # Associate admin policy
+                    if ! error_output=$(aws eks associate-access-policy \
+                        --cluster-name "$EKS_CLUSTER_NAME" \
+                        --principal-arn "arn:aws:iam::${ACCOUNT_ID}:${principal_type}/${principal_name}" \
+                        --policy-arn "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy" \
+                        --access-scope '{"type": "cluster"}' 2>&1); then
+                        handle_error "$error_output" "policy association for $principal_name" || return 1
+                    fi
+
+                    echo -e "${GREEN}✅ Successfully added $principal_type $principal_name${NC}"
+                    echo -e "\n${YELLOW}Select next action:${NC}"
+                    # Loop continues automatically to show menu again
+                    ;;
+                3)
+                    echo -e "${GREEN}Finished adding principals${NC}"
+                    break
+                    ;;
+                *)
+                    echo -e "${RED}Invalid choice. Please enter 1, 2, or 3${NC}"
+                    ;;
+            esac
+        done
+    fi 
 
     echo -e "\n${GREEN}=== EKS Cluster Configuration Complete ===${NC}"
     echo -e "${BLUE}Your cluster ${EKS_CLUSTER_NAME} is now configured and ready to use${NC}"
@@ -1356,6 +1386,9 @@ config_eks_cluster_stack() {
         fi
     fi 
     # Create access entry for SageMaker Code Editor? 
+    # This is done automatically by the EKS cluster stack (eks-cluster-stack.yaml) 
+    # If the Code Editor stack (sagemaker-studio-stack.yaml) was previously deployed in the same account and region
+    # Using the SageMakerStudioExecutionRoleArn exported output
     if [[ -n "${SMCE_STACK_NAME}" ]]; then
         echo -e "${GREEN}SageMaker Studio Code Editor CloudFormation Stack ${SMCE_STACK_NAME} previously deployed."
         echo -e "${GREEN}Creating an EKS access entry for SageMaker Studio Code Editor.${NC}"
@@ -1705,10 +1738,10 @@ main() {
     echo -e "\n${BLUE}🚀 Creating the HyperPod Cluster${NC}"
     echo -e "${BLUE}Generating cluster configuration...${NC}"
     create_hyperpod_cluster_config
-    echo -e "${GREEN}✅ Cluster configuration created successfully${NC}"
+    echo -e "${GREEN}✅ HyperPod Cluster configuration created successfully${NC}"
     
-    echo -e "${BLUE}ℹ️  For your viewing, here's the cluster configuration generated. Please make sure it looks right before proceeding. Press enter to continue, or Ctrl+C to exit and make changes${NC}"
     echo -e "${YELLOW}$(cat cluster-config.json | jq . --color-output)${NC}"
+    echo -e "${BLUE}ℹ️ Above is the generated HyperPod Cluster configuration. Please make sure it looks correct before proceeding. Press enter to continue, or Ctrl+C to exit and make changes${NC}"
     read
 
     print_header "🎉 Cluster Creation Script Completed! 🎉"
