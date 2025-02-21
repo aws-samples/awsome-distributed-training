@@ -170,12 +170,12 @@ echo "export ACCEL_INSTANCE_TYPE=${ACCEL_INSTANCE_TYPE}" >> env_vars
 echo "[INFO] ACCEL_INSTANCE_TYPE = ${ACCEL_INSTANCE_TYPE}"
 
 # Set number of accelerated compute nodes to deploy 
-if [ -z ${ACCEL_COUNT} ]; then
-    echo "[WARNING] ACCEL_COUNT environment variable is not set, automatically set to 1."
-    export ACCEL_COUNT=1
+if [ -z ${ACCEL_INSTANCE_COUNT} ]; then
+    echo "[WARNING] ACCEL_INSTANCE_COUNT environment variable is not set, automatically set to 1."
+    export ACCEL_INSTANCE_COUNT=1
 fi
-echo "export ACCEL_COUNT=${ACCEL_COUNT}" >> env_vars
-echo "[INFO] ACCEL_COUNT = ${ACCEL_COUNT}"
+echo "export ACCEL_INSTANCE_COUNT=${ACCEL_INSTANCE_COUNT}" >> env_vars
+echo "[INFO] ACCEL_INSTANCE_COUNT = ${ACCEL_INSTANCE_COUNT}"
 
 # Set the EBS Volume size for the accelerated compute nodes 
 if [ -z ${ACCEL_VOLUME_SIZE} ]; then
@@ -194,12 +194,12 @@ echo "export GEN_INSTANCE_TYPE=${GEN_INSTANCE_TYPE}" >> env_vars
 echo "[INFO] GEN_INSTANCE_TYPE = ${GEN_INSTANCE_TYPE}"
 
 # Set the number of general purpose nodes to deploy
-if [ -z ${GEN_COUNT} ]; then
-    echo "[WARNING] GEN_COUNT environment variable is not set, automatically set to 1."
-    export GEN_COUNT=1
+if [ -z ${GEN_INSTANCE_COUNT} ]; then
+    echo "[WARNING] GEN_INSTANCE_COUNT environment variable is not set, automatically set to 1."
+    export GEN_INSTANCE_COUNT=1
 fi
-echo "export GEN_COUNT=${GEN_COUNT}" >> env_vars
-echo "[INFO] GEN_COUNT = ${GEN_COUNT}"
+echo "export GEN_INSTANCE_COUNT=${GEN_INSTANCE_COUNT}" >> env_vars
+echo "[INFO] GEN_INSTANCE_COUNT = ${GEN_INSTANCE_COUNT}"
 
 # Set the EBS Volume size for the general purpose compute nodes 
 if [ -z ${GEN_VOLUME_SIZE} ]; then

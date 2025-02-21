@@ -394,7 +394,7 @@ setup_env_vars() {
 
     # Clear env_vars from previous runs
     > env_vars
-    unset EKS_CLUSTER_NAME EKS_CLUSTER_ARN BUCKET_NAME EXECUTION_ROLE VPC_ID SUBNET_ID SECURITY_GROUP HP_CLUSTER_NAME ACCEL_INSTANCE_TYPE ACCEL_COUNT ACCEL_VOLUME_SIZE GEN_INSTANCE_TYPE GEN_COUNT GEN_VOLUME_SIZE NODE_RECOVERY
+    unset EKS_CLUSTER_NAME EKS_CLUSTER_ARN BUCKET_NAME EXECUTION_ROLE VPC_ID SUBNET_ID SECURITY_GROUP HP_CLUSTER_NAME ACCEL_INSTANCE_TYPE ACCEL_INSTANCE_COUNT ACCEL_VOLUME_SIZE GEN_INSTANCE_TYPE GEN_INSTANCE_COUNT GEN_VOLUME_SIZE NODE_RECOVERY
 
     export STACK_ID=${STACK_NAME:-hyperpod-eks-full-stack}
 
@@ -654,7 +654,7 @@ create_hyperpod_cluster_config() {
         # Get accelerator configuration
         local group_name=$(get_input "Enter worker group name" "worker-group-${group_count}")
         local instance_type=$(get_input "Enter instance type" "$ACCEL_INSTANCE_TYPE")
-        local instance_count=$(get_input "Enter number of instances" "$ACCEL_COUNT")
+        local instance_count=$(get_input "Enter number of instances" "$ACCEL_INSTANCE_COUNT")
 
         # Training plan configuration for this worker group
         local TRAINING_PLAN_ARN=""
@@ -799,7 +799,7 @@ create_hyperpod_cluster_config() {
         # Get general purpose configuration
         local group_name=$(get_input "Enter worker group name" "worker-group-${group_count}")
         local instance_type=$(get_input "Enter instance type" "$GEN_INSTANCE_TYPE")
-        local instance_count=$(get_input "Enter number of instances" "$GEN_COUNT")
+        local instance_count=$(get_input "Enter number of instances" "$GEN_INSTANCE_COUNT")
 
         # Add general purpose group configuration
         instance_groups+="    
@@ -1639,7 +1639,7 @@ goodbye() {
 
 #===Main Script===
 main() {
-    print_header "🚀 Welcome to the SageMaker HyperPod Cluster Creation Script! 🚀"
+    print_header "🚀 Welcome to the SageMaker HyperPod EKS Cluster Creation Script! 🚀"
 
     # Prerequisites
     display_important_prereqs
