@@ -1429,10 +1429,11 @@ config_s3_bucket_stack() {
 
 # Configure parameters for the SageMaker IAM Role Stack
 config_sagemaker_iam_role_stack() {
-    if ! get_yes_no "Do you want to create a new IAM role for HyperPod?" "y"; then
+    echo -e "${GREEN}Your HyperPod cluster needs to assume an IAM execution role to run and communicate with necessary AWS resources on your behalf.${NC}"
+    if ! get_yes_no "Do you want to create a new IAM execution role for your HyperPod cluster to assume?" "y"; then
         export CREATE_SagemakerIAMRole_STACK="false"
         while true; do
-            SAGEMAKER_IAM_ROLE_NAME=$(get_input "Enter the name of the IAM role you want to use for HyperPod." "")
+            SAGEMAKER_IAM_ROLE_NAME=$(get_input "Enter the name of the IAM execution role you want to use for HyperPod." "")
             if validate_resource_id "$SAGEMAKER_IAM_ROLE_NAME" "iam"; then
                 break
             else
