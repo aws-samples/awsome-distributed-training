@@ -145,7 +145,7 @@ check_jq() {
     fi
 }
 
-# TODO UPDATE Function to display the prerequisites before starting this workshop
+# Function to display the prerequisites before starting this workshop
 display_important_prereqs() {
     echo -e "${BLUE}Before running this script, please ensure the following:${NC}\n"
 
@@ -343,7 +343,7 @@ install_helm() {
     fi
 }
 
-# TODO UPDATE Helper function to get user inputs with default values specified
+# Helper function to get user inputs with default values specified
 get_input() {
     local prompt="$1"
     local default="$2"
@@ -352,7 +352,7 @@ get_input() {
     echo "${input:-$default}"    
 }
 
-# TODO UPDATE Function to clone the awsome-distributed-training repository
+# Function to clone the awsome-distributed-training repository
 clone_adt() {
     REPO_NAME="awsome-distributed-training"
     if [ -d "$REPO_NAME" ]; then
@@ -393,7 +393,7 @@ region_check() {
     read
 }
 
-# TODO UPDATE Function to setup environment variables
+# Function to setup environment variables
 setup_env_vars() {
     echo -e "${BLUE}=== Setting Up Environment Variables ===${NC}"
     echo -e "${GREEN}Cloning awsome-distributed-training${NC}"
@@ -442,7 +442,7 @@ setup_env_vars() {
     echo -e "\n${BLUE}=== Environment Setup Complete ===${NC}"
 }
 
-# TODO UPDATE Function to configure EKS cluster
+# Function to configure EKS cluster
 configure_eks_cluster() {
     echo -e "${BLUE}=== Configuring your EKS Cluster ===${NC}"
     
