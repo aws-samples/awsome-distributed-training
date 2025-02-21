@@ -138,6 +138,13 @@ check_git() {
     fi
 }
 
+check_jq() {
+    if ! command -v jq &> /dev/null; then
+        echo "jq is not installed. Please install jq and try again."
+        exit 1
+    fi
+}
+
 # TODO UPDATE Function to display the prerequisites before starting this workshop
 display_important_prereqs() {
     echo -e "${BLUE}Before running this script, please ensure the following:${NC}\n"
@@ -1653,6 +1660,9 @@ main() {
 
     # Checking Git installation
     check_git
+
+     # Check jq instillation 
+    check_jq
 
     # Checking AWS CLI version and installation
     echo -e "\n${BLUE}📦 AWS CLI Installation and Verification${NC}"
