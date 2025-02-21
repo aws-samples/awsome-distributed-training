@@ -592,6 +592,7 @@ configure_eks_cluster() {
     fi
 
     # Offer to add EKS access entries for other IAM principals (users or roles)
+    echo -e "${BLUE}=== Adding EKS access entries ===${NC}"
     if get_yes_no "Would you like to create additional EKS access entries for IAM Users or Roles to allow ADMIN access to the EKS cluster?" "n"; then
         while true; do
             echo -e "${YELLOW}Select principal type to add:${NC}"
