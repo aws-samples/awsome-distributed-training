@@ -43,6 +43,7 @@ Metadata:
         Parameters: 
           - HelmRepoUrl
           - HelmRepoPath
+          - Namespace
           - HelmRelease
       - Label: 
           default: Parameter Checks Recommended If CreateHyperPodClusterStack == true
@@ -287,6 +288,11 @@ Parameters:
     Description: The path to the HyperPod Helm chart in the Helm repo. 
     Type: String
     Default: helm_chart/HyperPodHelmChart
+  
+  Namespace:
+    Description: The namespace to deploy the HyperPod Helm chart into. 
+    Type: String
+    Default: kube-system
 
   HelmRelease:
     Description: The name of the Helm release. 
@@ -739,6 +745,7 @@ Resources:
         ResourceNamePrefix: !Ref ResourceNamePrefix
         HelmRepoUrl: !Ref HelmRepoUrl
         HelmRepoPath: !Ref HelmRepoPath
+        Namespace: !Ref Namespace
         HelmRelease: !Ref HelmRelease
         CustomResourceS3Bucket: 
           Fn::FindInMap: 
