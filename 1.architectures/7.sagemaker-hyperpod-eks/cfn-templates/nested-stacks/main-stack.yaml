@@ -15,6 +15,7 @@ Metadata:
           - CreateSecurityGroupStack
           - CreateEKSClusterStack
           - CreateS3BucketStack
+          - CreateS3EndpointStack
           - CreateLifeCycleScriptStack
           - CreateSageMakerIAMRoleStack
           - CreateHelmChartStack
@@ -64,7 +65,7 @@ Metadata:
           - GeneralPurposeThreadsPerCore
           - GeneralPurposeLifeCycleConfigOnCreate
       - Label: 
-          default: Parameter Overrides Required If CreateVPCStack == false and Any(CreatePrivateSubnetStack, CreateSecurityGroupStack, CreateEKSClusterStack, CreateS3BucketStack) == true
+          default: Parameter Overrides Required If CreateVPCStack == false and Any(CreatePrivateSubnetStack, CreateSecurityGroupStack, CreateEKSClusterStack, CreateS3EndpointStack) == true
         Parameters: 
           - VpcId
       - Label: 
@@ -72,7 +73,7 @@ Metadata:
         Parameters: 
           - NatGatewayId
       - Label: 
-          default: Parameter Overrides Required If CreatePrivateSubnet == false and CreateS3BucketStack == true
+          default: Parameter Overrides Required If CreatePrivateSubnet == false and CreateS3EndpointStack == true
         Parameters: 
           - PrivateRouteTableId
       - Label: 
@@ -113,6 +114,8 @@ Metadata:
         default: "Create EKS Cluster Stack"
       CreateS3BucketStack:
         default: "Create S3 Bucket Stack"
+      CreateS3EndpointStack:
+        default: "Create S3 Endpoint Stack"
       CreateLifeCycleScriptStack:
         default: "Create LifeCycle Script Stack"
       CreateSageMakerIAMRoleStack:
@@ -458,6 +461,14 @@ Parameters:
       - 'false'
     Default: 'true'
 
+  CreateS3EndpointStack: 
+    Description: Boolean to Create S3 Endpoint Stack
+    Type: String
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Default: 'true'
+
   CreateLifeCycleScriptStack:
     Description: Boolean to Create Life Cycle Script Stack
     Type: String
@@ -507,6 +518,9 @@ Conditions:
     - 'true'
   CreateS3BucketStack: !Equals
     - !Ref CreateS3BucketStack
+    - 'true'
+  CreateS3EndpointStack: !Equals
+    - !Ref CreateS3EndpointStack
     - 'true'
   CreateLifeCycleScriptStack: !Equals
     - !Ref CreateLifeCycleScriptStack
@@ -648,6 +662,20 @@ Resources:
             - BucketName
       Parameters:
         ResourceNamePrefix: !Ref ResourceNamePrefix
+
+  S3EndpointStack:
+    Type: AWS::CloudFormation::Stack
+    Condition: CreateS3EndpointStack
+    Properties:
+      TemplateURL:
+        Fn::Sub:
+        - "https://${BucketName}.s3.${AWS::Region}.amazonaws.com/2433d39e-ccfe-4c00-9d3d-9917b729258e/s3-endpoint-stack.yaml"
+        - BucketName: 
+            Fn::FindInMap: 
+            - AssetS3Buckets
+            - Ref: 'AWS::Region'
+            - BucketName
+      Parameters:
         VpcId: !If
           - CreateVPCStack
           - !GetAtt VPCStack.Outputs.VpcId
