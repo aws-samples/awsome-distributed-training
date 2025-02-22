@@ -393,17 +393,21 @@ region_check() {
     read
 }
 
+unset_env_vars() {
+    # Clear tmp_env_vars from previous runs
+    > tmp_env_vars
+    unset EKS_CLUSTER_NAME EKS_CLUSTER_ARN S3_BUCKET_NAME EXECUTION_ROLE VPC_ID PRIVATE_SUBNET_ID SECURITY_GROUP_ID HP_CLUSTER_NAME ACCEL_INSTANCE_TYPE ACCEL_INSTANCE_COUNT ACCEL_VOLUME_SIZE GEN_INSTANCE_TYPE GEN_INSTANCE_COUNT GEN_VOLUME_SIZE NODE_RECOVERY
+}
+
 # Function to setup environment variables
 setup_env_vars() {
     echo -e "${BLUE}=== Setting Up Environment Variables ===${NC}"
     echo -e "${GREEN}Cloning awsome-distributed-training${NC}"
     clone_adt
 
-    # Clear env_vars from previous runs
-    > env_vars
-    unset EKS_CLUSTER_NAME EKS_CLUSTER_ARN BUCKET_NAME EXECUTION_ROLE VPC_ID SUBNET_ID SECURITY_GROUP HP_CLUSTER_NAME ACCEL_INSTANCE_TYPE ACCEL_INSTANCE_COUNT ACCEL_VOLUME_SIZE GEN_INSTANCE_TYPE GEN_INSTANCE_COUNT GEN_VOLUME_SIZE NODE_RECOVERY
-
     export STACK_ID=${STACK_NAME:-hyperpod-eks-full-stack}
+
+    source tmp_env_vars
 
     echo -e "Setting up environment variables from the ${STACK_NAME} CloudFormation stack outputs.."
 
@@ -435,7 +439,7 @@ setup_env_vars() {
     #check_and_prompt_env_vars
 
     echo -e "\n${BLUE}=== Environment Variables Summary ===${NC}"
-    echo -e "${YELLOW}Note: You may ignore the INSTANCES parameter for now${NC}"
+    echo -e "${YELLOW}Note: We'll walk you through updating the INSTANCE parameter defaults shortly.${NC}"
     echo -e "${GREEN}Current environment variables:${NC}"
     cat env_vars
 
@@ -717,7 +721,7 @@ create_hyperpod_cluster_config() {
                     TRAINING_PLAN_AZ=$(echo "$TRAINING_PLAN_DESCRIPTION" | jq -r '.ReservedCapacitySummaries[0].AvailabilityZone')
                     TP_INSTANCE_TYPE=$(echo "$TRAINING_PLAN_DESCRIPTION" | jq -r '.ReservedCapacitySummaries[0].InstanceType')
 
-                    CF_AZ=$(aws ec2 describe-subnets --subnet-ids $SUBNET_ID --output json | jq -r '.Subnets[0].AvailabilityZone')
+                    CF_AZ=$(aws ec2 describe-subnets --subnet-ids $PRIVATE_SUBNET_ID --output json | jq -r '.Subnets[0].AvailabilityZone')
 
                     echo -e "${GREEN}Training Plan Details:${NC}"
                     echo -e "  ${YELLOW}Name:${NC} $TRAINING_PLAN"
@@ -879,8 +883,8 @@ create_hyperpod_cluster_config() {
     },
     "InstanceGroups": ${instance_groups}],
     "VpcConfig": {
-        "SecurityGroupIds": ["${SECURITY_GROUP}"],
-        "Subnets": ["${SUBNET_ID}"]
+        "SecurityGroupIds": ["${SECURITY_GROUP_ID}"],
+        "Subnets": ["${PRIVATE_SUBNET_ID}"]
     },
     "NodeRecovery": "${NODE_RECOVERY}"
 }
@@ -1246,8 +1250,9 @@ config_vpc_stack() {
         export CREATE_VPC_STACK="false"
         # Get the VPC ID
         while true; do 
-            VPC_ID=$(get_input "Enter the VPC ID you want to use" "")
+            export VPC_ID=$(get_input "Enter the VPC ID you want to use" "")
             if validate_resource_id "$VPC_ID" "vpc"; then
+                echo "export VPC_ID=${VPC_ID}" >> tmp_env_vars
                 break
             else
                 echo -e "${RED}Invalid VPC ID. Please try again.${NC}"
@@ -1299,8 +1304,9 @@ config_private_subnet_stack() {
         export CREATE_PrivateSubnet_STACK="false"
         # Get the private subnet ID
         while true; do
-            PRIVATE_SUBNET_ID=$(get_input "Enter the private subnet ID you want to use" "")
+            export PRIVATE_SUBNET_ID=$(get_input "Enter the private subnet ID you want to use" "")
             if validate_resource_id "$PRIVATE_SUBNET_ID" "subnet"; then 
+                echo "export PRIVATE_SUBNET_ID=${PRIVATE_SUBNET_ID}" >> tmp_env_vars
                 break
             else
                 echo -e "${RED}Invalid private subnet ID. Please try again.${NC}"
@@ -1356,7 +1362,7 @@ config_eks_cluster_stack() {
         fi 
         if ! get_yes_no "Do you want to use the default EKS cluster name sagemaker-hyperpod-eks-cluster?" "y"; then
             while true; do
-                EKS_CLUSTER_NAME=$(get_input "Enter the EKS cluster name you want to use" "sagemaker-hyperpod-eks-cluster")
+                export EKS_CLUSTER_NAME=$(get_input "Enter the EKS cluster name you want to use" "sagemaker-hyperpod-eks-cluster")
                 if [[ $EKS_CLUSTER_NAME =~ ^[[:alnum:]][[:alnum:]_-]{0,99}$ ]]; then
                     break
                 else
@@ -1368,15 +1374,16 @@ config_eks_cluster_stack() {
     else 
         export CREATE_EKSCluster_STACK="false"
         while true; do 
-            EKS_CLUSTER_NAME=$(get_input "Enter the name of the EKS cluster you want to use" "")
+            export EKS_CLUSTER_NAME=$(get_input "Enter the name of the EKS cluster you want to use" "")
             if validate_resource_id "$EKS_CLUSTER_NAME" "eks"; then
+                echo "export EKS_CLUSTER_NAME=${EKS_CLUSTER_NAME}" >> tmp_env_vars
                 break
             else
                 echo -e "${RED}Invalid EKS cluster name. Please try again.${NC}"
             fi
         done
         # Get the EKS cluster security group ID 
-        SECURITY_GROUP_ID=$(aws eks describe-cluster \
+        export SECURITY_GROUP_ID=$(aws eks describe-cluster \
             --name "$EKS_CLUSTER_NAME" \
             --query "cluster.resourcesVpcConfig.clusterSecurityGroupId" \
             --output text)
@@ -1384,6 +1391,8 @@ config_eks_cluster_stack() {
         if [[ -z "$SECURITY_GROUP_ID" ]]; then
             echo -e "${RED}Failed to get the EKS cluster security group ID.${NC}"
             exit 1
+        else 
+            echo "export SECURITY_GROUP_ID=${SECURITY_GROUP_ID}" >> tmp_env_vars
         fi
     fi 
     # Create access entry for SageMaker Code Editor? 
@@ -1458,8 +1467,9 @@ config_s3_bucket_stack() {
     if ! get_yes_no "Do you want to create a new S3 bucket to store the HyperPod lifecycle script?" "y"; then
         export CREATE_S3Bucket_STACK="false"
         while true; do
-            S3_BUCKET_NAME=$(get_input "Enter the name of the S3 bucket you want to use to store the HyperPod lifecycle script." "")
+            export S3_BUCKET_NAME=$(get_input "Enter the name of the S3 bucket you want to use to store the HyperPod lifecycle script." "")
             if validate_resource_id "$S3_BUCKET_NAME" "s3"; then
+                echo "export S3_BUCKET_NAME=${S3_BUCKET_NAME}" >> tmp_env_vars
                 break
             else
                 echo -e "${RED}Invalid S3 bucket name. Please try again.${NC}"
@@ -1476,6 +1486,7 @@ config_sagemaker_iam_role_stack() {
         while true; do
             SAGEMAKER_IAM_ROLE_NAME=$(get_input "Enter the name of the IAM execution role you want to use for HyperPod." "")
             if validate_resource_id "$SAGEMAKER_IAM_ROLE_NAME" "iam"; then
+                echo "export EXECUTION_ROLE=\"arn:aws:iam::${ACCOUNT_ID}:role/${SAGEMAKER_IAM_ROLE_NAME}\"" >> tmp_env_vars
                 break
             else
                 echo -e "${RED}Invalid IAM role name. Please try again.${NC}"
@@ -1714,6 +1725,8 @@ main() {
     # Checking Region
     echo -e "\n${BLUE}🌎 AWS Region Configuration${NC}"
     region_check
+
+    unset_env_vars
 
     # Configure CloudFormation stacks
     config_resource_prefix
