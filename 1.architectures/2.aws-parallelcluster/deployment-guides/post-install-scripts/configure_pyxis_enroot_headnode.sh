@@ -1,5 +1,5 @@
 #!/bin/bash
-# see https://docs.aws.amazon.com/parallelcluster/latest/ug/tutorials_11_running-containerized-jobs-with-pyxis.html for guidanc
+# see https://docs.aws.amazon.com/parallelcluster/latest/ug/tutorials_11_running-containerized-jobs-with-pyxis.html for guidance
 set -e
 
 echo "Executing $0"
