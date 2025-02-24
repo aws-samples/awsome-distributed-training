@@ -406,7 +406,7 @@ setup_env_vars() {
     clone_adt
 
     export STACK_ID=${STACK_NAME:-hyperpod-eks-full-stack}
-
+    # Source IDs / names of pre-existing resources set by the user
     source tmp_env_vars
 
     echo -e "Setting up environment variables from the ${STACK_NAME} CloudFormation stack outputs.."
@@ -434,9 +434,8 @@ setup_env_vars() {
         fi
     fi    
 
+    # Source anything set by create_config.sh pulled from CloudFormation outputs or pre-set environment variables    
     source env_vars
-
-    #check_and_prompt_env_vars
 
     echo -e "\n${BLUE}=== Environment Variables Summary ===${NC}"
     echo -e "${YELLOW}Note: We'll walk you through updating the INSTANCE parameter defaults shortly.${NC}"
@@ -1482,9 +1481,9 @@ config_s3_bucket_stack() {
 config_sagemaker_iam_role_stack() {
     echo -e "${GREEN}Your HyperPod cluster needs to assume an IAM execution role to run and communicate with necessary AWS resources on your behalf.${NC}"
     if ! get_yes_no "Do you want to create a new IAM execution role for your HyperPod cluster to assume?" "y"; then
-        export CREATE_SagemakerIAMRole_STACK="false"
+        export CREATE_SageMakerIAMRole_STACK="false"
         while true; do
-            SAGEMAKER_IAM_ROLE_NAME=$(get_input "Enter the name of the IAM execution role you want to use for HyperPod." "")
+            export SAGEMAKER_IAM_ROLE_NAME=$(get_input "Enter the name of the IAM execution role you want to use for HyperPod." "")
             if validate_resource_id "$SAGEMAKER_IAM_ROLE_NAME" "iam"; then
                 echo "export EXECUTION_ROLE=\"arn:aws:iam::${ACCOUNT_ID}:role/${SAGEMAKER_IAM_ROLE_NAME}\"" >> tmp_env_vars
                 break
@@ -1505,7 +1504,17 @@ deploy_main_stack() {
     for stack in VPC PrivateSubnet SecurityGroup EKSCluster S3Bucket LifeCycleScript SageMakerIAMRole HelmChart; do
         env_var="CREATE_${stack}_STACK"
         if [[ "${!env_var}" != "false" ]]; then
-            echo -e "  ${CYAN}✓${NC} $stack"
+            # Check for adding rules to an existing security group pulled from existing EKS cluster
+            if [[ "$stack" == "SecurityGroup" ]]; then 
+                if [[ "$CREATE_EKSCluster_STACK" == "false" ]]; then 
+                    echo -e "  ${CYAN}✓${NC} $stack ${YELLOW}(Adding rules to existing Security Group: $SECURITY_GROUP_ID)${NC}"
+                else
+                    echo -e "  ${CYAN}✓${NC} $stack"
+                fi
+    
+            else 
+                echo -e "  ${CYAN}✓${NC} $stack"
+            fi
         else
             # Get the corresponding resource ID based on stack type
             resource_id=""
