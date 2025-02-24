@@ -16,7 +16,7 @@ Parameters:
   KubernetesVersion:
     Description: The Kubernetes version to use for the EKS cluster. 
     Type: String
-    Default: '1.30'
+    Default: '1.31'
 
   EKSClusterName: 
     Description: The name of the newly created EKS cluster you wish to use.
