@@ -799,7 +799,7 @@ create_hyperpod_cluster_config() {
                 }
             ],
             \"LifeCycleConfig\": {
-                \"SourceS3Uri\": \"s3://${BUCKET_NAME}\",
+                \"SourceS3Uri\": \"s3://${S3_BUCKET_NAME}\",
                 \"OnCreate\": \"on_create.sh\"
             },
             \"ExecutionRole\": \"${EXECUTION_ROLE}\",
@@ -856,7 +856,7 @@ create_hyperpod_cluster_config() {
                 }
             ],
             \"LifeCycleConfig\": {
-                \"SourceS3Uri\": \"s3://${BUCKET_NAME}\",
+                \"SourceS3Uri\": \"s3://${S3_BUCKET_NAME}\",
                 \"OnCreate\": \"on_create.sh\"
             },
             \"ExecutionRole\": \"${EXECUTION_ROLE}\",
