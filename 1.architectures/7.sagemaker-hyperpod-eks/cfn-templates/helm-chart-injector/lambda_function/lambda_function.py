@@ -123,6 +123,7 @@ def on_create():
         required_env_vars = [
             'GITHUB_REPO_URL',
             'CHART_PATH',
+            'NAMESPACE',
             'RELEASE_NAME',
             'CLUSTER_NAME',
             'AWS_REGION'
@@ -163,7 +164,8 @@ def on_create():
         install_cmd = [
             'helm', 'install',
             os.environ['RELEASE_NAME'],
-            f"/tmp/helm-charts/{os.environ['CHART_PATH']}"
+            f"/tmp/helm-charts/{os.environ['CHART_PATH']}",
+            '--namespace', os.environ['NAMESPACE']
         ]
         subprocess.run(install_cmd, check=True)
 

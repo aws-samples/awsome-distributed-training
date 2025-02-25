@@ -138,7 +138,14 @@ check_git() {
     fi
 }
 
-# TODO UPDATE Function to display the prerequisites before starting this workshop
+check_jq() {
+    if ! command -v jq &> /dev/null; then
+        echo "jq is not installed. Please install jq and try again."
+        exit 1
+    fi
+}
+
+# Function to display the prerequisites before starting this workshop
 display_important_prereqs() {
     echo -e "${BLUE}Before running this script, please ensure the following:${NC}\n"
 
@@ -336,7 +343,7 @@ install_helm() {
     fi
 }
 
-# TODO UPDATE Helper function to get user inputs with default values specified
+# Helper function to get user inputs with default values specified
 get_input() {
     local prompt="$1"
     local default="$2"
@@ -345,7 +352,7 @@ get_input() {
     echo "${input:-$default}"    
 }
 
-# TODO UPDATE Function to clone the awsome-distributed-training repository
+# Function to clone the awsome-distributed-training repository
 clone_adt() {
     REPO_NAME="awsome-distributed-training"
     if [ -d "$REPO_NAME" ]; then
@@ -386,17 +393,21 @@ region_check() {
     read
 }
 
-# TODO UPDATE Function to setup environment variables
+unset_env_vars() {
+    # Clear tmp_env_vars from previous runs
+    > tmp_env_vars
+    unset EKS_CLUSTER_NAME EKS_CLUSTER_ARN S3_BUCKET_NAME EXECUTION_ROLE VPC_ID PRIVATE_SUBNET_ID SECURITY_GROUP_ID HP_CLUSTER_NAME ACCEL_INSTANCE_TYPE ACCEL_INSTANCE_COUNT ACCEL_VOLUME_SIZE GEN_INSTANCE_TYPE GEN_INSTANCE_COUNT GEN_VOLUME_SIZE NODE_RECOVERY
+}
+
+# Function to setup environment variables
 setup_env_vars() {
     echo -e "${BLUE}=== Setting Up Environment Variables ===${NC}"
     echo -e "${GREEN}Cloning awsome-distributed-training${NC}"
     clone_adt
 
-    # Clear env_vars from previous runs
-    > env_vars
-    unset EKS_CLUSTER_NAME EKS_CLUSTER_ARN BUCKET_NAME EXECUTION_ROLE VPC_ID SUBNET_ID SECURITY_GROUP HP_CLUSTER_NAME ACCEL_INSTANCE_TYPE ACCEL_COUNT ACCEL_VOLUME_SIZE GEN_INSTANCE_TYPE GEN_COUNT GEN_VOLUME_SIZE NODE_RECOVERY
-
     export STACK_ID=${STACK_NAME:-hyperpod-eks-full-stack}
+    # Source IDs / names of pre-existing resources set by the user
+    source tmp_env_vars
 
     echo -e "Setting up environment variables from the ${STACK_NAME} CloudFormation stack outputs.."
 
@@ -423,19 +434,18 @@ setup_env_vars() {
         fi
     fi    
 
+    # Source anything set by create_config.sh pulled from CloudFormation outputs or pre-set environment variables    
     source env_vars
 
-    #check_and_prompt_env_vars
-
     echo -e "\n${BLUE}=== Environment Variables Summary ===${NC}"
-    echo -e "${YELLOW}Note: You may ignore the INSTANCES parameter for now${NC}"
+    echo -e "${YELLOW}Note: We'll walk you through updating the INSTANCE parameter defaults shortly.${NC}"
     echo -e "${GREEN}Current environment variables:${NC}"
     cat env_vars
 
     echo -e "\n${BLUE}=== Environment Setup Complete ===${NC}"
 }
 
-# TODO UPDATE Function to configure EKS cluster
+# Function to configure EKS cluster
 configure_eks_cluster() {
     echo -e "${BLUE}=== Configuring your EKS Cluster ===${NC}"
     
@@ -584,43 +594,74 @@ configure_eks_cluster() {
         echo -e "${YELLOW}$(kubectl get svc)${NC}"
     fi
 
-    # Offer to add additional users
-    if get_yes_no "Would you like to add additional ADMIN users to the cluster?" "n"; then
-        echo -e "${YELLOW}Please enter usernames (one per line). Press Ctrl+D when finished:${NC}"
-        TMP_USERS_FILE=$(mktemp)
-        cat > "$TMP_USERS_FILE"
+    # Offer to add EKS access entries for other IAM principals (users or roles)
+    echo -e "${BLUE}=== Adding EKS access entries ===${NC}"
+    if get_yes_no "Would you like to create additional EKS access entries for IAM Users or Roles to allow ADMIN access to the EKS cluster?" "n"; then
+        while true; do
+            echo -e "${YELLOW}Select principal type to add:${NC}"
+            echo "1) IAM User"
+            echo "2) IAM Role"
+            echo "3) Done adding principals"
+            read -p "Enter your choice (1-3): " choice
 
-        while read -r username; do
-            echo -e "${YELLOW}Adding user: $username${NC}"
-            
-            # Create access entry
-            if ! error_output=$(aws eks create-access-entry \
-                --cluster-name "$EKS_CLUSTER_NAME" \
-                --principal-arn "arn:aws:iam::${ACCOUNT_ID}:user/${username}" \
-                --type "STANDARD" 2>&1); then
-                if ! handle_error "$error_output" "access entry creation for $username"; then
-                    rm -f "$TMP_USERS_FILE"
-                    return 1
-                fi
-            fi
+            case $choice in
+                1|2)
+                    if [ "$choice" -eq 1 ]; then
+                        principal_type="user"
+                        read -p "Enter username: " principal_name
+                    else
+                        principal_type="role"
+                        read -p "Enter role name: " principal_name
+                    fi
 
-            # Associate admin policy
-            if ! error_output=$(aws eks associate-access-policy \
-                --cluster-name "$EKS_CLUSTER_NAME" \
-                --principal-arn "arn:aws:iam::${ACCOUNT_ID}:user/${username}" \
-                --policy-arn "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy" \
-                --access-scope '{"type": "cluster"}' 2>&1); then
-                if ! handle_error "$error_output" "policy association for $username"; then
-                    rm -f "$TMP_USERS_FILE"
-                    return 1
-                fi
-            fi
+                    # Skip if empty input
+                    [ -z "$principal_name" ] && continue
 
-            echo -e "${GREEN}✅ Successfully added user $username${NC}"
-        done < "$TMP_USERS_FILE"
+                    # Validate principal name format
+                    if ! [[ "$principal_name" =~ ^[a-zA-Z0-9+=,.@_-]+$ ]]; then
+                        echo -e "${RED}Invalid $principal_type name format. Names can contain letters, numbers, and the following characters: +=,.@_-${NC}"
+                        continue
+                    fi
 
-        rm -f "$TMP_USERS_FILE"
-    fi
+                    # Check if principal exists
+                    if ! error_output=$(aws iam get-${principal_type} --${principal_type}-name "$principal_name" 2>&1); then
+                        echo -e "${RED}Error: $principal_type '$principal_name' does not exist or you don't have permission to access it.${NC}"
+                        continue
+                    fi
+                    
+                    echo -e "${YELLOW}Adding $principal_type: $principal_name${NC}"
+                    
+                    # Create access entry
+                    if ! error_output=$(aws eks create-access-entry \
+                        --cluster-name "$EKS_CLUSTER_NAME" \
+                        --principal-arn "arn:aws:iam::${ACCOUNT_ID}:${principal_type}/${principal_name}" \
+                        --type "STANDARD" 2>&1); then
+                        handle_error "$error_output" "access entry creation for $principal_name" || return 1
+                    fi
+
+                    # Associate admin policy
+                    if ! error_output=$(aws eks associate-access-policy \
+                        --cluster-name "$EKS_CLUSTER_NAME" \
+                        --principal-arn "arn:aws:iam::${ACCOUNT_ID}:${principal_type}/${principal_name}" \
+                        --policy-arn "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy" \
+                        --access-scope '{"type": "cluster"}' 2>&1); then
+                        handle_error "$error_output" "policy association for $principal_name" || return 1
+                    fi
+
+                    echo -e "${GREEN}✅ Successfully added $principal_type $principal_name${NC}"
+                    echo -e "\n${YELLOW}Select next action:${NC}"
+                    # Loop continues automatically to show menu again
+                    ;;
+                3)
+                    echo -e "${GREEN}Finished adding principals${NC}"
+                    break
+                    ;;
+                *)
+                    echo -e "${RED}Invalid choice. Please enter 1, 2, or 3${NC}"
+                    ;;
+            esac
+        done
+    fi 
 
     echo -e "\n${GREEN}=== EKS Cluster Configuration Complete ===${NC}"
     echo -e "${BLUE}Your cluster ${EKS_CLUSTER_NAME} is now configured and ready to use${NC}"
@@ -654,7 +695,7 @@ create_hyperpod_cluster_config() {
         # Get accelerator configuration
         local group_name=$(get_input "Enter worker group name" "worker-group-${group_count}")
         local instance_type=$(get_input "Enter instance type" "$ACCEL_INSTANCE_TYPE")
-        local instance_count=$(get_input "Enter number of instances" "$ACCEL_COUNT")
+        local instance_count=$(get_input "Enter number of instances" "$ACCEL_INSTANCE_COUNT")
 
         # Training plan configuration for this worker group
         local TRAINING_PLAN_ARN=""
@@ -679,7 +720,7 @@ create_hyperpod_cluster_config() {
                     TRAINING_PLAN_AZ=$(echo "$TRAINING_PLAN_DESCRIPTION" | jq -r '.ReservedCapacitySummaries[0].AvailabilityZone')
                     TP_INSTANCE_TYPE=$(echo "$TRAINING_PLAN_DESCRIPTION" | jq -r '.ReservedCapacitySummaries[0].InstanceType')
 
-                    CF_AZ=$(aws ec2 describe-subnets --subnet-ids $SUBNET_ID --output json | jq -r '.Subnets[0].AvailabilityZone')
+                    CF_AZ=$(aws ec2 describe-subnets --subnet-ids $PRIVATE_SUBNET_ID --output json | jq -r '.Subnets[0].AvailabilityZone')
 
                     echo -e "${GREEN}Training Plan Details:${NC}"
                     echo -e "  ${YELLOW}Name:${NC} $TRAINING_PLAN"
@@ -799,7 +840,7 @@ create_hyperpod_cluster_config() {
         # Get general purpose configuration
         local group_name=$(get_input "Enter worker group name" "worker-group-${group_count}")
         local instance_type=$(get_input "Enter instance type" "$GEN_INSTANCE_TYPE")
-        local instance_count=$(get_input "Enter number of instances" "$GEN_COUNT")
+        local instance_count=$(get_input "Enter number of instances" "$GEN_INSTANCE_COUNT")
 
         # Add general purpose group configuration
         instance_groups+="    
@@ -841,8 +882,8 @@ create_hyperpod_cluster_config() {
     },
     "InstanceGroups": ${instance_groups}],
     "VpcConfig": {
-        "SecurityGroupIds": ["${SECURITY_GROUP}"],
-        "Subnets": ["${SUBNET_ID}"]
+        "SecurityGroupIds": ["${SECURITY_GROUP_ID}"],
+        "Subnets": ["${PRIVATE_SUBNET_ID}"]
     },
     "NodeRecovery": "${NODE_RECOVERY}"
 }
@@ -1208,8 +1249,9 @@ config_vpc_stack() {
         export CREATE_VPC_STACK="false"
         # Get the VPC ID
         while true; do 
-            VPC_ID=$(get_input "Enter the VPC ID you want to use" "")
+            export VPC_ID=$(get_input "Enter the VPC ID you want to use" "")
             if validate_resource_id "$VPC_ID" "vpc"; then
+                echo "export VPC_ID=${VPC_ID}" >> tmp_env_vars
                 break
             else
                 echo -e "${RED}Invalid VPC ID. Please try again.${NC}"
@@ -1261,8 +1303,9 @@ config_private_subnet_stack() {
         export CREATE_PrivateSubnet_STACK="false"
         # Get the private subnet ID
         while true; do
-            PRIVATE_SUBNET_ID=$(get_input "Enter the private subnet ID you want to use" "")
+            export PRIVATE_SUBNET_ID=$(get_input "Enter the private subnet ID you want to use" "")
             if validate_resource_id "$PRIVATE_SUBNET_ID" "subnet"; then 
+                echo "export PRIVATE_SUBNET_ID=${PRIVATE_SUBNET_ID}" >> tmp_env_vars
                 break
             else
                 echo -e "${RED}Invalid private subnet ID. Please try again.${NC}"
@@ -1318,7 +1361,7 @@ config_eks_cluster_stack() {
         fi 
         if ! get_yes_no "Do you want to use the default EKS cluster name sagemaker-hyperpod-eks-cluster?" "y"; then
             while true; do
-                EKS_CLUSTER_NAME=$(get_input "Enter the EKS cluster name you want to use" "sagemaker-hyperpod-eks-cluster")
+                export EKS_CLUSTER_NAME=$(get_input "Enter the EKS cluster name you want to use" "sagemaker-hyperpod-eks-cluster")
                 if [[ $EKS_CLUSTER_NAME =~ ^[[:alnum:]][[:alnum:]_-]{0,99}$ ]]; then
                     break
                 else
@@ -1330,15 +1373,16 @@ config_eks_cluster_stack() {
     else 
         export CREATE_EKSCluster_STACK="false"
         while true; do 
-            EKS_CLUSTER_NAME=$(get_input "Enter the name of the EKS cluster you want to use" "")
+            export EKS_CLUSTER_NAME=$(get_input "Enter the name of the EKS cluster you want to use" "")
             if validate_resource_id "$EKS_CLUSTER_NAME" "eks"; then
+                echo "export EKS_CLUSTER_NAME=${EKS_CLUSTER_NAME}" >> tmp_env_vars
                 break
             else
                 echo -e "${RED}Invalid EKS cluster name. Please try again.${NC}"
             fi
         done
         # Get the EKS cluster security group ID 
-        SECURITY_GROUP_ID=$(aws eks describe-cluster \
+        export SECURITY_GROUP_ID=$(aws eks describe-cluster \
             --name "$EKS_CLUSTER_NAME" \
             --query "cluster.resourcesVpcConfig.clusterSecurityGroupId" \
             --output text)
@@ -1346,9 +1390,14 @@ config_eks_cluster_stack() {
         if [[ -z "$SECURITY_GROUP_ID" ]]; then
             echo -e "${RED}Failed to get the EKS cluster security group ID.${NC}"
             exit 1
+        else 
+            echo "export SECURITY_GROUP_ID=${SECURITY_GROUP_ID}" >> tmp_env_vars
         fi
     fi 
     # Create access entry for SageMaker Code Editor? 
+    # This is done automatically by the EKS cluster stack (eks-cluster-stack.yaml) 
+    # If the Code Editor stack (sagemaker-studio-stack.yaml) was previously deployed in the same account and region
+    # Using the SageMakerStudioExecutionRoleArn exported output
     if [[ -n "${SMCE_STACK_NAME}" ]]; then
         echo -e "${GREEN}SageMaker Studio Code Editor CloudFormation Stack ${SMCE_STACK_NAME} previously deployed."
         echo -e "${GREEN}Creating an EKS access entry for SageMaker Studio Code Editor.${NC}"
@@ -1417,8 +1466,9 @@ config_s3_bucket_stack() {
     if ! get_yes_no "Do you want to create a new S3 bucket to store the HyperPod lifecycle script?" "y"; then
         export CREATE_S3Bucket_STACK="false"
         while true; do
-            S3_BUCKET_NAME=$(get_input "Enter the name of the S3 bucket you want to use to store the HyperPod lifecycle script." "")
+            export S3_BUCKET_NAME=$(get_input "Enter the name of the S3 bucket you want to use to store the HyperPod lifecycle script." "")
             if validate_resource_id "$S3_BUCKET_NAME" "s3"; then
+                echo "export S3_BUCKET_NAME=${S3_BUCKET_NAME}" >> tmp_env_vars
                 break
             else
                 echo -e "${RED}Invalid S3 bucket name. Please try again.${NC}"
@@ -1429,11 +1479,13 @@ config_s3_bucket_stack() {
 
 # Configure parameters for the SageMaker IAM Role Stack
 config_sagemaker_iam_role_stack() {
-    if ! get_yes_no "Do you want to create a new IAM role for HyperPod?" "y"; then
-        export CREATE_SagemakerIAMRole_STACK="false"
+    echo -e "${GREEN}Your HyperPod cluster needs to assume an IAM execution role to run and communicate with necessary AWS resources on your behalf.${NC}"
+    if ! get_yes_no "Do you want to create a new IAM execution role for your HyperPod cluster to assume?" "y"; then
+        export CREATE_SageMakerIAMRole_STACK="false"
         while true; do
-            SAGEMAKER_IAM_ROLE_NAME=$(get_input "Enter the name of the IAM role you want to use for HyperPod." "")
+            export SAGEMAKER_IAM_ROLE_NAME=$(get_input "Enter the name of the IAM execution role you want to use for HyperPod." "")
             if validate_resource_id "$SAGEMAKER_IAM_ROLE_NAME" "iam"; then
+                echo "export EXECUTION_ROLE=\"arn:aws:iam::${ACCOUNT_ID}:role/${SAGEMAKER_IAM_ROLE_NAME}\"" >> tmp_env_vars
                 break
             else
                 echo -e "${RED}Invalid IAM role name. Please try again.${NC}"
@@ -1452,7 +1504,17 @@ deploy_main_stack() {
     for stack in VPC PrivateSubnet SecurityGroup EKSCluster S3Bucket LifeCycleScript SageMakerIAMRole HelmChart; do
         env_var="CREATE_${stack}_STACK"
         if [[ "${!env_var}" != "false" ]]; then
-            echo -e "  ${CYAN}✓${NC} $stack"
+            # Check for adding rules to an existing security group pulled from existing EKS cluster
+            if [[ "$stack" == "SecurityGroup" ]]; then 
+                if [[ "$CREATE_EKSCluster_STACK" == "false" ]]; then 
+                    echo -e "  ${CYAN}✓${NC} $stack ${YELLOW}(Adding rules to existing Security Group: $SECURITY_GROUP_ID)${NC}"
+                else
+                    echo -e "  ${CYAN}✓${NC} $stack"
+                fi
+    
+            else 
+                echo -e "  ${CYAN}✓${NC} $stack"
+            fi
         else
             # Get the corresponding resource ID based on stack type
             resource_id=""
@@ -1639,7 +1701,7 @@ goodbye() {
 
 #===Main Script===
 main() {
-    print_header "🚀 Welcome to the SageMaker HyperPod Cluster Creation Script! 🚀"
+    print_header "🚀 Welcome to the SageMaker HyperPod EKS Cluster Creation Script! 🚀"
 
     # Prerequisites
     display_important_prereqs
@@ -1652,6 +1714,9 @@ main() {
 
     # Checking Git installation
     check_git
+
+     # Check jq instillation 
+    check_jq
 
     # Checking AWS CLI version and installation
     echo -e "\n${BLUE}📦 AWS CLI Installation and Verification${NC}"
@@ -1669,6 +1734,8 @@ main() {
     # Checking Region
     echo -e "\n${BLUE}🌎 AWS Region Configuration${NC}"
     region_check
+
+    unset_env_vars
 
     # Configure CloudFormation stacks
     config_resource_prefix
@@ -1694,10 +1761,10 @@ main() {
     echo -e "\n${BLUE}🚀 Creating the HyperPod Cluster${NC}"
     echo -e "${BLUE}Generating cluster configuration...${NC}"
     create_hyperpod_cluster_config
-    echo -e "${GREEN}✅ Cluster configuration created successfully${NC}"
+    echo -e "${GREEN}✅ HyperPod Cluster configuration created successfully${NC}"
     
-    echo -e "${BLUE}ℹ️  For your viewing, here's the cluster configuration generated. Please make sure it looks right before proceeding. Press enter to continue, or Ctrl+C to exit and make changes${NC}"
     echo -e "${YELLOW}$(cat cluster-config.json | jq . --color-output)${NC}"
+    echo -e "${BLUE}ℹ️ Above is the generated HyperPod Cluster configuration. Please make sure it looks correct before proceeding. Press enter to continue, or Ctrl+C to exit and make changes${NC}"
     read
 
     print_header "🎉 Cluster Creation Script Completed! 🎉"
