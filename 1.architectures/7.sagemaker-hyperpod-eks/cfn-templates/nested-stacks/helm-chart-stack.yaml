@@ -22,6 +22,11 @@ Parameters:
     Description: The path to the HyperPod Helm chart in the Helm repo. 
     Type: String
     Default: helm_chart/HyperPodHelmChart
+  
+  Namespace:
+    Description: The namespace to deploy the HyperPod Helm chart into. 
+    Type: String
+    Default: kube-system
 
   HelmRelease: 
     Description: The name of the Helm release. 
@@ -111,6 +116,7 @@ Resources:
           KUBECONFIG: '/tmp/.kube/config'
           GITHUB_REPO_URL: !Ref HelmRepoUrl
           CHART_PATH: !Ref HelmRepoPath
+          NAMESPACE: !Ref Namespace
           RELEASE_NAME: !Ref HelmRelease
           LD_LIBRARY_PATH: '/opt/python/lib'
       Handler: lambda_function.lambda_handler

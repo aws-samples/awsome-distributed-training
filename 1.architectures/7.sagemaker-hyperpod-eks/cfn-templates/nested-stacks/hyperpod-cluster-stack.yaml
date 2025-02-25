@@ -161,9 +161,14 @@ Conditions:
     - !Condition IncludeStressCheck
     - !Not [!Condition IncludeConnectivityCheck]
 
-  IncludeOnlyConnectivityCheck: !And 
-    - !Not [!Condition IncludeStressCheck]
+  # IncludeOnlyConnectivityCheck: !And 
+  #   - !Not [!Condition IncludeStressCheck]
+  #   - !Condition IncludeConnectivityCheck
+
+  AtLeastOneCheckEnabled: !Or
+    - !Condition IncludeStressCheck
     - !Condition IncludeConnectivityCheck
+
 
   ShouldCreateGeneralPurposeGroup: !Equals [!Ref CreateGeneralPurposeInstanceGroup, true ]
   
@@ -186,16 +191,17 @@ Resources:
           LifeCycleConfig: 
             OnCreate: !Ref AcceleratedLifeCycleConfigOnCreate
             SourceS3Uri: !Sub 's3://${S3BucketName}'
-          OnStartDeepHealthChecks: !If
-            - IncludeBothChecks
-            - ["InstanceStress", "InstanceConnectivity"]
-            - !If
-              - IncludeOnlyStressCheck
-              - ["InstanceStress"]
+          OnStartDeepHealthChecks: 
+            !If
+              - AtLeastOneCheckEnabled
               - !If
-                - IncludeOnlyConnectivityCheck
-                - ["InstanceConnectivity"]
-                - []
+                  - IncludeBothChecks
+                  - ["InstanceStress", "InstanceConnectivity"]
+                  - !If
+                      - IncludeOnlyStressCheck
+                      - ["InstanceStress"]
+                      - ["InstanceConnectivity"]
+              - !Ref AWS::NoValue
         - !If
           - ShouldCreateGeneralPurposeGroup
           - InstanceGroupName: !Ref GeneralPurposeInstanceGroupName
