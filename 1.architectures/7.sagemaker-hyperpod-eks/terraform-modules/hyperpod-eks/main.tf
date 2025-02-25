@@ -42,9 +42,9 @@ module "security_group" {
   existing_sg_id      = var.existing_security_group_id
 }
 
-module "eks" {
+module "eks_cluster" {
   count  = var.create_eks ? 1 : 0
-  source = "./modules/eks"
+  source = "./modules/eks_cluster"
 
   resource_name_prefix     = var.resource_name_prefix
   vpc_id                  = local.vpc_id
