@@ -199,7 +199,16 @@ cd awsome-distributed-training/3.test_cases/21.nemo-run
 
 ## 6. Build and Configure the NeMo Job Container
 
-Before running NeMo jobs, build a custom container image and Convert the Docker container image to an [Enroot](https://github.com/NVIDIA/enroot) squash file that will be stored in /fsx/ubuntu.
+Before running NeMo jobs, build a custom optimized container image for EFA and Convert the Docker container image to an [Enroot](https://github.com/NVIDIA/enroot) squash file that will be stored in /fsx/ubuntu.
+
+Ensure you have a registered account with NVIDIA and can access NGC. Retrieve the NGC API key following [instructions from NVIDIA](https://docs.nvidia.com/ngc/gpu-cloud/ngc-user-guide/index.html#generating-api-key). Configure NGC as shown below using the command below, when requested use $oauthtoken for the login username and the API key from NGC for the password.
+
+Login to NGC:
+
+```bash
+docker login nvcr.io
+```
+Build Image:
 
 ```bash
 $ docker build --progress=plain -t nemo_hyperpod:24.12 -f Dockerfile .
