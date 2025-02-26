@@ -116,12 +116,6 @@ variable "using_sm_code_editor" {
   default     = false
 }
 
-variable "participant_role_arn" {
-  description = "The ARN of the Workshop Studio Participant IAM role"
-  type        = string
-  default     = ""
-}
-
 # S3 Bucket Stack Variables
 variable "create_s3_bucket" {
   description = "Whether to create S3 bucket stack"
@@ -193,7 +187,7 @@ variable "namespace" {
   default     = "kube-system"
 }
 
-variable "helm_release" {
+variable "helm_release_name" {
   description = "The name of the Helm release"
   type        = string
   default     = "hyperpod-dependencies"
@@ -218,92 +212,15 @@ variable "node_recovery" {
   default     = "Automatic"
 }
 
-variable "accelerated_instance_group_name" {
-  description = "Name of the accelerated instance group"
-  type        = string
-  default     = "accelerated-worker-group-1"
-}
-
-variable "accelerated_instance_type" {
-  description = "Instance type for accelerated instances"
-  type        = string
-  default     = "ml.g5.8xlarge"
-}
-
-variable "accelerated_instance_count" {
-  description = "Number of accelerated instances"
-  type        = number
-  default     = 1
-}
-
-variable "accelerated_ebs_volume_size" {
-  description = "EBS volume size for accelerated instances"
-  type        = number
-  default     = 500
-}
-
-variable "accelerated_threads_per_core" {
-  description = "Threads per core for accelerated instances"
-  type        = number
-  default     = 1
-}
-
-variable "enable_instance_stress_check" {
-  description = "Enable instance stress check"
-  type        = bool
-  default     = true
-}
-
-variable "enable_instance_connectivity_check" {
-  description = "Enable instance connectivity check"
-  type        = bool
-  default     = true
-}
-
-variable "accelerated_lifecycle_config_on_create" {
-  description = "Lifecycle config script for accelerated instances"
-  type        = string
-  default     = "on_create.sh"
-}
-
-variable "create_general_purpose_instance_group" {
-  description = "Whether to create general purpose instance group"
-  type        = bool
-  default     = true
-}
-
-variable "general_purpose_instance_group_name" {
-  description = "Name of the general purpose instance group"
-  type        = string
-  default     = "general-purpose-worker-group-2"
-}
-
-variable "general_purpose_instance_type" {
-  description = "Instance type for general purpose instances"
-  type        = string
-  default     = "ml.m5.2xlarge"
-}
-
-variable "general_purpose_instance_count" {
-  description = "Number of general purpose instances"
-  type        = number
-  default     = 1
-}
-
-variable "general_purpose_ebs_volume_size" {
-  description = "EBS volume size for general purpose instances"
-  type        = number
-  default     = 500
-}
-
-variable "general_purpose_threads_per_core" {
-  description = "Threads per core for general purpose instances"
-  type        = number
-  default     = 1
-}
-
-variable "general_purpose_lifecycle_config_on_create" {
-  description = "Lifecycle config script for general purpose instances"
-  type        = string
-  default     = "on_create.sh"
+variable "instance_groups" {
+  description = "Map of instance group configurations"
+  type = map(object({
+    instance_type       = string
+    instance_count      = number
+    ebs_volume_size    = number
+    threads_per_core   = number
+    enable_stress_check = bool
+    enable_connectivity_check = bool
+    lifecycle_script    = string
+  }))
 }

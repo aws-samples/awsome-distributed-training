@@ -118,16 +118,6 @@ output "hyperpod_cluster_status" {
   value       = var.create_hyperpod ? module.hyperpod_cluster[0].cluster_status : null
 }
 
-output "accelerated_instance_group_id" {
-  description = "ID of the accelerated instance group"
-  value       = var.create_hyperpod ? module.hyperpod_cluster[0].accelerated_instance_group_id : null
-}
-
-output "general_purpose_instance_group_id" {
-  description = "ID of the general purpose instance group"
-  value       = var.create_hyperpod && var.create_general_purpose_instance_group ? module.hyperpod_cluster[0].general_purpose_instance_group_id : null
-}
-
 # Region Output
 output "aws_region" {
   description = "AWS region"
