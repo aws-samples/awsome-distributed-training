@@ -128,7 +128,7 @@ ENV OMPI_MCA_pml=^cm,ucx            \
     OMPI_MCA_btl=tcp,self           \
     OMPI_MCA_btl_tcp_if_exclude=lo,docker0,veth_def_agent\
     OPAL_PREFIX=/opt/amazon/openmpi \
-    NCCL_SOCKET_IFNAME=^docker,lo,veth_def_agent,eth
+    NCCL_SOCKET_IFNAME=^docker,lo,veth
 
 ## Turn off PMIx Error https://github.com/open-mpi/ompi/issues/7516
 ENV PMIX_MCA_gds=hash
