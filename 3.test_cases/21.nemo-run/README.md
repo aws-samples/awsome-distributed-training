@@ -29,168 +29,20 @@ NeMo 2.0 introduces a Python-based configuration system, providing enhanced flex
 
 ## 2. Prerequisites
 
-Before deploying the HyperPod cluster, ensure that the following AWS resources are created:
-
-- Virtual Private Cloud (VPC) and subnets
-- FSx Lustre volume
-- Amazon S3 bucket
-- IAM role with required permissions
-
-For a more detailed deployment walkthrough, refer to the [AWS SageMaker HyperPod Workshop](https://catalog.workshops.aws/sagemaker-hyperpod/en-US/00-setup/02-own-account).
-
-To deploy these resources using AWS CloudFormation:
-
-1. Click [this CloudFormation template](https://console.aws.amazon.com/cloudformation/home?#/stacks/quickcreate?templateURL=https://awsome-distributed-training.s3.amazonaws.com/templates/sagemaker-hyperpod.yaml\&stackName=sagemaker-hyperpod) to launch the setup.
-2. Update the **availability zone** to match your region (e.g., `us-east-1` → `use1-az4`).
-3. Accept the default parameters or modify as needed.
-4. Acknowledge capabilities and create the stack.
-
-The setup takes approximately **10 minutes** to complete.
+See [Instructions here](https://catalog.workshops.aws/sagemaker-hyperpod/en-US/00-setup/02-own-account#in-your-own-account) on setting up prerequisite to deploy a SageMaker HyperPod cluster
 
 ## 3. Deploying SageMaker HyperPod Cluster
 
-For a more detailed deployment walkthrough, refer to the [AWS SageMaker HyperPod Workshop](https://catalog.workshops.aws/sagemaker-hyperpod/en-US/00-setup/02-own-account).
-
-### Step 1: Setup AWS CLI
-
-Ensure you have AWS CLI installed and configured:
-
-```bash
-$ aws --version
-```
-
-### Step 2: Configure Environment Variables
-
-Use the CloudFormation stack output to configure environment variables:
-
-```bash
-$ curl 'https://static.us-east-1.prod.workshops.aws/public/c9dccefd-8d5d-4e65-87bf-1e4623f52de8/static/scripts/create_config.sh' --output create_config.sh
-$ AWS_REGION=us-east-1 bash create_config.sh
-$ source env_vars
-$ cat env_vars
-```
-
-### Step 3: Upload Lifecycle Scripts to S3
-
-```bash
-$ git clone --depth=1 https://github.com/aws-samples/awsome-distributed-training/
-$ aws s3 cp --recursive awsome-distributed-training/1.architectures/5.sagemaker-hyperpod/LifecycleScripts/base-config/ s3://${BUCKET}/src
-```
-
-### Step 4: Create Cluster Configuration
-
-Create a cluster configuration file `cluster-config.json`. Below is an example of cluster config for a 2 node cluster of g6e.48xlarge compute nodes
-
-```bash
-$ source env_vars
-$ cat > cluster-config.json << EOL
-{
-    "ClusterName": "ml-cluster",
-    "InstanceGroups": [
-      {
-        "InstanceGroupName": "login-group",
-        "InstanceType": "ml.m5.4xlarge",
-        "InstanceStorageConfigs": [
-          {
-            "EbsVolumeConfig": {
-              "VolumeSizeInGB": 500
-            }
-          }
-        ],
-        "InstanceCount": 1,
-        "LifeCycleConfig": {
-          "SourceS3Uri": "s3://${BUCKET}/src",
-          "OnCreate": "on_create.sh"
-        },
-        "ExecutionRole": "${ROLE}",
-        "ThreadsPerCore": 2
-      },
-      {
-        "InstanceGroupName": "controller-machine",
-        "InstanceType": "ml.m5.12xlarge",
-        "InstanceCount": 1,
-        "InstanceStorageConfigs": [
-          {
-            "EbsVolumeConfig": {
-              "VolumeSizeInGB": 500
-            }
-          }
-        ],
-        "LifeCycleConfig": {
-          "SourceS3Uri": "s3://${BUCKET}/src",
-          "OnCreate": "on_create.sh"
-        },
-        "ExecutionRole": "${ROLE}",
-        "ThreadsPerCore": 2
-      },
-      {
-        "InstanceGroupName": "worker-group-1",
-        "InstanceType": "ml.g6e.48xlarge",
-        "InstanceCount": 2,
-        "LifeCycleConfig": {
-          "SourceS3Uri": "s3://${BUCKET}/src",
-          "OnCreate": "on_create.sh"
-        },
-        "ExecutionRole": "${ROLE}",
-        "ThreadsPerCore": 1
-      }
-    ],
-    "VpcConfig": {
-      "SecurityGroupIds": ["$SECURITY_GROUP"],
-      "Subnets": ["$SUBNET_ID"]
-    }
-}
-EOL
-```
-
-Create cluster provisioning parameters `provisioning_parameters.json` and upload to S3 to reference during cluster setup:
-
-```bash
-$ instance_type=$(jq '.InstanceGroups[] | select(.InstanceGroupName == "worker-group-1").InstanceType' cluster-config.json
-$ cat > provisioning_parameters.json << EOL
-{
-  "version": "1.0.0",
-  "workload_manager": "slurm",
-  "controller_group": "controller-machine",
-  "login_group": "login-group",
-  "worker_groups": [
-    {
-      "instance_group_name": "worker-group-1",
-      "partition_name": ${instance_type}
-    }
-  ],
-  "fsx_dns_name": "${FSX_ID}.fsx.${AWS_REGION}.amazonaws.com",
-  "fsx_mountname": "${FSX_MOUNTNAME}"
-}
-EOL
-$ aws s3 cp provisioning_parameters.json s3://${BUCKET}/src/
-```
-
-### Step 5: Launch HyperPod Cluster
-
-```bash
-$ aws sagemaker create-cluster --cli-input-json file://cluster-config.json --region $AWS_REGION
-```
-
-Check cluster status:
-
-```bash
-$ aws sagemaker list-clusters --output table
-```
-
+See [Instructions here](https://catalog.workshops.aws/sagemaker-hyperpod/en-US/01-cluster/option-b-manual-cluster-setup) for SageMaker HyperPod Cluster setup.
 
 ## 4. SSH into the Cluster Head node
 
-Once the cluster is in **InService** state, connect using AWS Systems Manager. Install the [AWS SSM Session Manager Plugin](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html).
+See [Instructions here](https://catalog.workshops.aws/sagemaker-hyperpod/en-US/01-cluster/05-ssh) on how to SSH into the HyperPod cluster
 
-```bash
-$ ssh-keygen -t rsa -q -f "$HOME/.ssh/id_rsa" -N ""
-$ curl -O https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/main/1.architectures/5.sagemaker-hyperpod/easy-ssh.sh
-$ chmod +x easy-ssh.sh
-$ ./easy-ssh.sh -c controller-machine ml-cluster
-```
+Login to the head node to perform all the steps below
 
 ## 5. Clone this repo
+
 ```bash
 cd /fsx/ubuntu
 git clone https://github.com/aws-samples/awsome-distributed-training/
