@@ -52,7 +52,7 @@ spec:
             - NCCL_TUNER_PLUGIN=/opt/aws-ofi-nccl/install/lib/libnccl-ofi-tuner.so
             - --mca
             - pml
-            - ^cm,ucx
+            - ^ucx
             - --mca
             - btl
             - tcp,self
