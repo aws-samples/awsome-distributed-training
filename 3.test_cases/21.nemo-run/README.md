@@ -87,12 +87,7 @@ Create Virtual environment and install NeMo Run and other dependencies
 ```bash
 $ python3.10 -m venv temp-env
 $ source temp-env/bin/activate
-$ pip install git+https://github.com/NVIDIA/NeMo-Run.git
-$ pip install torch
-$ pip install --no-deps git+https://github.com/NVIDIA/Megatron-LM.git
-$ wget https://github.com/state-spaces/mamba/releases/download/v2.2.2/mamba_ssm-2.2.2+cu118torch2.1cxx11abiFALSE-cp310-cp310-linux_x86_64.whl
-$ pip install mamba_ssm-2.2.2+cu118torch2.1cxx11abiFALSE-cp310-cp310-linux_x86_64.whl
-$ pip install nemo_toolkit['nlp'] opencc==1.1.6
+$ bash venv.sh
 ```
 
 ### Download Tokenizer Files
@@ -116,5 +111,7 @@ $ python run.py --nodes 2 --max_steps 1000
 ## 9. References
 
 - [NVIDIA NeMo Documentation](https://docs.nvidia.com/deeplearning/nemo/user-guide/docs/en/stable/index.html)
-- [AWS SageMaker HyperPod](https://docs.aws.amazon.com/sagemaker/latest/dg/sagemaker-hyperpod.html)
+- [NVIDIA NeMo Github](https://github.com/NVIDIA/NeMo)
+- [AWS SageMaker HyperPod Documentation](https://docs.aws.amazon.com/sagemaker/latest/dg/sagemaker-hyperpod.html)
+- [AWS SageMaker HyperPoc Workshop](https://catalog.workshops.aws/sagemaker-hyperpod/en-US)
 
