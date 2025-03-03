@@ -4,9 +4,9 @@ kind: ClusterConfig
 metadata:
   name: eks-p5-odcr-vpc
   region: PLACEHOLDER_AWS_REGION
-  version: "1.29"
+  version: "1.32"
 
-# Substitute vpc and subnet ids below
+# Substitute VPC and subnet IDs below
 vpc:
   id: PLACEHOLDER_VPC_ID
   subnets:
@@ -19,13 +19,14 @@ vpc:
       public-one:
         id: PLACEHOLDER_SUBNET_PUBLIC_1
       public-two:
-        id: PLACEHOLDER_SUBNET_PUBLIC_2  
+        id: PLACEHOLDER_SUBNET_PUBLIC_2
 
-# Fully-managed nodegroups     
+iam:
+  withOIDC: true
+
+# EKS-managed node group(s)
 managedNodeGroups:
-
-    # GPU nodegroup
-    # Update capacityReservationID below
+  # Update capacityReservationID below
   - name: p5-ocdr
     instanceType: p5.48xlarge
     instancePrefix: p5-odcr-nodes
@@ -34,13 +35,19 @@ managedNodeGroups:
     minSize: 0
     desiredCapacity: 1
     maxSize: 10
-    volumeSize: 500
     capacityReservation:
       capacityReservationTarget:
         capacityReservationID: "cr-xxxxxxxxxx"
+    # Utilize the local instance store volume(s)
+    overrideBootstrapCommand: |
+      apiVersion: node.eks.aws/v1alpha1
+      kind: NodeConfig
+      spec:
+        instance:
+          localStorage:
+            strategy: RAID0
     iam:
       withAddonPolicies:
-        autoScaler: true
         cloudWatch: true
         ebs: true
         fsx: true
