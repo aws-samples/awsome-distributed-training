@@ -3,8 +3,11 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 
-#SBATCH --nodes=2 # number of nodes to use, 2 p4d(e) = 16 A100 GPUs
 #SBATCH --job-name=megatron_gpt # name of your job
+#SBATCH --nodes=2 # number of nodes to use, 2 p5 = 16 H100 GPUs
+#SBATCH --ntasks-per-node=8
+#SBATCH --output=%x_%j.out
+#SBATCH --error=%x_%j.err
 #SBATCH --exclusive # job has exclusive use of the resource, no sharing
 #SBATCH --wait-all-nodes=1
 
@@ -39,14 +42,34 @@ set -ex;
 ## Environment Variables ##
 ###########################
 
+# async runtime error ...
+export CUDA_DEVICE_MAX_CONNECTIONS=1
+
+## Set libfabric flags to use EFA
+export FI_PROVIDER=efa
+export FI_EFA_USE_DEVICE_RDMA=1 # use for p4d
+export FI_EFA_FORK_SAFE=1 # os fork error
+
+## Set this flag for debugging EFA
+#export FI_LOG_LEVEL=warn
+
+## NCCL Environment variables
 # https://discuss.pytorch.org/t/nccl-network-is-unreachable-connection-refused-when-initializing-ddp/137352
 # https://github.com/pytorch/pytorch/issues/68893
-#export NCCL_SOCKET_IFNAME=ens
 export NCCL_ASYNC_ERROR_HANDLING=1
 export NCCL_DEBUG=INFO
 
-# async runtime error ...
-export CUDA_DEVICE_MAX_CONNECTIONS=1
+### Increase the send queue depth and can turn NCCL communications into non-blocking.
+### https://www.usenix.org/system/files/atc23-choi.pdf
+export NCCL_BUFFSIZE=8388608
+### Improve performance by increasing buffer size for Send/Recv, Gather, Scatter and Alltoall communications
+### https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/usage/p2p.html
+export NCCL_P2P_NET_CHUNKSIZE=524288
+
+### Improve performance for AllReduce by selecting specific protocol and algorithm for specific
+### message size and number of ranks.
+### More information https://github.com/aws/aws-ofi-nccl/wiki/Algorithm-and-Protocol-Tuner-for-AWS.
+export NCCL_TUNER_PLUGIN=/opt/aws-ofi-nccl/install/lib/libnccl-ofi-tuner.so
 
 #########################
 ## Command and Options ##
