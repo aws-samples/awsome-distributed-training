@@ -139,7 +139,6 @@ MEGATRON_ARGS+=(
     # Example how to disable all validations, hence only training steps performed.
     --split 100,0,0
 )
-
 [[ -f ${IMAGE} ]] || { echo "Could not find enroot image: $IMAGE" ; exit -1 ; }
 srun -l "${ARGS[@]}" python -m torch.distributed.run "${TORCHRUN_ARGS[@]}" /workspace/Megatron-LM/pretrain_gpt.py \
         "${MEGATRON_ARGS[@]}" \
@@ -157,5 +156,7 @@ srun -l "${ARGS[@]}" python -m torch.distributed.run "${TORCHRUN_ARGS[@]}" /work
         --weight-decay 0.1 \
         --adam-beta1 0.9 \
         --adam-beta2 0.95 \
+        --wandb-exp-name llama2-megatron-lm \
+        --wandb-project "megatron-lm" \
         --init-method-std 0.006 \
         --fp16
