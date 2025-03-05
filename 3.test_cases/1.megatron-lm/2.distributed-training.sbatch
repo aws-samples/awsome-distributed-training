@@ -18,25 +18,27 @@ set -ex;
 ###########################
 
 # Parallelism decomposition variables
-: "${TENSOR_PARALLEL:=4}"
-: "${PIPELINE_PARALLEL:=2}"
+export TENSOR_PARALLEL=4
+export PIPELINE_PARALLEL=2
 
 # Model parameters, defaults to 39B model
 # Refer to page 8 of this paper on how to tune models parameters
 # https://arxiv.org/pdf/2104.04473.pdf
-: "${NUM_LAYERS:=36}"
-: "${HIDDEN_SIZE:=4096}"
-: "${NUM_ATTENTION_HEADS:=32}"
+export NUM_LAYERS=36
+export HIDDEN_SIZE=4096
+export NUM_ATTENTION_HEADS=32
 
-: "${SEQ_LENGTH:=2048}"
-: "${MAX_POSITION_EMBEDDINGS:=2048}"
-: "${MICRO_BATCH_SIZE:=1}"
-: "${GLOBAL_BATCH_SIZE:=288}"
+export SEQ_LENGTH=2048
+export MAX_POSITION_EMBEDDINGS=2048
+export MICRO_BATCH_SIZE=1
+export GLOBAL_BATCH_SIZE=288
 
 # default variables for Enroot
-: "${IMAGE:=$(pwd)/megatron-training.sqsh}"
-: "${DATA_PATH:=/fsx}"
-: "${FSX_MOUNT:=$(pwd):$DATA_PATH}"
+
+# default variables for Enroot
+export IMAGE=$(pwd)/megatron-training.sqsh
+export DATA_PATH=/fsx
+export FSX_MOUNT=$(pwd):$DATA_PATH
 
 ###########################
 ## Environment Variables ##
@@ -71,6 +73,7 @@ export NCCL_P2P_NET_CHUNKSIZE=524288
 ### More information https://github.com/aws/aws-ofi-nccl/wiki/Algorithm-and-Protocol-Tuner-for-AWS.
 export NCCL_TUNER_PLUGIN=/opt/aws-ofi-nccl/install/lib/libnccl-ofi-tuner.so
 
+
 #########################
 ## Command and Options ##
 #########################
@@ -80,29 +83,6 @@ declare -a ARGS=(
     --container-mounts $FSX_MOUNT
 )
 
-declare -a TORCHRUN_ARGS=(
-    # change this to match the number of gpus per node:
-    --nproc_per_node=8
-    --nnodes=$SLURM_JOB_NUM_NODES
-    --rdzv_id=$SLURM_JOB_ID
-    --rdzv_backend=c10d
-    --rdzv_endpoint=$(hostname)
-)
-
-declare -a MEGATRON_ARGS=(
-        --num-layers $NUM_LAYERS
-        --hidden-size $HIDDEN_SIZE
-        --num-attention-heads $NUM_ATTENTION_HEADS
-        --seq-length $SEQ_LENGTH
-        --max-position-embeddings $MAX_POSITION_EMBEDDINGS
-        --micro-batch-size $MICRO_BATCH_SIZE
-        --global-batch-size $GLOBAL_BATCH_SIZE
-)
-
-declare -a MEGATRON_PARALLELISM=(
-        --tensor-model-parallel-size $TENSOR_PARALLEL
-        --pipeline-model-parallel-size $PIPELINE_PARALLEL
-)
 
 AUTO_RESUME=""
 if [ -d "/opt/sagemaker_cluster" ]; then
@@ -110,26 +90,52 @@ if [ -d "/opt/sagemaker_cluster" ]; then
     AUTO_RESUME="--auto-resume=1"
 fi
 
-srun ${AUTO_RESUME} -l "${ARGS[@]}" python -m torch.distributed.run "${TORCHRUN_ARGS[@]}" /workspace/Megatron-LM/pretrain_gpt.py \
-        "${MEGATRON_PARALLELISM[@]}" \
-        "${MEGATRON_ARGS[@]}" \
-        --train-samples 146484375 \
-        --lr-decay-samples 126953125 \
-        --lr-warmup-samples 183105 \
-        --lr 6.0e-5 \
-        --min-lr 6.0e-6 \
-        --lr-decay-style cosine \
-        --log-interval 1 \
-        --eval-iters 40 \
-        --eval-interval 1000 \
-        --data-path "${DATA_PATH}/gpt2/my-gpt2_text_document" \
-        --vocab-file "${DATA_PATH}/gpt2/gpt2-vocab.json" \
-        --merge-file "${DATA_PATH}/gpt2/gpt2-merges.txt" \
-        --split 98,2,0 \
-        --clip-grad 1.0 \
-        --weight-decay 0.1 \
-        --adam-beta1 0.9 \
-        --adam-beta2 0.95 \
-        --init-method-std 0.006 \
-        --fp16 \
-        --recompute-activations
+NSYS_PROFILING_FLAG=0
+NSYS_PROFILING=""
+NSYS_PROFILING_MEGATRON_ARGS=""
+
+if [ $NSYS_PROFILING_FLAG -eq 1 ]; then
+    NSYS_PROFILING="/usr/local/cuda/bin/nsys profile -t cuda,nvtx,osrt,cudnn,cublas -s process-tree --capture-range=cudaProfilerApi --capture-range-end=stop --force-overwrite true --trace-fork-before-exec true --output /fsx/report_megatron_job%q{SLURM_JOB_ID}_rank%q{SLURM_PROCID}_on_%q{HOSTNAME}.nsys-rep"
+    NSYS_PROFILING_MEGATRON_ARGS="--profile --profile-step-start 19 --profile-step-end 30"
+fi
+export NSYS_PROFILING
+export NSYS_PROFILING_MEGATRON_ARGS
+
+srun ${AUTO_RESUME} -l "${ARGS[@]}" bash -c '
+export MASTER_ADDR=$SLURM_LAUNCH_NODE_IPADDR;
+export MASTER_PORT=6000;
+export WORLD_SIZE=$SLURM_NTASKS;
+export RANK=$SLURM_PROCID;
+export LOCAL_RANK=$SLURM_LOCALID;
+$NSYS_PROFILING \
+python3 -u /workspace/Megatron-LM/pretrain_gpt.py \
+$NSYS_PROFILING_MEGATRON_ARGS \
+--num-layers $NUM_LAYERS \
+--hidden-size $HIDDEN_SIZE \
+--num-attention-heads $NUM_ATTENTION_HEADS \
+--seq-length $SEQ_LENGTH \
+--max-position-embeddings $MAX_POSITION_EMBEDDINGS \
+--micro-batch-size $MICRO_BATCH_SIZE \
+--global-batch-size $GLOBAL_BATCH_SIZE \
+--tensor-model-parallel-size $TENSOR_PARALLEL \
+--pipeline-model-parallel-size $PIPELINE_PARALLEL \
+--train-samples 146484375 \
+--lr-decay-samples 126953125 \
+--lr-warmup-samples 183105 \
+--lr 6.0e-5 \
+--min-lr 6.0e-6 \
+--lr-decay-style cosine \
+--log-interval 1 \
+--eval-iters 40 \
+--eval-interval 1000 \
+--data-path ${DATA_PATH}/gpt2/my-gpt2_text_document \
+--vocab-file ${DATA_PATH}/gpt2/gpt2-vocab.json \
+--merge-file ${DATA_PATH}/gpt2/gpt2-merges.txt \
+--split 98,2,0 \
+--clip-grad 1.0 \
+--weight-decay 0.1 \
+--adam-beta1 0.9 \
+--adam-beta2 0.95 \
+--init-method-std 0.006 \
+--fp16 \
+--recompute-activations '
