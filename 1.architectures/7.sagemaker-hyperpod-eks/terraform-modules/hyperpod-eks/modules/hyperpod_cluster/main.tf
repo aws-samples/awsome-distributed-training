@@ -21,19 +21,17 @@ locals {
           }
         ]
 
-        lifecycle_config = {
+        life_cycle_config = {
           on_create     = config.lifecycle_script
           source_s3_uri = "s3://${var.s3_bucket_name}"
         }
       },
       # Only include on_start_deep_health_checks if at least one check is enabled
       config.enable_stress_check || config.enable_connectivity_check ? {
-        on_start_deep_health_checks = {
-          health_check_types = distinct(concat(
-            config.enable_stress_check ? ["InstanceStress"] : [],
-            config.enable_connectivity_check ? ["InstanceConnectivity"] : []
-          ))
-        }
+        on_start_deep_health_checks = distinct(concat(
+          config.enable_stress_check ? ["InstanceStress"] : [],
+          config.enable_connectivity_check ? ["InstanceConnectivity"] : []
+        ))
       } : {}
     )
   ]

@@ -2,9 +2,9 @@ locals {
   vpc_id = var.create_vpc ? module.vpc[0].vpc_id : var.existing_vpc_id
   private_subnet_id = var.create_private_subnet ? module.private_subnet[0].private_subnet_id : var.existing_private_subnet_id
   security_group_id = var.create_security_group ? module.security_group[0].security_group_id : var.existing_security_group_id
-  s3_bucket_name = var.create_s3_bucket ? module.s3_bucket[0].bucket_name : var.existing_s3_bucket_name
-  eks_cluster_name = var.create_eks ? module.eks[0].cluster_name : var.eks_cluster_name
-  sagemaker_iam_role_name = var.create_sagemaker_iam_role ? module.sagemaker_iam_role[0].role_name : var.existing_sagemaker_iam_role_name
+  s3_bucket_name = var.create_s3_bucket ? module.s3_bucket[0].s3_bucket_name : var.existing_s3_bucket_name
+  eks_cluster_name = var.create_eks ? module.eks_cluster[0].eks_cluster_name : var.eks_cluster_name
+  sagemaker_iam_role_name = var.create_sagemaker_iam_role ? module.sagemaker_iam_role[0].sagemaker_iam_role_name : var.existing_sagemaker_iam_role_name
 }
 
 module "vpc" {
@@ -25,7 +25,7 @@ module "private_subnet" {
   vpc_id               = local.vpc_id
   availability_zone_id = var.availability_zone_id
   private_subnet_cidr  = var.private_subnet_cidr
-  nat_gateway_id       = var.create_vpc ? module.vpc[0].nat_gateway_id : var.existing_nat_gateway_id
+  nat_gateway_id       = var.create_vpc ? module.vpc[0].nat_gateway_1_id : var.existing_nat_gateway_id
 }
 
 module "security_group" {
@@ -44,7 +44,7 @@ module "eks_cluster" {
 
   resource_name_prefix    = var.resource_name_prefix
   vpc_id                  = local.vpc_id
-  eks_cluster_name            = var.eks_cluster_name
+  eks_cluster_name        = var.eks_cluster_name
   kubernetes_version      = var.kubernetes_version
   security_group_id       = local.security_group_id
   private_subnet_cidrs = [var.eks_private_subnet_1_cidr, var.eks_private_subnet_2_cidr]
@@ -86,13 +86,13 @@ module "helm_chart" {
   count  = var.create_helm_chart ? 1 : 0
   source = "./modules/helm_chart"
 
-  depends_on = [module.eks]
+  depends_on = [module.eks_cluster]
 
   resource_name_prefix = var.resource_name_prefix
   helm_repo_url       = var.helm_repo_url
   helm_repo_path      = var.helm_repo_path
   namespace           = var.namespace
-  helm_release_name        = var.helm_release_name
+  helm_release_name   = var.helm_release_name
   eks_cluster_name    = local.eks_cluster_name
 }
 
@@ -124,3 +124,13 @@ module "hyperpod_cluster" {
 
 # Data source for current AWS region
 data "aws_region" "current" {}
+
+data "aws_eks_cluster" "existing_eks_cluster" {
+  count  = var.create_eks ? 0 : 1
+  name = var.eks_cluster_name
+}
+
+data "aws_s3_bucket" "existing_s3_bucket" {
+  count  = var.create_s3_bucket ? 0 : 1
+  bucket = var.existing_s3_bucket_name
+}
