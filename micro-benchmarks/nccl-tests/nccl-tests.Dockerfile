@@ -124,11 +124,11 @@ RUN git clone -b ${NCCL_TESTS_VERSION} https://github.com/NVIDIA/nccl-tests.git 
 RUN rm -rf /var/lib/apt/lists/*
 
 ## Set Open MPI variables to exclude network interface and conduit.
-ENV OMPI_MCA_pml=^cm,ucx            \
+ENV OMPI_MCA_pml=^ucx            \
     OMPI_MCA_btl=tcp,self           \
     OMPI_MCA_btl_tcp_if_exclude=lo,docker0,veth_def_agent\
     OPAL_PREFIX=/opt/amazon/openmpi \
-    NCCL_SOCKET_IFNAME=^docker,lo,veth_def_agent,eth
+    NCCL_SOCKET_IFNAME=^docker,lo,veth
 
 ## Turn off PMIx Error https://github.com/open-mpi/ompi/issues/7516
 ENV PMIX_MCA_gds=hash

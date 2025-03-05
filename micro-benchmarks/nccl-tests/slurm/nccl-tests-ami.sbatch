@@ -37,11 +37,11 @@ mpirun -n $((8 * SLURM_JOB_NUM_NODES)) -N 8 \
 	-x FI_EFA_FORK_SAFE=1 \
 	-x LD_LIBRARY_PATH=$ADDITIONAL_LD_LIBRARY_PATH:/opt/amazon/efa/lib:/opt/amazon/openmpi/lib:/opt/aws-ofi-nccl/lib:/usr/local/lib:/usr/lib:$LD_LIBRARY_PATH \
 	-x NCCL_DEBUG=INFO \
-	-x NCCL_SOCKET_IFNAME=^docker,lo,veth_def_agent,eth \
+	-x NCCL_SOCKET_IFNAME=^docker,lo,veth \
 	-x NCCL_BUFFSIZE=8388608 \
 	-x NCCL_P2P_NET_CHUNKSIZE=524288 \
 	-x NCCL_TUNER_PLUGIN=/opt/aws-ofi-nccl/lib/libnccl-ofi-tuner.so \
-	--mca pml ^cm,ucx \
+	--mca pml ^ucx \
 	--mca btl tcp,self \
 	--mca btl_tcp_if_exclude lo,docker0,veth_def_agent \
 	--bind-to none ${ALL_REDUCE_BINARY} -b 8 -e 16G -f 2 -g 1 -c 1 -n 100
