@@ -15,10 +15,6 @@ torchtitan offers several advanced capabilities:
 
 ## Setup Instructions
 
-### 0. Prerequisites
-
-Before running this training, you'll need to create a SageMaker HyperPod cluster following the instructions provided [here](https://catalog.workshops.aws/sagemaker-hyperpod/en-US/01-cluster).
-
 ### 1. Create torchtitan Conda Environment
 
 On your cluster head node, run the `0.create_conda_env.sh` script:
