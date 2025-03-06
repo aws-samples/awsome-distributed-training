@@ -3,7 +3,7 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 
-#SBATCH --nodes=1 # number of nodes to use
+#SBATCH --nodes=4 # number of nodes to use  # can also run with 1 node
 #SBATCH --job-name=torchtitan #name of your job
 #SBATCH --output=logs/%x_%j.out # logfile for stdout
 #SBATCH --exclusive # job has exclusive use of the resource, no sharing
@@ -32,7 +32,7 @@ export FI_EFA_SET_CUDA_SYNC_MEMOPS=0
 # This path assumes you are using the Deep Learning AMI
 # If you are not using the DLAMI, you may need to update this path
 export LD_PRELOAD=/usr/local/cuda-12.1/lib/libnccl.so
-export NCCL_SOCKET_IFNAME=^docker,lo,veth_def_agent,eth
+export NCCL_SOCKET_IFNAME=^docker,lo,veth
 
 ## Set HuggingFace metadata timeout (in seconds) for large clusters
 export HF_HUB_ETAG_TIMEOUT=60

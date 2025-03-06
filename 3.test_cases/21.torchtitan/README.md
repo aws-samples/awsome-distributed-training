@@ -17,7 +17,8 @@ torchtitan offers several advanced capabilities:
 
 ### 0. Prerequisites
 
-Before running this training, you'll need to create a SageMaker HyperPod cluster following the instructions provided [here](https://catalog.workshops.aws/sagemaker-hyperpod/en-US/01-cluster).
+Before running this training, you'll need to create a Slurm cluster with an FSx for Lustre file system. Instructions can be found in [1.architectures](../../1.architectures). Float8 data types are natively supported in NVIDIA H100 and subsequent generations hence it is recommended to run this on at least 1 x p5/p5e/p5en.48xlarge instance. The [Performance Numbers](#performance-numbers) reported in the later sections are based on 4 x p5.48xlarge instances.
+
 
 ### 1. Create torchtitan Conda Environment
 
@@ -34,6 +35,8 @@ This script:
 
 
 ### 2. Download the Tokenizer
+
+First, create a Hugging Face account to retrieve a [token](https://huggingface.co/settings/tokens.). Log in to your account and create an access token from Hugging Face Tokens. Then apply for Llama3.1 weight access from [Meta-Llama-3.1-8B](https://huggingface.co/meta-llama/Llama-3.1-8B) page.
 
 Use the following command to download the Meta Llama 3 tokenizer:
 
@@ -63,7 +66,7 @@ This script:
 
 The training will log metrics including loss, throughput, memory utilization, and MFU (Model FLOPS Utilization) to help monitor training efficiency.
 
-## Training Logs
+## Performance Numbers
 
 Running the llama3_8b.toml default configuration in torchtitan/models/llama/train_configs on 4 x p5.48xlarge instances (each instance contains 8 x H100 GPUs)
 
@@ -95,7 +98,7 @@ enable_fsdp_float8_all_gather = true
 precompute_float8_dynamic_scale_for_fsdp = true
 ```
 
-Applying these optimizations to the llama3_8b.toml config and running on the 4 x p5.48xlarge instances we observeimproved throughput(**15.92%** improvement) and MFU metrics(**from 39.73% -> 46.06%**) compared to the default configuration:
+Applying these optimizations to the llama3_8b.toml config and running on the 4 x p5.48xlarge instances we observe improved throughput(**15.92%** improvement) and MFU metrics(**from 39.73% -> 46.06%**) compared to the default configuration:
 
 ```bash
 2: 2025-03-04 00:31:19,918 - root - INFO - [36mstep: 1990  [32mloss:  3.4255  [33mmemory: 63.48GiB(80.25%)  [34mtps: 7,865  [35mmfu: 46.06%[39m
