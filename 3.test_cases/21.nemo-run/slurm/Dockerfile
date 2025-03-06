@@ -82,11 +82,11 @@ RUN echo "/usr/local/lib"      >> /etc/ld.so.conf.d/local.conf && \
 
 ENV OMPI_MCA_pml=^cm,ucx            \
     OMPI_MCA_btl=tcp,self           \
-    OMPI_MCA_btl_tcp_if_exclude=lo,docker0 \
+    OMPI_MCA_btl_tcp_if_exclude=lo,docker0,veth_def_agent \
     OPAL_PREFIX=/opt/amazon/openmpi \
     # https://discuss.pytorch.org/t/nccl-network-is-unreachable-connection-refused-when-initializing-ddp/137352
     # https://github.com/pytorch/pytorch/issues/68893
-    NCCL_SOCKET_IFNAME=^docker,lo
+    NCCL_SOCKET_IFNAME=^docker,lo,veth
 
 ENV LD_LIBRARY_PATH="/usr/local/lib:/usr/local/cuda/lib64:${LD_LIBRARY_PATH}"
 
