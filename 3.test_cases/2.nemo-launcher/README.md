@@ -25,7 +25,7 @@ The following pre-requisites are needed to run this example:
 You will need to setup the following environment variables before running the scripts. :
 
 ```bash
-export NEMO_VERSION=23.11
+export NEMO_VERSION=24.12
 export REPO=aws-nemo-megatron
 export TAG=$NEMO_VERSION
 export TARGET_PATH=/fsx/nemo-launcher-$NEMO_VERSION   # must be a shared filesystem
@@ -38,20 +38,13 @@ cd $TEST_CASE_PATH
 
 You will retrieve the container image from Nvidia, build an optimized container for EFA and, convert it into an Enroot file so we can run it on our cluster.
 
-1. You have a registered account with Nvidia and can access NGC. Retrieve the NGC API key following [instructions from Nvidia](https://docs.nvidia.com/ngc/gpu-cloud/ngc-user-guide/index.html#generating-api-key) and request access [here](https://developer.nvidia.com/nemo-framework/join) in order to be able to pull NeMo images.
-2. Configure NGC as shown below using the command below, when requested use `$oauthtoken` for the login and the API key from NGC fro the password.
-
-```bash
-docker login nvcr.io
-```
-
-3. Copy the file `0.NemoMegatron-aws-optimized.Dockerfile` to the local directory and run the command below. Docker will retrieve the NemoMegatron container image from NGC then build an optimized container for AWS. This stage takes a few minutes and you can follow progress
+1. Copy the file `0.NemoMegatron-aws-optimized.Dockerfile` to the local directory and run the command below. Docker will retrieve the NemoMegatron container image from NGC then build an optimized container for AWS. This stage takes a few minutes and you can follow progress
 
 ```bash
 docker build --progress plain -t ${REPO}:${TAG} -f 0.NemoMegatron-aws-optimized.Dockerfile .
 ```
 
-4. Convert the Docker container image to an [Enroot](https://github.com/NVIDIA/enroot) squash file that will be stored in `/fsx`. This step takes a few minutes.
+2. Convert the Docker container image to an [Enroot](https://github.com/NVIDIA/enroot) squash file that will be stored in `/fsx`. This step takes a few minutes.
 
 ```bash
 [[ -e $ENROOT_IMAGE ]] && rm $ENROOT_IMAGE ; /usr/bin/time enroot import -o $ENROOT_IMAGE dockerd://${REPO}:${TAG}
