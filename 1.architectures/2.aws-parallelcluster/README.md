@@ -4,155 +4,180 @@
 
 Clusters in AWS ParallelCluster share similar components: a head-node, compute nodes (typically P or Trn EC2 family of instances) and one or multiple shared filesystems (FSx for Lustre). You will find below a section on the architectures themselves and how to deploy them. After this section, you will be brief on key elements of these templates (or things you wanna know to avoid potential mistakes).
 
-## 2. Pre-requisites
-
-Before deploying a cluster, let's ensure you have installed the AWS ParallelCluster (PC) CLI, and that you have generated an EC2 key pair for the head node later on. If you have both PC installed and the key pair generated then skip this section and go [deploy-a-cluster section](#3-deploy-clusters).
-
-### 2.1. Install AWS ParallelCluster CLI
-
-Run the script below to install AWS ParallelCluster in a Python virtual environment and access this environment.
+To get started, clone this repository and navigate to this directory:
 
 ```bash
-#!/bin/bash
-
-VIRTUAL_ENV_PATH=~/apc-ve # change the path to your liking
-
-# Update pip and the virtual env module
-python3 -m pip install --upgrade pip
-python3 -m pip install --user --upgrade virtualenv
-
-python3 -m virtualenv $VIRTUAL_ENV_PATH # create the virtual env
-
-source $VIRTUAL_ENV_PATH/bin/activate # activate the environment
-pip3 install awscli # install the AWS CLI
-pip3 install aws-parallelcluster # then AWS ParallelCluster
+git clone -b geniac https://github.com/aws-samples/awsome-distributed-training.git
+cd awsome-distributed-training/1.architectures/2.aws-parallelcluster
 ```
 
-> **Note**: you can use virtual environments to test different versions of AWS ParallelCluster by setting the version during the installation. For example to use 3.9.1, change the command `pip3 install aws-parallelcluster==3.9.1`.
+## 2. Pre-requisites
 
-### 2.2. Create your EC2 Keypair (if needed)
+Before deploying a cluster, let's ensure you have installed the AWS ParallelCluster (PCluster) CLI, and that you have generated an EC2 key pair for the head node later on. If you have both PC installed and the key pair generated then skip this section and go [deploy-a-cluster section](#3-deploy-clusters).
+
+### 2.1. Create your EC2 Keypair (if needed)
 
 The EC2 key pair enables your to connect to your cluster on the head-node through ssh or [AWS Systems Manager](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-sessions-start.html). We will cover for SSH here.
 
-You can list your public keys on your [AWS Console](https://console.aws.amazon.com/ec2/home?#KeyPairs:) and you may also check your SSH directory for the private keys (`~/ssh` if using Linux or OSX).
+You can list your public keys on your [AWS Console](https://console.aws.amazon.com/ec2/home?#KeyPairs:) and you may also check your SSH directory for the private keys (`~/.ssh` if using Linux or OSX).
 
 If you do not have a keypair that you can use then we will create one with the command below (see [this documentation](https://docs.aws.amazon.com/parallelcluster/latest/ug/set-up-keypair.html)).
 
 ```bash
 #!/bin/bash
 
-AWS_TARGET_REGION=us-east-1
-KEYPAIR_NAME=pcluster-workshop-key
-
+cd ~/.ssh
 # Create the key pair using the AWS CLI and retrieve the private part (.pem file)
-aws ec2 create-key-pair --key-name pcluster-workshop-key \
+aws ec2 create-key-pair --key-name ${KEYPAIR_NAME} \
                         --query KeyMaterial \
-                        --region $AWS_TARGET_REGION \
-                        --output text > $KEYPAIR_NAME.pem
+                        --key-type ed25519 \
+                        --region $AWS_REGION \
+                        --output text > ${KEYPAIR_NAME}.pem
 
 # The above command will also generate a private key in the current directory.
 # We must change the access rights to the current user only, otherwise the ssh
 # client refuses to use this private key to open an ssh connection.
-sudo chmod 600 $KEYPAIR_NAME.pem
+sudo chmod 600 ${KEYPAIR_NAME}.pem
 ```
 
-### 2.2 Connect to your cluster
 
-To easily login to your cluster via [AWS Systems Manager](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-sessions-start.html) we've included a script `easy-ssh.sh` that you can run like so, assuming `ml-cluster` is the name of your cluster:
+### 2.2. Install AWS ParallelCluster CLI
+
+Run the script below to install AWS ParallelCluster CLI in a Python virtual environment and access this environment.
 
 ```bash
-./easy-ssh.sh ml-cluster
+export VIRTUAL_ENV_PATH=~/pcluster_env # change the path to your liking
+export AWS_REGION=ap-northeast-1
+export KEYPAIR_NAME=${KEYPAIR_NAME} # use your own keypair here
 ```
-
-You'll need a few pre-requisites for this script:
-* JQ: `brew install jq`
-* aws cli
-* `pcluster` cli
-* [Session Manager Plugin](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html)
-
-Once you've run the script you'll see the following output:
-
-```
-Instance Id: i-0096542c11ccb02b5
-Os: ubuntu2004
-User: ubuntu
-Add the following to your ~/.ssh/config to easily connect:
-
-cat <<EOF >> ~/.ssh/config
-Host ml-cluster
-  User ubuntu
-  ProxyCommand sh -c "aws ssm start-session --target i-0095542c11ccb02b5 --document-name AWS-StartSSHSession --parameters 'portNumber=%p'"
-EOF
-
-Add your ssh keypair and then you can do:
-
-$ ssh ml-cluster
-
-Connecting to ml-cluster...
-
-Starting session with SessionId: ...
-root@ip-10-0-24-126:~#
-```
-
-1. Add your public key to the file `~/.ssh/authorized_keys`
-
-2. Now paste in the lines from the output of to your terminal, this will add them to your `~/.ssh/config`.
-
-```
-cat <<EOF >> ~/.ssh/config
-Host ml-cluster
-  User ubuntu
-  ProxyCommand sh -c "aws ssm start-session --target i-0095542c11ccb02b5 --document-name AWS-StartSSHSession --parameters 'portNumber=%p'"
-EOF
-```
-3. Now you ssh in, assuming `ml-cluster` is the name of your cluster with:
-
-```
-ssh ml-cluster
-```
-
-
-## 3. Deploy a Cluster
-
-To create the cluster use the command below and replace `CLUSTER_CONFIG_FILE` by the path to the cluster configuration file (see next section) and `NAME_OF_YOUR_CLUSTER` by the name of your cluster (`realpotato` is a cool name).
 
 ```bash
-pcluster create-cluster --cluster-configuration CLUSTER_CONFIG_FILE --cluster-name NAME_OF_YOUR_CLUSTER --region us-east-1
+#!/bin/bash
+
+# Update pip and the virtual env module
+python3 -m pip install --upgrade pip
+python3 -m pip install --user --upgrade virtualenv
+python3 -m virtualenv ${VIRTUAL_ENV_PATH} # create the virtual env
+source ${VIRTUAL_ENV_PATH}/bin/activate # activate the environment
+pip3 install awscli # install the AWS CLI
+pip3 install aws-parallelcluster==3.12.0 # then AWS ParallelCluster
 ```
 
 You can follow the [documentation](https://docs.aws.amazon.com/parallelcluster/latest/ug/commands-v3.html) to review the list of all AWS ParallelCluster commands.
 
-### 3.1. Cluster templates
 
-Each reference architectures provides an example of cluster configuration (`.yaml`) for different use cases. The architectures most commonly used are:
+### 2.3 Check compute resource
 
-- `distributed-training-gpu.yaml`: base template, uses the default AMI with no software installed.
-- `distributed-training-p4de_custom_ami.yaml`: base cluster with a custom AMI to install custom software.
-- `distributed-training-p4de_postinstall_scripts.yaml`: same as above but uses post-install scripts to install Docker, Pyxis and Enroot.
+You need following information before proceed:
 
-Alternatively you can refer to these architectures for more specific use cases:
+* An ODCR (usually P5 or Trn1) on the account. You can check 
+    * AZ for the capacity `AZ`.
+    * Number of instances in the CR `ODCR_ID`.
+* (Optional, but recommended) Name for the data S3 bucket. This bucket will be used to persist all the data/model checkpoints throughout 6 months of the cluster operation. Please refer to the [Cloudformation template](https://github.com/aws-samples/awsome-distributed-training/blob/main/1.architectures/0.s3/0.private-bucket.yaml) for the deployment. The bucket name is referred to as `DATA_BUCKET_NAME`.
 
-- `distributed-training-p4de_batch-inference-g5_custom_ami.yaml`: multi-queue template with p4de for training and g5 for inference. It assumes a custom AMI.
-- `distributed-training-trn1_custom_ami.yaml`: uses Trainium instances for distributed training. Assumes a custom AMI.
+Click on this link to deploy the S3 bucket:
 
-### 3.2. What to replace in the templates
+[<kbd> <br> 1-Click Deploy 🚀 <br> </kbd>](https://ap-northeast-1.console.aws.amazon.com/cloudformation/home?region=ap-northeast-1#/stacks/quickcreate?templateUrl=https://awsome-distributed-training.s3.amazonaws.com/templates/0.private-bucket.yaml&stackName=cluster-data-bucket)
 
-The `.yaml` templates contain placeholder variables that you need to replace before use.
+### 2.4 Deploy parallelcluster-prerequisites
 
-- `CUSTOM_AMI_ID`: if using a custom AMI then replace with the custom AMI ID (`ami-12356790abcd`).
-- `PUBLIC_SUBNET_ID`: change to the id of a public subnet to host the head-node (`subnet-12356790abcd`).
-- `PRIVATE_SUBNET_ID`: change to the id of a public subnet to host the compute nodes (`subnet-12356790abcd`).
-- `PLACEHOLDER_SSH_KEY`: ID of the SSH key you'd like to use to connect to the head-node, use the name of the key. You can also use AWS Systems Manager Session Manager (SSM).
-- `CAPACITY_RESERVATION_ID`: if using a capacity reservation put the ID here (`cr-12356790abcd`).
+In this section, you deploy a custom [_Amazon Virtual Private Cloud_](https://aws.amazon.com/vpc/) (Amazon VPC) network and security groups, as well as supporting services such as FSx for Lustre using the CloudFormation template called `parallelcluster-prerequisites.yaml`. This template is region agnostic and enables you to create a VPC with the required network architecture to run your workloads.
 
-In some of the templates you may need to update these placeholders:
+Please follow the steps below to deploy your resources:
 
-- `PLACEHOLDER_MIN_INSTANCES`: the minimum number of instances you want in your cluster at any point in time.
-- `PLACEHOLDER_MAX_INSTANCES`: the maximum number of instances you anticipate to scale to.
+1. Click on this link to deploy to CloudFormation:
 
-If `MIN` = `MAX` then you keep a fixed amount of instances at any point in time. If `MIN` < `MAX` then the cluster will keep a `MIN` number of instances and scale up to `MAX` if capacity beyond `MIN` is required to run jobs. Update this values by updating your cluster ([documentation](https://docs.aws.amazon.com/parallelcluster/latest/ug/using-pcluster-update-cluster-v3.html))
+[<kbd> <br> 1-Click Deploy 🚀 <br> </kbd>](https://ap-northeast-1.console.aws.amazon.com/cloudformation/home?region=ap-northeast-1#/stacks/quickcreate?templateUrl=https://awsome-distributed-training.s3.amazonaws.com/templates/parallelcluster-prerequisites.yaml&stackName=parallelcluster-prerequisites)
 
-## 4. Anatomy of AWS Parallel Cluster
+The cloudformation stack uses FSx for Lustre Persistent_2 deployment type. If you wish to use Persistent_1 deployment type please use the link below:
+
+[<kbd> <br> 1-Click Deploy 🚀 <br> </kbd>](https://ap-northeast-1.console.aws.amazon.com/cloudformation/home?region=ap-northeast-1#/stacks/quickcreate?templateUrl=https://awsome-distributed-training.s3.amazonaws.com/templates/parallelcluster-prerequisites-p1.yaml&stackName=parallelcluster-prerequisites)
+
+They need to open the link and specify the region and availability zone where they have their compute resources. Fill out “Availability Zone configuration for the subnets”, and create the stack. 
+
+![parallelcluster-prerequisites-cfn](../../0.docs/parallelcluster-prerequisites-cfn.png)
+
+### 2.5 Associate Lustre storage with S3 bucket with data-repository-association (DRA)
+
+In this step, you will create a [Data Repository Association (DRA)](https://docs.aws.amazon.com/fsx/latest/LustreGuide/create-dra-linked-data-repo.html) between the S3 bucket and FSx Lustre Filesystem.
+
+```bash
+export AWS_REGION=ap-northeast-1
+export STACK_ID_VPC=parallelcluster-prerequisites 
+export FSX_ID=`aws cloudformation describe-stacks \
+    --stack-name ${STACK_ID_VPC} \
+    --query 'Stacks[0].Outputs[?OutputKey==\`FSxLustreFilesystemId\`].OutputValue' \
+    --region ${AWS_REGION} \
+    --output text`
+```
+
+Note: `DATA_BUCKET_NAME`  is the bucket created in [Step0: Check resource info](https://quip-amazon.com/wDrEAxaBEI3A#temp:C:fdV996b34e8ad4e4dc3ac2ef128b). 
+Create DRA as follows:
+
+```bash
+aws fsx create-data-repository-association \
+    --file-system-id ${FSX_ID} \
+    --file-system-path "/data" \
+    --data-repository-path s3://${DATA_BUCKET_NAME} \
+    --s3 AutoImportPolicy='{Events=[NEW,CHANGED,DELETED]},AutoExportPolicy={Events=[NEW,CHANGED,DELETED]}' \
+    --batch-import-meta-data-on-create \
+    --region ${AWS_REGION}
+```
+
+You shall see output like below:
+
+```
+{
+    "Association": {
+        "AssociationId": "dra-0295ef8c2a0e78886",
+        "ResourceARN": "arn:aws:fsx:ap-northeast-1:483026362307:association/fs-0160ebe1881498442/dra-0295ef8c2a0e78886",
+        "FileSystemId": "fs-0160ebe1881498442",
+        "Lifecycle": "CREATING",
+        "FileSystemPath": "/data",
+        "DataRepositoryPath": "s3://genica-cluster-data-483026362307",
+        "BatchImportMetaDataOnCreate": true,
+        "ImportedFileChunkSize": 1024,
+        "S3": {
+            "AutoImportPolicy": {
+                "Events": [
+                    "NEW",
+                    "CHANGED",
+                    "DELETED"
+                ]
+            },
+            "AutoExportPolicy": {
+                "Events": [
+                    "NEW",
+                    "CHANGED",
+                    "DELETED"
+                ]
+            }
+        },
+        "Tags": [],
+        "CreationTime": "2024-10-22T09:06:57.151000+09:00"
+    }
+}
+```
+
+You can query the status of the DRA creation as below:
+
+```bash
+aws fsx describe-data-repository-associations \
+    --filters "Name=file-system-id,Values=${FSX_ID}" --query "Associations[0].Lifecycle" --output text
+    --region ${AWS_REGION}
+```
+
+Wait until the output becomes `AVAILABLE` . You also can check the status of DRA on AWS console:
+
+
+## 3. Deploy a Cluster
+
+To create cluster, please refer to [deployment-guides](./deployment-guides). Under the directory we have instructions for following patterns of cluster deployments:
+
+* [Vanilla cluster deployment](./deployment-guides/vanilla-pcluster.md)
+* [Pcluster with observability stack deployment](./deployment-guides/vanilla-pcluster.md)
+
+## 4. (For Reference) Anatomy of AWS Parallel Cluster
 
 ![AWS ParallelCluster diagram](../../0.docs/parallelcluster-arch-diagram.png)
 
@@ -242,6 +267,64 @@ You can chose to use a custom image or post-install scripts to install your appl
 A common issue we see customer face is a problem with the post install scripts or issue to access capacity due to a mis-configuration. This can manifest itself through a `HeadNodeWaitCondition` that'll cause the ParallelCluster to fail a cluster deployment.
 
 To solve that, you can look at the cluster logs in CloudWatch in the cluster log group, otherwise use the option `--rollback-on-failure false` to keep resources up upon failure for further troubleshooting.
+
+
+
+## Tips and tricks
+### 2.2 Connect to your cluster
+
+To easily login to your cluster via [AWS Systems Manager](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-sessions-start.html) we've included a script `easy-ssh.sh` that you can run like so, assuming `ml-cluster` is the name of your cluster:
+
+```bash
+./easy-ssh.sh ml-cluster
+```
+
+You'll need a few pre-requisites for this script:
+* JQ: `brew install jq`
+* aws cli
+* `pcluster` cli
+* [Session Manager Plugin](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html)
+
+Once you've run the script you'll see the following output:
+
+```
+Instance Id: i-0096542c11ccb02b5
+Os: ubuntu2004
+User: ubuntu
+Add the following to your ~/.ssh/config to easily connect:
+
+cat <<EOF >> ~/.ssh/config
+Host ml-cluster
+  User ubuntu
+  ProxyCommand sh -c "aws ssm start-session --target i-0095542c11ccb02b5 --document-name AWS-StartSSHSession --parameters 'portNumber=%p'"
+EOF
+
+Add your ssh keypair and then you can do:
+
+$ ssh ml-cluster
+
+Connecting to ml-cluster...
+
+Starting session with SessionId: ...
+root@ip-10-0-24-126:~#
+```
+
+1. Add your public key to the file `~/.ssh/authorized_keys`
+
+2. Now paste in the lines from the output of to your terminal, this will add them to your `~/.ssh/config`.
+
+```
+cat <<EOF >> ~/.ssh/config
+Host ml-cluster
+  User ubuntu
+  ProxyCommand sh -c "aws ssm start-session --target i-0095542c11ccb02b5 --document-name AWS-StartSSHSession --parameters 'portNumber=%p'"
+EOF
+```
+3. Now you ssh in, assuming `ml-cluster` is the name of your cluster with:
+
+```
+ssh ml-cluster
+```
 
 ## 5. Appendix
 
