@@ -15,31 +15,7 @@ cd awsome-distributed-training/1.architectures/2.aws-parallelcluster
 
 Before deploying a cluster, let's ensure you have installed the AWS ParallelCluster (PCluster) CLI, and that you have generated an EC2 key pair for the head node later on. If you have both PC installed and the key pair generated then skip this section and go [deploy-a-cluster section](#3-deploy-clusters).
 
-### 2.1. Install AWS ParallelCluster CLI
-
-Run the script below to install AWS ParallelCluster CLI in a Python virtual environment and access this environment.
-
-```bash
-export VIRTUAL_ENV_PATH=~/pcluster_env # change the path to your liking
-export AWS_REGION=ap-northeast-1
-export KEYPAIR_NAME=keypair # use your own keypair here
-```
-
-```bash
-#!/bin/bash
-
-# Update pip and the virtual env module
-python3 -m pip install --upgrade pip
-python3 -m pip install --user --upgrade virtualenv
-python3 -m virtualenv ${VIRTUAL_ENV_PATH} # create the virtual env
-source ${VIRTUAL_ENV_PATH}/bin/activate # activate the environment
-pip3 install awscli # install the AWS CLI
-pip3 install aws-parallelcluster==3.12.0 # then AWS ParallelCluster
-```
-
-You can follow the [documentation](https://docs.aws.amazon.com/parallelcluster/latest/ug/commands-v3.html) to review the list of all AWS ParallelCluster commands.
-
-### 2.2. Create your EC2 Keypair (if needed)
+### 2.1. Create your EC2 Keypair (if needed)
 
 The EC2 key pair enables your to connect to your cluster on the head-node through ssh or [AWS Systems Manager](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-sessions-start.html). We will cover for SSH here.
 
@@ -63,6 +39,32 @@ aws ec2 create-key-pair --key-name ${KEYPAIR_NAME} \
 # client refuses to use this private key to open an ssh connection.
 sudo chmod 600 ${KEYPAIR_NAME}.pem
 ```
+
+
+### 2.2. Install AWS ParallelCluster CLI
+
+Run the script below to install AWS ParallelCluster CLI in a Python virtual environment and access this environment.
+
+```bash
+export VIRTUAL_ENV_PATH=~/pcluster_env # change the path to your liking
+export AWS_REGION=ap-northeast-1
+export KEYPAIR_NAME=${KEYPAIR_NAME} # use your own keypair here
+```
+
+```bash
+#!/bin/bash
+
+# Update pip and the virtual env module
+python3 -m pip install --upgrade pip
+python3 -m pip install --user --upgrade virtualenv
+python3 -m virtualenv ${VIRTUAL_ENV_PATH} # create the virtual env
+source ${VIRTUAL_ENV_PATH}/bin/activate # activate the environment
+pip3 install awscli # install the AWS CLI
+pip3 install aws-parallelcluster==3.12.0 # then AWS ParallelCluster
+```
+
+You can follow the [documentation](https://docs.aws.amazon.com/parallelcluster/latest/ug/commands-v3.html) to review the list of all AWS ParallelCluster commands.
+
 
 ### 2.3 Check compute resource
 
