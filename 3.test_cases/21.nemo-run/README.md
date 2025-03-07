@@ -8,7 +8,7 @@ This repository contains examples and configurations for running distributed tra
 
 ## Slurm-based Deployment
 
-The [slurm](./slurm/) directory provides implementation examples for running NeMo 2.0 on AWS SageMaker HyperPod using Slurm as the workload manager. This approach leverages AWS's purpose-built infrastructure for large-scale AI training. See the [README in the slurm directory](./slurm/README.md) for detailed setup and usage instructions.
+The [slurm](./slurm/) directory provides implementation examples for running NeMo 2.0 using Slurm as the workload manager. This approach leverages AWS's purpose-built infrastructure for large-scale AI training. See the [README in the slurm directory](./slurm/README.md) for detailed setup and usage instructions.
 
 ## Getting Started
 
