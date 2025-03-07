@@ -54,7 +54,7 @@ RUN apt-get remove -y libnccl2 libnccl-dev \
    && cd nccl \
    && make -j src.build BUILDDIR=/usr \
    # Build for p4 & p5.
-   NVCC_GENCODE="-gencode=arch=compute_90,code=sm_90, -gencode=arch=compute_80,code=sm_80" \
+   NVCC_GENCODE="-gencode=arch=compute_80,code=sm_80 -gencode=arch=compute_90,code=sm_90" \
    && rm -rf /tmp/nccl \
    && echo NCCL_SOCKET_IFNAME=^docker0,lo >> /etc/nccl.conf
 
@@ -97,4 +97,4 @@ RUN git clone https://github.com/NVIDIA/nccl-tests.git /opt/nccl-tests \
     && make MPI=1 \
     MPI_HOME=/opt/amazon/openmpi \
     CUDA_HOME=/usr/local/cuda \
-    NVCC_GENCODE="-gencode=arch=compute_90,code=sm_90 -gencode=arch=compute_80,code=sm_80"
+    NVCC_GENCODE="-gencode=arch=compute_80,code=sm_80 -gencode=arch=compute_90,code=sm_90"
