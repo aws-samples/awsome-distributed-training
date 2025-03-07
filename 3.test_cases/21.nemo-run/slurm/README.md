@@ -31,15 +31,6 @@ NeMo 2.0 introduces a Python-based configuration system, providing enhanced flex
 
 See [Instructions here](https://catalog.workshops.aws/sagemaker-hyperpod/en-US/00-setup/02-own-account#in-your-own-account) on setting up prerequisite to deploy a SageMaker HyperPod cluster
 
-## 3. Deploying SageMaker HyperPod Cluster
-
-See [Instructions here](https://catalog.workshops.aws/sagemaker-hyperpod/en-US/01-cluster/option-b-manual-cluster-setup) for SageMaker HyperPod Cluster setup.
-
-## 4. SSH into the Cluster Head node
-
-See [Instructions here](https://catalog.workshops.aws/sagemaker-hyperpod/en-US/01-cluster/05-ssh) on how to SSH into the HyperPod cluster
-
-Login to the head node to perform all the steps below
 
 ## 5. Clone this repo
 
