@@ -2,7 +2,7 @@
 
 ### 0. Prerequisites
 
-Before running this training, you'll need to create a Slurm cluster with an FSx for Lustre file system. Instructions can be found in [1.architectures](../../1.architectures). Float8 data types are natively supported in NVIDIA H100 and subsequent generations hence it is recommended to run this on at least 1 x p5/p5e/p5en.48xlarge instance. The [Performance Numbers](#performance-numbers) reported in the later sections are based on 4 x p5.48xlarge instances.
+Before running this training, you'll need to create a Slurm cluster with an FSx for Lustre file system. Instructions can be found in [1.architectures](../../../1.architectures). Float8 data types are natively supported in NVIDIA H100 and subsequent generations hence it is recommended to run this on at least 1 x p5/p5e/p5en.48xlarge instance. The [Performance Numbers](#performance-numbers) reported in the later sections are based on 4 x p5.48xlarge instances.
 
 
 ### 1. Create torchtitan Conda Environment
