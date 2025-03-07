@@ -1,4 +1,4 @@
-# Running NVIDIA NeMo 2.0 on Amazon SageMaker HyperPod
+# Running NVIDIA NeMo 2.0 on Slurm
 
 This project provides a step-by-step guide to deploying NVIDIA NeMo 2.0 on AWS SageMaker HyperPod. It covers setting up the HyperPod cluster, preparing the environment, and running NeMo jobs for large-scale AI training and inference.
 
