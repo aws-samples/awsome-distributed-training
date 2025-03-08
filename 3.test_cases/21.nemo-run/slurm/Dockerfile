@@ -80,7 +80,7 @@ RUN echo "/usr/local/lib"      >> /etc/ld.so.conf.d/local.conf && \
     echo "/opt/amazon/openmpi/lib" >> /etc/ld.so.conf.d/efa.conf && \
     ldconfig
 
-ENV OMPI_MCA_pml=^cm,ucx            \
+ENV OMPI_MCA_pml=^ucx            \
     OMPI_MCA_btl=tcp,self           \
     OMPI_MCA_btl_tcp_if_exclude=lo,docker0,veth_def_agent \
     OPAL_PREFIX=/opt/amazon/openmpi \
