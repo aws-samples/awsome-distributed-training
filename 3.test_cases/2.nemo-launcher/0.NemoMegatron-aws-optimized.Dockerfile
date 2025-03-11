@@ -3,7 +3,7 @@
 
 # DOCKER_BUILDKIT=1 docker build --progress plain -t aws-nemo-megatron:latest .
 
-FROM nvcr.io/ea-bignlp/ga-participants/nemofw-training:23.11
+FROM nvcr.io/nvidia/nemo:24.12
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV EFA_INSTALLER_VERSION=latest
