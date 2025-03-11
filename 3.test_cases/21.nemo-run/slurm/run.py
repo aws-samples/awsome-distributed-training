@@ -28,8 +28,14 @@ def small_llama_cfg() -> llm.GPTConfig:
 
 def get_parser():
    parser = argparse.ArgumentParser(description="NeMo 2.0 on SageMaker Hyperpod")
+   parser.add_argument("--partition", type=str, help="Slurm partition to run on", default="dev")
    parser.add_argument("--nodes", type=int, help="Number of nodes to run on", default=1)
    parser.add_argument("--max_steps", type=int, help="Maximum number of steps", default=200)
+   parser.add_argument("--gpus_per_node", type=int, help="Number of GPUs per node", default=8)
+   parser.add_argument("--account", type=str, help="Slurm account to use", default="ubuntu")
+   parser.add_argument("--container_image", type=str, help="Container image to use", default="/fsx/ubuntu/aws-nemo-24-12.sqsh")
+   parser.add_argument("--time", type=str, help="Time to run the job", default="01:00:00")
+
    return parser
 
 
@@ -39,11 +45,12 @@ def slurm_executor(
    nodes: int,
    user: str = "local",
    host: str = "local",
-   remote_job_dir: str = "/fsx/ubuntu/nemo2-sm-hyperpod/tmp/",
+   gpus_per_node: int = 8,
+   remote_job_dir: str = "/fsx/ubuntu/aws-nemo",
    time: str = "01:00:00",
    custom_mounts: Optional[list[str]] = None,
    custom_env_vars: Optional[dict[str, str]] = None,
-   container_image: str = "/fsx/ubuntu/nemo-hyperpod-24-12-02102025.sqsh",
+   container_image: str = "/fsx/ubuntu/aws-nemo-24-12.sqsh",
    retries: int = 0,
 ) -> run.SlurmExecutor:
    if not (user and host and remote_job_dir and account and partition and nodes):
@@ -82,13 +89,14 @@ def slurm_executor(
   
    # This defines the slurm executor.
    # We connect to the executor via the tunnel defined by user, host and remote_job_dir.
+   # https://docs.nvidia.com/nemo-framework/user-guide/24.09/nemorun/guides/execution.html#slurmexecutor
+   # https://github.com/NVIDIA/NeMo-Run/blob/7bca60a6d2af3eea1aba331d3a80a6d7351b6e84/nemo_run/core/execution/slurm.py#L99
    executor = run.SlurmExecutor(
        account=account,
        partition=partition,
        tunnel=local_tunnel,
        nodes=nodes,
        ntasks_per_node=8,
-       # gpus_per_node=8,
        mem="0",
        exclusive=True,
        # gres="gpu:l40s:8",
@@ -111,7 +119,7 @@ if __name__ == "__main__":
   
    import random, string
    stri = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(5))
-   exp_name = f"nemo2-sm-hyperpod"+stri
+   exp_name = f"aws-nemo2"+stri
   
    pretrain_recipe = partial(llm.llama31_8b.pretrain_recipe, num_nodes=args.nodes, num_gpus_per_node=8)(name=exp_name, dir="")
    pretrain_recipe.trainer.num_sanity_val_steps = 0
@@ -125,11 +133,14 @@ if __name__ == "__main__":
 
    # Run it locally
    executor = slurm_executor(
-       partition="dev",
-       account="ubuntu",
+       partition=args.partition,
+       account=args.account,
        nodes=args.nodes,
+       gpus_per_node=args.gpus_per_node,
+       container_image=args.container_image,
+       time=args.time,
        custom_mounts=[
-           "/fsx/ubuntu/temp/megatron:/root/.cache/torch/megatron"
+           "/fsx/ubuntu/megatron:/root/.cache/torch/megatron"
        ]
    )
 
