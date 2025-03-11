@@ -96,10 +96,8 @@ def slurm_executor(
        partition=partition,
        tunnel=local_tunnel,
        nodes=nodes,
-       ntasks_per_node=8,
        mem="0",
        exclusive=True,
-       # gres="gpu:l40s:8",
        packager=packager,
    )
 
