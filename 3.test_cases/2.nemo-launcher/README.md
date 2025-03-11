@@ -1,4 +1,7 @@
-# Train GPT3 NemoMegatron on Slurm <!-- omit from toc -->
+# Train GPT3 NemoMegatron on Slurm with NeMo Framework Launcher <!-- omit from toc -->
+
+> [!IMPORTANT]  
+> NeMo Framework Launcher is compatible with NeMo version 1.0 only.
 
 This project provides a guide to run [NemoMegatron](https://docs.nvidia.com/deeplearning/nemo/user-guide/docs/en/stable/nlp/megatron.html) on AWS using a container from Nvidia GPU Cloud (NGC). The test cases in this case cover NemoMegatron for different model sizes: [126M](1.bmk-pretrain-gpt3-126m.sh), [5B](1.bmk-pretrain-gpt3-5b.sh), [40B](1.bmk-pretrain-gpt3-40b.sh) and [175B](1.bmk-pretrain-gpt3-175b.sh) parameters. The test cases can be executed on Slurm and use Nvidia Enroot and Nvidia Pyxis.
 
