@@ -1,4 +1,4 @@
-# Running NVIDIA NeMo 2.0 on Slurm
+# Running NVIDIA NeMo 2.0 with Nemo-Run on Slurm
 
 This project provides a step-by-step guide to deploying NVIDIA NeMo 2.0 on a Slurm cluster. It covers preparing the environment, and running NeMo jobs for large-scale AI training.
 
@@ -30,7 +30,7 @@ Before running NeMo jobs, build a custom optimized container image for EFA and C
 Build Image:
 
   ```bash
-  docker build --progress=plain -t aws-nemo:24.12 -f Dockerfile .
+  docker build --progress=plain -t aws-nemo:24.12 -f ../Dockerfile ..
   enroot import -o /fsx/ubuntu/aws-nemo-24-12.sqsh dockerd://aws-nemo:24.12
   ```
 
@@ -69,7 +69,8 @@ We will be running the pre-training of LLaMa8B model in an offline mode, so we w
 
 ## 6. Launch Pretraining Job with NeMo-Run
 
-Run the following script to start the LLaMa 8B pretraining job:
+In NeMo-Run, you can build and configure everything using Python, eliminating the need for multiple combinations of tools to manage your experiments. The only exception is when setting up the environment for remote execution, where we rely on Docker. You can find how to set write your Python script for Nemo-Run in [NVIDIA documentation](https://docs.nvidia.com/nemo-framework/user-guide/latest/nemo-2.0/quickstart.html).
+In this example, we run the following script to start the LLaMa 8B pretraining job:
 
   ```bash
   python run.py --container_image /fsx/ubuntu/aws-nemo-24-12.sqsh --nodes 2 --partition dev --max_steps 1000

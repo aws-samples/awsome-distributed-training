@@ -1,6 +1,6 @@
 # NVIDIA NeMo 2.0 Distributed Training
 
-This repository contains examples and configurations for running distributed training with NVIDIA NeMo 2.0 using NeMo Run
+This test case contains examples and configurations for running distributed training with NVIDIA NeMo 2.0.
 
 ## Overview
 

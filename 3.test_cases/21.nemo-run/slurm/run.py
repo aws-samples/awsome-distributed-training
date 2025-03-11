@@ -31,7 +31,6 @@ def get_parser():
    parser.add_argument("--partition", type=str, help="Slurm partition to run on", default="dev")
    parser.add_argument("--nodes", type=int, help="Number of nodes to run on", default=1)
    parser.add_argument("--max_steps", type=int, help="Maximum number of steps", default=200)
-   parser.add_argument("--gpus_per_node", type=int, help="Number of GPUs per node", default=8)
    parser.add_argument("--account", type=str, help="Slurm account to use", default="ubuntu")
    parser.add_argument("--container_image", type=str, help="Container image to use", default="/fsx/ubuntu/aws-nemo-24-12.sqsh")
    parser.add_argument("--time", type=str, help="Time to run the job", default="01:00:00")
@@ -45,7 +44,6 @@ def slurm_executor(
    nodes: int,
    user: str = "local",
    host: str = "local",
-   gpus_per_node: int = 8,
    remote_job_dir: str = "/fsx/ubuntu/aws-nemo",
    time: str = "01:00:00",
    custom_mounts: Optional[list[str]] = None,
@@ -119,7 +117,7 @@ if __name__ == "__main__":
    stri = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(5))
    exp_name = f"aws-nemo2"+stri
   
-   pretrain_recipe = partial(llm.llama31_8b.pretrain_recipe, num_nodes=args.nodes, num_gpus_per_node=8)(name=exp_name, dir="")
+   pretrain_recipe = partial(llm.llama31_8b.pretrain_recipe, num_nodes=args.nodes)(name=exp_name, dir="")
    pretrain_recipe.trainer.num_sanity_val_steps = 0
    pretrain_recipe.model = run.Config(llm.LlamaModel, small_llama_cfg())
    pretrain_recipe.data.tokenizer = run.Config(get_nmt_tokenizer, library="megatron", model_name= "GPT2BPETokenizer", vocab_file="/root/.cache/torch/megatron/megatron-gpt-345m_vocab", merges_file="/root/.cache/torch/megatron/megatron-gpt-345m_merges")
@@ -134,7 +132,6 @@ if __name__ == "__main__":
        partition=args.partition,
        account=args.account,
        nodes=args.nodes,
-       gpus_per_node=args.gpus_per_node,
        container_image=args.container_image,
        time=args.time,
        custom_mounts=[
