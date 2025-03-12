@@ -1,4 +1,4 @@
-This test case demonstrates distributed training of Picotron, a fast and efficient transformer model optimized for autoregressive text generation. Picotron is designed for training speed, scalability, and memory efficiency.
+This test case demonstrates distributed training of Picotron, a Distributed training framework for education and research experimentation. Picotron is designed for training speed, scalability, and memory efficiency.
 
 
 ## Build Environment
