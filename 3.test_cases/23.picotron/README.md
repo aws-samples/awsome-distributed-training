@@ -3,6 +3,14 @@ This test case demonstrates distributed training of Picotron, a fast and efficie
 
 ## Build Environment
 
+You need to set up Python 3.10 virutal environement.
+
+
+
+
+```bash
+docker build -f picotron.Dockerfile .
+```
 
 
 ## Referenecs
