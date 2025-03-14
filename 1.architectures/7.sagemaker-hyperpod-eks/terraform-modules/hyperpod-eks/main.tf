@@ -49,6 +49,9 @@ module "eks_cluster" {
   security_group_id       = local.security_group_id
   private_subnet_cidrs = [var.eks_private_subnet_1_cidr, var.eks_private_subnet_2_cidr]
   using_sm_code_editor    = var.using_sm_code_editor
+  private_node_subnet_cidr = var.eks_private_node_subnet_cidr
+  nat_gateway_id       = var.create_vpc ? module.vpc[0].nat_gateway_1_id : var.existing_nat_gateway_id
+
 }
 
 module "s3_bucket" {

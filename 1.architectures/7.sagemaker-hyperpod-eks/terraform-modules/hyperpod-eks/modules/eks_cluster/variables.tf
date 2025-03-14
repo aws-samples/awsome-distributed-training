@@ -35,3 +35,13 @@ variable "private_subnet_cidrs" {
   description = "CIDR blocks for private subnets"
   type        = list(string)
 }
+
+variable "private_node_subnet_cidr" {
+  description = "CIDR blocks for private subnets for nodes"
+  type        = string
+}
+
+variable "nat_gateway_id" {
+  description = "ID of the NAT gateway for the EKS cluster"
+  type        = string
+}
