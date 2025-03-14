@@ -110,6 +110,12 @@ variable "eks_private_subnet_2_cidr" {
   default     = "10.192.8.0/28"
 }
 
+variable "eks_private_node_subnet_cidr" {
+  description = "The IP range (CIDR notation) for the EKS private node subnet"
+  type        = string
+  default     = "10.192.9.0/24"
+}
+
 variable "using_sm_code_editor" {
   description = "Whether to use SageMaker Code Editor"
   type        = bool
