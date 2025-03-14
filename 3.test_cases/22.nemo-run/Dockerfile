@@ -1,10 +1,4 @@
-# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
-# SPDX-License-Identifier: MIT-0
-
-# DOCKER_BUILDKIT=1 docker build --progress plain -t aws-nemo-megatron:latest .
-
 FROM nvcr.io/nvidia/nemo:24.12
-
 ARG GDRCOPY_VERSION=v2.4.1
 ARG EFA_INSTALLER_VERSION=1.37.0
 ARG AWS_OFI_NCCL_VERSION=v1.13.2-aws
