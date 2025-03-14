@@ -24,6 +24,7 @@ kubernetes_version       = "1.31"
 eks_cluster_name        = "sagemaker-hyperpod-eks-cluster"
 eks_private_subnet_1_cidr = "10.192.7.0/28"
 eks_private_subnet_2_cidr = "10.192.8.0/28"
+eks_private_node_subnet_cidr = "10.192.9.0/24"
 using_sm_code_editor    = false
 
 # S3 Bucket Stack Variables
@@ -56,8 +57,8 @@ node_recovery          = "Automatic"
 # For the instance_groups variable, you'll need to define specific groups. Here's an example:
 instance_groups = {
   group1 = {
-    instance_type               = "p4d.24xlarge"
-    instance_count             = 1
+    instance_type               = "ml.g5.8xlarge"
+    instance_count             = 8
     ebs_volume_size           = 100
     threads_per_core          = 2
     enable_stress_check       = true

@@ -1,6 +1,8 @@
 # Data source for current AWS region
 data "aws_region" "current" {}
 
+data "aws_caller_identity" "current" {}
+
 data "aws_iam_role" "sm_studio_role" {
   count = var.using_sm_code_editor ? 1 : 0
   name  = "${var.resource_name_prefix}-SMCE-Exec-Role-${data.aws_region.current.name}"
@@ -14,6 +16,15 @@ data "aws_availability_zones" "available" {
   state = "available"
 }
 
+locals {
+  # Extract just the role name from the assumed role ARN
+  # Assumes format: arn:aws:sts::ACCOUNT_ID:assumed-role/ROLE_NAME/SESSION_NAME
+  role_name = split("/", data.aws_caller_identity.current.arn)[1]
+  
+  # Construct the permanent IAM role ARN
+  role_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${local.role_name}"
+}
+
 resource "aws_subnet" "private" {
   count             = length(var.private_subnet_cidrs)
   vpc_id            = data.aws_vpc.selected.id
@@ -22,9 +33,10 @@ resource "aws_subnet" "private" {
 
   tags = {
     Name = "${var.resource_name_prefix}-private-subnet-${count.index + 1}"
+    "kubernetes.io/role/internal-elb" = "1"
+    "kubernetes.io/cluster/${var.eks_cluster_name}" = "shared"
   }
 }
-
 
 resource "aws_iam_role" "eks_cluster_role" {
   name = "${var.resource_name_prefix}-cluster-role"
@@ -66,6 +78,10 @@ resource "aws_eks_cluster" "cluster" {
     endpoint_public_access  = true
   }
 
+  access_config {
+    authentication_mode = "API_AND_CONFIG_MAP"
+  }
+
   enabled_cluster_log_types = [
     "api",
     "audit",
@@ -97,6 +113,10 @@ resource "aws_iam_role" "eks_node_role" {
     ]
   })
 }
+resource "aws_iam_role_policy_attachment" "cluster_policy" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
+  role       = aws_iam_role.eks_cluster_role.name
+}
 
 resource "aws_iam_role_policy_attachment" "eks_worker_node_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
@@ -108,10 +128,50 @@ resource "aws_iam_role_policy_attachment" "eks_ecr_read_only" {
   role       = aws_iam_role.eks_node_role.name
 }
 
+resource "aws_iam_role_policy_attachment" "eks_cni_policy" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
+  role       = aws_iam_role.eks_node_role.name
+}
+
+# New subnet for node groups
+resource "aws_subnet" "private_node" {
+  vpc_id            = data.aws_vpc.selected.id
+  # Use a larger CIDR block, e.g., /24
+  cidr_block        = var.private_node_subnet_cidr
+  availability_zone = data.aws_availability_zones.available.names[0]
+  
+  tags = {
+    Name = "${var.resource_name_prefix}-private-nodes-subnet-1"
+    "kubernetes.io/role/internal-elb" = "1"
+    "kubernetes.io/cluster/${var.eks_cluster_name}" = "shared"
+  }
+}
+
+# Route table for node group subnets
+resource "aws_route_table" "private_node" {
+  vpc_id = data.aws_vpc.selected.id
+
+  tags = {
+    Name = "${var.resource_name_prefix}-private-nodes-rt"
+  }
+}
+
+resource "aws_route" "private_node_nat" {
+  route_table_id         = aws_route_table.private_node.id
+  destination_cidr_block = "0.0.0.0/0"
+  nat_gateway_id         = var.nat_gateway_id
+}
+
+resource "aws_route_table_association" "private_node" { 
+  subnet_id      = aws_subnet.private_node.id
+  route_table_id = aws_route_table.private_node.id
+}
+
 resource "aws_eks_node_group" "node_group" {
   cluster_name    = aws_eks_cluster.cluster.name
+  node_group_name = "${var.resource_name_prefix}-private-node-group"
   node_role_arn   = aws_iam_role.eks_node_role.arn
-  subnet_ids      = aws_subnet.private[*].id
+  subnet_ids      = [aws_subnet.private_node.id]
   instance_types  = ["t3.small"]
 
   scaling_config {
@@ -120,11 +180,16 @@ resource "aws_eks_node_group" "node_group" {
     min_size     = 1
   }
 
-}
+  update_config {
+    max_unavailable = 1
+  }
 
-resource "aws_iam_role_policy_attachment" "cluster_policy" {
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
-  role       = aws_iam_role.eks_cluster_role.name
+  depends_on = [
+    aws_iam_role_policy_attachment.eks_worker_node_policy,
+    aws_iam_role_policy_attachment.eks_ecr_read_only,
+    aws_iam_role_policy_attachment.eks_cni_policy
+  ]
+
 }
 
 resource "aws_eks_addon" "vpc_cni" {
@@ -142,6 +207,11 @@ resource "aws_eks_addon" "coredns" {
   addon_name        = "coredns"
   resolve_conflicts_on_create = "OVERWRITE"
   resolve_conflicts_on_update = "OVERWRITE"
+
+  depends_on = [
+    aws_eks_node_group.node_group
+  ]
+
 }
 
 resource "aws_eks_addon" "pod_identity" {
@@ -169,4 +239,25 @@ resource "aws_eks_access_policy_association" "sm_code_editor" {
   }
 
   depends_on = [aws_eks_access_entry.sm_code_editor]
+}
+
+# Create access entry for cluster admin
+resource "aws_eks_access_entry" "cluster_admin" {
+  cluster_name  = aws_eks_cluster.cluster.name
+  principal_arn = local.role_arn
+  type         = "STANDARD"
+
+  depends_on = [aws_eks_cluster.cluster]
+}
+
+# Associate admin policy
+resource "aws_eks_access_policy_association" "cluster_admin" {
+  cluster_name  = aws_eks_cluster.cluster.name
+  principal_arn = local.role_arn
+  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+  access_scope {
+    type = "cluster"
+  }
+
+  depends_on = [aws_eks_access_entry.cluster_admin]
 }
