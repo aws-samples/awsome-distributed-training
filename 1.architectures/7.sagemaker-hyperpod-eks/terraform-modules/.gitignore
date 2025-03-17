@@ -25,3 +25,6 @@ override.tf.json
 # Ignore CLI configuration files
 .terraformrc
 terraform.rc
+
+# Ignore hashes of provider binaries
+.terraform.lock.hcl
