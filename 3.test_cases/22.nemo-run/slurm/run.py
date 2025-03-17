@@ -34,6 +34,7 @@ def get_parser():
    parser.add_argument("--account", type=str, help="Slurm account to use", default="ubuntu")
    parser.add_argument("--container_image", type=str, help="Container image to use", default="/fsx/ubuntu/aws-nemo-24-12.sqsh")
    parser.add_argument("--time", type=str, help="Time to run the job", default="01:00:00")
+   parser.add_argument("--env_vars_file", type=str, help="Path to the JSON file with environment variables", default="env_vars.json")
 
    return parser
 
@@ -47,7 +48,6 @@ def slurm_executor(
    remote_job_dir: str = "/fsx/ubuntu/aws-nemo",
    time: str = "01:00:00",
    custom_mounts: Optional[list[str]] = None,
-   custom_env_vars: Optional[dict[str, str]] = None,
    container_image: str = "/fsx/ubuntu/aws-nemo-24-12.sqsh",
    retries: int = 0,
 ) -> run.SlurmExecutor:
@@ -62,19 +62,9 @@ def slurm_executor(
    # Custom mounts are defined here.
    if custom_mounts:
        mounts.extend(custom_mounts)
-   print(mounts)
    # Env vars for jobs are configured here
-   env_vars = {
-       "TORCH_NCCL_AVOID_RECORD_STREAMS": "1",
-       "NVTE_DP_AMAX_REDUCE_INTERVAL": "0",
-       "NVTE_ASYNC_AMAX_REDUCTION": "1",
-       "NVTE_FUSED_ATTN": "0",
-       "FI_EFA_USE_HUGE_PAGE": "0",
-       # "LD_LIBRARY_PATH": "/usr/local/cuda-12.4/lib",
-   }
-   if custom_env_vars:
-       env_vars |= custom_env_vars
-
+   with open(env_vars_file, 'r') as f:
+       env_vars = json.load(f)   print(mounts)
 
    # This will package the train.py script in the current working directory to the remote cluster.
    # If you are inside a git repo, you can also use https://github.com/NVIDIA/NeMo-Run/blob/main/src/nemo_run/core/packaging/git.py.

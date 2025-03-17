@@ -8,7 +8,7 @@ This guide assumes that you have the following:
 
 - A functional Slurm cluster on AWS. This test case also assumes that the cluster node uses Ubuntu-based OS.
 - Docker, for Slurm [Pyxis](https://github.com/NVIDIA/pyxis) and [Enroot](https://github.com/NVIDIA/enroot) need to be installed as well.
-- An FSx for Lustre filesystem mounted on `/fsx` in all Slurm nodes.
+- An FSx for Lustre filesystem mounted on `/fsx` in all Slurm nodes. Also, this test case assumes that the home directory is also a shared directory.
 
 It is recommended that you use the templates in the architectures [directory](../../1.architectures) for setting up Amazon SageMaker HyperPod or AWS Parallel Cluster.
 
@@ -18,20 +18,20 @@ Make sure that your current directory is under a shared filesystem such as `/fsx
 ## 3. Clone this repo
 
   ```bash
-  cd /fsx/ubuntu
+  cd ~
   git clone https://github.com/aws-samples/awsome-distributed-training/
-  cd awsome-distributed-training/3.test_cases/21.nemo-run
+  cd awsome-distributed-training/3.test_cases/21.nemo-run/slurm
   ```
 
 ## 4. Build and Configure the NeMo Job Container
 
-Before running NeMo jobs, build a custom optimized container image for EFA and Convert the Docker container image to an [Enroot](https://github.com/NVIDIA/enroot) squash file that will be stored in /fsx/ubuntu.
+Before running NeMo jobs, build a custom optimized container image for EFA and Convert the Docker container image to an [Enroot](https://github.com/NVIDIA/enroot) squash file that will be stored under your home dirctory.
 
 Build Image:
 
   ```bash
   docker build --progress=plain -t aws-nemo:24.12 -f ../Dockerfile ..
-  enroot import -o /fsx/ubuntu/aws-nemo-24-12.sqsh dockerd://aws-nemo:24.12
+  enroot import -o ~/aws-nemo-24-12.sqsh dockerd://aws-nemo:24.12
   ```
 
 ## 5. Install Dependencies and Prepare NeMo 2.0 Environment
@@ -62,9 +62,9 @@ Create Virtual environment and install NeMo Run and other dependencies
 We will be running the pre-training of LLaMa8B model in an offline mode, so we will download the vocab and merges files for the tokenizer
 
   ```bash
-  mkdir -p /fsx/ubuntu/megatron
-  wget https://s3.amazonaws.com/models.huggingface.co/bert/gpt2-vocab.json -O /fsx/ubuntu/megatron/megatron-gpt-345m_vocab
-  wget https://s3.amazonaws.com/models.huggingface.co/bert/gpt2-merges.txt -O /fsx/ubuntu/megatron/megatron-gpt-345m_merges
+  mkdir -p ~/megatron
+  wget https://s3.amazonaws.com/models.huggingface.co/bert/gpt2-vocab.json -O ~/megatron/megatron-gpt-345m_vocab
+  wget https://s3.amazonaws.com/models.huggingface.co/bert/gpt2-merges.txt -O ~/megatron/megatron-gpt-345m_merges
   ```
 
 ## 6. Launch Pretraining Job with NeMo-Run
@@ -73,7 +73,7 @@ In NeMo-Run, you can build and configure everything using Python, eliminating th
 In this example, we run the following script to start the LLaMa 8B pretraining job:
 
   ```bash
-  python run.py --container_image /fsx/ubuntu/aws-nemo-24-12.sqsh --nodes 2 --partition dev --max_steps 1000
+  python run.py --container_image ~/aws-nemo-24-12.sqsh --nodes 2 --partition dev --max_steps 1000
   ```
 
 ## 7. References
