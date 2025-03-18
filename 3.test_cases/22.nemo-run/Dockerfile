@@ -4,57 +4,56 @@ ARG EFA_INSTALLER_VERSION=1.37.0
 ARG AWS_OFI_NCCL_VERSION=v1.13.2-aws
 ARG NCCL_VERSION=v2.23.4-1
 ARG NCCL_TESTS_VERSION=v2.13.10
+ARG TRANSFORMERS_VERSION=4.48.1
 
+ARG OPEN_MPI_PATH=/opt/amazon/openmpi
+
+######################
+# Update and remove the IB libverbs
+######################
 RUN apt-get update -y && apt-get upgrade -y
 RUN apt-get remove -y --allow-change-held-packages \
     ibverbs-utils \
     libibverbs-dev \
     libibverbs1 \
-    libmlx5-1 \
-    libnccl2 \
-    libnccl-dev
+    libmlx5-1
 
-RUN rm -rf /opt/hpcx \
+RUN rm -rf /opt/hpcx/ompi \
     && rm -rf /usr/local/mpi \
-    && rm -f /etc/ld.so.conf.d/hpcx.conf \
+    && rm -rf /usr/local/ucx \
     && ldconfig
 
-ENV OPAL_PREFIX=
-
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -y --allow-unauthenticated \
+RUN DEBIAN_FRONTEND=noninteractive apt install -y --allow-unauthenticated \
     apt-utils \
     autoconf \
     automake \
     build-essential \
-    check \
     cmake \
     curl \
-    debhelper \
-    devscripts \
-    git \
     gcc \
     gdb \
+    git \
     kmod \
-    libsubunit-dev \
     libtool \
     openssh-client \
     openssh-server \
-    pkg-config \
-    python3-distutils \
-    vim
-RUN apt-get purge -y cuda-compat-*
+    vim \
+    && apt autoremove -y
 
-RUN mkdir -p /var/run/sshd
-RUN sed -i 's/[ #]\(.*StrictHostKeyChecking \).*/ \1no/g' /etc/ssh/ssh_config && \
+RUN mkdir -p /var/run/sshd && \
+    sed -i 's/[ #]\(.*StrictHostKeyChecking \).*/ \1no/g' /etc/ssh/ssh_config && \
     echo "    UserKnownHostsFile /dev/null" >> /etc/ssh/ssh_config && \
-    sed -i 's/#\(StrictModes \).*/\1no/g' /etc/ssh/sshd_config
+    sed -i 's/#\(StrictModes \).*/\1no/g' /etc/ssh/sshd_config && \
+    sed 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so@g' -i /etc/pam.d/sshd
 
-ENV LD_LIBRARY_PATH /usr/local/cuda/extras/CUPTI/lib64:/opt/amazon/openmpi/lib:/opt/nccl/build/lib:/opt/amazon/efa/lib:/opt/aws-ofi-nccl/install/lib:/usr/local/lib:$LD_LIBRARY_PATH
-ENV PATH /opt/amazon/openmpi/bin/:/opt/amazon/efa/bin:/usr/bin:/usr/local/bin:$PATH
+RUN rm -rf /root/.ssh/ \
+ && mkdir -p /root/.ssh/ \
+ && ssh-keygen -q -t rsa -N '' -f /root/.ssh/id_rsa \
+ && cp /root/.ssh/id_rsa.pub /root/.ssh/authorized_keys \
+ && printf "Host *\n  StrictHostKeyChecking no\n" >> /root/.ssh/config
 
-RUN curl https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py \
-    && python3 /tmp/get-pip.py \
-    && pip3 install awscli pynvml
+ENV LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:/opt/amazon/openmpi/lib:/opt/nccl/build/lib:/opt/amazon/efa/lib:/opt/aws-ofi-nccl/install/lib:$LD_LIBRARY_PATH
+ENV PATH=/opt/amazon/openmpi/bin/:/opt/amazon/efa/bin:/usr/bin:/usr/local/bin:$PATH
 
 #################################################
 ## Install NVIDIA GDRCopy
@@ -65,8 +64,8 @@ RUN git clone -b ${GDRCOPY_VERSION} https://github.com/NVIDIA/gdrcopy.git /tmp/g
     && cd /tmp/gdrcopy \
     && make prefix=/opt/gdrcopy install
 
-ENV LD_LIBRARY_PATH /opt/gdrcopy/lib:$LD_LIBRARY_PATH
-ENV LIBRARY_PATH /opt/gdrcopy/lib:$LIBRARY_PATH
+ENV LD_LIBRARY_PATH /opt/gdrcopy/lib:/usr/local/cuda/compat:$LD_LIBRARY_PATH
+ENV LIBRARY_PATH /opt/gdrcopy/lib:/usr/local/cuda/compat/:$LIBRARY_PATH
 ENV CPATH /opt/gdrcopy/include:$CPATH
 ENV PATH /opt/gdrcopy/bin:$PATH
 
@@ -79,12 +78,6 @@ RUN cd $HOME \
     && ./efa_installer.sh -y -g -d --skip-kmod --skip-limit-conf --no-verify \
     && rm -rf $HOME/aws-efa-installer
 
-###################################################
-## Install NCCL
-RUN git clone -b ${NCCL_VERSION} https://github.com/NVIDIA/nccl.git  /opt/nccl \
-    && cd /opt/nccl \
-    && make -j $(nproc) src.build CUDA_HOME=/usr/local/cuda \
-    NVCC_GENCODE="-gencode=arch=compute_80,code=sm_80 -gencode=arch=compute_86,code=sm_86 -gencode=arch=compute_89,code=sm_89 -gencode=arch=compute_90,code=sm_90"
 
 ###################################################
 ## Install AWS-OFI-NCCL plugin
@@ -108,20 +101,25 @@ RUN curl -OL https://github.com/aws/aws-ofi-nccl/releases/download/${AWS_OFI_NCC
 SHELL ["/bin/sh", "-c"]
 
 ###################################################
-## Install NCCL-tests
-RUN git clone -b ${NCCL_TESTS_VERSION} https://github.com/NVIDIA/nccl-tests.git /opt/nccl-tests \
-    && cd /opt/nccl-tests \
-    && make -j $(nproc) \
-    MPI=1 \
-    MPI_HOME=/opt/amazon/openmpi/ \
-    CUDA_HOME=/usr/local/cuda \
-    NCCL_HOME=/opt/nccl/build \
-    NVCC_GENCODE="-gencode=arch=compute_80,code=sm_80 -gencode=arch=compute_86,code=sm_86 -gencode=arch=compute_89,code=sm_89 -gencode=arch=compute_90,code=sm_90"
-
 RUN rm -rf /var/lib/apt/lists/*
 
+RUN echo "hwloc_base_binding_policy = none" >> /opt/amazon/openmpi/etc/openmpi-mca-params.conf \
+ && echo "rmaps_base_mapping_policy = slot" >> /opt/amazon/openmpi/etc/openmpi-mca-params.conf
+
+RUN pip3 install awscli pynvml wandb
+
+RUN mv $OPEN_MPI_PATH/bin/mpirun $OPEN_MPI_PATH/bin/mpirun.real \
+ && echo '#!/bin/bash' > $OPEN_MPI_PATH/bin/mpirun \
+ && echo '/opt/amazon/openmpi/bin/mpirun.real "$@"' >> $OPEN_MPI_PATH/bin/mpirun \
+ && chmod a+x $OPEN_MPI_PATH/bin/mpirun
+
+######################
+# Transformers dependencies used in the model
+######################
+RUN pip install transformers==${TRANSFORMERS_VERSION} sentencepiece python-etcd
+
 ## Set Open MPI variables to exclude network interface and conduit.
-ENV OMPI_MCA_pml=^ucx            \
+ENV OMPI_MCA_pml=^cm,ucx            \
     OMPI_MCA_btl=tcp,self           \
     OMPI_MCA_btl_tcp_if_exclude=lo,docker0,veth_def_agent\
     OPAL_PREFIX=/opt/amazon/openmpi \
@@ -129,6 +127,3 @@ ENV OMPI_MCA_pml=^ucx            \
 
 ## Turn off PMIx Error https://github.com/open-mpi/ompi/issues/7516
 ENV PMIX_MCA_gds=hash
-
-## Set LD_PRELOAD for NCCL library
-ENV LD_PRELOAD /opt/nccl/build/lib/libnccl.so
