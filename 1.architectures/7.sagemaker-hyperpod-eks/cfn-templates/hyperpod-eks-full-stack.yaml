@@ -588,6 +588,7 @@ Resources:
                   - 'ecr:BatchGetImage'
                   - 'ecr:GetAuthorizationToken'
                   - 'ecr:GetDownloadUrlForLayer'
+                  - 'ecr:BatchCheckLayerAvailability'
                   - 'eks-auth:AssumeRoleForPodIdentity'
                 Resource: '*'
               - Effect: Allow
