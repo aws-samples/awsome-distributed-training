@@ -2,10 +2,11 @@
 
 > 🚨 We recommend following the official [Amazon SageMaker HyperPod EKS Workshop](https://catalog.us-east-1.prod.workshops.aws/workshops/2433d39e-ccfe-4c00-9d3d-9917b729258e/en-US) to deploy clusters, which contains detailed instructions and latest best-practices.
 
-## 1. Architectures
+## 1. Architecture
 
 Amazon SageMaker HyperPod is a managed service that makes it easier for you to train foundation models without interruptions or delays. It provides resilient and persistent clusters for large scale deep learning training of foundation models on long-running compute clusters. With HyperPod integration with Amazon EKS, customers can associate a HyperPod cluster with an EKS cluster and manage ML workloads using the HyperPod cluster nodes as Kubernetes worker nodes, all through the Kubernetes control plane on the EKS cluster.
 
+<img src="./smhp-eks-arch.png" width="80%"/>
 
 The example that follows describes the process of setting up a SageMaker HyperPod cluster with EKS.
 
@@ -47,36 +48,39 @@ tar -xzf eksctl_$PLATFORM.tar.gz -C /tmp && rm eksctl_$PLATFORM.tar.gz
 sudo mv /tmp/eksctl /usr/local/bin
 ```
 
-### 2.4 Deploy the cloudformation stack (optional)
+## 3. [Deploy HyperPod Infrastructure using CloudFormation](./cfn-templates/README.md)
 
-We have provided an cloudformation template that helps you to setup vpc, subnets, EKS cluster and necessary SageMaker Permissions. The template can be used in 3 scenarios
-1. **Full Deployment** - Use full deployment mode if you want to create a new VPC and EKS cluster. On the template set  ```CreateEKSCluster to 'true'```
-2. **Integrative Deployment** - Use integrative deployment mode if you want to use your own VPC and EKS cluster, but need to create an additional /16 CIDR block, a private subnet, and a security group for the SageMaker HyperPod Cluster. For this option 
-Set the following parameters accordingly if you want to use integrative deployment mode.
+## 4. Connect to EKS cluster 
 
-    * Set CreateEKSCluster to false
-    * Set CreateSubnet to true
-    * Provide the AvailabilityZoneId (usw2-az2 for the us-west-2 region by default). Update this parameter based on your region and the Availability Zone that you have accelerated compute capacity in. An additional CIDR block will be added to your VPC with a /16 private subnet in the specified Availability Zone. This private subnet will be used to deploy the HyperPod cross-account elastic network intefaces (ENIs), which give you access to the HyperPod capacity you deploy.
-    * Provide the NatGatewayId. This parameter is used to create a route to the internet from the newly create private subnet
-    * Provide the SecurityGroupId. This parameter is used to identify the security group associated with your EKS cluster so that a newly created security group can be configured with rules to allow communication with the EKS control plane.
-    * Provide the VpcId. This parameter is used to attach an additional /16 CIDR block (10.1.0.0/16 by default) to your existing VPC.
-    * Provide the PrivateSubnet1CIDR. This parameter is used to specify the desired range to use for the additional /16 CIDR block and private subnet (10.1.0.0/16 by default). Please configure a CIDR range that does not overlap with your existing VPC.
+Once you've deployed the HyperPod Infrastructure, we'll reference the EKS cluster as the orchestrator of the HyperPod compute nodes.
 
-3. **Minimal Deployment** - Use minimal deployment mode if you want to use your own VPC and EKS cluster, and you want to manage the subnet and security group configurations in your environment by yourself. This optional only creates SageMaker HyperPod specific resources like role, bucket needed for cluster creation. 
-Set the following parameters accordingly if you want to use minimal deployment mode.
+By default, the Amazon EKS service will automatically create an [AccessEntry](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-eks-accessentry.html) with [AmazonEKSClusterAdminPolicy](https://docs.aws.amazon.com/eks/latest/userguide/access-policies.html#access-policy-permissions)  permissions for the IAM principal that you use to deploy the CloudFormation stack, which includes an EKS cluster resource. You can create additional access entries later through the EKS management console or the AWS CLI. For more information, see the documentation on [managing access entries](https://docs.aws.amazon.com/eks/latest/userguide/access-entries.html).
 
-    * Set CreateEKSCluster to false
-    * Set CreateSubnet to false
+<details>
+<summary>AWS CLI Examples</summary>
+The create-access-entry  command creates an access entry that gives an IAM principal access your EKS cluster:
 
-We can launch the cloudformation using the below . Depending on the deployment option that works for you , update the parameters in the stack accordingly.
+```bash 
+aws eks create-access-entry \
+ --cluster-name $EKS_CLUSTER_NAME \
+ --principal-arn arn:aws:iam::xxxxxxxxxxxx:role/ExampleRole \
+ --type STANDARD \
+ --region $AWS_REGION
+```
 
-You can create a VPC using the configuration in [hyperpod-eks-full-stack.yaml](./cfn-templates/hyperpod-eks-full-stack.yaml). Which is also available via [<kbd> <br> 1-Click Deploy 🚀 <br> </kbd>](https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/quickcreate?templateURL=https://awsome-distributed-training.s3.amazonaws.com/templates/hyperpod-eks-full-stack.yaml?&stackName=hyperpod-eks-full-stack)
+The associate-access-policy  command associates an access policy and its scope to an access entry:
 
-### 2.5 Connect to EKS cluster 
+```bash 
+aws eks associate-access-policy \
+ --cluster-name $EKS_CLUSTER_NAME \
+ --principal-arn arn:aws:iam::xxxxxxxxxxxx:role/ExampleRole \
+ --policy-arn arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy \
+ --access-scope type=cluster \
+ --region $AWS_REGION
+```
+</details>
 
-Once you created the Amazon EKS cluster,  We'll reference this EKS cluster as the orchestrator of the HyperPod compute nodes. 
-
-From the above cloud formation , an [AccessEntry](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-eks-accessentry.html) for the EKS cluster with [AmazonEKSClusterAdminPolicy](https://docs.aws.amazon.com/eks/latest/userguide/access-policies.html#access-policy-permissions) permissions has been automatically created for you. 
+<sp></sp>
 
 Run the [aws eks update-kubeconfig](https://awscli.amazonaws.com/v2/documentation/api/latest/reference/eks/update-kubeconfig.html) command to upade your local kubeconfig file (located at `~/.kube/config`) with the credentials and configuration needed to connect to your EKS cluster using the `kubectl` command.  
 
@@ -99,204 +103,7 @@ NAME             TYPE        CLUSTER-IP   EXTERNAL-IP PORT(S)   AGE
 svc/kubernetes   ClusterIP   10.100.0.1   <none>      443/TCP   1m
 ```
 
-### 2.6 Install Dependencies
-
-The HyperPod team provides a Helm chart package, which bundles key dependencies and associated permission configurations. This package contains dependencies such as Health Monitoring Agent, Nvidia device plugins, EFA device plugin, Neuron Device plugin. Below steps shows how to install the helm chart
-
-#### Clone the Repo 
-
-```bash
-git clone https://github.com/aws/sagemaker-hyperpod-cli.git
-cd sagemaker-hyperpod-cli/helm_chart
-```
-
-#### Install the Helm Chart
-
-Locally test the helm chart: 
-```bash
-helm lint HyperPodHelmChart
-```
-Update the dependencies: 
-```bash 
-helm dependencies update HyperPodHelmChart
-```
-Conduct a dry run: 
-```bash 
-helm install dependencies HyperPodHelmChart --dry-run
-```
-Deploy the helm chart: 
-```bash 
-helm install dependencies HyperPodHelmChart --namespace kube-system
-```
-
-
-## 3. Create SageMaker HyperPod cluster
-
-Now that we have all our infrastructure in place, we can create a cluster. 
-
-We need to setup few environment variables required for creating cluster. You will need to set the below environment parameters accordingly as per your requirement. 
-
-```bash
-export ACCEL_INSTANCE_TYPE=ml.g5.12xlarge #change this
-export AWS_REGION=us-west-2 #change this
-export ACCEL_COUNT=1 #change this
-export ACCEL_VOLUME_SIZE=500 #the size in GB of the EBS volume attached to the compute node.
-export GEN_INTANCE_TYPE= ml.m5.2xlarge	#The general purpose compute instance type you want to use
-export GEN_COUNT=1	#The number of general purpose compute nodes you want to deploy
-export GEN_VOLUME_SIZE=500 #The size in GB of the EBS volume attached to the general purpose compute nodes
-export NODE_RECOVEY=AUTOMATIC 
-
-```
-
- If you have used the full deployment option while deploying cloud formation you can use the helper script([create_config.sh](./create_config.sh)) to retreive all the required. 
-
- If you used Integrative Deployment Mode set the below parameters
-
-```bash
-export EKS_CLUSTER_ARN=<YOUR_EKS_CLUSTER_ARN_HERE>
-export EKS_CLUSTER_NAME=<YOUR_EKS_CLUSTER_NAME_HERE>
-```
-
- If you used minimal deployment option you will have to explicitly set the below environment variables 
-
-```bash
-export EKS_CLUSTER_ARN=<YOUR_EKS_CLUSTER_ARN_HERE>
-export EKS_CLUSTER_NAME=<YOUR_EKS_CLUSTER_NAME_HERE>
-export VPC_ID=<YOUR_VPC_ID_HERE>
-export SUBNET_ID=<YOUR_SUBNET_ID_HERE>
-export SECURITY_GROUP=<YOUR_SECURITY_GROUP_ID_HERE>
-```
-
-Once set you can run the create_config.sh to set all the required environment variables.
-
-```bash
-export STACK_ID=hyperpod-eks-full-stack # change this accordingly 
-bash ./create_config.sh
-source env_vars
-```
-
-
-### 3.1 Lifecycle scripts
-
-Lifecycle scripts tell SageMaker HyperPod how to setup your HyperPod cluster. You can use this to install any node level customizations needed for your cluster. We provide a [base configuration](./LifecycleScripts/base-config) to get started. Below is a brief description of what each script is doing.
-
-| Script                       | Description                                                                                                                                    |
-|------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------|
-| on_create.sh                 | [required] dummy script that is needed to create cluster                                                                           |
-
-
-For now, let's just use the base configuration provided. Upload the scripts to the bucket you created earlier.
-```
-aws s3 cp --recursive LifecycleScripts/base-config s3://${BUCKET_NAME}/LifecycleScripts/base-config
-```
-
-### 3.2 Cluster configuration
-
-Next we can configure our actual cluster. In this case, we are creating a cluster with 2 Instance Groups. One with ml.m5.2xlarge instance and one with ml.g5.12xlarge instance. 
-
->Note - You can modify the number of instance groups as per your requirement. It is not mandatory to have 2 instance groups for cluster creation.
-
-Lets start by creating cluster-config.json using the below snippet that uses the environment variables. 
-
-```json
-cat > cluster-config.json << EOL
-{
-    "ClusterName": "ml-cluster",
-    "Orchestrator": { 
-      "Eks": 
-      {
-        "ClusterArn": "${EKS_CLUSTER_ARN}"
-      }
-    },
-    "InstanceGroups": [
-      {
-        "InstanceGroupName": "worker-group-1",
-        "InstanceType": "${ACCEL_INSTANCE_TYPE}",
-        "InstanceCount": ${ACCEL_COUNT},
-        "InstanceStorageConfigs": [
-          {
-            "EbsVolumeConfig": {
-              "VolumeSizeInGB": ${ACCEL_VOLUME_SIZE}
-            }
-          }
-        ],
-        "LifeCycleConfig": {
-          "SourceS3Uri": "s3://${BUCKET_NAME}",
-          "OnCreate": "on_create.sh"
-        },
-        "ExecutionRole": "${EXECUTION_ROLE}",
-        "ThreadsPerCore": 1,
-        "OnStartDeepHealthChecks": ["InstanceStress", "InstanceConnectivity"]
-      },
-      {
-        "InstanceGroupName": "worker-group-2",
-        "InstanceType": "${GEN_INSTANCE_TYPE}",
-        "InstanceCount": ${GEN_COUNT},
-        "InstanceStorageConfigs": [
-          {
-            "EbsVolumeConfig": {
-              "VolumeSizeInGB": ${GEN_VOLUME_SIZE}
-            }
-          }
-        ],
-        "LifeCycleConfig": {
-          "SourceS3Uri": "s3://${BUCKET_NAME}",
-          "OnCreate": "on_create.sh"
-        },
-        "ExecutionRole": "${EXECUTION_ROLE}",
-        "ThreadsPerCore": 1
-      }
-    ],
-    "VpcConfig": {
-      "SecurityGroupIds": ["$SECURITY_GROUP"],
-      "Subnets":["$SUBNET_ID"]
-    },
-    "NodeRecovery": "${NODE_RECOVERY}"
-}
-EOL
-```
-
-- You can configure up to 20 instance groups under the `InstanceGroups` parameter. 
-- For `Orchestrator.Eks.ClusterArn`, specify the ARN of the EKS cluster you want to use as the orchestrator. 
-- For `OnStartDeepHealthChecks`, add `InstanceStress` and `InstanceConnectivity` to enable deep health checks. 
-- For `NodeRecovery`, specify `Automatic` to enable automatic node recovery. HyperPod replaces or reboots instances (nodes) that fail the basic health or deep health checks (when enabled). 
-- For the `VpcConfig` parameter, specify the information of the VPC used in the EKS cluster. The subnets must be private
-
-
-### 3.3 Launch a new cluster
-
-Now that everything is in place, we can launch our cluster with the below command.
-
-
-```bash
-aws sagemaker create-cluster \
-    --cli-input-json file://cluster-config.json \
-    --region $AWS_REGION
-```
-
-You can see the current state of the cluster with
-
-```bash
-aws sagemaker list-clusters \
- --output table \
- --region $AWS_REGION
-```
-
-You'll see output similar to the following:
-
-```
--------------------------------------------------------------------------------------------------------------------------------------------------
-|                                                                 ListClusters                                                                  |
-+-----------------------------------------------------------------------------------------------------------------------------------------------+
-||                                                              ClusterSummaries                                                               ||
-|+----------------------------------------------------------------+----------------------+----------------+------------------------------------+|
-||                           ClusterArn                           |     ClusterName      | ClusterStatus  |           CreationTime             ||
-|+----------------------------------------------------------------+----------------------+----------------+------------------------------------+|
-||  arn:aws:sagemaker:us-west-2:xxxxxxxxxxxx:cluster/uwme6r18mhic |  ml-cluster          |  Creating     |  2024-07-11T16:30:42.219000-04:00   ||
-|+----------------------------------------------------------------+----------------------+----------------+------------------------------------+|
-```
-
-### 3.4 SSH into instances in the HyperPod Cluster
+## 5. SSH into instances in the HyperPod Cluster
 
 To SSH into the instances, you need the cluster id from the cluster arn, instance ID of your node, and instance group name of your controller group. You can your HyperPod cluster ID with
 
@@ -340,7 +147,7 @@ TARGET_ID=sagemaker-cluster:${CLUSTER_ID}_${CONTROLLER_GROUP}-${INSTANCE_ID}
 aws ssm start-session --target $TARGET_ID
 ```
 
-### 3.5 Running workloads on the cluster 
+## 6. Running workloads on the cluster 
 
 To run workloads on the cluster you can use kubctl(configured in prerequisities) to interact with the EKS control plane and submit jobs. 
 
@@ -349,7 +156,7 @@ Amazon SageMaker HyperPod also provides a [CLI](https://github.com/aws/sagemaker
 * Install SageMaker HyperPod CLI refering the documentation [here](https://github.com/aws/sagemaker-hyperpod-cli?tab=readme-ov-file#installation)
 * To use the CLI to access cluster and submit jobs refer to the documentation [here](https://github.com/aws/sagemaker-hyperpod-cli?tab=readme-ov-file#usage)
 
-### 3.6 Patching your HyperPod cluster
+## 7. Patching your HyperPod cluster
 
 Run `update-cluster-software` to update existing HyperPod clusters with software and security patches provided by the SageMaker HyperPod service. For more details, see [Update the SageMaker HyperPod platform software of a cluster](https://docs.aws.amazon.com/sagemaker/latest/dg/sagemaker-hyperpod-operate.html#sagemaker-hyperpod-operate-cli-command-update-cluster-software) in the *Amazon SageMaker Developer Guide*.
 
@@ -359,10 +166,4 @@ aws sagemaker update-cluster-software --cluster-name ml-cluster --region $AWS_RE
 
 Note that this API replaces the instance root volume and cleans up data in it. You should back up your work before running it.
 
-### 3.7 Deleting your HyperPod cluster
-
-When you're done with your HyperPod cluster, you can delete it down with
-
-```bash
-aws sagemaker delete-cluster --cluster-name ml-cluster --region $AWS_REGION
-```
+## 8. [(Optional) Manual Steps for SageMaker HyperPod](./README-manual-steps.md)
