@@ -3,11 +3,6 @@ data "aws_region" "current" {}
 
 data "aws_caller_identity" "current" {}
 
-data "aws_iam_role" "sm_studio_role" {
-  count = var.using_sm_code_editor ? 1 : 0
-  name  = "${var.resource_name_prefix}-SMCE-Exec-Role-${data.aws_region.current.name}"
-}
-
 data "aws_vpc" "selected" {
   id = var.vpc_id
 }
@@ -15,15 +10,6 @@ data "aws_vpc" "selected" {
 data "aws_availability_zones" "available" {
   state = "available"
 }
-
-# locals {
-#   # Extract just the role name from the assumed role ARN
-#   # Assumes format: arn:aws:sts::ACCOUNT_ID:assumed-role/ROLE_NAME/SESSION_NAME
-#   role_name = split("/", data.aws_caller_identity.current.arn)[1]
-  
-#   # Construct the permanent IAM role ARN
-#   role_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${local.role_name}"
-# }
 
 resource "aws_subnet" "private" {
   count             = length(var.private_subnet_cidrs)
@@ -228,46 +214,3 @@ resource "aws_eks_addon" "pod_identity" {
   cluster_name      = aws_eks_cluster.cluster.name
   addon_name        = "eks-pod-identity-agent"
 }
-
-
-# resource "aws_eks_access_entry" "sm_code_editor" {
-#   count = var.using_sm_code_editor ? 1 : 0
-
-#   cluster_name  = aws_eks_cluster.cluster.name
-#   principal_arn = data.aws_iam_role.sm_studio_role[0].arn
-#   type          = "STANDARD"
-# }
-
-# resource "aws_eks_access_policy_association" "sm_code_editor" {
-#   count = var.using_sm_code_editor ? 1 : 0
-
-#   cluster_name  = aws_eks_cluster.cluster.name
-#   principal_arn = data.aws_iam_role.sm_studio_role[0].arn
-#   policy_arn   = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
-#   access_scope {
-#     type = "cluster"
-#   }
-
-#   depends_on = [aws_eks_access_entry.sm_code_editor]
-# }
-
-# # Create access entry for cluster admin
-# resource "aws_eks_access_entry" "cluster_admin" {
-#   cluster_name  = aws_eks_cluster.cluster.name
-#   principal_arn = local.role_arn
-#   type         = "STANDARD"
-
-#   depends_on = [aws_eks_cluster.cluster]
-# }
-
-# # Associate admin policy
-# resource "aws_eks_access_policy_association" "cluster_admin" {
-#   cluster_name  = aws_eks_cluster.cluster.name
-#   principal_arn = local.role_arn
-#   policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
-#   access_scope {
-#     type = "cluster"
-#   }
-
-#   depends_on = [aws_eks_access_entry.cluster_admin]
-# }
