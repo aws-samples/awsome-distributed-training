@@ -49,6 +49,7 @@ Resources:
                   - 'ec2:DetachNetworkInterface'
                   - 'ec2:ModifyNetworkInterfaceAttribute'
                   - 'ec2:UnassignPrivateIpAddresses'
+                  - 'ecr:BatchCheckLayerAvailability'
                   - 'ecr:BatchGetImage'
                   - 'ecr:GetAuthorizationToken'
                   - 'ecr:GetDownloadUrlForLayer'
