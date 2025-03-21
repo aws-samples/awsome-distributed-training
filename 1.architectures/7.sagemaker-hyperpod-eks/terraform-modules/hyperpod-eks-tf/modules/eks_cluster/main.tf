@@ -16,14 +16,14 @@ data "aws_availability_zones" "available" {
   state = "available"
 }
 
-locals {
-  # Extract just the role name from the assumed role ARN
-  # Assumes format: arn:aws:sts::ACCOUNT_ID:assumed-role/ROLE_NAME/SESSION_NAME
-  role_name = split("/", data.aws_caller_identity.current.arn)[1]
+# locals {
+#   # Extract just the role name from the assumed role ARN
+#   # Assumes format: arn:aws:sts::ACCOUNT_ID:assumed-role/ROLE_NAME/SESSION_NAME
+#   role_name = split("/", data.aws_caller_identity.current.arn)[1]
   
-  # Construct the permanent IAM role ARN
-  role_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${local.role_name}"
-}
+#   # Construct the permanent IAM role ARN
+#   role_arn = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/${local.role_name}"
+# }
 
 resource "aws_subnet" "private" {
   count             = length(var.private_subnet_cidrs)
@@ -74,12 +74,12 @@ resource "aws_eks_cluster" "cluster" {
   vpc_config {
     subnet_ids              = aws_subnet.private[*].id
     security_group_ids      = [var.security_group_id]
-    endpoint_private_access = true
     endpoint_public_access  = true
   }
 
   access_config {
     authentication_mode = "API_AND_CONFIG_MAP"
+    bootstrap_cluster_creator_admin_permissions = true
   }
 
   enabled_cluster_log_types = [
@@ -167,12 +167,22 @@ resource "aws_route_table_association" "private_node" {
   route_table_id = aws_route_table.private_node.id
 }
 
+resource "aws_launch_template" "eks_node" {
+  name = "${var.resource_name_prefix}-node-template"
+  vpc_security_group_ids = [var.security_group_id]
+}
+
 resource "aws_eks_node_group" "node_group" {
   cluster_name    = aws_eks_cluster.cluster.name
   node_group_name = "${var.resource_name_prefix}-private-node-group"
   node_role_arn   = aws_iam_role.eks_node_role.arn
   subnet_ids      = [aws_subnet.private_node.id]
   instance_types  = ["t3.small"]
+
+  launch_template {
+    id      = aws_launch_template.eks_node.id
+    version = aws_launch_template.eks_node.latest_version
+  }
 
   scaling_config {
     desired_size = 1
@@ -220,44 +230,44 @@ resource "aws_eks_addon" "pod_identity" {
 }
 
 
-resource "aws_eks_access_entry" "sm_code_editor" {
-  count = var.using_sm_code_editor ? 1 : 0
+# resource "aws_eks_access_entry" "sm_code_editor" {
+#   count = var.using_sm_code_editor ? 1 : 0
 
-  cluster_name  = aws_eks_cluster.cluster.name
-  principal_arn = data.aws_iam_role.sm_studio_role[0].arn
-  type          = "STANDARD"
-}
+#   cluster_name  = aws_eks_cluster.cluster.name
+#   principal_arn = data.aws_iam_role.sm_studio_role[0].arn
+#   type          = "STANDARD"
+# }
 
-resource "aws_eks_access_policy_association" "sm_code_editor" {
-  count = var.using_sm_code_editor ? 1 : 0
+# resource "aws_eks_access_policy_association" "sm_code_editor" {
+#   count = var.using_sm_code_editor ? 1 : 0
 
-  cluster_name  = aws_eks_cluster.cluster.name
-  principal_arn = data.aws_iam_role.sm_studio_role[0].arn
-  policy_arn   = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
-  access_scope {
-    type = "cluster"
-  }
+#   cluster_name  = aws_eks_cluster.cluster.name
+#   principal_arn = data.aws_iam_role.sm_studio_role[0].arn
+#   policy_arn   = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+#   access_scope {
+#     type = "cluster"
+#   }
 
-  depends_on = [aws_eks_access_entry.sm_code_editor]
-}
+#   depends_on = [aws_eks_access_entry.sm_code_editor]
+# }
 
-# Create access entry for cluster admin
-resource "aws_eks_access_entry" "cluster_admin" {
-  cluster_name  = aws_eks_cluster.cluster.name
-  principal_arn = local.role_arn
-  type         = "STANDARD"
+# # Create access entry for cluster admin
+# resource "aws_eks_access_entry" "cluster_admin" {
+#   cluster_name  = aws_eks_cluster.cluster.name
+#   principal_arn = local.role_arn
+#   type         = "STANDARD"
 
-  depends_on = [aws_eks_cluster.cluster]
-}
+#   depends_on = [aws_eks_cluster.cluster]
+# }
 
-# Associate admin policy
-resource "aws_eks_access_policy_association" "cluster_admin" {
-  cluster_name  = aws_eks_cluster.cluster.name
-  principal_arn = local.role_arn
-  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
-  access_scope {
-    type = "cluster"
-  }
+# # Associate admin policy
+# resource "aws_eks_access_policy_association" "cluster_admin" {
+#   cluster_name  = aws_eks_cluster.cluster.name
+#   principal_arn = local.role_arn
+#   policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+#   access_scope {
+#     type = "cluster"
+#   }
 
-  depends_on = [aws_eks_access_entry.cluster_admin]
-}
+#   depends_on = [aws_eks_access_entry.cluster_admin]
+# }
