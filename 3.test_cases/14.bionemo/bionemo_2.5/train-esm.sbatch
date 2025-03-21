@@ -5,10 +5,11 @@
 #SBATCH --exclusive                   # exclusive node access
 #SBATCH --output slurm-esm2-train-%j.out
 
-export FI_EFA_USE_HUGE_PAGE=0
+#export FI_EFA_USE_HUGE_PAGE=0 #Uncomment if you get os.fork() memory error
 export FI_PROVIDER=efa
 export NCCL_DEBUG=INFO
 
+#Path to store data and checkpoints
 export DATA_HOME_DIR=/fsxl/awsankur/bionemo
 
 ###########################
