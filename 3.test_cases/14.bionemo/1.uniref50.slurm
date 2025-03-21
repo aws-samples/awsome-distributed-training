@@ -21,4 +21,4 @@ declare -a ARGS=(
     --container-mounts $FSX_MOUNT
 )
 
-srun -l "${ARGS[@]}"  python3 /workspace/bionemo/prepare_uniref50.py
+srun -l "${ARGS[@]}"  python3 /workspace/bionemo2/prepare_uniref50.py
