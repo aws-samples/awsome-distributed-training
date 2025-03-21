@@ -98,6 +98,12 @@ variable "eks_cluster_name" {
   default     = "sagemaker-hyperpod-eks-cluster"
 }
 
+variable "existing_eks_cluster_name" {
+  description = "The name of an existing EKS cluster"
+  type        = string
+  default     = ""
+}
+
 variable "eks_private_subnet_1_cidr" {
   description = "The IP range (CIDR notation) for the first EKS private subnet"
   type        = string
@@ -116,11 +122,11 @@ variable "eks_private_node_subnet_cidr" {
   default     = "10.192.9.0/24"
 }
 
-variable "using_sm_code_editor" {
-  description = "Whether to use SageMaker Code Editor"
-  type        = bool
-  default     = false
-}
+# variable "using_sm_code_editor" {
+#   description = "Whether to use SageMaker Code Editor"
+#   type        = bool
+#   default     = false
+# }
 
 # S3 Bucket Stack Variables
 variable "create_s3_bucket" {

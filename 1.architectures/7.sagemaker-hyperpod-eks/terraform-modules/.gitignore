@@ -28,3 +28,7 @@ terraform.rc
 
 # Ignore hashes of provider binaries
 .terraform.lock.hcl
+
+# Ignore environment variables 
+env_vars.sh
+terraform_outputs.json

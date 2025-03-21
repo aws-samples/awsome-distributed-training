@@ -49,7 +49,7 @@ output "eks_cluster_arn" {
 
 output "eks_cluster_name" {
   description = "Name of the EKS cluster"
-  value       = var.create_eks ? module.eks_cluster[0].eks_cluster_name : var.eks_cluster_name
+  value       = var.create_eks ? module.eks_cluster[0].eks_cluster_name : var.existing_eks_cluster_name
 }
 
 output "eks_cluster_endpoint" {

@@ -1,4 +1,4 @@
-resource_name_prefix = "sagemaker-hyperpod-eks"
+resource_name_prefix = "smhp-fsx-test"
 
 # VPC Stack Variables
 create_vpc            = true
@@ -21,11 +21,12 @@ existing_security_group_id = ""
 # EKS Cluster Stack Variables
 create_eks               = true
 kubernetes_version       = "1.31"
-eks_cluster_name        = "sagemaker-hyperpod-eks-cluster"
+eks_cluster_name        = "smhp-fsx-test"
 eks_private_subnet_1_cidr = "10.192.7.0/28"
 eks_private_subnet_2_cidr = "10.192.8.0/28"
 eks_private_node_subnet_cidr = "10.192.9.0/24"
-using_sm_code_editor    = false
+existing_eks_cluster_name = ""
+# using_sm_code_editor    = false
 
 # S3 Bucket Stack Variables
 create_s3_bucket         = true
@@ -51,14 +52,14 @@ helm_release_name   = "hyperpod-dependencies"
 
 # HyperPod Cluster Stack Variables
 create_hyperpod        = true
-hyperpod_cluster_name  = "ml-cluster"
+hyperpod_cluster_name  = "smhp-fsx-test"
 node_recovery          = "Automatic"
 
 # For the instance_groups variable, you'll need to define specific groups. Here's an example:
 instance_groups = {
   group1 = {
     instance_type               = "ml.g5.8xlarge"
-    instance_count             = 8
+    instance_count             = 2
     ebs_volume_size           = 100
     threads_per_core          = 2
     enable_stress_check       = true
