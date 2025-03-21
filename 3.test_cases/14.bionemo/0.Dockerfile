@@ -1,4 +1,4 @@
-FROM nvcr.io/nvidia/clara/bionemo-framework:2.5
+FROM nvcr.io/nvidia/clara/bionemo-framework:1.2
 
 ARG EFA_INSTALLER_VERSION=1.37.0
 ARG AWS_OFI_NCCL_VERSION=v1.13.2-aws
@@ -90,6 +90,6 @@ SHELL ["/bin/sh", "-c"]
 COPY requirements.txt /workspace/
 RUN pip3 install -r /workspace/requirements.txt
 
-COPY prepare_uniref50.py /workspace/bionemo2
+COPY prepare_uniref50.py /workspace/bionemo
 
-WORKDIR /workspace/bionemo2
+WORKDIR /workspace/bionemo
