@@ -77,6 +77,10 @@ def slurm_executor(
 
 
    local_tunnel = run.LocalTunnel(job_dir="")
+
+   if os.path.isdir("/opt/sagemaker_cluster"):
+       print("Detected Hyperpod cluster.. enabling --auto-resume=1")
+       srun_args = ["--auto-resume=1"]
   
    # This defines the slurm executor.
    # We connect to the executor via the tunnel defined by user, host and remote_job_dir.
@@ -91,6 +95,7 @@ def slurm_executor(
        mem="0",
        exclusive=True,
        packager=packager,
+       srun_args=srun_args,
    )
 
 
