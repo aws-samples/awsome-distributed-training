@@ -122,12 +122,6 @@ variable "eks_private_node_subnet_cidr" {
   default     = "10.192.9.0/24"
 }
 
-# variable "using_sm_code_editor" {
-#   description = "Whether to use SageMaker Code Editor"
-#   type        = bool
-#   default     = false
-# }
-
 # S3 Bucket Stack Variables
 variable "create_s3_bucket" {
   description = "Whether to create S3 bucket stack"

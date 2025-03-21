@@ -20,12 +20,6 @@ variable "kubernetes_version" {
   default     = "1.31"
 }
 
-variable "using_sm_code_editor" {
-  description = "Import the SageMaker Code Editor IAM Role to create an EKS access entry?"
-  type        = bool
-  default     = false
-}
-
 variable "security_group_id" {
   description = "ID of the security group for the EKS cluster"
   type        = string
