@@ -77,7 +77,7 @@ def slurm_executor(
 
 
    local_tunnel = run.LocalTunnel(job_dir="")
-
+   srun_args = None
    if os.path.isdir("/opt/sagemaker_cluster"):
        print("Detected Hyperpod cluster.. enabling --auto-resume=1")
        srun_args = ["--auto-resume=1"]
