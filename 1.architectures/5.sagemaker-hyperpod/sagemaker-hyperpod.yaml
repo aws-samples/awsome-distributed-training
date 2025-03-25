@@ -459,7 +459,10 @@ Resources:
     Type: AWS::SSM::Document
     Condition: CreateSSMDocument
     Properties:
-      Name: "SSM-SessionManagerRunShellAsUbuntu"
+      Name: 
+      	!Sub
+      	   - 'SSM-SessionManagerRunShellAsUbuntu-${RandomGUID}'
+      	   - { RandomGUID: !Select [0, !Split ["-", !Select [2, !Split ["/". !Ref AWS::StackId ]]]] }
       DocumentType: "Session"
       Content:
         schemaVersion: "1.0"
