@@ -16,11 +16,10 @@ package collector
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"strconv"
 
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/procfs/sysfs"
 )
@@ -28,7 +27,7 @@ import (
 type AmazonEfaCollector struct {
 	fs          sysfs.FS
 	metricDescs map[string]*prometheus.Desc
-	logger      log.Logger
+	logger      *slog.Logger
 	subsystem   string
 }
 
@@ -37,7 +36,7 @@ func init() {
 }
 
 // NewAmazonEfaCollector returns a new Collector exposing Amazon EFA stats.
-func NewAmazonEfaCollector(logger log.Logger) (Collector, error) {
+func NewAmazonEfaCollector(logger *slog.Logger) (Collector, error) {
 	var i AmazonEfaCollector
 	var err error
 
@@ -110,7 +109,7 @@ func (c *AmazonEfaCollector) Update(ch chan<- prometheus.Metric) error {
 	devices, err := c.fs.AmazonEfaClass()
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			level.Debug(c.logger).Log("msg", "Amazon EFA statistics not found, skipping")
+			c.logger.Debug("msg", "Amazon EFA statistics not found, skipping")
 			return ErrNoData
 		}
 		return fmt.Errorf("error obtaining AmazonEfa class info: %w", err)
