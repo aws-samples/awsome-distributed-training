@@ -142,7 +142,7 @@ Resources:
           # Download and execute script
           TEMP_SCRIPT="/tmp/slurm_setup.sh"
           curl -sL \
-              "https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/studio-slurm-setup/slurm_lifecycle.sh" \
+              "https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/studio-slurm-setup/1.architectures/5.sagemaker-hyperpod/slurm-studio/slurm_lifecycle.sh" \
               -o "$TEMP_SCRIPT"
 
           chmod +x "\$TEMP_SCRIPT"
@@ -209,7 +209,7 @@ Resources:
           # Download and execute script
           TEMP_SCRIPT="/tmp/slurm_setup.sh"
           curl -sL \
-              "https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/studio-slurm-setup/slurm_lifecycle.sh" \
+              "https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/studio-slurm-setup/1.architectures/5.sagemaker-hyperpod/slurm-studio/slurm_lifecycle.sh" \
               -o "$TEMP_SCRIPT"
 
           chmod +x "\$TEMP_SCRIPT"
