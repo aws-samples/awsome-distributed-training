@@ -30,6 +30,10 @@ Parameters:
   SecurityGroupId:
     Type: AWS::EC2::SecurityGroup::Id
     Description: Security group that allows communication with the HyperPod Slurm controller node (for MUNGE authentication)
+  AdditionalUsers:
+    Type: CommaDelimitedList
+    Description: List of additional users to grant FSx access to (comma-separated)
+    Default: ""
 
 
 Conditions:
@@ -140,10 +144,10 @@ Resources:
           echo "Current user: \$(whoami)"
 
           # Download and execute script
-          TEMP_SCRIPT="/tmp/slurm_setup.sh"
+          export TEMP_SCRIPT="/tmp/slurm_setup.sh"
           curl -sL \
               "https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/studio-slurm-setup/1.architectures/5.sagemaker-hyperpod/slurm-studio/slurm_lifecycle.sh" \
-              -o "$TEMP_SCRIPT"
+              -o "\$TEMP_SCRIPT"
 
           chmod +x "\$TEMP_SCRIPT"
 
@@ -207,10 +211,10 @@ Resources:
           echo "Current user: \$(whoami)"
 
           # Download and execute script
-          TEMP_SCRIPT="/tmp/slurm_setup.sh"
+          export TEMP_SCRIPT="/tmp/slurm_setup.sh"
           curl -sL \
               "https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/studio-slurm-setup/1.architectures/5.sagemaker-hyperpod/slurm-studio/slurm_lifecycle.sh" \
-              -o "$TEMP_SCRIPT"
+              -o "\$TEMP_SCRIPT"
 
           chmod +x "\$TEMP_SCRIPT"
 
@@ -350,6 +354,7 @@ Resources:
           fsx_file_system_id: !Ref ExistingFSxLustreId
           sagemaker_domain_id: !Ref SageMakerStudioDomain
           shared_fsx: !Ref SharedFSx
+          additional_users: !Join [",", !Ref AdditionalUsers]
       Code:
         ZipFile: |
           import os
@@ -585,7 +590,7 @@ Resources:
                   logger.error(f"Error updating SageMaker domain: {str(e)}")
                   raise
 
-          def manage_fsx_partition(cluster_name: str, partition_name: str, head_node_name: str) -> None:
+          def manage_fsx_partition(cluster_name: str, partition_name: str, head_node_name: str, additional_users: str) -> None:
               """
               Manage FSx partition using SSM to execute commands on Slurm controller.
               
@@ -611,6 +616,35 @@ Resources:
 
                   # Format SSM target
                   ssm_target = f"sagemaker-cluster:{cluster_id}_{head_node_name}-{controller_id}"
+
+                  # Get list of users (always include ubuntu)
+                  users = ['ubuntu'] + [user.strip() for user in additional_users.split(',') if user.strip()]
+
+                  commands = []
+
+                  commands.append(f"sudo mkdir -p /fsx/{partition_name}")
+
+                  # System users/groups that always need access
+                  system_entries = [
+                      ("u", "200001"),  # SageMaker user
+                      ("g", "1001")     # Default group
+                  ]
+
+                  # Add commands for system entries
+                  for entry_type, entry_id in system_entries:
+                      commands.extend([
+                          f"sudo setfacl -R -m {entry_type}:{entry_id}:rwx /fsx/{partition_name}",
+                          f"sudo setfacl -R -d -m {entry_type}:{entry_id}:rwx /fsx/{partition_name}"
+                      ])
+
+                  # Add commands for each user
+                  for user in users:
+                      commands.extend([
+                          f"sudo setfacl -R -m u:{user}:rwx /fsx/{partition_name}",
+                          f"sudo setfacl -R -d -m u:{user}:rwx /fsx/{partition_name}",
+                          f"sudo setfacl -R -m g:{user}:rwx /fsx/{partition_name}", 
+                          f"sudo setfacl -R -d -m g:{user}:rwx /fsx/{partition_name}"
+                      ])
                   
                   # Commands to create and set permissions for partition
                   # commands = [
@@ -618,14 +652,14 @@ Resources:
                   #    f"sudo chown 200001:1001 /fsx/{partition_name}",
                   # ]
                   
-                  commands = [
-                    f"sudo setfacl -R -m u:200001:rwx /fsx/{partition_name}",
-                    f"sudo setfacl -R -m u:ubuntu:rwx /fsx/{partition_name}",
-                    f"sudo setfacl -R -d -m u:200001:rwx /fsx/{partition_name}",
-                    f"sudo setfacl -R -d -m u:ubuntu:rwx /fsx/{partition_name}"
-                    f"sudo setfacl -R -d -m g:1001:rwx /fsx/{partition_name}"
-                    f"sudo setfacl -R -d -m g:ubuntu:rwx /fsx/{partition_name}"
-                  ]
+                  # commands = [
+                  #  f"sudo setfacl -R -m u:200001:rwx /fsx/{partition_name}",
+                  #  f"sudo setfacl -R -m u:ubuntu:rwx /fsx/{partition_name}",
+                  #  f"sudo setfacl -R -d -m u:200001:rwx /fsx/{partition_name}",
+                  #  f"sudo setfacl -R -d -m u:ubuntu:rwx /fsx/{partition_name}"
+                  #  f"sudo setfacl -R -d -m g:1001:rwx /fsx/{partition_name}"
+                  #  f"sudo setfacl -R -d -m g:ubuntu:rwx /fsx/{partition_name}"
+                  # ]
 
                   # Execute commands via SSM
                   for cmd in commands:
@@ -721,6 +755,7 @@ Resources:
               fsx_file_system_id = os.environ.get("fsx_file_system_id")
               sagemaker_domain_id = os.environ.get("sagemaker_domain_id")
               shared_fsx = os.environ.get("shared_fsx")
+              additional_users = os.environ.get("additional_users")
 
               try:
                   if request_type == "Create" or request_type == "Update":
@@ -748,7 +783,7 @@ Resources:
                       is_shared = shared_fsx in ["True", "true"]
                       
                       if is_shared:
-                          manage_fsx_partition(cluster_name, "shared", head_node_name)
+                          manage_fsx_partition(cluster_name, "shared", head_node_name, additional_users)
                           update_domain_filesystem(fsx_file_system_id, sagemaker_domain_id, is_shared)
                       
                       response_data = {
@@ -841,6 +876,7 @@ Resources:
           fsx_file_system_id: !Ref ExistingFSxLustreId
           sagemaker_domain_id: !Ref SageMakerStudioDomain
           shared_fsx: !Ref SharedFSx
+          additional_users: !Join [",", !Ref AdditionalUsers]
       Code:
         ZipFile: |
           import os
@@ -882,7 +918,7 @@ Resources:
           sagemaker_client = boto3.client("sagemaker")
           ssm_client = boto3.client('ssm')
 
-          def manage_fsx_partition(cluster_name: str, user_profile_name: str, head_node_name: str) -> None:
+          def manage_fsx_partition(cluster_name: str, user_profile_name: str, head_node_name: str, additional_users: str) -> None:
               """
               Create a user-specific partition in FSx using SSM on the Slurm controller node.
               """
@@ -905,19 +941,48 @@ Resources:
                   # Format SSM target
                   ssm_target = f"sagemaker-cluster:{cluster_id}_{head_node_name}-{controller_id}"
 
+                  # Get list of users (always include ubuntu)
+                  users = ['ubuntu'] + [user.strip() for user in additional_users.split(',') if user.strip()]
+
+                  commands = []
+
+                  commands.append(f"sudo mkdir -p /fsx/{user_profile_name}")
+
+                  # System users/groups that always need access
+                  system_entries = [
+                      ("u", "200001"),  # SageMaker user
+                      ("g", "1001")     # Default group
+                  ]
+
+                  # Add commands for system entries
+                  for entry_type, entry_id in system_entries:
+                      commands.extend([
+                          f"sudo setfacl -R -m {entry_type}:{entry_id}:rwx /fsx/{user_profile_name}",
+                          f"sudo setfacl -R -d -m {entry_type}:{entry_id}:rwx /fsx/{user_profile_name}"
+                      ])
+
+                  # Add commands for each user
+                  for user in users:
+                      commands.extend([
+                          f"sudo setfacl -R -m u:{user}:rwx /fsx/{user_profile_name}",
+                          f"sudo setfacl -R -d -m u:{user}:rwx /fsx/{user_profile_name}",
+                          f"sudo setfacl -R -m g:{user}:rwx /fsx/{user_profile_name}", 
+                          f"sudo setfacl -R -d -m g:{user}:rwx /fsx/{user_profile_name}"
+                      ])
+
                   # commands = [
                   #    f"sudo mkdir -p /fsx/{user_profile_name}",
                   #    f"sudo chown 200001:1001 /fsx/{user_profile_name}",
                   # ]
                   
-                  commands = [
-                    f"sudo setfacl -R -m u:200001:rwx /fsx/{user_profile_name}",
-                    f"sudo setfacl -R -m u:ubuntu:rwx /fsx/{user_profile_name}",
-                    f"sudo setfacl -R -d -m u:200001:rwx /fsx/{user_profile_name}",
-                    f"sudo setfacl -R -d -m u:ubuntu:rwx /fsx/{user_profile_name}"
-                    f"sudo setfacl -R -d -m g:1001:rwx /fsx/{user_profile_name}"
-                    f"sudo setfacl -R -d -m g:ubuntu:rwx /fsx/{user_profile_name}"
-                  ]                  
+                  # commands = [
+                  #  f"sudo setfacl -R -m u:200001:rwx /fsx/{user_profile_name}", 
+                  #  f"sudo setfacl -R -m u:ubuntu:rwx /fsx/{user_profile_name}",
+                  #  f"sudo setfacl -R -d -m u:200001:rwx /fsx/{user_profile_name}", 
+                  #  f"sudo setfacl -R -d -m u:ubuntu:rwx /fsx/{user_profile_name}", 
+                  #  f"sudo setfacl -R -d -m g:1001:rwx /fsx/{user_profile_name}",
+                  #  f"sudo setfacl -R -d -m g:ubuntu:rwx /fsx/{user_profile_name}"
+                  # ]                  
                   
                   # Execute commands via SSM
                   for cmd in commands:
@@ -1021,6 +1086,7 @@ Resources:
               logger.info(f"Received event: {event}")
               shared_fsx = os.environ.get("shared_fsx")
               head_node_name = os.environ.get("head_node_name")
+              additional_users = os.environ.get("additional_users")
               
               is_shared = shared_fsx in ["True", "true"]
               
@@ -1037,7 +1103,7 @@ Resources:
 
                   try:
                       # Create user-specific partition in FSx
-                      manage_fsx_partition(cluster_name, user_profile_name, head_node_name)
+                      manage_fsx_partition(cluster_name, user_profile_name, head_node_name, additional_users)
                       update_user_profile_filesystem(fsx_file_system_id, sagemaker_domain_id, user_profile_name, False)
                           
                       response_data = {
