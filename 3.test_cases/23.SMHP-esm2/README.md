@@ -163,6 +163,13 @@ sbatch 3.train_fsdp.sh
 |  ESM2  |        14         |     2     |    DDP   |  g5.12xlarge   |  253 samples/s | 
 |  ESM2  |        14         |     2     |    FSDP  |  g5.12xlarge   |  162 samples/s |
 
+### 5.3 More results
+
+|  Model | device_batch_size | num_nodes |  Grad Acc  | Strategy |     Instance   |       Throughput       |      GPU Mem       |
+|:------:|:-----------------:|:---------:|:-----------|:--------:| :------------: | :--------------------: |:-----------------: |
+|  ESM2  |        8          |     2     |     16     |   DDP    |  p5.48xlarge   |    4.36 M samples/s    |     | 
+
+
 
 
 
