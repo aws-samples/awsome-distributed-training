@@ -8,6 +8,9 @@ from typing import Any, Optional
 from nemo.collections import llm
 from nemo.lightning.run import plugins
 from nemo.collections.nlp.modules.common.tokenizer_utils import get_nmt_tokenizer
+from nemo.collections.llm.recipes.callbacks.common import straggler_det_callback
+from nemo.lightning.pytorch.callbacks import PreemptionCallback
+from nemo.lightning.run import plugins
 
 
 # python run.py --nodes 2 --max_steps 1000
@@ -117,6 +120,8 @@ if __name__ == "__main__":
    exp_name = f"aws-nemo2"+stri
   
    pretrain_recipe = partial(llm.llama31_8b.pretrain_recipe, num_nodes=args.nodes)(name=exp_name, dir="")
+   pretrain_recipe.trainer.callbacks.append(straggler_det_callback(straggler_report_time_interval=4))
+   pretrain_recipe.trainer.strategy.ckpt_async_save = True
    pretrain_recipe.trainer.num_sanity_val_steps = 0
    pretrain_recipe.model = run.Config(llm.LlamaModel, small_llama_cfg())
    pretrain_recipe.data.tokenizer = run.Config(get_nmt_tokenizer, library="megatron", model_name= "GPT2BPETokenizer", vocab_file="/root/.cache/torch/megatron/megatron-gpt-345m_vocab", merges_file="/root/.cache/torch/megatron/megatron-gpt-345m_merges")
@@ -140,9 +145,21 @@ if __name__ == "__main__":
        ntasks_per_node=args.ntasks_per_node
    )
 
+   executor.launcher = "ft"
+   run_plugins: list[run.Plugin] = [
+      plugins.PreemptionPlugin(callbacks=[run.Config(PreemptionCallback, sig=signal.SIGINT)]),
+      plugins.FaultTolerancePlugin()
+   ]
+   
 
    with run.Experiment(exp_name, log_level="INFO") as exp:
-       exp.add(pretrain_recipe, executor=executor, tail_logs=True, name="training")
+       exp.add(
+          pretrain_recipe, 
+          executor=executor, 
+          tail_logs=True, 
+          name="training",
+          plugins=run_plugins
+       )
        # Run the experiment
        exp.run(detach=True)
 
