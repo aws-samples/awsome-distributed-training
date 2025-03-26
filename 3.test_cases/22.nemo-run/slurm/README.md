@@ -80,6 +80,7 @@ In this example, we run the following script to start the LLaMa 8B pretraining j
 
 - [NVIDIA NeMo Documentation](https://docs.nvidia.com/deeplearning/nemo/user-guide/docs/en/stable/index.html)
 - [NVIDIA NeMo Github](https://github.com/NVIDIA/NeMo)
+- [NVIDIA NeMo resiliency example](https://github.com/NVIDIA/NeMo/tree/main/examples/llm/resiliency)
 - [AWS SageMaker HyperPod Documentation](https://docs.aws.amazon.com/sagemaker/latest/dg/sagemaker-hyperpod.html)
 - [AWS SageMaker HyperPoc Workshop](https://catalog.workshops.aws/sagemaker-hyperpod/en-US)
 
