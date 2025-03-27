@@ -4,7 +4,6 @@ env:
   variables:
     NODE_EXPORTER_VERSION: "v1.9.0"
     PROCFS_EXPORTER_VERSION: "v0.16.0"
-    GOLANG_VERSION: "1.24.1"
   exported-variables:
     - NODE_EXPORTER_VERSION
     - PROCFS_EXPORTER_VERSION
@@ -21,7 +20,7 @@ phases:
       - export REPO_URI="$(aws ecr describe-repositories | grep repositoryUri | grep /${ECR_REPOSITORY_NAME}\" | cut -d '"' -f 4)"
       - echo "REPO_URI=$REPO_URI"
       - echo "Building ${REPO_URI}:${TAG} ..."
-      - cd 4.validation_and_observability/3.efa-node-exporter && docker image build --build-arg NODE_EXPORTER_VERSION=$NODE_EXPORTER_VERSION --build-arg PROCFS_EXPORTER_VERSION=$PROCFS_EXPORTER_VERSION --build-arg GOLANG_VERSION=$GOLANG_VERSION -t ${REPO_URI}:${TAG} -f ./Dockerfile .
+      - cd 4.validation_and_observability/3.efa-node-exporter && docker image build --build-arg NODE_EXPORTER_VERSION=$NODE_EXPORTER_VERSION --build-arg PROCFS_EXPORTER_VERSION=$PROCFS_EXPORTER_VERSION -t ${REPO_URI}:${TAG} -f ./Dockerfile .
   post_build:
     commands:
       - export ECR_URI=${REPO_URI%"/${ECR_REPOSITORY_NAME}"}
