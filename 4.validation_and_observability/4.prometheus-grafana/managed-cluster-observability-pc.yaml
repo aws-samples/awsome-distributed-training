@@ -1,0 +1,26 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+ Prometheus Agent Collector
+ Author: maxhaws@amazon.com
+
+
+Resources:
+  GrafanaPrometheus:
+    Type: AWS::Serverless::Application
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      Location: cluster-observability.yaml
+
+  PrometheusCollector:
+    Type: AWS::Serverless::Application
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      Location: prometheus-agent-collector.yaml
+      Parameters:
+       PCClusterNAME: "shared-cluster-syd"
+       ManagedPrometheusUrl: !GetAtt GrafanaPrometheus.Outputs.AMPRemoteWriteURL
+       SubnetId: subnet-081459dc8609a5542
+       VpcId: vpc-0cab19e1e592d1cb3
