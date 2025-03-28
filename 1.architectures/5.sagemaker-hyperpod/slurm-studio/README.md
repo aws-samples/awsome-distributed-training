@@ -113,7 +113,8 @@ Click on **Run Space**. Wait until the space is created, then click **Open Code 
 
 To verify that your file system was mounted, you can check if you have a path mounted in the Code Editor space `custom-file-system/fsx_lustre/<FSX_ID>`:
 
-:image[Code Editor setup]{src="/static/images/14-studio-integration/10-filesystem-check.png" height=384}
+![SageMaker Studio with Hyperpod integration](/1.architectures/5.sagemaker-hyperpod/slurm-studio/media/10-filesystem-check.png)
+
 
 You can also run:
 ```bash
