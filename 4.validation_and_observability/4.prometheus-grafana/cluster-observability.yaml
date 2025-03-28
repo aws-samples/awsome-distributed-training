@@ -63,5 +63,9 @@ Outputs:
     Value: !Ref "AWS::Region"
   AMPRemoteWriteURL:
     Value: !Join ["" , [ !GetAtt APSWorkspace.PrometheusEndpoint , "api/v1/remote_write" ]]
+  AMPEndPointUrl:
+    Value: !GetAtt APSWorkspace.PrometheusEndpoint
   GrafanWorkspaceURL:
     Value: !Join ["" , [ "https://", !GetAtt AmazonGrafanaWorkspace.Endpoint ]]
+  GrafanWorkspaceId:
+    Value: !GetAtt AmazonGrafanaWorkspace.Id
