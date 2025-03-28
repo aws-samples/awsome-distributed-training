@@ -5,7 +5,7 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: >
   This CloudFormation stack creates all the necessary pre-requisites for Amazon SageMaker Hyperpod Slurm multiple headnode.
   These include SNS, RDS for mariaDb, IAM Role, and Secret manager. The SNS topic is meant for slurm failover notifications.
-  SNS notification is optional and can be disabled by removing the SNSSubEmailAddress parameter, SlurmFailOverSNSTopic and 
+  SNS notification is optional and can be disabled by removing the SNSSubEmailAddress parameter, SlurmFailOverSNSTopic and
   SlurmFailOverTopicSubscription resources, and SlurmFailOverSNSTopicArn output from the CFN before deploying.
   The RDS for mariaDb and Secret manager secerte are meant for slurm Accounting database.
   A IAM role is also created which helps to execute HyperPod cluster headnode operations.
@@ -23,11 +23,7 @@ Parameters:
     ConstraintDescription: Must contain only alphanumeric characters.
   SlurmDBInstanceClass:
     Type: String
-    Default: db.t3.medium
-    AllowedValues:
-      - db.t3.medium # 2vCPU 4GB RAM
-      - db.t3.large # 2vCPU 8GB RAM
-      - db.m5.large # 2vCPU 8GB RAM
+    Default: db.m5.4xlarge # 16 vCPU, 64 GiB Memory
   SlurmDBSecurityGroupId:
     Type: AWS::EC2::SecurityGroup::Id
     Description: A security group ID for RDS instance
@@ -107,7 +103,7 @@ Resources:
         - !Ref SlurmDBSecurityGroupId
       DBInstanceClass: !Ref SlurmDBInstanceClass
       AllocatedStorage: '20'
-      StorageType: gp2
+      StorageType: gp3
       PubliclyAccessible: false
       MultiAZ: true
       EnablePerformanceInsights: true
