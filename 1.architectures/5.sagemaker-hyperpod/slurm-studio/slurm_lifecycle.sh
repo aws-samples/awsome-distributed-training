@@ -142,26 +142,51 @@ sudo apt install -y vim git jq curl build-essential wget \
     pkg-config xxd \
     jq libcurl4-openssl-dev libtool libtool-bin libhdf5-dev iproute2
 
-# Get the controller's IP and hostname
-CONTROLLER_ID=$(aws sagemaker list-cluster-nodes \
+# Get all controller IDs as an array
+CONTROLLER_IDS=($(aws sagemaker list-cluster-nodes \
     --cluster-name ${CLUSTER_NAME} \
     --query "ClusterNodeSummaries[?InstanceGroupName=='${HEAD_NODE_NAME}'].InstanceId" \
-    --output text)
+    --output text))
 
+# Print the number of controllers found
+echo "Found ${#CONTROLLER_IDS[@]} controller nodes"
 
-CONTROLLER_INFO=$(aws sagemaker describe-cluster-node \
-    --cluster-name ${CLUSTER_NAME} \
-    --node-id ${CONTROLLER_ID})
+# Arrays to store information for each controller
+declare -a CONTROLLER_IPS=()
+declare -a CONTROLLER_HOSTNAMES=()
 
-CONTROLLER_IP=$(echo ${CONTROLLER_INFO} | jq -r '.NodeDetails.PrivatePrimaryIp')
-CONTROLLER_HOSTNAME=$(echo ${CONTROLLER_INFO} | jq -r '.NodeDetails.PrivateDnsHostname' | sed 's/.ec2.internal//')
+# Iterate through each controller ID
+for controller in "${CONTROLLER_IDS[@]}"; do
+    echo "Processing controller: ${controller}"
+
+    # Get controller info
+    CONTROLLER_INFO=$(aws sagemaker describe-cluster-node \
+        --cluster-name ${CLUSTER_NAME} \
+        --node-id ${controller})
+
+    # Extract IP and hostname
+    CONTROLLER_IP=$(echo ${CONTROLLER_INFO} | jq -r '.NodeDetails.PrivatePrimaryIp')
+    CONTROLLER_HOSTNAME=$(echo ${CONTROLLER_INFO} | jq -r '.NodeDetails.PrivateDnsHostname' | sed 's/.ec2.internal//')
+
+    # Use array length for the index in env_vars
+    current_index=${#CONTROLLER_IPS[@]}
+
+    # Store in arrays
+    CONTROLLER_IPS+=("${CONTROLLER_IP}")
+    CONTROLLER_HOSTNAMES+=("${CONTROLLER_HOSTNAME}")
+
+    echo "Controller Number: $((current_index + 1))"
+    echo "Controller ${controller}:"
+    echo "  IP: ${CONTROLLER_IP}"
+    echo "  Hostname: ${CONTROLLER_HOSTNAME}"
+
+    echo "export CONTROLLER_ID_${current_index}=${controller}" >> env_vars
+    echo "export CONTROLLER_IP_${current_index}=${CONTROLLER_IP}" >> env_vars
+    echo "export CONTROLLER_HOSTNAME_${current_index}=${CONTROLLER_HOSTNAME}" >> env_vars
+done
 
 # Get cluster ID
 CLUSTER_ID=$(aws sagemaker describe-cluster --cluster-name ${CLUSTER_NAME} --query 'ClusterArn' --output text | cut -d'/' -f2)
-
-echo "export CONTROLLER_ID=$CONTROLLER_ID" >> env_vars
-echo "export CONTROLLER_IP=$CONTROLLER_IP" >> env_vars
-echo "export CONTROLLER_HOSTNAME=$CONTROLLER_HOSTNAME" >> env_vars
 echo "export CLUSTER_ID=$CLUSTER_ID" >> env_vars
 
 # TODO: MAKE THIS BETTER :) 
@@ -205,7 +230,6 @@ sudo ldconfig
 sudo mkdir -p /opt/slurm/lib
 sudo ln -sf /usr/local/lib/slurm /opt/slurm/lib/slurm
 
-
 cd ..
 rm -rf slurm-${SLURM_VERSION}* "${STAGE_DIR}"
 
@@ -213,7 +237,15 @@ rm -rf slurm-${SLURM_VERSION}* "${STAGE_DIR}"
 sudo mkdir -p /usr/local/etc
 sudo tee /usr/local/etc/slurm.conf << EOF
 ClusterName=${CLUSTER_NAME}
-SlurmctldHost=${CONTROLLER_HOSTNAME}(${CONTROLLER_IP})
+EOF
+
+# Add controllers 
+for ((i=1; i<=${#CONTROLLER_HOSTNAMES[@]}; i++)); do
+    echo "SlurmctldHost=${CONTROLLER_HOSTNAMES[i]}(${CONTROLLER_IPS[i]})" | sudo tee -a /usr/local/etc/slurm.conf
+done
+
+# Continue with the rest of the configuration
+sudo tee -a /usr/local/etc/slurm.conf << 'EOF'
 
 # Authentication configuration
 AuthType=auth/munge
@@ -226,7 +258,6 @@ SlurmctldPort=6817
 
 # For interactive jobs from login node
 LaunchParameters=use_interactive_step
-
 EOF
 
 # Create symbolic link to the config file
@@ -282,6 +313,9 @@ TEMP_FILE_2=$(mktemp)
 # MAY NEED TO HAVE USER RUN THIS PART MANUALLY  
 
 sleep 5
+
+# Same MUNGE Keys
+CONTROLLER_ID=${CONTROLLER_IDS[1]}
 
 MUNGE_KEY_SIZE=$(aws ssm start-session \
    --target "sagemaker-cluster:${CLUSTER_ID}_${HEAD_NODE_NAME}-${CONTROLLER_ID}" \
@@ -401,7 +435,7 @@ Here are the manual steps you can try:
 
 2. Get MUNGE key hexdump:
    aws ssm start-session \\
-       --target \"sagemaker-cluster:\${CLUSTER_ID}_\${HEAD_NODE_NAME}-\${CONTROLLER_ID}\" \\
+       --target \"sagemaker-cluster:\${CLUSTER_ID}_\${HEAD_NODE_NAME}-\${CONTROLLER_ID_0}\" \\
        --document-name AWS-StartInteractiveCommand \\
        --parameters '{\"command\":[\"\n\n sudo hexdump -C /etc/munge/munge.key\"]}' \\
        > \"\${TEMP_FILE}\"
