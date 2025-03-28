@@ -1,0 +1,4 @@
+boto3
+grafana-client
+grafanalib
+urllib3
