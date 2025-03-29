@@ -2,14 +2,14 @@ apiVersion: eksctl.io/v1alpha5
 kind: ClusterConfig
 
 metadata:
-  name: eks-p5-odcr-vpc
+  name: eks-p5-cbr-vpc
   region: PLACEHOLDER_AWS_REGION
-  version: "1.29"
+  version: "1.32"
 
 iam:
   withOIDC: true
 
-# Substitute vpc and subnet ids below
+# Substitute VPC and subnet IDs below
 vpc:
   id: PLACEHOLDER_VPC_ID
   subnets:
@@ -22,7 +22,33 @@ vpc:
       public-one:
         id: PLACEHOLDER_SUBNET_PUBLIC_1
       public-two:
-        id: PLACEHOLDER_SUBNET_PUBLIC_2  
+        id: PLACEHOLDER_SUBNET_PUBLIC_2
 
-# Create the node group as a un-managed node group
-# by deploying the CloudFormation stack amazon-eks-nodegroup.yaml
+# EKS-managed node group(s)
+managedNodeGroups:
+  # Update capacityReservationID below
+  - name: p5-cbr
+    instanceType: p5.48xlarge
+    privateNetworking: true
+    efaEnabled: true
+    minSize: 0
+    desiredCapacity: 1
+    maxSize: 10
+    capacityReservation:
+      capacityReservationTarget:
+        capacityReservationID: "cr-xxxxxxxxxx"
+    instanceMarketOptions:
+      marketType: capacity-block
+    # Utilize the local instance store volume(s)
+    overrideBootstrapCommand: |
+      apiVersion: node.eks.aws/v1alpha1
+      kind: NodeConfig
+      spec:
+        instance:
+          localStorage:
+            strategy: RAID0
+    iam:
+      withAddonPolicies:
+        cloudWatch: true
+        ebs: true
+        fsx: true
