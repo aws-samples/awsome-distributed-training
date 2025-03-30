@@ -14,3 +14,15 @@ RUN git clone https://github.com/huggingface/picotron  \
     && cd picotron \
     && pip3 install torch==2.1.0 \
     && pip3 install -e .
+
+# Installation instructions from: https://developer.nvidia.com/nsight-systems/get-started
+RUN apt-get update && apt-get install -y wget \
+    && wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb \
+    && dpkg -i cuda-keyring_1.1-1_all.deb \
+    && apt-get update \
+    && apt-get install -y nsight-compute-2025.1.1 nsight-systems-2024.6.2 \
+    && rm cuda-keyring_1.1-1_all.deb \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /picotron
