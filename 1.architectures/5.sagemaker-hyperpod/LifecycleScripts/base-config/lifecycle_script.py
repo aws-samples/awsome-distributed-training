@@ -60,6 +60,7 @@ class ProvisioningParameters:
     WORKLOAD_MANAGER_KEY: str = "workload_manager"
     FSX_DNS_NAME: str = "fsx_dns_name"
     FSX_MOUNT_NAME: str = "fsx_mountname"
+    FSX_OPENZFS_DNS_NAME: str = "fsx_openzfs_dns_name"
     SLURM_CONFIGURATIONS: str = "slurm_configurations"
 
     def __init__(self, path: str):
@@ -73,6 +74,10 @@ class ProvisioningParameters:
     @property
     def fsx_settings(self) -> Tuple[str, str]:
         return self._params.get(ProvisioningParameters.FSX_DNS_NAME), self._params.get(ProvisioningParameters.FSX_MOUNT_NAME)
+
+    @property
+    def fsx_openzfs_settings(self) -> Optional[str]:
+        return self._params.get(ProvisioningParameters.FSX_OPENZFS_DNS_NAME)
 
     @property
     def controller_group(self) -> Optional[str]:
@@ -161,6 +166,12 @@ def main(args):
         ExecuteBashScript("./mount_fsx.sh").run(fsx_dns_name, fsx_mountname, "/fsx")
 
     ExecuteBashScript("./add_users.sh").run()
+
+    # Add FSx OpenZFS mount section
+    fsx_openzfs_dns_name = params.fsx_openzfs_settings
+    if Config.enable_fsx_openzfs and fsx_openzfs_dns_name:
+        print(f"Mount FSx OpenZFS: {fsx_openzfs_dns_name}. Mount point: /fsx_openzfs")
+        ExecuteBashScript("./utils/mount_fsx_openzfs.sh").run(fsx_openzfs_dns_name, "/fsx_openzfs")
 
     if params.workload_manager == "slurm":
         # Wait until slurm will be configured

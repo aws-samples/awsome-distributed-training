@@ -129,6 +129,36 @@ Parameters:
       - 'false'
     Description: Boolean on whether or not to create the SSM Session Manager Document (choose false only if it already exists in your account).
 
+  CreateOpenZFS:
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Default: 'false'
+    Description:
+      Creates an FSx OpenZFS file system in addition to the FSxL file system. Default is false
+    Type: String
+  
+  OpenZFSThroughput:
+    AllowedValues:
+      - 64
+      - 128
+      - 256
+      - 512
+      - 1024
+      - 2048
+      - 3072
+      - 4096
+    Default: 64
+    Description: OpenZFS throughput in MB/s. Allowed values are 64, 128, 256, 512, 1024, 2048, 3072, 4096
+    Type: Number
+
+  OpenZFSStorageCapacity:
+    Description: Storage capacity in GiB for OpenZFS (64 GiB to 524,288 GiB)
+    Type: Number
+    Default: 64
+    MinValue: 64
+    MaxValue: 524288
+
 ###############################
 ## Conditions for Parameters ##
 ###############################
@@ -137,6 +167,7 @@ Conditions:
   S3EndpointCondition: !Equals [!Ref 'CreateS3Endpoint', 'true']
   BackupSubnetCondition: !Not [ !Equals [!Ref 'BackupSubnetAZ', ''] ]
   CreateSSMDocument: !Equals [!Ref 'SSMDocumentName', 'true']
+  CreateOpenZFSCondition: !Equals [!Ref 'CreateOpenZFS', 'true']
 
 
 ##########################
@@ -411,6 +442,39 @@ Resources:
         MetadataConfiguration:
           Mode: AUTOMATIC
 
+  FSxOpenZFSFileSystem:
+    Type: AWS::FSx::FileSystem
+    Condition: CreateOpenZFSCondition
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      FileSystemType: OPENZFS
+      OpenZFSConfiguration:
+        AutomaticBackupRetentionDays: 30
+        CopyTagsToBackups: Yes
+        CopyTagsToVolumes: Yes
+        DailyAutomaticBackupStartTime: '19:00'
+        DeploymentType: SINGLE_AZ_HA_2
+        Options:
+          - DELETE_CHILD_VOLUMES_AND_SNAPSHOTS
+        RootVolumeConfiguration:
+          DataCompressionType: NONE
+          NfsExports: 
+            - ClientConfigurations: 
+              -  Clients: '*'
+                 Options: 
+                    - rw
+                    - no_root_squash
+                    - crossmnt
+        ThroughputCapacity: !Ref OpenZFSThroughput
+        WeeklyMaintenanceStartTime: '1:04:00'
+      SecurityGroupIds:  
+        - !Ref SecurityGroup
+      StorageType: SSD
+      StorageCapacity: !Ref OpenZFSStorageCapacity
+      SubnetIds:
+        - !Ref PrimaryPrivateSubnet
+
   AmazonSagemakerClusterExecutionRole:
     Type: AWS::IAM::Role
     Properties:
@@ -536,3 +600,11 @@ Outputs:
     Value: !Ref LCScriptsBucket
     Export:
       Name: !Sub ${AWS::StackName}-AmazonSagemakerLCScriptsBucketName
+  FSxOpenZFSFileSystemId:
+    Condition: CreateOpenZFSCondition
+    Description: The ID of the FSxOpenZFS filesystem that has been created
+    Value: !Ref FSxOpenZFSFileSystem
+  FSxOpenZFSFileSystemDNSname:
+    Condition: CreateOpenZFSCondition
+    Description: The DNS of the FSxOpenZFS filesystem that has been created
+    Value: !GetAtt FSxOpenZFSFileSystem.DNSName
