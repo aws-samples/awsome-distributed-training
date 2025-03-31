@@ -26,6 +26,16 @@ from picotron.model import Llama
 from picotron.utils import download_model
 import wandb
 
+try:
+    import torch.cuda.nvtx as nvtx
+except:
+    print("NVIDIA NSight tools not available")
+    class nvtx:
+        @staticmethod
+        def range_push(msg): pass
+        @staticmethod 
+        def range_pop(): pass
+
 def train_step(model, data_loader, device):
     acc_loss = 0.0
     
@@ -40,7 +50,9 @@ def train_step(model, data_loader, device):
         if requires_grad_sync:
             model.require_backward_grad_sync = (i == data_loader.grad_acc_steps - 1)
 
+        nvtx.range_push(f"Forward pass {i}")
         outputs = model(input_ids=input_ids)
+        nvtx.range_pop()
 
         # compute the loss
         batch_size, seq_len = input_ids.shape
@@ -48,7 +60,9 @@ def train_step(model, data_loader, device):
         outputs = outputs.view(seq_len*batch_size, -1)
         loss = F.cross_entropy(outputs, target_ids, reduction='mean') / data_loader.grad_acc_steps
         
+        nvtx.range_push(f"Backward pass {i}")
         loss.backward()
+        nvtx.range_pop()
 
         acc_loss += loss.item()
 
@@ -66,13 +80,13 @@ if __name__ == "__main__":
     os.environ["TOKENIZERS_PARALLELISM"] = config["environment"]["TOKENIZERS_PARALLELISM"]
     os.environ["FLASH_ATTEN"] = config["environment"]["FLASH_ATTEN"]
     os.environ["DEVICE"] = "cpu" if config["distributed"]["use_cpu"] else "cuda"
-    if config["environment"].get("HF_TOKEN") is None:
-        if "HF_TOKEN" not in os.environ: raise ValueError("HF_TOKEN is neither set in the config file nor in the environment")
-    else:
-        if "HF_TOKEN" not in os.environ:
-            os.environ["HF_TOKEN"] = config["environment"]["HF_TOKEN"]
-        else:
-            print("Warning: HF_TOKEN is set in the environment and the config file. Using the environment variable.")
+    #if config["environment"].get("HF_TOKEN") is None:
+    #    if "HF_TOKEN" not in os.environ: raise ValueError("HF_TOKEN is neither set in the config file nor in the environment")
+    #else:
+    #    if "HF_TOKEN" not in os.environ:
+    #        os.environ["HF_TOKEN"] = config["environment"]["HF_TOKEN"]
+    #    else:
+    #        print("Warning: HF_TOKEN is set in the environment and the config file. Using the environment variable.")
     dtype = torch.bfloat16 if torch.cuda.is_available() and torch.cuda.is_bf16_supported() and not config["distributed"]["use_cpu"] else torch.float32
     assert (dtype == torch.bfloat16 and os.getenv("FLASH_ATTEN") == "1") or os.getenv("FLASH_ATTEN") != "1", "Kernel operations requires dtype=torch.bfloat16"
 
@@ -91,6 +105,7 @@ if __name__ == "__main__":
     else:
         device = torch.device("cpu")
 
+    nvtx.range_push("Initialize process groups")
     dist.init_process_group(rank=global_rank, world_size=world_size, backend=backend, init_method=f"env://", timeout=datetime.timedelta(minutes=3))
     setup_process_group_manager(
         tp_size=config["distributed"]["tp_size"],
@@ -98,10 +113,13 @@ if __name__ == "__main__":
         pp_size=config["distributed"]["pp_size"],
         dp_size=config["distributed"]["dp_size"]
     )
+    nvtx.range_pop()
+
     is_wandb_rank = pgm.process_group_manager.tp_rank == 0 and pgm.process_group_manager.dp_rank == 0 and pgm.process_group_manager.cp_rank == 0 and pgm.process_group_manager.pp_is_last_stage
 
     set_all_seed(config["training"]["seed"])
 
+    nvtx.range_push("Initialize data loader")
     start_time = time.time()
     data_loader = MicroBatchDataLoader(
         micro_batch_size=config["training"]["micro_batch_size"],
@@ -116,10 +134,13 @@ if __name__ == "__main__":
         subset_name=config["dataset"].get("subset_name", None),
         split=config["dataset"].get("split", "train")
     )
+    nvtx.range_pop()
 
     # download model on the first rank, assume all ranks have access to the same filesystem
     if pgm.process_group_manager.global_rank == 0:
+        nvtx.range_push("Download model")
         download_model(config["model"]["name"], os.environ["HF_TOKEN"])
+        nvtx.range_pop()
 
     dist.barrier()
 
@@ -130,6 +151,7 @@ if __name__ == "__main__":
         print("Tokens per step:", to_readable_format(tokens_per_step), is_print_rank=is_wandb_rank)
 
     if is_wandb_rank and config["logging"]["use_wandb"]:
+        nvtx.range_push("Initialize wandb")
         wandb.init(
             project="picotron",
             name=f"{config['logging']['run_name']}_{to_readable_format(tokens_per_step)}_{pgm.process_group_manager}",
@@ -148,6 +170,7 @@ if __name__ == "__main__":
                 "gradient_accumulation": data_loader.grad_acc_steps,
             },
         )
+        nvtx.range_pop()
 
     if pgm.process_group_manager.global_rank == 0:
         print(f"rank {pgm.process_group_manager.global_rank}: Creating model config")
@@ -169,6 +192,7 @@ if __name__ == "__main__":
 
     print(f"rank {pgm.process_group_manager.global_rank}: Initializing model meta device", is_print_rank=is_wandb_rank)
 
+    nvtx.range_push("Initialize model")
     start_time = time.time()
 
     with init_model_with_dematerialized_weights():
@@ -192,6 +216,7 @@ if __name__ == "__main__":
     if pgm.process_group_manager.dp_world_size > 1:
         model = DataParallelBucket(model)
     
+    nvtx.range_pop()
     print(f"init model parallel time: {time.time()-start_time:.2f}s", is_print_rank=is_wandb_rank)
     
     model.train()
@@ -200,6 +225,7 @@ if __name__ == "__main__":
     
     tensor_shapes = (data_loader.micro_batch_size, data_loader.seq_length_per_gpu, model_config.hidden_size)
     
+    nvtx.range_push("Initialize optimizer")
     extra_args = dict()
     if config["model"]["use_fused_adam"]:
         fused_available = 'fused' in inspect.signature(torch.optim.AdamW).parameters
@@ -207,15 +233,19 @@ if __name__ == "__main__":
         extra_args = dict(fused=True) if use_fused else dict()
 
     optimizer = AdamW(model.parameters(), lr=config["training"]["learning_rate"], **extra_args)
+    nvtx.range_pop()
     
     checkpoint_manager = CheckpointManager()
 
     trained_tokens, step = 0, 0
     if config["checkpoint"]["load_path"]:
+        nvtx.range_push("Load checkpoint")
         step, trained_tokens = checkpoint_manager.load_checkpoint(model, optimizer, config["checkpoint"]["load_path"])
+        nvtx.range_pop()
     
     dist.barrier()
     
+    nvtx.range_push("Training loop")
     while config["training"]["max_tokens"] is None or trained_tokens < config["training"]["max_tokens"]:
         step_start_time = time.time()
         optimizer.zero_grad()
@@ -232,7 +262,10 @@ if __name__ == "__main__":
             
         loss = average_loss_across_dp_cp_ranks(loss, device)
         
+        nvtx.range_push("Optimizer step")
         optimizer.step()
+        nvtx.range_pop()
+
         trained_tokens += tokens_per_step
         step += 1
         
@@ -270,10 +303,13 @@ if __name__ == "__main__":
                 })
         
         if step % config["checkpoint"]["save_frequency"] == 0:
+            nvtx.range_push("Save checkpoint")
             checkpoint_manager.save_checkpoint(model, optimizer, step, trained_tokens, config["checkpoint"]["save_dir"]+f"/{step}")
+            nvtx.range_pop()
         
         if step >= config["training"]["total_train_steps"]:
             break
+    nvtx.range_pop()
     
     if is_wandb_rank and config["logging"]["use_wandb"]:
         wandb.finish()

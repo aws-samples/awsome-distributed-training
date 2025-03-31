@@ -36,7 +36,7 @@ declare -a TORCHRUN_ARGS=(
 ############################
 
 declare -a TRAINING_ARGS=(
-    --config llama-1B-config.json
+    --config ../conf/llama-1B-config.json
 )
 
 

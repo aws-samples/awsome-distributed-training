@@ -45,3 +45,5 @@ Then use the saved token `${HF_TOKEN}` to create configuration.
 Each subdirectory contains example configurations for training different types of models:
 
 - `SmolLM-1.7B`: Training a 1.7B parameter LLM model on CPU/GPU using 3D parallelism. 
+- `Llama3-7B`: Training a 8B parameter Llama3 model on GPU using 4D parallelism.
+
