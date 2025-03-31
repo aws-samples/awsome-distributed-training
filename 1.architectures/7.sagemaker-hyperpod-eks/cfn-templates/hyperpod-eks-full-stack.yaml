@@ -565,6 +565,7 @@ Resources:
       Path: /
       ManagedPolicyArns:
         - 'arn:aws:iam::aws:policy/AmazonSageMakerClusterInstanceRolePolicy'
+        - 'arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy'
       Policies:
         - PolicyName: !Sub '${ResourceNamePrefix}-ExecutionRolePolicy-${AWS::Region}'
           PolicyDocument:
