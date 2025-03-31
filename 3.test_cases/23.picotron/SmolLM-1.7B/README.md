@@ -17,19 +17,3 @@ This combination allows training of very large models that wouldn't fit on a sin
 ## Creating Training Configurations
 
 The `create_config.py` script helps generate configuration files for different training scenarios. The script accepts various parameters to customize the training setup, including parallelism dimensions, model architecture, and training hyperparameters.
-
-In this test case, we use DP=2, TP=2, and PP=2 
-
-```bash
-# 3D Parallelism on CPU
-docker run --rm -v ${PWD}:${PWD} picotron python3 create_config.py \
-    --out_dir ${PWD}/conf --exp_name llama-1B-cpu-dp2-tp2-pp2 --dp 2 --tp 2 --pp 2  \
-    --pp_engine 1f1b --model_name HuggingFaceTB/SmolLM-1.7B --num_hidden_layers 5 \
-    --grad_acc_steps 2 --mbs 4 --seq_len 128 --hf_token ${HF_TOKEN} --use_cpu  --use_wandb
-```
-
-
-
-
-
-
