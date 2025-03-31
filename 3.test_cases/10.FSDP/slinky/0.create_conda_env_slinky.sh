@@ -3,7 +3,7 @@ set -ex
 
 # Check if Miniconda installer exists locally
 if [ ! -f Miniconda3-latest-Linux-x86_64.sh ]; then
-    wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+    wget --no-check-certificate https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
 fi
 chmod +x Miniconda3-latest-Linux-x86_64.sh
 ./Miniconda3-latest-Linux-x86_64.sh -b -f -p ./miniconda3
@@ -47,3 +47,6 @@ which torchrun || python -m torch.distributed.run --help
 
 # Create checkpoint dir
 mkdir -p checkpoints
+
+# Create logs dir
+mkdir -p logs

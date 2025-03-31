@@ -1,13 +1,15 @@
 #!/bin/bash
 
+# testing
+
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 
 #SBATCH --nodes=4 
 #SBATCH --job-name=FSDP
-#SBATCH --chdir=/shared/10.FSDP
-#SBATCH --output=/shared/10.FSDP/logs/%x_%j.out
-#SBATCH --error=/shared/10.FSDP/logs/%x_%j.err
+#SBATCH --chdir=/shared/shared/slinky/
+#SBATCH --output=/shared/shared/slinky/logs/%x_%j.out
+#SBATCH --error=/shared/shared/slinky/logs/%x_%j.err
 #SBATCH --exclusive 
 
 set -ex;
@@ -16,7 +18,7 @@ set -ex;
 ###### User Variables #####
 ###########################
 
-GPUS_PER_NODE=8 # 4 for G5.12x, 8 for P4/P5
+GPUS_PER_NODE=1 # 1 for G5.8x, 4 for G5.12x, 8 for P4/P5
 
 ###########################
 ## Environment Variables ##
@@ -36,7 +38,7 @@ export FI_EFA_SET_CUDA_SYNC_MEMOPS=0
 # LD_PRELOAD is required for PyTorch to find the NCCL library
 # This path assumes you are using the Deep Learning AMI
 # If you are not using the DLAMI, you may need to update this path
-export LD_PRELOAD=/usr/local/cuda-12.1/lib/libnccl.so
+export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libnccl.so
 export NCCL_SOCKET_IFNAME=^docker,lo,veth_def_agent,eth
 
 ## Set HuggingFace metadata timeout (in seconds) for large clusters
@@ -54,8 +56,8 @@ declare -a TORCHRUN_ARGS=(
     --rdzv_endpoint=$(hostname)
 )
 
-export TORCHRUN=/shared/10.FSDP/pt_fsdp/bin/torchrun
-export TRAIN_SCRIPT=/shared/10.FSDP/train.py
+export TORCHRUN=/shared/shared/slinky/pt_fsdp/bin/torchrun
+export TRAIN_SCRIPT=/shared/shared/slinky/train.py
 
 ############################
 # Llama 2 Training Params ##
@@ -73,10 +75,10 @@ declare -a TRAINING_ARGS=(
     --checkpoint_freq=5000
     --validation_freq=500
     --max_steps=5000
-    --checkpoint_dir=/shared/10.FSDP/checkpoints
+    --checkpoint_dir=/shared/shared/slinky/checkpoints
     --dataset='allenai/c4'
     --dataset_config_name='en'
-    --resume_from_checkpoint=/shared/10.FSDP/checkpoints
+    --resume_from_checkpoint=/shared/shared/slinky/checkpoints
     --train_batch_size=1
     --val_batch_size=1
     --sharding_strategy="full" # https://pytorch.org/docs/stable/fsdp.html
@@ -90,7 +92,7 @@ if [ -d "/opt/sagemaker_cluster" ]; then
 fi
 
 # Activate conda environment from shared filesystem
-source /shared/slinky/miniconda3/etc/profile.d/conda.sh
-conda activate /shared/slinky/pt_fsdp
+source /shared/shared/slinky/miniconda3/etc/profile.d/conda.sh
+conda activate /shared/shared/slinky/pt_fsdp
 
 srun ${AUTO_RESUME} -l ${TORCHRUN} "${TORCHRUN_ARGS[@]}" $TRAIN_SCRIPT "${TRAINING_ARGS[@]}"
