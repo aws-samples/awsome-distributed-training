@@ -139,17 +139,10 @@ Parameters:
     Type: String
   
   OpenZFSThroughput:
-    AllowedValues:
-      - 64
-      - 128
-      - 256
-      - 512
-      - 1024
-      - 2048
-      - 3072
-      - 4096
-    Default: 64
-    Description: OpenZFS throughput in MB/s. Allowed values are 64, 128, 256, 512, 1024, 2048, 3072, 4096
+    Default: 160
+    MinValue: 160
+    MaxValue: 10240
+    Description: OpenZFS throughput in MB/s. Allowed range is 160-10240
     Type: Number
 
   OpenZFSStorageCapacity:
