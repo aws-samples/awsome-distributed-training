@@ -115,14 +115,12 @@ clone_adt() {
             rm -rf "$REPO_NAME"
             echo -e "${BLUE}Cloning repository...${NC}"
             git clone --depth=1 https://github.com/aws-samples/awsome-distributed-training/
-            # git clone --depth=1 -b openzfs-smhp https://github.com/aws-samples/awsome-distributed-training/
             echo -e "${GREEN}✅ Repository cloned successfully${NC}"
         else
             echo -e "${BLUE}Using existing directory...${NC}"
         fi
     else
         echo -e "${BLUE}Cloning repository $REPO_NAME...${NC}"
-        # git clone --depth=1 -b openzfs-smhp https://github.com/aws-samples/awsome-distributed-training/
         git clone --depth=1 https://github.com/aws-samples/awsome-distributed-training/
         echo -e "${GREEN}✅ Repository cloned successfully${NC}"
     fi
@@ -335,28 +333,6 @@ setup_env_vars() {
 
     source env_vars
 
-    export ENABLE_FSX_OPENZFS="false"
-
-    FSX_OPENZFS_DNS=$(aws cloudformation describe-stacks \
-        --stack-name "${STACK_ID_VPC}" \
-        --query 'Stacks[0].Outputs[?OutputKey==`FSxOpenZFSFileSystemDNSname`].OutputValue' \
-        --output text)
-    
-    if [ -n "$FSX_OPENZFS_DNS" ]; then
-        echo -e "${BLUE}FSx OpenZFS detected in stack. DNS: ${FSX_OPENZFS_DNS}${NC}"
-        echo -e "${BLUE}Enabling FSx OpenZFS in LCS...${NC}"
-
-        # Get the FSx OpenZFS File System ID as well
-        FSX_OPENZFS_ID=$(aws cloudformation describe-stacks \
-            --stack-name "${STACK_ID_VPC}" \
-            --query 'Stacks[0].Outputs[?OutputKey==`FSxOpenZFSFileSystemId`].OutputValue' \
-            --output text)
-        
-        ENABLE_FSX_OPENZFS="true"
-        echo "export FSX_OPENZFS_DNS=${FSX_OPENZFS_DNS}" >> env_vars
-        echo "export FSX_OPENZFS_ID=${FSX_OPENZFS_ID}" >> env_vars
-    fi
-
     echo -e "\n${BLUE}=== Environment Variables Summary ===${NC}"
     echo -e "${YELLOW}Note: You may ignore the INSTANCES parameter for now${NC}"
     echo -e "${GREEN}Current environment variables:${NC}"
@@ -385,8 +361,28 @@ setup_lifecycle_scripts() {
 
     # Check if FSx OpenZFS was deployed in the stack
     echo -e "${BLUE}Checking if FSx OpenZFS was deployed in the stack...${NC}"
+
+    export ENABLE_FSX_OPENZFS="false"
+
+    FSX_OPENZFS_DNS=$(aws cloudformation describe-stacks \
+        --stack-name "${STACK_ID_VPC}" \
+        --query 'Stacks[0].Outputs[?OutputKey==`FSxOpenZFSFileSystemDNSname`].OutputValue' \
+        --output text)
     
-    if [ "$ENABLE_FSX_OPENZFS" == "true" ]; then
+    if [ -n "$FSX_OPENZFS_DNS" ]; then
+        echo -e "${BLUE}FSx OpenZFS detected in stack. DNS: ${FSX_OPENZFS_DNS}${NC}"
+        echo -e "${BLUE}Enabling FSx OpenZFS in LCS...${NC}"
+
+        # Get the FSx OpenZFS File System ID as well
+        FSX_OPENZFS_ID=$(aws cloudformation describe-stacks \
+            --stack-name "${STACK_ID_VPC}" \
+            --query 'Stacks[0].Outputs[?OutputKey==`FSxOpenZFSFileSystemId`].OutputValue' \
+            --output text)
+        
+        ENABLE_FSX_OPENZFS="true"
+        echo "export FSX_OPENZFS_DNS=${FSX_OPENZFS_DNS}" >> env_vars
+        echo "export FSX_OPENZFS_ID=${FSX_OPENZFS_ID}" >> env_vars
+
         # Update config.py
         sed -i.bak 's/enable_fsx_openzfs = False/enable_fsx_openzfs = True/' base-config/config.py
         rm base-config/config.py.bak
