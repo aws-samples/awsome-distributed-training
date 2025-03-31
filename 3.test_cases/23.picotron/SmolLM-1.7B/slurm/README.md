@@ -55,4 +55,5 @@ Now you are ready to submit the job:
 sbatch train.sbatch
 ```
 
+You'll find a new directory `log` in the current directory of the form `picotron_[job-number].out`. This will be continuously updated with your training logs.
 
