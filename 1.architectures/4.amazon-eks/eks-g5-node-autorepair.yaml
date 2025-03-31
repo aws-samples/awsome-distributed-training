@@ -1,0 +1,65 @@
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: eks-g5-autorepair
+  region: PLACEHOLDER_AWS_REGION
+  version: "1.32"
+
+# List availability zones where cluster subnets will be created
+availabilityZones:
+  - PLACEHOLDER_AZ_1
+  - PLACEHOLDER_AZ_2
+
+iam:
+  withOIDC: true
+
+# EKS-managed node group(s)
+managedNodeGroups:
+  # Nodegroup for system pods
+  - name: sys
+    instanceType: c5.2xlarge
+    desiredCapacity: 1
+    iam:
+      withAddonPolicies:
+        autoScaler: true
+        cloudWatch: true
+    nodeRepairConfig:
+      enabled: true
+
+  # GPU nodegroup
+  # List availability zones where instances in from this nodegroup will be launched
+  - name: g5
+    instanceType: g5.8xlarge
+    instancePrefix: g5
+    privateNetworking: true
+    efaEnabled: true
+    minSize: 0
+    desiredCapacity: 2
+    maxSize: 10
+    availabilityZones: ["PLACEHOLDER_AZ_2"]
+    # Utilize the local instance store volume(s)
+    overrideBootstrapCommand: |
+      apiVersion: node.eks.aws/v1alpha1
+      kind: NodeConfig
+      spec:
+        instance:
+          localStorage:
+            strategy: RAID0
+    iam:
+      withAddonPolicies:
+        autoScaler: true
+        cloudWatch: true
+        ebs: true
+        fsx: true
+    nodeRepairConfig:
+      enabled: true
+
+addons:
+  - name: eks-node-monitoring-agent
+    resolveConflicts: overwrite
+  - name: amazon-cloudwatch-observability
+    resolveConflicts: overwrite
+    attachPolicyARNs:
+      - arn:aws:iam::aws:policy/CloudWatchFullAccess
+

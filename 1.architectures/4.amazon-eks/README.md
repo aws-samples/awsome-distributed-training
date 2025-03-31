@@ -30,6 +30,11 @@ The following example cluster configurations for distributed training are provid
 * [**`eks-p4de-odcr.yaml`**](./eks-p4de-odcr.yaml): Cluster with 2 * `p4de.24xlarge` instances from an existing ODCR. A new VPC will be created for this cluster. This configuration is useful for distributed training when no VPC is already available. Note that you would have to match the AZ of your ODCR in the nodegroup section of the manifest. Nodegroups in this and previous examples are fully-managed and can be accessed via the EKS console. If you are using an instance type that is not yet supported in managed nodegroups by EKS, you can define a nodegroup in a self-manged nodegroup section as shown at the end of this example.
 * [**`eks-p5-odcr.yaml`**](./eks-p5-odcr.yaml): Cluster with 1 * `p5.48xlarge` instances from an existing ODCR and an existing VPC. Note that you would have to match the AZ of your ODCR in the nodegroup section of the manifest. Nodegroups in this and previous examples are fully-managed and can be accessed via the EKS console. If you are using an instance type that is not yet supported in managed nodegroups by EKS, you can define a nodegroup in a self-manged nodegroup by using the `eks-p5-capacity-block.yaml` template.
 * [**`eks-p5-capacity-block.yaml`**](./eks-p5-capacity-block.yaml): Cluster with 1 * `p5.48xlarge` instances from an existing ML CBR and an existing VPC. Note that you would have to match the AZ of your ML CBR in the node group section of the manifest. Node groups in this and previous examples are fully-managed and can be accessed via the EKS console.
+* [**`eks-g5-node-autorepair.yaml`**](./eks-g5-node-autorepair.yaml): Cluster with 2 * `g5.8xlarge` instances with [node autorepair](https://docs.aws.amazon.com/eks/latest/userguide/node-health.html) enabled, node monitoring agent and cloudwatch observability add-on deployed. You may view enhanced node status using the following command:
+
+```sh
+kubectl get nodes -o 'custom-columns=NAME:.metadata.name,CONDITIONS:.status.conditions[*].type,STATUS:.status.conditions[*].status'
+```
 
 ## 3. Cluster creation
 
