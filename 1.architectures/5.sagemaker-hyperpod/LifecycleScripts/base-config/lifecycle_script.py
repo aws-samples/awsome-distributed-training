@@ -165,13 +165,13 @@ def main(args):
         print(f"Mount fsx: {fsx_dns_name}. Mount point: {fsx_mountname}")
         ExecuteBashScript("./mount_fsx.sh").run(fsx_dns_name, fsx_mountname, "/fsx")
 
-    ExecuteBashScript("./add_users.sh").run()
-
     # Add FSx OpenZFS mount section
     fsx_openzfs_dns_name = params.fsx_openzfs_settings
     if Config.enable_fsx_openzfs and fsx_openzfs_dns_name:
         print(f"Mount FSx OpenZFS: {fsx_openzfs_dns_name}. Mount point: /home")
         ExecuteBashScript("./mount_fsx_openzfs.sh").run(fsx_openzfs_dns_name, "/home")
+
+    ExecuteBashScript("./add_users.sh").run()
 
     if params.workload_manager == "slurm":
         # Wait until slurm will be configured
