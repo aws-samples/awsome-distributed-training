@@ -1,35 +1,23 @@
-## Running SmalLM-1.7B training on a single EC2 instance
+## Running SmolLM-1.7B Training with 3D Parallelism on a Single EC2 Instance
 
-The model is small enough to run on a single EC2 instance. In this test case, we guide you through how to run 3D model parallelism with Data Parallelism (DP), Tensor Parallelism (TP), and Pipeline Parallelism (PP).
+This guide demonstrates how to train the SmolLM-1.7B model using 3D parallelism on a single EC2 instance. While the model is relatively small compared to larger language models, it serves as an excellent example to understand and experiment with different types of model parallelism:
 
-In this test case, we use DP=2, TP=2, and PP=2 which requires 8 GPUs total (2 x 2 x 2 = 8).
+- Data Parallelism (DP): Distributes training batches across GPUs
+- Tensor Parallelism (TP): Splits model layers across GPUs
+- Pipeline Parallelism (PP): Divides model vertically into pipeline stages
+
+In this example, we configure:
+- DP=2: Data parallel across 2 groups
+- TP=2: Each layer split across 2 GPUs
+- PP=2: Model divided into 2 pipeline stages
+This configuration requires 8 GPUs total (2 x 2 x 2 = 8), which can be found in instances like p5.48xlarge.
 
 ### Prerequisites
 
-Before running this example, you need to build the container image following the guidance in [here](..).
+Before running this example, you need to:
+1. Build the Picotron container image following the guidance in [here](..)
+2. Have an EC2 instance with 8 GPUs (e.g., p5.48xlarge)
 
-### How to run the distributed
+### How to Run the Distributed Training Job
 
 First, export your Hugging Face token as an environment variable:
-```bash
-export HF_TOKEN="hf_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-```
-
-Then run the following command to create configuration json file:
-
-```bash
-# 3D Parallelism on 8 GPUs
-docker run --rm -v ${PWD}:${PWD} picotron python3 create_config.py \
-    --out_dir ${PWD}/conf --exp_name llama-1B-dp2-tp2-pp2 --dp 2 --tp 2 --pp 2  \
-    --pp_engine 1f1b --model_name HuggingFaceTB/SmolLM-1.7B --num_hidden_layers 5 \
-    --grad_acc_steps 2 --mbs 4 --seq_len 128 --hf_token ${HF_TOKEN}
-```
-
-It will create a config file `./conf/llama-1B-dp2-tp2-pp2/config.json` describing training configurations, including model architecuture, training configuration and data set to use.
-
-```bash
-# 3D Parallelism on CPU
-docker run --gpus all --rm -v ${PWD}:${PWD} -w ${PWD} picotron \
-    torchrun --nproc_per_node 8 /picotron/train.py \
-    --config ./conf/llama-1B-dp2-tp2-pp2/config.json
-```
