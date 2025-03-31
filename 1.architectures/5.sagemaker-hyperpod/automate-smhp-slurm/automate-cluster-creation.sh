@@ -778,7 +778,7 @@ EOL
 
     # OpenZFS
     if [[ $ENABLE_FSX_OPENZFS == "true" ]]; then
-        FSX_OPENZFS_CONFIG=",
+        FSX_OPENZFS_CONFIG="
                 \"fsx_openzfs_dns_name\": \"${FSX_OPENZFS_ID}.fsx.${AWS_REGION}.amazonaws.com\""
         else
             FSX_OPENZFS_CONFIG=""
@@ -806,7 +806,7 @@ EOL
                 "login_group": "login-group",
                 "worker_groups": $WORKER_GROUPS,
                 "fsx_dns_name": "${FSX_ID}.fsx.${AWS_REGION}.amazonaws.com",
-                "fsx_mountname": "${FSX_MOUNTNAME}"${FSX_OPENZFS_CONFIG}
+                "fsx_mountname": "${FSX_MOUNTNAME}",${FSX_OPENZFS_CONFIG},
                 "slurm_configurations": $SLURM_CONFIGURATIONS
             }
 EOL
@@ -819,7 +819,7 @@ EOL
                 "login_group": "login-group",
                 "worker_groups": $WORKER_GROUPS,
                 "fsx_dns_name": "${FSX_ID}.fsx.${AWS_REGION}.amazonaws.com",
-                "fsx_mountname": "${FSX_MOUNTNAME}"${FSX_OPENZFS_CONFIG}${FSX_OPENZFS_CONFIG}
+                "fsx_mountname": "${FSX_MOUNTNAME}",${FSX_OPENZFS_CONFIG}
             }
 EOL
         fi
@@ -832,7 +832,7 @@ EOL
                 "controller_group": "$CONTROLLER_NAME",
                 "worker_groups": $WORKER_GROUPS,
                 "fsx_dns_name": "${FSX_ID}.fsx.${AWS_REGION}.amazonaws.com",
-                "fsx_mountname": "${FSX_MOUNTNAME}"${FSX_OPENZFS_CONFIG}
+                "fsx_mountname": "${FSX_MOUNTNAME}",${FSX_OPENZFS_CONFIG},
                 "slurm_configurations": $SLURM_CONFIGURATIONS
             }
 EOL
@@ -844,7 +844,7 @@ EOL
                 "controller_group": "$CONTROLLER_NAME",
                 "worker_groups": $WORKER_GROUPS,
                 "fsx_dns_name": "${FSX_ID}.fsx.${AWS_REGION}.amazonaws.com",
-                "fsx_mountname": "${FSX_MOUNTNAME}"${FSX_OPENZFS_CONFIG}
+                "fsx_mountname": "${FSX_MOUNTNAME}",${FSX_OPENZFS_CONFIG}
             }
 EOL
         fi
