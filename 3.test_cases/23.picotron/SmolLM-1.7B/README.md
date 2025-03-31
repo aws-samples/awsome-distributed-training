@@ -17,3 +17,10 @@ This combination allows training of very large models that wouldn't fit on a sin
 ## Creating Training Configurations
 
 The `create_config.py` script helps generate configuration files for different training scenarios. The script accepts various parameters to customize the training setup, including parallelism dimensions, model architecture, and training hyperparameters.
+
+## Running Distributed Training
+
+The training configurations are organized into two subdirectories:
+
+- `ec2/`: Contains configurations for running on Amazon EC2 instances
+- `slurm/`: Contains configurations for running on Slurm clusters
