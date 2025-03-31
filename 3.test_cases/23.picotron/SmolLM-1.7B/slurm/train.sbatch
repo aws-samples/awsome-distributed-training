@@ -14,7 +14,7 @@ set -ex;
 ###### User Variables #####
 ###########################
 
-#GPUS_PER_NODE=1
+GPUS_PER_NODE=1
 
 ###########################
 ##### Container Args ######
@@ -43,6 +43,5 @@ if [ -d "/opt/sagemaker_cluster" ]; then
     AUTO_RESUME="--auto-resume=1"
 fi
 
-srun ${AUTO_RESUME} -l "${SRUN_ARGS[@]}" \ 
-    torchrun "${TORCHRUN_ARGS[@]}" \
-    /picotron/train.py --config llama-1B-tp2/config.json
+srun ${AUTO_RESUME} -l "${SRUN_ARGS[@]}" torchrun "${TORCHRUN_ARGS[@]}" \
+    /picotron/train.py --config ${PWD}/conf/llama-1B-tp2/config.json
