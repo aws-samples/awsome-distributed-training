@@ -14,7 +14,7 @@ set -ex;
 ###### User Variables #####
 ###########################
 
-GPUS_PER_NODE=1
+#GPUS_PER_NODE=1
 
 ###########################
 ##### Container Args ######
