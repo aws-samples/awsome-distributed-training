@@ -23,6 +23,7 @@ GPUS_PER_NODE=1
 declare -a SRUN_ARGS=(
     --container-image  $PWD/picotron.sqsh
     --container-mounts "$PWD"
+    --container-workdir ${PWD}
 )
 
 ###########################
