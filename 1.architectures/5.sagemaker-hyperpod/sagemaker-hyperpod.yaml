@@ -137,19 +137,20 @@ Parameters:
     Description:
       Creates an FSx OpenZFS file system in addition to the FSxL file system. Default is false
     Type: String
-  
+ 
   OpenZFSThroughput:
     AllowedValues:
-      - 64
-      - 128
-      - 256
-      - 512
-      - 1024
-      - 2048
-      - 3072
-      - 4096
-    Default: 64
-    Description: OpenZFS throughput in MB/s. Allowed values are 64, 128, 256, 512, 1024, 2048, 3072, 4096
+      - 160
+      - 320
+      - 640
+      - 1280
+      - 2560
+      - 3840
+      - 5120
+      - 7680
+      - 10240
+    Default: 160
+    Description: OpenZFS throughput in MB/s. Allowed values are 160, 320, 640, 1280, 2560, 3840, 5120, 7680, 10240
     Type: Number
 
   OpenZFSStorageCapacity:
