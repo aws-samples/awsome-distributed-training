@@ -15,6 +15,8 @@ Resources:
                 - grafana.amazonaws.com
             Action:
               - 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonGrafanaCloudWatchAccess
       RoleName: !Sub ${AWS::StackName}-Grafana-Role
   
   AmazonGrafanaPrometheusPolicy:
