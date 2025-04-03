@@ -3,8 +3,8 @@ FROM public.ecr.aws/hpc-cloud/nccl-tests:latest
 
 RUN apt update && apt install -y nvtop
 
-RUN pip install transformers==4.46.1 datasets fsspec==2023.9.2 python-etcd numpy==1.*
-RUN pip install torch==2.5.1+cu121 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+RUN pip install transformers==4.50.3 datasets fsspec==2023.9.2 python-etcd numpy==1.*
+RUN pip install torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1 --index-url https://download.pytorch.org/whl/cu124
 
 RUN mkdir /checkpoints
 

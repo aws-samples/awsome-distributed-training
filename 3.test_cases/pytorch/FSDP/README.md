@@ -13,17 +13,17 @@ On your cluster head node,
 * If you followed the tutorial linked above, it will be location at `/fsx`.   
 2. Clone this repo. 
 
-```
+```bash
 cd /fsx
 git clone https://github.com/aws-samples/awsome-distributed-training/
-cd awsome-distributed-training/3.test_cases/10.FSDP
+cd awsome-distributed-training/3.test_cases/pytorch/FSDP
 ```
 
-3. Run the `0.create_conda_env.sh` script. 
-* This script will first download and install [Miniconda](https://docs.conda.io/projects/miniconda/en/latest/), then create a Conda env called `pt_fsdp`.
+3. Create a Python Virtual Environment to install the necessary packages. Run the `create_venv.sh` script.
 
-```
-bash 0.create_conda_env.sh
+```bash
+bash create_venv.sh
+source env/bin/activate
 ```
 
 * By creating this environment on the shared FSx for Lustre volume, all compute nodes in our cluster will have access to it.
@@ -98,7 +98,7 @@ declare -a TRAINING_ARGS=(
     --min_lr=1e-5 \
     --warmup=0.0032 \
     --plateau=0.0 \
-    --dataset="c4" \
+    --dataset='allenai/c4'
     --tokenizer="mistralai/mathstral-7B-v0.1" \
     --epochs=3 \
     --checkpoint_dir="./checkpoints/mathstral-7B" \
@@ -152,14 +152,14 @@ For Mathstral, your output should look similar to the one below:
 + TORCHRUN=./pt_fsdp/bin/torchrun
 + export TRAIN_SCRIPT=./train.py
 + TRAIN_SCRIPT=./train.py
-+ TRAINING_ARGS=(--train_batch_size=1 --val_batch_size=1 --max_steps=5000 --seed=42 --grad_clip=1.0 --weight_decay=0.2 --beta1=0.9 --beta2=0.95 --activation_checkpointing=1 --intermediate_size=14336 --num_key_value_heads=8 --logging_freq=1 --max_context_width=32768 --vocab_size=32768 --hidden_width=4096 --num_layers=32 --num_heads=32 --resid_pdrop=0.1 --embd_pdrop=0.1 --attn_pdrop=0.1 --summary_first_pdrop=0.1 --initializer_range=0.02 --model_type="mistral" --rotary_pct=0.25 --rotary_emb_base=10000 --lr=0.0001 --lr_decay_style="cosine" --min_lr=1e-5 --warmup=0.0032 --plateau=0.0 --dataset="c4" --tokenizer="mistralai/mathstral-7B-v0.1" --epochs=3 --checkpoint_dir="./checkpoints/mathstral-7B" --resume_from_checkpoint="./checkpoints/mathstral-7B" --checkpoint_freq=50 --validation_freq=500 --dataset_config_name="en" --limit_all_gathers=1 --sharding_strategy="full" \ # https://pytorch.org/docs/stable/fsdp.html --offload_activations=1)
++ TRAINING_ARGS=(--train_batch_size=1 --val_batch_size=1 --max_steps=5000 --seed=42 --grad_clip=1.0 --weight_decay=0.2 --beta1=0.9 --beta2=0.95 --activation_checkpointing=1 --intermediate_size=14336 --num_key_value_heads=8 --logging_freq=1 --max_context_width=32768 --vocab_size=32768 --hidden_width=4096 --num_layers=32 --num_heads=32 --resid_pdrop=0.1 --embd_pdrop=0.1 --attn_pdrop=0.1 --summary_first_pdrop=0.1 --initializer_range=0.02 --model_type="mistral" --rotary_pct=0.25 --rotary_emb_base=10000 --lr=0.0001 --lr_decay_style="cosine" --min_lr=1e-5 --warmup=0.0032 --plateau=0.0 --dataset="allenai/c4" --tokenizer="mistralai/mathstral-7B-v0.1" --epochs=3 --checkpoint_dir="./checkpoints/mathstral-7B" --resume_from_checkpoint="./checkpoints/mathstral-7B" --checkpoint_freq=50 --validation_freq=500 --dataset_config_name="en" --limit_all_gathers=1 --sharding_strategy="full" \ # https://pytorch.org/docs/stable/fsdp.html --offload_activations=1)
 + declare -a TRAINING_ARGS
 + AUTO_RESUME=
 + '[' -d /opt/sagemaker_cluster ']'
 + echo 'Detected Hyperpod cluster.. enabling --auto-resume=1'
 Detected Hyperpod cluster.. enabling --auto-resume=1
 + AUTO_RESUME=--auto-resume=1
-+ srun --auto-resume=1 -l ./pt_fsdp/bin/torchrun --nproc_per_node=8 --nnodes=4 --rdzv_id=35 --rdzv_backend=c10d --rdzv_endpoint=ip-10-2-39-253 ./train.py --train_batch_size=1 --val_batch_size=1 --max_steps=5000 --seed=42 --grad_clip=1.0 --weight_decay=0.2 --beta1=0.9 --beta2=0.95 --activation_checkpointing=1 --intermediate_size=14336 --num_key_value_heads=8 --logging_freq=1 --max_context_width=32768 --vocab_size=32768 --hidden_width=4096 --num_layers=32 --num_heads=32 --resid_pdrop=0.1 --embd_pdrop=0.1 --attn_pdrop=0.1 --summary_first_pdrop=0.1 --initializer_range=0.02 --model_type=mistral --rotary_pct=0.25 --rotary_emb_base=10000 --lr=0.0001 --lr_decay_style=cosine --min_lr=1e-5 --warmup=0.0032 --plateau=0.0 --dataset=c4 --tokenizer=mistralai/mathstral-7B-v0.1 --epochs=3 --checkpoint_dir=./checkpoints/mathstral-7B --resume_from_checkpoint=./checkpoints/mathstral-7B --checkpoint_freq=50 --validation_freq=500 --dataset_config_name=en --limit_all_gathers=1 --sharding_strategy=full ' #' https://pytorch.org/docs/stable/fsdp.html --offload_activations=1
++ srun --auto-resume=1 -l ./pt_fsdp/bin/torchrun --nproc_per_node=8 --nnodes=4 --rdzv_id=35 --rdzv_backend=c10d --rdzv_endpoint=ip-10-2-39-253 ./train.py --train_batch_size=1 --val_batch_size=1 --max_steps=5000 --seed=42 --grad_clip=1.0 --weight_decay=0.2 --beta1=0.9 --beta2=0.95 --activation_checkpointing=1 --intermediate_size=14336 --num_key_value_heads=8 --logging_freq=1 --max_context_width=32768 --vocab_size=32768 --hidden_width=4096 --num_layers=32 --num_heads=32 --resid_pdrop=0.1 --embd_pdrop=0.1 --attn_pdrop=0.1 --summary_first_pdrop=0.1 --initializer_range=0.02 --model_type=mistral --rotary_pct=0.25 --rotary_emb_base=10000 --lr=0.0001 --lr_decay_style=cosine --min_lr=1e-5 --warmup=0.0032 --plateau=0.0 --dataset=allenai/c4 --tokenizer=mistralai/mathstral-7B-v0.1 --epochs=3 --checkpoint_dir=./checkpoints/mathstral-7B --resume_from_checkpoint=./checkpoints/mathstral-7B --checkpoint_freq=50 --validation_freq=500 --dataset_config_name=en --limit_all_gathers=1 --sharding_strategy=full ' #' https://pytorch.org/docs/stable/fsdp.html --offload_activations=1
 ...
 3: 2024-07-19 03:31:38 I [train.py:155] Creating Model
 3: 2024-07-19 03:33:08 I [train.py:171] Created model with total parameters: 7248023552 (7.25 B)
