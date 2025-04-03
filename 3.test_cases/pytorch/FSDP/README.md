@@ -13,17 +13,17 @@ On your cluster head node,
 * If you followed the tutorial linked above, it will be location at `/fsx`.   
 2. Clone this repo. 
 
-```
+```bash
 cd /fsx
 git clone https://github.com/aws-samples/awsome-distributed-training/
-cd awsome-distributed-training/3.test_cases/10.FSDP
+cd awsome-distributed-training/3.test_cases/pytorch/FSDP
 ```
 
-3. Run the `0.create_conda_env.sh` script. 
-* This script will first download and install [Miniconda](https://docs.conda.io/projects/miniconda/en/latest/), then create a Conda env called `pt_fsdp`.
+3. Create a Python Virtual Environment to install the necessary packages. Run the `create_venv.sh` script.
 
-```
-bash 0.create_conda_env.sh
+```bash
+bash create_venv.sh
+source env/bin/activate
 ```
 
 * By creating this environment on the shared FSx for Lustre volume, all compute nodes in our cluster will have access to it.
