@@ -70,8 +70,6 @@ docker image push ${REGISTRY}${IMAGE}${TAG}
 
 The default config in the script launches a 8B Llama 3 model. When you run the generate-jobspec.sh script it creates 2 yaml files tokenize_data.yaml and llama3_train.yaml
 
-You will have to update the HF_ACCESS_TOKEN in order for the tokenization to work.
-
 Please edit the `./generate-jobspec.sh` script with your desired environment settings.
 
 ```bash
