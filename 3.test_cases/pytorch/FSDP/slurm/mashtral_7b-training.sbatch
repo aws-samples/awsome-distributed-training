@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: MIT-0
 
 #SBATCH --nodes=4 # number of nodes to use
-#SBATCH --job-name=mashtral-7b-FSDP # name of your job
+#SBATCH --job-name=mashtral_7b-FSDP # name of your job
 #SBATCH --output=logs/%x_%j.out # logfile for stdout
 #SBATCH --error=logs/%x_%j.err # logfile for stderr, remove it to merge both outputs
 #SBATCH --exclusive # job has exclusive use of the resource, no sharing
@@ -53,7 +53,7 @@ export HF_HUB_ETAG_TIMEOUT=60
 ####### Container ######
 ########################
 
-if [ -z $CONTAINER_IMAGE ];
+if [ ! -z $CONTAINER_IMAGE ];
 then
     declare -a ARGS=(
         --container-image $CONTAINER_IMAGE
@@ -77,7 +77,7 @@ export TORCHRUN=torchrun
 export TRAIN_SCRIPT=./train.py
 
 ############################
-# mashtral-7b Training Params ##
+# mashtral_7b Training Params ##
 ############################
 
 declare -a TRAINING_ARGS=(
