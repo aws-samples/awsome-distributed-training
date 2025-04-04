@@ -18,12 +18,23 @@ def list_models(path='models'):
 
 
 def create_sbatch_file(model_name, model_parameters):
-    env = jinja2.Environment(loader=jinja2.FileSystemLoader('.'))
+    env = jinja2.Environment(loader=jinja2.FileSystemLoader('slurm'))
     template = env.get_template('training-sub.template')
     content = template.render(MODEL_NAME=model_name,
                               MODEL_PARAMETERS=model_parameters)
 
-    f = open(model_name + '-training.sbatch', mode='w')
+    f = open('slurm/' + model_name + '-training.sbatch', mode='w')
+    f.write(content)
+    f.close()
+
+
+def create_kubernetes_file(model_name, model_parameters):
+    env = jinja2.Environment(loader=jinja2.FileSystemLoader('kubernetes'))
+    template = env.get_template('training_kubernetes.template')
+    content = template.render(MODEL_NAME=model_name,
+                              MODEL_PARAMETERS=model_parameters.splitlines())
+
+    f = open('kubernetes/' + model_name + '-fsdp.yaml', mode='w')
     f.write(content)
     f.close()
 
@@ -32,9 +43,9 @@ def main():
     models = list_models()
 
     for i in models:
-        print(i)
         model_parameters = get_model_parameters(i)
         create_sbatch_file(i, model_parameters)
+        create_kubernetes_file(i, model_parameters)
 
 
 if __name__ == '__main__':
