@@ -23,7 +23,7 @@ spec:
       command:
         - python 
         - consolidation.py 
-        - --input_dir=${CHECKPOINT_DIR}/checkpoint-5003
+        - --input_dir=${CHECKPOINT_DIR}/checkpoint-${MAX_TRAINING_STEPS}
         - --output_dir=${CHECKPOINT_DIR}/adapter_shards_consolidation
         - --save_format=safetensors
       volumeMounts:

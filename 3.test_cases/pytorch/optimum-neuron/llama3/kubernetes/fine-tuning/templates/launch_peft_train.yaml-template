@@ -57,7 +57,7 @@ spec:
 apiVersion: "kubeflow.org/v1"
 kind: PyTorchJob
 metadata:
-  name: peft-llama3-do-compile
+  name: peft-llama3-do-train
   namespace: ${NAMESPACE}
 spec:
   elasticPolicy:
@@ -74,7 +74,7 @@ spec:
       template:
         metadata:
           labels:
-            app: peft-llama3-do-compile
+            app: peft-llama3-do-train
         spec:
           volumes:
             - name: shmem
@@ -107,28 +107,25 @@ spec:
                 value: "32"
               - name: NEURON_RT_NUM_CORES
                 value: "32"
-              - name: XLA_USE_BF16
-                value: "1"
               - name: NEURON_CC_FLAGS
                 value: "--model-type transformer --distribution-strategy=llm-training --cache_dir=${NEURON_CACHE_DIR}"
               command: 
-                - neuron_parallel_compile
                 - torchrun
-                - --nproc_per_node=1
+                - --nproc_per_node=8
                 - --nnodes=1
                 - peft_train.py
                 - --bf16=True
                 - --checkpoint_frequency=400
                 - --dataset=${DATASET_NAME}
                 - --max_seq_length=${MAX_SEQ_LENGTH}
-                - --max_steps=10
+                - --max_steps=${MAX_TRAINING_STEPS}
                 - --epochs=${EPOCHS}
                 - --gradient_accumulation_steps=3
                 - --learning_rate=${LEARNING_RATE}
                 - --model_path=${MODEL_OUTPUT_PATH}
                 - --tokenizer_path=${TOKENIZER_OUTPUT_PATH}
-                - --model_checkpoint_path=${CHECKPOINT_DIR_COMPILE}
-                - --model_final_path=${CHECKPOINT_DIR_COMPILE}/final
+                - --model_checkpoint_path=${CHECKPOINT_DIR}
+                - --model_final_path=${CHECKPOINT_DIR}/final
                 - --tp_size=${TP_SIZE}
                 - --pp_size=${PP_SIZE}
                 - --train_batch_size=${TRAIN_BATCH_SIZE}

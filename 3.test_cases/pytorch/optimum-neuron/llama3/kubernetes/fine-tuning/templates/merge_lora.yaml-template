@@ -24,7 +24,7 @@ spec:
         - python 
         - merge_lora.py 
         - --final_model_path=${FINAL_MODEL_PATH}
-        - --adapter_config_path=${CHECKPOINT_DIR}/checkpoint-5003/adapter_config.json
+        - --adapter_config_path=${CHECKPOINT_DIR}/checkpoint-${MAX_TRAINING_STEPS}/adapter_config.json
         - --base_model_path=${MODEL_OUTPUT_PATH}
         - --lora_safetensors_path=${CHECKPOINT_DIR}/adapter_shards_consolidation/model.safetensors
       volumeMounts:
