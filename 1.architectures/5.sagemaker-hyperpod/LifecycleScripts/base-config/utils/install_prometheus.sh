@@ -35,8 +35,9 @@ generate_targets() {
 #echo "Retrieving the latest Prometheus version..."
 #LATEST_VERSION=$(curl -s https://api.github.com/repos/prometheus/prometheus/releases/latest | grep -oP '"tag_name": "\K(.*?)(?=")' | sed 's/^v//')
 
-echo "Using pinned Prometheus version 2.55.1"
-LATEST_VERSION=2.55.1
+LATEST_VERSION=3.2.1
+echo "Using pinned Prometheus version ${LATEST_VERSION}"
+
 
 # Check if the latest version retrieval was successful
 if [ -z "$LATEST_VERSION" ]; then
@@ -55,10 +56,10 @@ wget --progress=dot:giga "$DOWNLOAD_URL"
 
 # Extract Prometheus
 echo "Extracting Prometheus"
-tar xvfz prometheus-*.tar.gz
+tar xvzf prometheus-$LATEST_VERSION.linux-amd64.tar.gz
 
 # Move to Prometheus directory
-cd prometheus-*-amd64
+cd prometheus-$LATEST_VERSION.linux-amd64
 
 # Move binaries to /usr/bin/
 echo "Moving Prometheus binaries to /usr/bin/"
@@ -117,7 +118,7 @@ Description=Prometheus Exporter
 
 [Service]
 Environment=PATH=/opt/slurm/bin:\$PATH
-ExecStart=/usr/bin/prometheus --config.file=/etc/prometheus/prometheus.yml --enable-feature=agent --storage.agent.path="/opt/prometheus/data-agent"
+ExecStart=/usr/bin/prometheus --config.file=/etc/prometheus/prometheus.yml --agent --storage.agent.path="/opt/prometheus/data-agent"
 Restart=on-failure
 RestartSec=15
 Type=simple
