@@ -1,0 +1,8 @@
+datasets
+fsspec==2023.9.2
+numpy==1.*
+python-etcd
+torch==2.5.1 --index-url https://download.pytorch.org/whl/cu124
+torchaudio==2.5.1 --index-url https://download.pytorch.org/whl/cu124
+torchvision==0.20.1 --index-url https://download.pytorch.org/whl/cu124
+transformers==4.50.3

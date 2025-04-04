@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: MIT-0
 
 #SBATCH --nodes=4 # number of nodes to use
-#SBATCH --job-name=FSDP # name of your job
+#SBATCH --job-name=mashtral_7b-FSDP # name of your job
 #SBATCH --output=logs/%x_%j.out # logfile for stdout
 #SBATCH --error=logs/%x_%j.err # logfile for stderr, remove it to merge both outputs
 #SBATCH --exclusive # job has exclusive use of the resource, no sharing
@@ -16,6 +16,13 @@ set -ex;
 ###########################
 
 GPUS_PER_NODE=8 # 4 for G5.12x, 8 for P4/P5
+
+###############################
+###### Container Variable #####
+###############################
+export CONTAINER_IMAGE=$(pwd)/pytorch-fsdp.sqsh
+export DATA_PATH=/fsx
+export FSX_MOUNT=$(pwd):$DATA_PATH
 
 ###########################
 ## Environment Variables ##
@@ -35,29 +42,42 @@ export FI_EFA_SET_CUDA_SYNC_MEMOPS=0
 # LD_PRELOAD is required for PyTorch to find the NCCL library
 # This path assumes you are using the Deep Learning AMI
 # If you are not using the DLAMI, you may need to update this path
-export LD_PRELOAD=/usr/local/cuda-12.1/lib/libnccl.so
-export NCCL_SOCKET_IFNAME=^docker,lo,veth_def_agent,eth
+export LD_PRELOAD=/usr/local/cuda-12.4/lib/libnccl.so
+export NCCL_SOCKET_IFNAME=^docker,lo,veth,eth
 
 ## Set HuggingFace metadata timeout (in seconds) for large clusters
 export HF_HUB_ETAG_TIMEOUT=60
+
+
+########################
+####### Container ######
+########################
+
+if [ ! -z $CONTAINER_IMAGE ];
+then
+    declare -a ARGS=(
+        --container-image $CONTAINER_IMAGE
+        --container-mounts $FSX_MOUNT
+    )
+fi
 
 ###########################
 ####### Torch Dist  #######
 ###########################
 
 declare -a TORCHRUN_ARGS=(
-    --nproc_per_node=$GPUS_PER_NODE \
-    --nnodes=$SLURM_JOB_NUM_NODES \
-    --rdzv_id=$SLURM_JOB_ID \
-    --rdzv_backend=c10d \
-    --rdzv_endpoint=$(hostname) \
+    --nproc_per_node=$GPUS_PER_NODE
+    --nnodes=$SLURM_JOB_NUM_NODES
+    --rdzv_id=$SLURM_JOB_ID
+    --rdzv_backend=c10d
+    --rdzv_endpoint=$(hostname)
 )
 
-export TORCHRUN=./pt_fsdp/bin/torchrun
+export TORCHRUN=torchrun
 export TRAIN_SCRIPT=./train.py
 
 ############################
-# Mistral Training Params ##
+# mashtral_7b Training Params ##
 ############################
 
 declare -a TRAINING_ARGS=(
@@ -103,10 +123,10 @@ declare -a TRAINING_ARGS=(
     --sharding_strategy="full" \ # https://pytorch.org/docs/stable/fsdp.html
     --offload_activations=1
 )
-## added auto-resume flag for resiliency checks
+
 AUTO_RESUME=""
 if [ -d "/opt/sagemaker_cluster" ]; then
-	echo "Detected Hyperpod cluster.. enabling --auto-resume=1"
-	AUTO_RESUME="--auto-resume=1"
+    echo "Detected Hyperpod cluster.. enabling --auto-resume=1"
+    AUTO_RESUME="--auto-resume=1"
 fi
-srun ${AUTO_RESUME} -l ${TORCHRUN} "${TORCHRUN_ARGS[@]}" $TRAIN_SCRIPT "${TRAINING_ARGS[@]}"
+srun ${AUTO_RESUME} -l "${ARGS[@]}" ${TORCHRUN} "${TORCHRUN_ARGS[@]}" $TRAIN_SCRIPT "${TRAINING_ARGS[@]}"
