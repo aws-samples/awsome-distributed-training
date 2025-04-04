@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: MIT-0
 
 #SBATCH --nodes=4 # number of nodes to use
-#SBATCH --job-name=Llama2-FSDP # name of your job
+#SBATCH --job-name=llama2_7b-FSDP # name of your job
 #SBATCH --output=logs/%x_%j.out # logfile for stdout
 #SBATCH --error=logs/%x_%j.err # logfile for stderr, remove it to merge both outputs
 #SBATCH --exclusive # job has exclusive use of the resource, no sharing
@@ -16,6 +16,13 @@ set -ex;
 ###########################
 
 GPUS_PER_NODE=8 # 4 for G5.12x, 8 for P4/P5
+
+###############################
+###### Container Variable #####
+###############################
+export CONTAINER_IMAGE=$(pwd)/pytorch-fsdp.sqsh
+export DATA_PATH=/fsx
+export FSX_MOUNT=$(pwd):$DATA_PATH
 
 ###########################
 ## Environment Variables ##
@@ -46,7 +53,7 @@ export HF_HUB_ETAG_TIMEOUT=60
 ####### Container ######
 ########################
 
-if [ -z $CONTAINER_IMAGE ];
+if [ ! -z $CONTAINER_IMAGE ];
 then
     declare -a ARGS=(
         --container-image $CONTAINER_IMAGE
@@ -70,16 +77,16 @@ export TORCHRUN=torchrun
 export TRAIN_SCRIPT=./train.py
 
 ############################
-# Llama 2 Training Params ##
+# llama2_7b Training Params ##
 ############################
 
 declare -a TRAINING_ARGS=(
     --max_context_width=4096
-    --num_key_value_heads=32 # 7b: 32 13b: 40 70b: 8
-    --intermediate_size=11008 # 7b: 11008 13b: 13824 70b: 28672
-    --hidden_width=4096 # 7b: 4096 13b: 5120 70b: 8192
-    --num_layers=32 # 7b: 32 13b: 40 70b: 80
-    --num_heads=32 # 7b: 32 13b: 40 70b: 64
+    --num_key_value_heads=32
+    --intermediate_size=11008
+    --hidden_width=4096
+    --num_layers=32
+    --num_heads=32
     --model_type=llama_v2
     --tokenizer="hf-internal-testing/llama-tokenizer"
     --checkpoint_freq=5000
