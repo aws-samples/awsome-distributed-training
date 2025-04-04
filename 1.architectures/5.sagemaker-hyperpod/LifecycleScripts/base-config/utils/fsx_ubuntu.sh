@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Wait for FSx to be properly mounted (timeout after 30 seconds)
+# Wait for FSx to be properly mounted (timeout after 60 seconds)
 ATTEMPTS=6
 WAIT=10
 for ((i=1; i<=ATTEMPTS; i++)); do
