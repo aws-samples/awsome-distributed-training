@@ -77,7 +77,7 @@ spec:
       template:
         metadata:
           labels:
-            app: fsdp
+            app: llama2_70b-fsdp
         spec:
           volumes:
             - name: shmem
