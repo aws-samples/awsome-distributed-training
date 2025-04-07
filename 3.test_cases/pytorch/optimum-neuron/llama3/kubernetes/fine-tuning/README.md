@@ -1,5 +1,5 @@
 ## PEFT fine tuning of Llama 3 on Amazon EKS with AWS Trainium
-This README demonstrates how to perform efficient supervised fine tuning for a Meta Llama 3.1 model using Parameter-Efficient Fine Tuning (PEFT) on AWS Trainium with SageMaker HyperPod. We use HuggingFace's Optimum-Neuron SDK to apply Low-Rank Adaptation (LoRA) to fine-tuning jobs, and use SageMaker HyperPod as the primary compute cluster to perform distributed training on Trainium.
+This README demonstrates how to perform efficient supervised fine tuning for a Meta Llama 3.1 model using Parameter-Efficient Fine Tuning (PEFT) on AWS Trainium with EKS. We use HuggingFace's Optimum-Neuron SDK to apply Low-Rank Adaptation (LoRA) to fine-tuning jobs, and use Trainiums to perform distributed training.
 
 ### Solution overview
 This solution uses the following components:
