@@ -6,11 +6,11 @@ RUN apt-get update && apt-get install -y wget gnupg2 \
     && wget -qO - https://apt.repos.neuron.amazonaws.com/GPG-PUB-KEY-AMAZON-AWS-NEURON.PUB | apt-key add - \
     && apt-get update
 
-RUN apt-get install aws-neuronx-dkms=2.3.26.0 -y
+RUN apt-get install aws-neuronx-dkms=2.* -y
 
 # Upgrade neuron runtime
-RUN apt-get install aws-neuronx-collectives=2.23.135.0 -y
-RUN apt-get install aws-neuronx-runtime-lib=2.23.112.0 -y
+RUN apt-get install aws-neuronx-collectives=2.23.135.0-3e70920f2 -y
+RUN apt-get install aws-neuronx-runtime-lib=2.23.112.0-9b5179492 -y
 
 # Install Neuron Tools 
 RUN apt-get install aws-neuronx-tools=2.20.204.0 -y
@@ -35,6 +35,6 @@ COPY src/merge_lora.py workspace/merge_lora.py
 
 RUN python3 -m pip install datasets==2.18.0 tokenizers==0.21.1 peft==0.14.0 huggingface_hub trl==0.11.4 PyYAML accelerate==0.29.2
 
-RUN pip install optumum-neuron==0.1.0
+RUN python3 -m pip install optimum-neuron==0.1.0
 
 WORKDIR /workspace
