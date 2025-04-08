@@ -32,9 +32,19 @@ Metadata:
           - PrimarySubnetAZ
           - BackupSubnetAZ
       - Label:
-          default: Fsx Lustre storage size
+          default: FSx Lustre configuration
         Parameters:
           - Capacity
+          - PerUnitStorageThroughput
+          - Compression
+          - LustreVersion
+      - Label:
+          default: (Optional) FSx OpenZFS configuration
+        Parameters:
+          - CreateOpenZFS
+          - OpenZFSThroughput
+          - OpenZFSStorageCapacity
+          - OpenZFSIops
       - Label:
           default: Network and S3 endpoints configuration
         Parameters:
@@ -93,7 +103,6 @@ Parameters:
     Description: S3 Bucket to save lifecycle configuration file
     Type: String
     Default: "sagemaker-lifecycle"
-
 
   PerUnitStorageThroughput:
     Description: Provisioned Read/Write (MB/s/TiB)
@@ -160,6 +169,13 @@ Parameters:
     MinValue: 64
     MaxValue: 524288
 
+  OpenZFSIops:
+    Description: The total number of SSD IOPS provisioned for the file system (LEAVE EMPTY FOR DEFAULT OF 3 IOPS PER GiB OF STORAGE CAPACITY)
+    Type: Number
+    Default: 0
+    MinValue: 0
+    MaxValue: 400000
+
 ###############################
 ## Conditions for Parameters ##
 ###############################
@@ -169,6 +185,7 @@ Conditions:
   BackupSubnetCondition: !Not [ !Equals [!Ref 'BackupSubnetAZ', ''] ]
   CreateSSMDocument: !Equals [!Ref 'SSMDocumentName', 'true']
   CreateOpenZFSCondition: !Equals [!Ref 'CreateOpenZFS', 'true']
+  ConfigureCustomIops: !Not [!Equals [!Ref OpenZFSIops, 0]]
 
 
 ##########################
@@ -456,6 +473,11 @@ Resources:
         CopyTagsToVolumes: Yes
         DailyAutomaticBackupStartTime: '19:00'
         DeploymentType: SINGLE_AZ_HA_2
+        DiskIopsConfiguration: !If
+          - ConfigureCustomIops
+          - Mode: USER_PROVISIONED
+            Iops: !Ref OpenZFSIops
+          - !Ref AWS::NoValue
         Options:
           - DELETE_CHILD_VOLUMES_AND_SNAPSHOTS
         RootVolumeConfiguration:
