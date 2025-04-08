@@ -1,0 +1,79 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+ Grafana Dashboards deployment
+ Author: maxhaws@amazon.com
+
+Parameters:
+  PCClusterName:
+    Type: String
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+
+Resources:
+  GrafanaPrometheus:
+    Type: AWS::Serverless::Application
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      Location: cluster-observability.yaml
+
+  GrafanaLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: "sts:AssumeRole"
+      Policies:
+        - PolicyName: GrafanaLambda
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'grafana:CreateWorkspaceApiKey'
+                  - 'grafana:DeleteWorkspaceApiKey'
+                Resource: "*"
+
+  DashboardCreationLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: dashboards
+      Environment:
+        Variables:
+          REGION: !Ref AWS::Region
+          PROMETHEUS_URL: !GetAtt GrafanaPrometheus.Outputs.AMPEndPointUrl
+          GRAFANA_WORKSPACE_ID: !GetAtt GrafanaPrometheus.Outputs.GrafanWorkspaceId
+          GRAFANA_WORKSPACE_URL: !GetAtt GrafanaPrometheus.Outputs.GrafanWorkspaceURL
+      Handler: create_ml_dashboards.lambda_handler
+      Runtime: python3.13
+      Role: !GetAtt GrafanaLambdaRole.Arn
+      Timeout: 10
+      MemorySize: 128
+      Tags:
+        Application: MLDashboards
+
+  PrometheusCollector:
+    Type: AWS::Serverless::Application
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      Location: prometheus-agent-collector.yaml
+      Parameters:
+       PCClusterNAME: !Ref PCClusterName
+       ManagedPrometheusUrl: !GetAtt GrafanaPrometheus.Outputs.AMPRemoteWriteURL
+       SubnetId: !Ref SubnetId
+       VpcId: !Ref VpcId
+
+  LambdaTrigger: 
+    Type: "Custom::LambdaTrigger"
+    Properties: 
+      ServiceToken:
+        !GetAtt DashboardCreationLambda.Arn
+      ServiceTimeout: 300
