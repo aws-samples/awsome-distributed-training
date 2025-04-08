@@ -12,8 +12,7 @@ def parse_args():  # pylint: disable=too-many-statements
     # hyperparameters sent by the client are passed as command-line arguments to the script.
 
     opt_grp = parser.add_argument_group(
-        title="optimization", description="arguments for optimization"
-    )
+        title="optimization", description="arguments for optimization")
     opt_grp.add_argument(
         "--train_batch_size",
         type=int,
@@ -21,18 +20,32 @@ def parse_args():  # pylint: disable=too-many-statements
         help="batch size per dp rank",  # pylint: disable=line-too-long
     )
     opt_grp.add_argument("--val_batch_size", type=int, default=4)
-    opt_grp.add_argument("--max_steps", "--max_training_steps", type=int, default=5000)
+    opt_grp.add_argument("--max_steps",
+                         "--max_training_steps",
+                         type=int,
+                         default=5000)
     opt_grp.add_argument("--seed", type=int, default=12345)
     opt_grp.add_argument("--same_seed", type=int, default=0)
-    opt_grp.add_argument("--bf16", default=1, type=int, help="automatic mixed precision training")
-    opt_grp.add_argument("--grad_clip", default=1.0, type=float, help="gradient clipping")
-    opt_grp.add_argument("--weight_decay", default=0.2, type=float, help="weight decay")
-    opt_grp.add_argument(
-        "--beta1", default=0.9, type=float, help="beta1 parameter for Adam optimizer"
-    )
-    opt_grp.add_argument(
-        "--beta2", default=0.95, type=float, help="beta2 parameter for Adam optimizer"
-    )
+    opt_grp.add_argument("--bf16",
+                         default=1,
+                         type=int,
+                         help="automatic mixed precision training")
+    opt_grp.add_argument("--grad_clip",
+                         default=1.0,
+                         type=float,
+                         help="gradient clipping")
+    opt_grp.add_argument("--weight_decay",
+                         default=0.2,
+                         type=float,
+                         help="weight decay")
+    opt_grp.add_argument("--beta1",
+                         default=0.9,
+                         type=float,
+                         help="beta1 parameter for Adam optimizer")
+    opt_grp.add_argument("--beta2",
+                         default=0.95,
+                         type=float,
+                         help="beta2 parameter for Adam optimizer")
     opt_grp.add_argument(
         "--activation_checkpointing",
         type=int,
@@ -51,14 +64,14 @@ def parse_args():  # pylint: disable=too-many-statements
         default=None,
         help="num_key_value_heads for GQA",
     )
-    parser.add_argument(
-        "--logging_freq", type=int, default=1, help="number of iterations between logging"
-    )
+    parser.add_argument("--logging_freq",
+                        type=int,
+                        default=1,
+                        help="number of iterations between logging")
     parser.add_argument("--tensorboard_dir", type=str, nargs="+", default=None)
 
     model_grp = parser.add_argument_group(
-        title="model", description="arguments to describe model configuration"
-    )
+        title="model", description="arguments to describe model configuration")
     model_grp.add_argument("--max_context_width", type=int, default=2048)
     model_grp.add_argument("--vocab_size", type=int, default=50432)
     model_grp.add_argument("--hidden_width", type=int, default=768)
@@ -74,29 +87,32 @@ def parse_args():  # pylint: disable=too-many-statements
     model_grp.add_argument("--rotary_emb_base", type=int, default=10000)
 
     fsdp_grp = parser.add_argument_group(
-        title="fsdp", description="arguments for fully sharded data parallel"
-    )
+        title="fsdp", description="arguments for fully sharded data parallel")
     fsdp_grp.add_argument("--offload_activations", type=int, default=0)
     fsdp_grp.add_argument("--activation_loading_horizon", type=int, default=2)
     fsdp_grp.add_argument("--limit_all_gathers", default=1, type=int)
     fsdp_grp.add_argument(
-        "--sharding_strategy", 
-        type=str, 
+        "--sharding_strategy",
+        type=str,
         default="full",
         choices=["full", "hybrid"],
         help="FSDP sharding strategy https://pytorch.org/docs/stable/fsdp.html",
     )
     fsdp_grp.add_argument(
         "--cpu_offload",
-        type=int, default=0,
-        help="CPU offloading https://pytorch.org/docs/stable/fsdp.html#torch.distributed.fsdp.CPUOffload"
+        type=int,
+        default=0,
+        help=
+        "CPU offloading https://pytorch.org/docs/stable/fsdp.html#torch.distributed.fsdp.CPUOffload"
     )
-    
+
     # learning rate
     lr_grp = parser.add_argument_group(
-        title="lr", description="arguments for learning rate schedule"
-    )
-    lr_grp.add_argument("--lr", type=float, default=0.0001, help="Initial learning rate.")
+        title="lr", description="arguments for learning rate schedule")
+    lr_grp.add_argument("--lr",
+                        type=float,
+                        default=0.0001,
+                        help="Initial learning rate.")
     lr_grp.add_argument(
         "--lr_decay_style",
         type=str,
@@ -108,13 +124,15 @@ def parse_args():  # pylint: disable=too-many-statements
         "--lr_decay_iters",
         type=int,
         default=None,
-        help="number of iterations to decay learning rate over," " If None defaults to train iters",
+        help="number of iterations to decay learning rate over,"
+        " If None defaults to train iters",
     )
     lr_grp.add_argument(
         "--min_lr",
         type=float,
         default=1e-05,
-        help="Minumum value for learning rate. The scheduler" "clip values below this threshold.",
+        help="Minumum value for learning rate. The scheduler"
+        "clip values below this threshold.",
     )
     lr_grp.add_argument(
         "--warmup",
@@ -127,12 +145,16 @@ def parse_args():  # pylint: disable=too-many-statements
         "--plateau",
         type=float,
         default=0.0,
-        help="Percentage of total iterations to keep at max if using plateau lr",
+        help=
+        "Percentage of total iterations to keep at max if using plateau lr",
     )
-    io_grp = parser.add_argument_group(title="io", description="location for input and output")
-    io_grp.add_argument("--dataset", type=str, default="c4")
-    io_grp.add_argument("--dataset_config_name", type=str, default=None)
-    io_grp.add_argument("--tokenizer", type=str, default="EleutherAI/gpt-neox-20b")
+    io_grp = parser.add_argument_group(
+        title="io", description="location for input and output")
+    io_grp.add_argument("--dataset", type=str, default="allenai/c4")
+    io_grp.add_argument("--dataset_config_name", type=str, default="en")
+    io_grp.add_argument("--tokenizer",
+                        type=str,
+                        default="EleutherAI/gpt-neox-20b")
     io_grp.add_argument(
         "--resume_from_checkpoint",
         type=str,
@@ -145,10 +167,11 @@ def parse_args():  # pylint: disable=too-many-statements
         default=None,
         help="Saves partial checkpoints (model, optimizer) to this dir.",  # pylint: disable=line-too-long
     )
-    io_grp.add_argument(
-        "--epochs", type=int, default=3, help="times of iterating over the training dataset"
-    )
-    
+    io_grp.add_argument("--epochs",
+                        type=int,
+                        default=3,
+                        help="times of iterating over the training dataset")
+
     parser.add_argument(
         "--checkpoint_freq",
         type=int,

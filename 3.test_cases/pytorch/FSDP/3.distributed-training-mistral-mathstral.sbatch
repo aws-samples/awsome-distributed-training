@@ -53,7 +53,7 @@ declare -a TORCHRUN_ARGS=(
     --rdzv_endpoint=$(hostname) \
 )
 
-export TORCHRUN=./pt_fsdp/bin/torchrun
+export TORCHRUN=torchrun
 export TRAIN_SCRIPT=./train.py
 
 ############################
