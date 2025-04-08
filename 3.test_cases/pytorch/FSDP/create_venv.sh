@@ -4,7 +4,7 @@ set -ex
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 
-PYTHON_VERSION=$(python --version | awk '{print $2}' | awk -F'.' '{print $1"."$2}')
+PYTHON_VERSION=$(python3 --version | awk '{print $2}' | awk -F'.' '{print $1"."$2}')
 sudo apt install -y python$PYTHON_VERSION-venv
 
 # Create and actiate Python virtual environment
