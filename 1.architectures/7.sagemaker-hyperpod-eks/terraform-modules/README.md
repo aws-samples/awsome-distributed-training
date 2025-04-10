@@ -62,7 +62,7 @@ Source the `env_vars.sh` script to set your environment variables:
 source env_vars.sh
 ```
 Verify that your environment variables are set: 
-```bash s
+```bash
 echo $EKS_CLUSTER_NAME
 echo $PRIVATE_SUBNET_ID
 echo $SECURITY_GROUP_ID
