@@ -5,119 +5,69 @@
 set -x
 set -e
 
-# FSx OpenZFS Endpoints
+# FSx OpenZFS Endpoints and versions
 FSX_OPENZFS_DNS_NAME="$1"
 OPENZFS_MOUNT_POINT="$2"
+NFS_VERSION=4.2
 
-is_mounted() {
-  mountpoint -q "$1"
-  return $?
+# Ansible Version
+ANSIBLE_VERSION="2.9.6+dfsg-1"
+
+# Function for error handling
+handle_error()
+{
+    local exit_code=$?
+    echo "Error occured in command: $BASH_COMMAND"
+    echo "Exit code: $exit_code"
+    exit $exit_code
 }
 
-check_already_mounted() {
-  # Check if FSx OpenZFS is already mounted to $OPENZFS_MOUNT_POINT
-  if is_mounted $OPENZFS_MOUNT_POINT; then
-    if grep -qs "$FSX_OPENZFS_DNS_NAME:/fsx $OPENZFS_MOUNT_POINT nfs" /proc/mounts; then
-      echo "FSx OpenZFS already mounted to $OPENZFS_MOUNT_POINT. Exiting."
-      exit 0
-    else
-      echo "$OPENZFS_MOUNT_POINT is mounted, but not to DNS name: $FSX_OPENZFS_DNS_NAME. Exiting."
-      exit 1
+trap handle_error ERR
+
+# DEBUG: Verify parameters are set
+verify_parameters()
+{
+    if [ -z "$FSX_OPENZFS_DNS_NAME" ] || [ -z "$OPENZFS_MOUNT_POINT" ]; then
+        echo "Usage: $0 <fsx_dns_name> <mount_point>"
+        exit 1
     fi
-  fi
 }
 
-install_nfs_client() {
-  # Install NFS client based on the OS
-  if [ -f /etc/lsb-release ]; then
-    # Ubuntu
+# Install Ansible and collections: Move to higher LCS once others start using Ansible too.
+install_ansible()
+{
     apt-get update
-    apt-get -y install nfs-common
-  elif [ -f /etc/redhat-release ]; then
-    # CentOS/RHEL
-    yum -y install nfs-utils
-  fi
+    apt-get install -y ansible=$ANSIBLE_VERSION
+    ansible-galaxy collection install ansible.posix
 }
 
-add_to_fstab() {
-  # Add FSx OpenZFS to /etc/fstab
-  echo "$FSX_OPENZFS_DNS_NAME:/fsx $OPENZFS_MOUNT_POINT nfs nfsvers=4.2,_netdev 0 0" | tee -a /etc/fstab
-}
-
-mount_fs() {
-  if [[ ! -d $OPENZFS_MOUNT_POINT ]]; then
-    mkdir -p $OPENZFS_MOUNT_POINT
-    chmod 755 $OPENZFS_MOUNT_POINT
-  fi
-
-  if mount -t nfs -o nfsvers=4.2 "$FSX_OPENZFS_DNS_NAME:/fsx" "$OPENZFS_MOUNT_POINT"; then
-    if ! is_mounted $OPENZFS_MOUNT_POINT; then
-      echo "Mounting FSx OpenZFS to $OPENZFS_MOUNT_POINT directory successful, but mountpoint was not detected. Exiting."
-      exit 1
+# Install NFS Client based on OS
+install_nfs_client()
+{
+    if [ -f /etc/lsb-release ]; then
+        # Ubuntu
+        ansible localhost -b -m ansible.builtin.apt -a "name=nfs-common state=present update_cache=yes"
+    elif [ -f /etc/redhat-release ]; then
+        # CentOS/RHEL
+        ansible localhost -b -m ansible.builtin.yum -a "name=nfs-utils state=present"
     fi
-  else
-    echo "FAILED to mount FSx OpenZFS to $OPENZFS_MOUNT_POINT directory. Exiting."
-    exit 1
-  fi
 }
 
-# create a systemd service to check mount periodically and remount FSx if necessary
-install_remount_service() {
-  if [[ ! -d /opt/ml/scripts ]]; then
-    mkdir -p /opt/ml/scripts
-    chmod 755 /opt/ml/scripts
-    echo "Created dir /opt/ml/scripts"
-  fi
-
-  CHECK_MOUNT_FILE=/opt/ml/scripts/check_mount_openzfs.sh
-
-  cat > $CHECK_MOUNT_FILE << EOF
-#!/bin/bash
-OPENZFS_MOUNT_POINT=$OPENZFS_MOUNT_POINT
-if ! grep -qs "\$OPENZFS_MOUNT_POINT" /proc/mounts; then
-  mount -t nfs -o nfsvers=4.2 "$FSX_OPENZFS_DNS_NAME:/fsx" "\$OPENZFS_MOUNT_POINT"
-  echo "Mounted FSx OpenZFS to \$OPENZFS_MOUNT_POINT"
-else
-  echo "FSx OpenZFS already mounted to \$OPENZFS_MOUNT_POINT. Stopping services check_fsx_openzfs_mount.timer and check_fsx_openzfs_mount.service"
-  systemctl stop check_fsx_openzfs_mount.timer
-fi
-EOF
-
-  chmod +x $CHECK_MOUNT_FILE
-
-  cat > /etc/systemd/system/check_fsx_openzfs_mount.service << EOF
-[Unit]
-Description=Check and remount FSx OpenZFS filesystems if necessary
-
-[Service]
-ExecStart=$CHECK_MOUNT_FILE
-EOF
-
-  cat > /etc/systemd/system/check_fsx_openzfs_mount.timer << EOF
-[Unit]
-Description=Run check_fsx_openzfs_mount.service every minute
-
-[Timer]
-OnBootSec=1min
-OnUnitActiveSec=1min
-
-[Install]
-WantedBy=timers.target
-EOF
-
-  systemctl daemon-reload
-  systemctl enable --now check_fsx_openzfs_mount.timer
+# Mount the FSx OpenZFS file system
+mount_fs()
+{
+    ansible localhost -b -m ansible.posix.mount -a "path=$OPENZFS_MOUNT_POINT src=$FSX_OPENZFS_DNS_NAME:/fsx fstype=nfs opts=nfsvers=$NFS_VERSION,_netdev,nconnect=16,x-systemd.automount,x-systemd.requires=network-online.target dump=0 passno=0 state=mounted"
 }
 
-main() {
-  echo "Mount_fsx_openzfs called with fsx_openzfs_dns_name: $FSX_OPENZFS_DNS_NAME"
-  echo "Using openzfs_mount_point: $OPENZFS_MOUNT_POINT"
-  install_nfs_client
-  check_already_mounted
-  add_to_fstab
-  mount_fs
-  install_remount_service
-  echo "FSx OpenZFS mounted successfully to $OPENZFS_MOUNT_POINT"
+main() 
+{
+    echo "Mount_fsx_openzfs called with fsx_openzfs_dns_name: $FSX_OPENZFS_DNS_NAME"
+    echo "Using openzfs_mount_point: $OPENZFS_MOUNT_POINT"
+    verify_parameters
+    install_ansible
+    install_nfs_client
+    mount_fs
+    echo "FSx OpenZFS mounted successfully to $OPENZFS_MOUNT_POINT"
 }
 
 main "$@"
