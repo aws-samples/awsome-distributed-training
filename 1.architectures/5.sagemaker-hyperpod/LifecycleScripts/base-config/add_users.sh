@@ -20,7 +20,7 @@ SHARED_USER_FILE="shared_users.txt"
 create_user() {
   local username=$1
   local uid=$2
-  local home=$3
+  local fsx_home=$3
 
   # check if username already exists
   if id -u "$username"  >/dev/null 2>&1; then
@@ -33,13 +33,31 @@ create_user() {
     echo "UID $uid is already in use. Skipping adding user: $username..."
     return
   fi
-  
-  # create user with uid and directory
-  if useradd -m $username --uid $uid -d $home --shell /bin/bash; then
-    echo "Created user $username with uid $uid and home $home."
+
+  # Determine home directory based on OpenZFS filesystem availability
+  if df -h | grep -q "/home"; then
+    echo "OpenZFS is mounted at /home"
+    local home="/home/$username"
+
+    # Create user with OpenZFS home
+    if useradd -m $username --uid $uid -d $home --shell /bin/bash; then
+      echo "Created user $username with uid $uid and home $home."
+
+      # Make sure fsxl directory still exists and is accessible
+      sudo mkdir -p $fsx_home
+      sudo chown $username:$username $fsx_home
+    else
+      echo "Failed to create user $username with uid $uid"
+    fi
   else
-    echo "Failed to create user $username with uid $uid"
-  fi
+    echo "OpenZFS is not mounted. Using FSxL file system"
+    # create user with uid and directory
+    if useradd -m $username --uid $uid -d $fsx_home --shell /bin/bash; then
+      echo "Created user $username with uid $uid and home $home."
+    else
+      echo "Failed to create user $username with uid $uid"
+    fi
+  fi  
 }
 
 main() {
