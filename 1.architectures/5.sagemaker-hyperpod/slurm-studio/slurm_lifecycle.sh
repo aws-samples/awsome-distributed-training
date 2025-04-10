@@ -240,7 +240,7 @@ ClusterName=${CLUSTER_NAME}
 EOF
 
 # Add controllers 
-for ((i=1; i<=${#CONTROLLER_HOSTNAMES[@]}; i++)); do
+for ((i=0; i<${#CONTROLLER_HOSTNAMES[@]}; i++)); do
     echo "SlurmctldHost=${CONTROLLER_HOSTNAMES[i]}(${CONTROLLER_IPS[i]})" | sudo tee -a /usr/local/etc/slurm.conf
 done
 
@@ -315,7 +315,7 @@ TEMP_FILE_2=$(mktemp)
 sleep 5
 
 # Same MUNGE Keys
-CONTROLLER_ID=${CONTROLLER_IDS[1]}
+CONTROLLER_ID=${CONTROLLER_IDS[0]}
 
 MUNGE_KEY_SIZE=$(aws ssm start-session \
    --target "sagemaker-cluster:${CLUSTER_ID}_${HEAD_NODE_NAME}-${CONTROLLER_ID}" \
