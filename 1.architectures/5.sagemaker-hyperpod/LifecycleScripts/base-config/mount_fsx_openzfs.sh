@@ -11,7 +11,7 @@ OPENZFS_MOUNT_POINT="$2"
 NFS_VERSION=4.2
 
 # Ansible Version
-ANSIBLE_VERSION="2.9.6+dfsg-1"
+ANSIBLE_VERSION="6.7.0"
 
 # Function for error handling
 handle_error()
@@ -37,7 +37,9 @@ verify_parameters()
 install_ansible()
 {
     apt-get update
-    apt-get install -y ansible=$ANSIBLE_VERSION
+    # apt-get install -y ansible=$ANSIBLE_VERSION
+    apt-get install -y python3-pip
+    python3 -m pip install "ansible==${ANSIBLE_VERSION}"
     ansible-galaxy collection install ansible.posix
 }
 
