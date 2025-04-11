@@ -1,0 +1,57 @@
+# Config for QuantizationRecipe in quantize.py
+#
+# To launch, run the following command from root torchtune directory:
+#    tune run quantize --config quantization
+
+#
+# Model arguments
+model:
+  _component_: torchtune.models.llama3.llama3_70b
+
+checkpointer:
+  _component_: torchtune.utils.FullModelHFCheckpointer
+  checkpoint_dir:  ${MODEL_PATH}/${HF_MODEL}
+  checkpoint_files: [
+    hf_model_0001_0.pt,
+    hf_model_0002_0.pt,
+    hf_model_0003_0.pt,
+    hf_model_0004_0.pt,
+    hf_model_0005_0.pt,
+    hf_model_0006_0.pt,
+    hf_model_0007_0.pt,
+    hf_model_0007_0.pt,
+    hf_model_0008_0.pt,
+    hf_model_0009_0.pt,
+    hf_model_0010_0.pt,
+    hf_model_0011_0.pt,
+    hf_model_0012_0.pt,
+    hf_model_0013_0.pt,
+    hf_model_0014_0.pt,
+    hf_model_0015_0.pt,
+    hf_model_0016_0.pt,
+    hf_model_0017_0.pt,
+    hf_model_0018_0.pt,
+    hf_model_0019_0.pt,
+    hf_model_0020_0.pt,
+    hf_model_0021_0.pt,
+    hf_model_0022_0.pt,
+    hf_model_0023_0.pt,
+    hf_model_0024_0.pt,
+    hf_model_0025_0.pt,
+    hf_model_0026_0.pt,
+    hf_model_0027_0.pt,
+    hf_model_0028_0.pt,
+    hf_model_0029_0.pt,
+    hf_model_0030_0.pt,
+  ]
+  recipe_checkpoint: null
+  output_dir: ${MODEL_PATH}/${HF_MODEL}-quantized
+  model_type: LLAMA3
+
+device: cpu
+dtype: bf16
+seed: 1234
+
+quantizer:
+  _component_: torchtune.utils.quantization.Int4WeightOnlyQuantizer
+  groupsize: 256
