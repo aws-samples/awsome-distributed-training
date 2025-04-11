@@ -76,7 +76,15 @@ You'll find a new file in the FSDP directory of the form `llama2_7b-FSDP_[JOB ID
 
 ###  Mistral 8x7B
 
-To launch your training for Mistral 8x7B, run
+To run Mistral 8x7B model, you will need first to review the terms of usage on [HuggingFace](https://huggingface.co/mistralai/Mixtral-8x7B-v0.1).
+Then you will need to create a [user access token](https://huggingface.co/docs/hub/en/security-tokens) to access the gated Mathstral 7B model.
+Once created you will need to define it in your environment:
+
+```bash
+export HF_TOKEN=>YOUR TOKEN>
+```
+
+You are now ready to launch your training for Mistral 8x7B with the following command:
 
 ```bash
 sbatch mistral_8x7b-training.sbatch
@@ -85,12 +93,43 @@ sbatch mistral_8x7b-training.sbatch
 You'll find a new file in the FSDP directory of the form `mistral_8x7b-FSDP_[JOB ID].out`. This will be continuously updated with your training logs. Don't be worried if you see a long stream of NCCL logs (we prefer to use `NCCL_DEBUG=INFO` for verbose logging). After about a minute, you should see your model training, with an output similar to below for Mistral:
 
 ```text
-
+...
++ export TORCHRUN=torchrun
++ TORCHRUN=torchrun
++ export TRAIN_SCRIPT=./train.py
++ TRAIN_SCRIPT=./train.py
++ TRAINING_ARGS=('--train_batch_size=4' '--val_batch_size=4' '--max_steps=5000' '--seed=42' '--bf16=1' '--grad_clip=1.0' '--weight_decay=0.2' '--beta1=0.9' '--beta2=0.95' '--activation_checkpointing=1' '--intermediate_size=14336' '--num_key_value_heads=8' '--logging_freq=1' '--max_context_width=32768' '--vocab_size=32000' '--hidden_width=4096' '--num_layers=32' '--num_heads=32' '--resid_pdrop=0.1' '--embd_pdrop=0.1' '--attn_pdrop=0.1' '--summary_first_pdrop=0.1' '--initializer_range=0.02' '--model_type=mixtral' '--rotary_pct=0.25' '--rotary_emb_base=10000' '--lr=0.0001' '--lr_decay_style=cosine' '--min_lr=1e-5' '--warmup=0.0032' '--plateau=0.0' '--dataset=allenai/c4' '--tokenizer=mistralai/Mixtral-8x7B-v0.1' '--epochs=3' '--dataset_config_name=en' '--limit_all_gathers=1' '--sharding_strategy=full' ' #' 'https://pytorch.org/docs/stable/fsdp.html' '--offload_activations=1')
++ declare -a TRAINING_ARGS
+...
+0: 2025-04-11 16:49:59 I [train.py:156] Creating Model
+0: 2025-04-11 16:57:23 I [train.py:172] Created model with total parameters: 46702792704 (46.70 B)
+0: 2025-04-11 16:57:56 I [train.py:216] Wrapped model with FSDP
+0: 2025-04-11 16:57:56 I [train.py:233] Created optimizer
+...
+1: p5-dy-gpu-2:62571:62571 [1] NCCL INFO NCCL version 2.26.2+cuda12.2
+1: p5-dy-gpu-2:62574:62574 [4] NCCL INFO cudaDriverVersion 12040
+2: p5-dy-gpu-3:60823:61204 [2] NCCL INFO NET/OFI Initializing aws-ofi-nccl 1.14.0
+2: p5-dy-gpu-3:60823:61204 [2] NCCL INFO NET/OFI Using Libfabric version 1.22
+...
+0: 2025-04-11 16:58:41 I [train.py:103] Batch 0 Loss: 11.21702, Speed: 6.19 samples/sec, lr: 0.000006
+0: 2025-04-11 16:58:49 I [train.py:103] Batch 1 Loss: 11.20650, Speed: 14.51 samples/sec, lr: 0.000013
+0: 2025-04-11 16:58:58 I [train.py:103] Batch 2 Loss: 11.12571, Speed: 15.06 samples/sec, lr: 0.000019
+0: 2025-04-11 16:59:07 I [train.py:103] Batch 3 Loss: 10.97558, Speed: 14.70 samples/sec, lr: 0.000025
+0: 2025-04-11 16:59:15 I [train.py:103] Batch 4 Loss: 10.82548, Speed: 14.48 samples/sec, lr: 0.000031
+0: 2025-04-11 16:59:24 I [train.py:103] Batch 5 Loss: 10.31511, Speed: 14.50 samples/sec, lr: 0.000038
 ```
 
 ###  Mistral Mathstral 7B
 
-To launch your training for Mathstral 7B, run:
+To run Mistral Mathstral 7B model, you will need first to review the terms of usage on [HuggingFace](https://huggingface.co/mistralai/Mistral-7B-v0.1).
+Then you will need to create a [user access token](https://huggingface.co/docs/hub/en/security-tokens) to access the gated Mathstral 7B model.
+Once created you will need to define it in your environment:
+
+```bash
+export HF_TOKEN=>YOUR TOKEN>
+```
+
+You are now ready to launch your training for Mathstral 7B with the following command:
 
 ```bash
 sbatch mathstral_7b-training.sbatch
@@ -108,6 +147,11 @@ For Mathstral, your output should look similar to the one below:
 + TRAIN_SCRIPT=./train.py
 + TRAINING_ARGS=('--train_batch_size=1' '--val_batch_size=1' '--max_steps=5000' '--seed=42' '--grad_clip=1.0' '--weight_decay=0.2' '--beta1=0.9' '--beta2=0.95' '--activation_checkpointing=1' '--intermediate_size=14336' '--num_key_value_heads=8' '--logging_freq=1' '--max_context_width=32768' '--vocab_size=32768' '--hidden_width=4096' '--num_layers=32' '--num_heads=32' '--resid_pdrop=0.1' '--embd_pdrop=0.1' '--attn_pdrop=0.1' '--summary_first_pdrop=0.1' '--initializer_range=0.02' '--model_type=mistral' '--rotary_pct=0.25' '--rotary_emb_base=10000' '--lr=0.0001' '--lr_decay_style=cosine' '--min_lr=1e-5' '--warmup=0.0032' '--plateau=0.0' '--dataset=allenai/c4' '--tokenizer=mistralai/mathstral-7B-v0.1' '--epochs=3' '--checkpoint_dir=./checkpoints/mathstral-7B' '--resume_from_checkpoint=./checkpoints/mathstral-7B' '--checkpoint_freq=50' '--validation_freq=500' '--dataset_config_name=en' '--limit_all_gathers=1' '--sharding_strategy=full' ' #' 'https://pytorch.org/docs/stable/fsdp.html' '--offload_activations=1')
 ...
+1: p5-dy-gpu-2:62571:62571 [1] NCCL INFO NCCL version 2.26.2+cuda12.2
+1: p5-dy-gpu-2:62574:62574 [4] NCCL INFO cudaDriverVersion 12040
+2: p5-dy-gpu-3:60823:61204 [2] NCCL INFO NET/OFI Initializing aws-ofi-nccl 1.14.0
+2: p5-dy-gpu-3:60823:61204 [2] NCCL INFO NET/OFI Using Libfabric version 1.22
+...
 0: 2025-04-07 22:04:23 I [train.py:156] Creating Model
 0: 2025-04-07 22:05:30 I [train.py:172] Created model with total parameters: 7248023552 (7.25 B)
 0: 2025-04-07 22:05:40 I [train.py:216] Wrapped model with FSDP
@@ -121,9 +165,8 @@ For Mathstral, your output should look similar to the one below:
 0: 2025-04-07 22:06:25 I [train.py:103] Batch 5 Loss: 10.02562, Speed: 16.59 samples/sec, lr: 0.000038
 ```
 
-You are also able to modify the `sbatch` file for Mathstral to work with other Mistral models. Refer to the hyperparameters in the `config.json` file for the models on huggingface to update the training args.
-
-To modify training for a 13 or 70B Llama 2 model, just change the corresponding parameters based on the values in the [Llama 2 paper](https://arxiv.org/abs/2307.09288).
+## References
+Llama2 models parameters based on the values in the [Llama 2 paper](https://arxiv.org/abs/2307.09288).
 
 | Param                    |     7B      |     13B     |     70B     |
 | ------------------------ | ----------- | ----------- | ----------- |
