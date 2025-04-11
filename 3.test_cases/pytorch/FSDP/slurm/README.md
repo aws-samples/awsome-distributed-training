@@ -4,10 +4,10 @@ The following content provides guidance on how to run PyTorch FSDP on a Slurm cl
 
 ## Retrieve the guidance on your cluster
 
-On your cluster head node, 
+On your cluster head node,
 1. Navigate to your shared FSx for Lustre file system.
-* If you followed the tutorial linked above, it will be location at `/fsx`.   
-2. Clone this repo. 
+* If you followed the tutorial linked above, it will be location at `/fsx`.
+2. Clone this repo.
 
 ```bash
 cd /fsx
@@ -26,7 +26,7 @@ source env/bin/activate
 
 ## Data
 
-For this example, you'll be using the [C4 dataset](https://huggingface.co/datasets/allenai/c4), which is several hundred gigabytes. Instead of downloading the whole thing, the `create_streaming_dataloaders` function will stream the dataset from [HuggingFace](https://huggingface.co/datasets), so there's no data prep required for running this training. 
+For this example, you'll be using the [C4 dataset](https://huggingface.co/datasets/allenai/c4), which is several hundred gigabytes. Instead of downloading the whole thing, the `create_streaming_dataloaders` function will stream the dataset from [HuggingFace](https://huggingface.co/datasets), so there's no data prep required for running this training.
 
 If you'd like to instead use your own dataset, you can do so by [formatting it as a HuggingFace dataset](https://huggingface.co/docs/datasets/create_dataset), and passing its location to the `--dataset_path` argument.
 
@@ -46,7 +46,7 @@ You can also adjust the training parameters in `TRAINING_ARGS` (for example, to 
 To launch your training for Llama2 7B, run
 
 ```bash
-sbatch llama2_7b-training.sbatch 
+sbatch llama2_7b-training.sbatch
 ```
 
 You'll find a new file in the FSDP directory of the form `llama2_7b-FSDP_[JOB ID].out`. This will be continuously updated with your training logs. Don't be worried if you see a long stream of NCCL logs (we prefer to use `NCCL_DEBUG=INFO` for verbose logging). After about a minute, you should see your model training, with an output similar to below for Llama2 :
@@ -74,12 +74,26 @@ You'll find a new file in the FSDP directory of the form `llama2_7b-FSDP_[JOB ID
 0: 2025-04-04 19:58:35 I [train.py:103] Batch 5 Loss: 10.39471, Speed: 17.28 samples/sec, lr: 0.000038
 ```
 
-###  Mistral Mathstral 7B
+###  Mistral 8x7B
 
-To launch your training for Mathstral 7B, run
+To launch your training for Mistral 8x7B, run
 
 ```bash
-sbatch mathstral_7b-training.sbatch 
+sbatch mistral_8x7b-training.sbatch
+```
+
+You'll find a new file in the FSDP directory of the form `mistral_8x7b-FSDP_[JOB ID].out`. This will be continuously updated with your training logs. Don't be worried if you see a long stream of NCCL logs (we prefer to use `NCCL_DEBUG=INFO` for verbose logging). After about a minute, you should see your model training, with an output similar to below for Mistral:
+
+```text
+
+```
+
+###  Mistral Mathstral 7B
+
+To launch your training for Mathstral 7B, run:
+
+```bash
+sbatch mathstral_7b-training.sbatch
 ```
 
 For Mathstral, your output should look similar to the one below:
