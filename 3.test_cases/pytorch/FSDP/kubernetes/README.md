@@ -1,6 +1,8 @@
-# Run Distributed Training of Llama 2 with PyTorch FSDP on Amazon EKS
+# Run Distributed Training with PyTorch FSDP on Amazon EKS
 
-These scripts provide an easy way to get started with multinode [FSDP](https://pytorch.org/tutorials/intermediate/FSDP_tutorial.html) training on EKS. It is designed to be as simple as possible, requires no data preparation, and uses a container image. If you would like to run FSDP with SLURM, please refer to [README.md](README.md).
+These scripts provide an easy way to get started with multinode [FSDP](https://pytorch.org/tutorials/intermediate/FSDP_tutorial.html) training on EKS. It is designed to be as simple as possible, requires no data preparation, and uses a container image. If you would like to run FSDP with SLURM, please refer to [README.md](../slurm/README.md).
+
+This document will run you through how to run Llama2 7B model training with FSDP. You will also find in this folder manifest to run Llama2 113b, 70B, Mistal 8x7B and Mistral Mathstral 7B models.
 
 ## 0. Prerequisites
 
@@ -12,7 +14,7 @@ Clone this repo.
 
 ```
 git clone https://github.com/aws-samples/awsome-distributed-training/
-cd awsome-distributed-training/3.test_cases/10.FSDP
+cd awsome-distributed-training/3.test_cases/pytorch/FSDP/kubernetes
 ```
 
 ### 0.3. Base image
@@ -28,7 +30,7 @@ docker pull public.ecr.aws/hpc-cloud/nccl-tests:latest
 or it can be built using the code below.
 
 ```bash
-pushd ../../micro-benchmarks/nccl-tests
+pushd ../../../micro-benchmarks/nccl-tests
 docker build -t nccl-tests:latest -f nccl-tests.Dockerfile .
 popd
 ```
@@ -41,7 +43,7 @@ If the [envsubst](https://github.com/a8m/envsubst) utility is not available in y
 Deploy the Kubeflow training operator
 
 ```bash
-kubectl apply -k "github.com/kubeflow/training-operator/manifests/overlays/standalone?ref=v1.7.0"
+kubectl apply -k "github.com/kubeflow/training-operator/manifests/overlays/standalone?ref=v1.9.1"
 ```
 
 ## 1. Build container image
@@ -52,7 +54,9 @@ Build a container image for this example using the code below:
 export AWS_REGION=$(aws ec2 describe-availability-zones --output text --query 'AvailabilityZones[0].[RegionName]')
 export ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
 export REGISTRY=${ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com/
-docker build -t ${REGISTRY}fsdp:pytorch2.2 .
+pushd ../
+docker build -f Dockerfile -t ${REGISTRY}fsdp:pytorch2.5.1 .
+popd
 ```
 
 ## 2. Push container image to Amazon ECR
@@ -71,7 +75,7 @@ echo "Logging in to $REGISTRY ..."
 aws ecr get-login-password | docker login --username AWS --password-stdin $REGISTRY
 
 # Push image to registry
-docker image push ${REGISTRY}fsdp:pytorch2.2
+docker image push ${REGISTRY}fsdp:pytorch2.5.1
 ```
 
 ## 3. Data
@@ -80,20 +84,20 @@ For this example, we'll be using the [C4 dataset](https://huggingface.co/dataset
 
 If you'd like to instead use your own dataset, you can do so by [formatting it as a HuggingFace dataset](https://huggingface.co/docs/datasets/create_dataset), and passing its location to the `--dataset_path` argument.
 
-## 4. Launch training job
+## 4. Launch Llama2 7B training job
 
 Generate the Kubernetes manifest and apply it to the cluster.
 
 ```bash
-export IMAGE_URI=${REGISTRY}fsdp:pytorch2.2
+export IMAGE_URI=${REGISTRY}fsdp:pytorch2.5.1
 export INSTANCE_TYPE=
 export NUM_NODES=
 export GPU_PER_NODE=
 export EFA_PER_NODE=
 export FI_PROVIDER=efa
-cat fsdp.yaml-template | envsubst > fsdp.yaml
+cat llama2_7b-fsdp.yaml | envsubst > llama2_7b-fsdp.yaml
 
-kubectl apply -f ./fsdp.yaml
+kubectl apply -f ./llama2_7b-fsdp.yaml
 ```
 
 EFA level variables are available for adjustment in fsdp.yaml-template
@@ -156,12 +160,13 @@ kubectl logs -f fsdp-worker-1
 To stop the current training job, use the following command.
 
 ```bash
-kubectl delete -f ./fsdp.yaml
+kubectl delete -f ./llama2_7b-fsdp.yaml
 ```
 
 If you wish to launch a new job, you must first stop the previous one, even if it is in `Completed` state.
 
-To modify training for a 13 or 70B Llama 2 model, just change the corresponding parameters based on the values in the [Llama 2 paper](https://arxiv.org/abs/2307.09288).
+## References
+Llama2 models parameters based on the values in the [Llama 2 paper](https://arxiv.org/abs/2307.09288).
 
 | Param                    |     7B      |     13B     |     70B     |
 | ------------------------ | ----------- | ----------- | ----------- |
