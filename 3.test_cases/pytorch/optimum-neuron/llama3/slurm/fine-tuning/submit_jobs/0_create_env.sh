@@ -3,14 +3,14 @@
 #SBATCH --nodes=1
 #SBATCH --exclusive
 #SBATCH --job-name=create_env
-#SBATCH -o /fsx/peft_ft/logs/0_create_env.out
+#SBATCH -o /fsx/ubuntu/peft_ft/logs/0_create_env.out
 
 set -ex
 
 sudo apt-get update
 
-python3 -m venv /fsx/peft_ft/env_llama3_8B_peft
-source /fsx/peft_ft/env_llama3_8B_peft/bin/activate
+python3 -m venv /fsx/ubuntu/peft_ft/env_llama3_8B_peft
+source /fsx/ubuntu/peft_ft/env_llama3_8B_peft/bin/activate
 pip install -U pip
 
 python3 -m pip config set global.extra-index-url "https://pip.repos.neuron.amazonaws.com"
