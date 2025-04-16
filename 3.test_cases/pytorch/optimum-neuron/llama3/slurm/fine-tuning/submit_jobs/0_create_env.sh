@@ -8,8 +8,10 @@
 set -ex
 
 sudo apt-get update
+sudo apt-get install -y python3.9-venv git
 
-python3 -m venv /fsx/ubuntu/peft_ft/env_llama3_8B_peft
+
+python3.9 -m venv /fsx/ubuntu/peft_ft/env_llama3_8B_peft --system-site-packages
 source /fsx/ubuntu/peft_ft/env_llama3_8B_peft/bin/activate
 pip install -U pip
 
