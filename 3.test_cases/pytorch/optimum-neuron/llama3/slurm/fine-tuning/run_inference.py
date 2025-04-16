@@ -4,10 +4,18 @@ import torch
 import os
 from transformers import AutoTokenizer, LlamaForCausalLM
 
-def load_finetuned_pipeline(model_path):
+huggingface_token = os.environ.get("HUGGINGFACE_TOKEN", None)
+    
+if not huggingface_token:
+    raise ValueError("HUGGINGFACE_TOKEN environment variable not set")
+
+def load_finetuned_pipeline(args):
+    model_id = args.model_id
+    tokenizer = AutoTokenizer.from_pretrained(model_id, token=huggingface_token)
     pipeline = transformers.pipeline(
         "text-generation",
-        model=model_path,
+        model=args.model_path,
+        tokenizer=tokenizer,
         model_kwargs={"torch_dtype": torch.bfloat16},
         device_map="auto",
     )
@@ -15,10 +23,6 @@ def load_finetuned_pipeline(model_path):
 
 def load_original_pipeline(args):
     model_id = args.model_id
-    huggingface_token = os.environ.get("HUGGINGFACE_TOKEN", None)
-    
-    if not huggingface_token:
-        raise ValueError("HUGGINGFACE_TOKEN environment variable not set")
         
     model = LlamaForCausalLM.from_pretrained(model_id, token=huggingface_token)
     tokenizer = AutoTokenizer.from_pretrained(model_id, token=huggingface_token)
@@ -60,7 +64,7 @@ def run_inference(pipeline, name=""):
     return outputs
 
 def main(args):
-    finetuned_pipeline = load_finetuned_pipeline(args.model_path)
+    finetuned_pipeline = load_finetuned_pipeline(args)
     run_inference(finetuned_pipeline, "Fine-tuned")
     del finetuned_pipeline
 

@@ -2,7 +2,7 @@
 #SBATCH --nodes=1
 #SBATCH --exclusive
 #SBATCH --job-name=finetuning 
-#SBATCH --output=/fsx/ubuntu/peft_ft/logs/3_finetune_%j.log
+#SBATCH --output=/fsx/ubuntu/peft_ft/logs/3_finetune.log
 
 export OMP_NUM_THREADS=1
 export NEURON_EXTRACT_GRAPHS_ONLY=0

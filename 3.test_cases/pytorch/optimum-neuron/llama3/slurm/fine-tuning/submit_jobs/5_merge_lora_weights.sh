@@ -2,7 +2,7 @@
 #SBATCH --nodes=1
 #SBATCH --exclusive
 #SBATCH --job-name=merge 
-#SBATCH --output=/fsx/ubuntu/peft_ft/logs/5_lora_weights_%j.log
+#SBATCH --output=/fsx/ubuntu/peft_ft/logs/5_lora_weights.log
 
 export OMP_NUM_THREADS=1
 

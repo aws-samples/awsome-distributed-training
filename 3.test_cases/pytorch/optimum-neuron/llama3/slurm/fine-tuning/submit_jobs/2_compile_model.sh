@@ -2,7 +2,7 @@
 #SBATCH --nodes=1
 #SBATCH --exclusive
 #SBATCH --job-name=compile
-#SBATCH --output=/fsx/ubuntu/peft_ft/logs/2_parallel_compile_%j.out
+#SBATCH --output=/fsx/ubuntu/peft_ft/logs/2_parallel_compile.out
 
 export OMP_NUM_THREADS=1
 export NEURON_EXTRACT_GRAPHS_ONLY=1

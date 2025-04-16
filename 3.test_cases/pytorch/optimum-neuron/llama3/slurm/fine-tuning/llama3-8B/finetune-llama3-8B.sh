@@ -8,17 +8,17 @@ GPUS_PER_NODE=32
 if [ $NEURON_EXTRACT_GRAPHS_ONLY -gt 0 ]; then
     MAX_STEPS=10
     MAYBE_COMPILE="neuron_parallel_compile"
-    model_checkpoint_path="/fsx/peft_ft/compile"
+    model_checkpoint_path="/fsx/ubuntu/peft_ft/compile"
 else
     MAX_STEPS=-1
-    model_checkpoint_path="/fsx/peft_ft/model_checkpoints"
+    model_checkpoint_path="/fsx/ubuntu/peft_ft/model_checkpoints"
 fi
 
 ###########################
 ## Environment Variables ##
 ###########################
 
-CACHE_DIR='/fsx/peft_ft/cache/neuron_compile_cache/llama3-8B'
+CACHE_DIR='/fsx/ubuntu/peft_ft/cache/neuron_compile_cache/llama3-8B'
 mkdir -p $CACHE_DIR
 export NEURON_CC_FLAGS="--model-type=transformer --distribution-strategy=llm-training --enable-saturate-infinity --target=trn1 --cache_dir=$CACHE_DIR"
 export HUGGINGFACE_TOKEN=""
@@ -38,7 +38,7 @@ declare -a TORCHRUN_ARGS=(
     --nnodes=$SLURM_JOB_NUM_NODES
 )
 
-export TRAIN_SCRIPT=/fsx/peft_optimum_neuron/train.py
+export TRAIN_SCRIPT=/fsx/ubuntu/awsome-distributed-training/3.test_cases/pytorch/optimum-neuron/llama3/slurm/fine-tuning/train.py
 
 ############################
 ##### Training Params ######
@@ -54,11 +54,11 @@ declare -a TRAINING_ARGS=(
     --epochs 1 \
     --gradient_accumulation_steps 3 \
     --learning_rate 2e-05 \
-    --model_path "/fsx/peft_ft/model_artifacts/llama3-8B" \
-    --tokenizer_path "/fsx/peft_ft/tokenizer/llama3-8B" \
+    --model_path "/fsx/ubuntu/peft_ft/model_artifacts/llama3-8B" \
+    --tokenizer_path "/fsx/ubuntu/peft_ft/tokenizer/llama3-8B" \
     --model_type "causal_lm" \
     --model_checkpoint_path $model_checkpoint_path \
-    --model_final_path "/fsx/peft_ft/model_checkpoints/final" \
+    --model_final_path "/fsx/ubuntu/peft_ft/model_checkpoints/final" \
     --pp_size 1 \
     --tp_size 8 \
     --train_batch_size 1 \
@@ -67,6 +67,6 @@ declare -a TRAINING_ARGS=(
     --seed 42
 )
 
-source /fsx/peft_ft/env_llama3_8B_peft/bin/activate
+source /fsx/ubuntu/peft_ft/env_llama3_8B_peft/bin/activate
 
 $MAYBE_COMPILE torchrun "${TORCHRUN_ARGS[@]}" $TRAIN_SCRIPT "${TRAINING_ARGS[@]}"

@@ -2,7 +2,7 @@
 #SBATCH --nodes=1
 #SBATCH --exclusive
 #SBATCH --job-name=inference
-#SBATCH --output=/fsx/ubuntu/peft_ft/logs/6_inference_%j.log
+#SBATCH --output=/fsx/ubuntu/peft_ft/logs/6_inference.log
 
 export OMP_NUM_THREADS=1
 export HUGGINGFACE_TOKEN="<Your Hugging Face Token>"

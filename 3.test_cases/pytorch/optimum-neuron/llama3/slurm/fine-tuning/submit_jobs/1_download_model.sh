@@ -2,7 +2,7 @@
 #SBATCH --nodes=1
 #SBATCH --exclusive
 #SBATCH --job-name=download 
-#SBATCH -o /fsx/ubuntu/peft_ft/logs/1_download_model_%j.out
+#SBATCH -o /fsx/ubuntu/peft_ft/logs/1_download_model.out
 
 export OMP_NUM_THREADS=1
 export HUGGINGFACE_TOKEN="<Your Hugging Face Token>"

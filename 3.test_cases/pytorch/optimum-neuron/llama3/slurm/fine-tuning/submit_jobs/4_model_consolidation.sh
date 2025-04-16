@@ -2,7 +2,7 @@
 #SBATCH --nodes=1
 #SBATCH --exclusive
 #SBATCH --job-name=consolidation 
-#SBATCH --output=/fsx/ubuntu/peft_ft/logs/4_model_consolidation_%j.log
+#SBATCH --output=/fsx/ubuntu/peft_ft/logs/4_model_consolidation.log
 
 export OMP_NUM_THREADS=1
 

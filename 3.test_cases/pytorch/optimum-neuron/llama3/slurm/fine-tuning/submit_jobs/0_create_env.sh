@@ -20,3 +20,4 @@ python3 -m pip install --upgrade neuronx-distributed==0.10.1 neuronx-distributed
 
 python3 -m pip install datasets==2.18.0 tokenizers==0.21.1 peft==0.14.0 huggingface_hub trl==0.11.4 PyYAML
 python3 -m pip install optimum-neuron==0.1.0
+python3 -m pip install transformers==4.48.3
