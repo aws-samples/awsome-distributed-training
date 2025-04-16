@@ -1,100 +1,107 @@
-# LLaMA LoRA Model Fine-tuning and Inference
+## PEFT fine tuning of Llama 3 on SageMaker HyperPod ( trn1/trn1n)
 
-This project provides a set of scripts for fine-tuning a LLaMA model using LoRA (Low-Rank Adaptation), merging the fine-tuned model, and performing inference.
+### Prerequisites
+This example showcases how to train llama 3 models using AWS Trainium instances and Huggingface Optimum Neuron. 🤗 Optimum Neuron is the interface between the 🤗 Transformers library and AWS Accelerators including AWS Trainium and AWS Inferentia. It provides a set of tools enabling easy model loading, training and inference on single- and multi-Accelerator settings for different downstream tasks.
 
-## Table of Contents
-1. [Installation](#installation)
-2. [Usage](#usage)
-   - [Create the Environment](#create-the-environment-for-slurm)
-   - [Downloading the Model](#downloading-the-model)
-   - [Preparing the Dataset](#preparing-the-dataset)
-   - [Setting Up and Training on a trn1.32xlarge Instance](#setting-up-and-training-on-a-trn132xlarge-instance)
-     - [Pre-compile the Model](#pre-compile-the-model-for-optimized-neuron-training)
-     - [Distributed Training](#distributed-training-with-torchrun)
-   - [Post-Training Steps](#post-training-steps)
-     - [Consolidating the Sharded Model](#consolidating-the-sharded-model)
-     - [Merge the LoRA Weights](#merge-the-lora-weights)
-     - [Run Inference Validation](#run-inference-validation)
+Before running this training, you'll need to create a SageMaker HyperPod cluster with at least 1 trn1.32xlarge/ trn1n.32xlarge instance group. Instructions can be found in the ﻿Cluster Setup﻿ section. 
 
-## Installation
+You will also need to complete the following prerequisites for configuring and deploying your SageMaker HyperPod cluster for fine tuning:
+- Submit a service quota increase request to get access to Trainium instances in your AWS Region. You will need to request an increase for Amazon EC2 Trn1 instances, ml.trn1.32xlarge or ml.trn1n.32xlarge.
+- Locally, install the AWS Command Line Interface (AWS CLI); the required minimum version needed is 2.14.3.
+- Locally, Install the AWS Systems Manager Session Manager Plugin in order to SSH into your cluster.
 
-This project is set to run under slurm with a shared file system FSX claim attached to the cluster. You can download the folder under `/fsx/peft_optimum_neuron`.
+Additionally, since Llama 3 is a gated model users have to register in Huangface and obtain an ﻿access token﻿ before running this example.
 
-## Usage
+### Setup
+In this section, we will setup our training environment on the cluster. Begin by logging into your cluster by following the ﻿SSH into Cluster﻿ section.
 
-### Create the environment for slurm
-
-```
-sbatch 0_create_env.sh
-```
-
-### Downloading the Model
-
-Use the `download_model.py` script to download the pre-trained model. Make sure you have a valid HuggingFace token exported in your current bash session/environment:
-
-```
-sbatch 1_download_model.sh
-```
-
-### Preparing the Dataset
-
-Use the `prepare_dataset.py` script to prepare your dataset for training:
-
-```
-sbatch 2_download_model.sh
-```
-
-Arguments:
-- `--model_name`: Name of the pre-trained model for tokenizer (default: "meta-llama/Meta-Llama-3.1-8B-Instruct")
-- `--dataset_name`: Name of the dataset to use (default: "databricks/databricks-dolly-15k")
-- `--block_size`: Maximum sequence length (default: 2048)
-- `--seed`: Random seed (default: 42)
-- `--output_dir`: Output directory for prepared datasets (default: "./prepared_dataset")
-
-### Setting Up and Training on a trn1.32xlarge Instance
-
-To leverage the full power of AWS Neuron for training, you can use a trn1.32xlarge instance. This instance type is optimized for machine learning workloads and provides significant computational resources.
-
-1. Launch a trn1.32xlarge instance in your AWS account.
-2. Connect to the instance using SSH.
-3. Clone this repository and navigate to the project directory.
-4. Install the required dependencies as described in the [Installation](#installation) section.
-
-#### Pre-compile the model for optimized Neuron training
-
-Compile the model with neuron_parallel_compile.
+#### Step 2: Setup Python Environment
+Setup a virtual python environment and install your training dependencies. Make sure this repo is stored on the shared FSX volume of your cluster so all nodes have access to it.
 
 ```bash
+chmod +x submit_jobs/0_create_env.sh
+sbatch submit_jobs/0_create_env.sh
+```
+View the logs created by the scripts in this lab by running this command below. You can update it for the step you are currently running:
+
+```
+tail -f logs/0_create_env.out 
+```
+Before proceeding to the next step throughout this lab, check if the current job has finished by running:
+
+```
+squeue
+```
+
+### Training
+
+#### Step 1: Compile the model
+Before you begin training on Trainium with Neuron, you will need to pre-compile your model with the ﻿neuron_parallel_compile CLI﻿.  This will trace through the model's training code and apply optimizations to improve performance. 
+
+```bash
+chmod +x 2_compile_model.sh
 sbatch 2_compile_model.sh
 ```
+The compilation process will generate NEFF (Neuron Executable File Format) files that will speed up your model's fine tuning job.
 
-#### Distributed Training with torchrun
+#### Step 2: Fine Tuning
+With your model compiled, you can now begin fine tuning your Llama 3 model. 
 
-For distributed training on a trn1.32xlarge instance, we use `torchrun` to manage the process. Here's how to run the training:
+For the purposes of this workshop, we will use the ﻿dolly 15k dataset﻿. As part of the training process, the script below will download the dataset and format it into a way that the model expects. Each data point will contain an instruction that guides the model's task, optional context that provides background information, and response that represent the desired output.
+
+Now submit the fine tuning job:
 
 ```bash
+chmod +x 3_finetune.sh
 sbatch 3_finetune.sh
 ```
-### Post-training steps
 
-#### Consolidating the sharded model
+#### Step 3: Model Weight Consolidation
+After training has completed, you will have a new directory for your model checkpoints. This directory will contain the model checkpoint shards from each neuron device that were generated during training. Use the model consolidation script to combine the shards into a single `model.safetensor` file.
 
-Use the `model_consolidation.py` script to merge the LoRA weights with the base model and run inference:
-
-```
+```bash
+chmod +x 4_model_consolidation.sh
 sbatch 4_model_consolidation.sh
 ```
+The `model.safetensor` file will contain the LoRA weights of your model that were updated during training.
 
-#### Merge the LoRA weights
+#### Step 4: Merge Lora Weights
+After consolidating the model shards, merge the LoRA adapter weights back to your base Llama 3 model:
 
-```
+```bash
+chmod +x 5_merge_lora_weights.sh
 sbatch 5_merge_lora_weights.sh
 ```
+Your final fine tuned model weights will be saved to the `final_model_path` directory.
 
-This script will merge the base model with the fine-tuned LoRA weights, run inference on a test set, and save the results to a JSON file.
+#### Step 5: Validate your trained model
+Now that your model is fine tuned, see how its generations differ from the base model for the dolly-15k dataset.
 
-#### Run inference validation
-
+```bash
+chmod +x 6_inference.sh
+sbatch 6_inference.sh
 ```
-6_inference.sh
+This will generate a prediction for the question "Who are you?", comparing the response of the base model to the fine tuned model. It will also pass a system prompt to the model to always respond like a pirate.
+
+Before fine tuning:
 ```
+{
+    'role': 'assistant',
+    'content': "Arrrr, me hearty! Me name be Captain Chat, the scurviest pirate chatbot to
+    ever sail the Seven Seas! Me be here to regale ye with tales o' adventure, answer yer
+    questions, and swab the decks o' yer doubts! So hoist the colors, me matey, and let's
+    set sail fer a swashbucklin' good time!"
+}
+```
+After fine tuning:
+```
+{
+    'role': 'assistant',
+    'content': "Arrr, shiver me timbers! Me be Captain Chat, the scurviest pirate chatbot to ever sail the Seven Seas! Me been programmin' me brain
+    with the finest pirate lingo and booty-ful banter to make ye feel like ye just stumbled
+   upon a chest overflowin' with golden doubloons! So hoist the colors, me hearty, and
+    let's set sail fer a swashbucklin' good time!"
+}
+```
+
+And that's it! You've successfully fine tuned a Llama 3 model on Amazon SageMaker HyperPod using PEFT with Neuron.
