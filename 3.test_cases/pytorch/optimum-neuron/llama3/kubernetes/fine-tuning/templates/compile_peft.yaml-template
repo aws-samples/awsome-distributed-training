@@ -119,7 +119,7 @@ spec:
                 - --checkpoint_frequency=400
                 - --dataset=${DATASET_NAME}
                 - --max_seq_length=${MAX_SEQ_LENGTH}
-                - --max_steps=10
+                - --max_steps=200
                 - --epochs=${EPOCHS}
                 - --gradient_accumulation_steps=3
                 - --learning_rate=${LEARNING_RATE}

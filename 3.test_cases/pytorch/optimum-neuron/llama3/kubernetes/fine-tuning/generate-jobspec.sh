@@ -18,8 +18,7 @@ export NEURON_PER_NODE=16
 export FSX_CLAIM=fsx-claim
 
 # Model and Dataset Configuration
-export HF_ACCESS_TOKEN=<Your Huggingface Token>
-export MODEL_ID=meta-llama/Llama-3.1-8B-Instruct
+export MODEL_ID=NousResearch/Meta-Llama-3.1-8B
 export MODEL_OUTPUT_PATH=/fsx/peft_ft/model_artifacts/llama3.1-8B
 export TOKENIZER_OUTPUT_PATH=/fsx/peft_ft/tokenizer/llama3.1-8B
 export DATASET_NAME=databricks/databricks-dolly-15k

@@ -18,8 +18,6 @@ Before running this training, you'll need to create an Amazon EKS or a SageMaker
 
 We need to setup an PVC for FSx to store the tokenized data and training checkpoints. Please follow the link [here](https://catalog.workshops.aws/sagemaker-hyperpod-eks/en-US/01-cluster/06-fsx-for-lustre) to setup FSx CSI Driver and PVC. 
 
-### 0.3 Register Huggingface Token
-Since llama 3.1 is a gated model users have to register in Huggingface and obtain an HF_Access_Token before running this example.
 
 ## 1. Setting up environment
 

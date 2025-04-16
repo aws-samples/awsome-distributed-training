@@ -26,7 +26,6 @@ spec:
         - --model_id=${MODEL_ID}
         - --model_output_path=${MODEL_OUTPUT_PATH}
         - --tokenizer_output_path=${TOKENIZER_OUTPUT_PATH}
-        - --hf_token=${HF_ACCESS_TOKEN}
       volumeMounts:
         - name: shmem
           mountPath: /dev/shm
