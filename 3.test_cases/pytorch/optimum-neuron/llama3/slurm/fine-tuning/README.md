@@ -1,4 +1,4 @@
-## PEFT fine tuning of Llama 3 on SageMaker HyperPod ( trn1/trn1n)
+## PEFT fine tuning of Llama 3 on Slurm cluster (trn1/trn1n)
 
 ### Prerequisites
 This example showcases how to train llama 3 models using AWS Trainium instances and Huggingface Optimum Neuron. 🤗 Optimum Neuron is the interface between the 🤗 Transformers library and AWS Accelerators including AWS Trainium and AWS Inferentia. It provides a set of tools enabling easy model loading, training and inference on single- and multi-Accelerator settings for different downstream tasks.
