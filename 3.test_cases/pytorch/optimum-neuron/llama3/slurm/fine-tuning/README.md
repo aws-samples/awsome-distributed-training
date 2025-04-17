@@ -3,7 +3,7 @@
 ### Prerequisites
 This example showcases how to train llama 3 models using AWS Trainium instances and Huggingface Optimum Neuron. 🤗 Optimum Neuron is the interface between the 🤗 Transformers library and AWS Accelerators including AWS Trainium and AWS Inferentia. It provides a set of tools enabling easy model loading, training and inference on single- and multi-Accelerator settings for different downstream tasks.
 
-Before running this training, you'll need to create a SageMaker HyperPod cluster with at least 1 trn1.32xlarge/ trn1n.32xlarge instance group. Instructions can be found in the ﻿Cluster Setup﻿ section. 
+Before running this training, you'll need to create a slurm cluster with at least 1 trn1.32xlarge/ trn1n.32xlarge instance group. Instructions can be found in the ﻿Cluster Setup﻿ section. 
 
 You will also need to complete the following prerequisites for configuring and deploying your SageMaker HyperPod cluster for fine tuning:
 - Submit a service quota increase request to get access to Trainium instances in your AWS Region. You will need to request an increase for Amazon EC2 Trn1 instances, ml.trn1.32xlarge or ml.trn1n.32xlarge.
