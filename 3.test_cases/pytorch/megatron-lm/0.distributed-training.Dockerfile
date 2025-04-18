@@ -1,7 +1,7 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 
-FROM nvcr.io/nvidia/pytorch:24.08-py3
+FROM nvcr.io/nvidia/pytorch:25.03-py3
 
 ARG GDRCOPY_VERSION=v2.4.1
 ARG EFA_INSTALLER_VERSION=1.37.0
