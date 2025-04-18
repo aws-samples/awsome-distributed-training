@@ -1,0 +1,43 @@
+apiVersion: "v1"
+kind: Pod
+metadata:
+  name: peft-tokenize-data
+  namespace: ${NAMESPACE}
+spec:
+  volumes:
+    - name: shmem
+      hostPath:
+        path: /dev/shm
+    - name: persistent-storage
+      persistentVolumeClaim:
+        claimName: ${FSX_CLAIM}
+    - name: local
+      hostPath:
+        path: /dev
+    - name: hyperpod
+      hostPath:
+        path: /var/log/aws/clusters
+  containers:
+    - name: trn-container
+      image: '${IMAGE_URI}'
+      command:
+        - python 
+        - peft_tokenize_data.py 
+        - --model_id=${MODEL_ID}
+        - --model_output_path=${MODEL_OUTPUT_PATH}
+        - --tokenizer_output_path=${TOKENIZER_OUTPUT_PATH}
+      volumeMounts:
+        - name: shmem
+          mountPath: /dev/shm
+        - name: persistent-storage
+          mountPath: /fsx
+        - name: hyperpod
+          mountPath: /var/log/aws/clusters
+      resources:
+        requests:
+          aws.amazon.com/neuron: ${NEURON_PER_NODE}
+          vpc.amazonaws.com/efa: ${EFA_PER_NODE}
+        limits:
+          aws.amazon.com/neuron: ${NEURON_PER_NODE}
+          vpc.amazonaws.com/efa: ${EFA_PER_NODE}
+  restartPolicy: Never
