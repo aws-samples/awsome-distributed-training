@@ -46,6 +46,8 @@ Check inbox and find an email entitled "Invitation to join AWS IAM Identity Cent
 Set password for the user:
 ![IdentityCenterSetup10](../../../0.docs/IdentityCenterSetup10.png)
 Congratulations! Now you have completed all the steps.
+
+TODO: add how to add the user to Amazon Grafana admin user.
 </details>
 
 ### Deploy Managed Grafana and Managed Prometheus with CloudFormation
