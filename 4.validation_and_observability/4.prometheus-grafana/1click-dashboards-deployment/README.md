@@ -9,7 +9,9 @@ This solution provides a "1 click" deployment observability stack to monitor you
 
 ## Prerequisites
 
-Install AWS Serverless Application Model Command Line Interface (AWS SAM CLI) version **>=1.135.0** by following the [instructions](<https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html>)
+Install AWS Serverless Application Model Command Line Interface (AWS SAM CLI) version **>=1.135.0** by following the [instructions](<https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html>).
+
+You will also require to have a VPC Id, Subnet Id in which your cluster is deployed as well as the cluster name.
 
 
 ## Architecture
