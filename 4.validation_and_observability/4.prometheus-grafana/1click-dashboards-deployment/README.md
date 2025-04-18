@@ -15,7 +15,7 @@ You will also require to have a VPC Id, Subnet Id in which your cluster is deplo
 
 
 ## Architecture
-TBD
+![Observability Architecutre](img/observability-dashboard.png)
 
 ## Deploy
 You will begin by installing the necessary Python package needed for the lambda function.
