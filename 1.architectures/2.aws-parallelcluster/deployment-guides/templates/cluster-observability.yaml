@@ -29,8 +29,9 @@ HeadNode:
         - Script: 'https://raw.githubusercontent.com/aws-samples/aws-parallelcluster-post-install-scripts/main/docker/postinstall.sh'
         - Script: 'https://raw.githubusercontent.com/aws-samples/aws-parallelcluster-post-install-scripts/main/nccl/postinstall.sh'
           Args:
-            - v2.23.4-1 # NCCL version
-            - v1.13.2-aws # AWS OFI NCCL version
+            - v2.26.2-1 # NCCL version
+            - v1.14.0 # AWS OFI NCCL version
+            
         - Script: 'https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/main/1.architectures/5.sagemaker-hyperpod/LifecycleScripts/base-config/utils/install_slurm_exporter.sh'
         - Script: 'https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/main/1.architectures/5.sagemaker-hyperpod/LifecycleScripts/base-config/utils/install_head_node_exporter.sh'
         - Script: 'https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/geniac/1.architectures/2.aws-parallelcluster/deployment-guides/post-install-scripts/configure_pyxis_enroot_headnode.sh'
@@ -83,8 +84,9 @@ Scheduling:
             - Script: 'https://raw.githubusercontent.com/aws-samples/aws-parallelcluster-post-install-scripts/main/docker/postinstall.sh'
             - Script: 'https://raw.githubusercontent.com/aws-samples/aws-parallelcluster-post-install-scripts/main/nccl/postinstall.sh'
               Args:
-                - v2.23.4-1 # NCCL version
-                - v1.13.2-aws # AWS OFI NCCL version
+                - v2.26.2-1 # NCCL version
+                - v1.14.0 # AWS OFI NCCL version
+                
             - Script: 'https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/main/1.architectures/5.sagemaker-hyperpod/LifecycleScripts/base-config/utils/install_dcgm_exporter.sh'
             - Script: 'https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/main/1.architectures/5.sagemaker-hyperpod/LifecycleScripts/base-config/utils/install_efa_node_exporter.sh'
         OnNodeStart:
