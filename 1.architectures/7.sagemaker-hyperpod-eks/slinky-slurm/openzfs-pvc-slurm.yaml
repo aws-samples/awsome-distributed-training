@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: openzfs-claim
+  namespace: slurm
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: openzfs-sc
+  resources:
+    requests:
+      storage: 64Gi
