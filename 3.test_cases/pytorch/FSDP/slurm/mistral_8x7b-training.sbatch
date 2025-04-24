@@ -20,7 +20,8 @@ GPUS_PER_NODE=8 # 4 for G5.12x, 8 for P4/P5
 ###############################
 ###### Container Variable #####
 ###############################
-export CONTAINER_IMAGE=$(pwd)/pytorch-fsdp.sqsh
+# Uncomment if you want to use a container instea of Virtual Environment.
+#export CONTAINER_IMAGE=$(pwd)/pytorch-fsdp.sqsh
 export DATA_PATH=/fsx
 export FSX_MOUNT=$(pwd):$DATA_PATH
 
