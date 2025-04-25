@@ -10,17 +10,20 @@ ARG PYTHON_SHORT_VERSION=3.12
 RUN mkdir -p /var/spool/slurmd
 
 # Environment variables from DLC
-ENV CUDA_HOME="/usr/local/cuda"
-ENV EFA_PATH="/opt/amazon/efa"
-ENV LD_LIBRARY_PATH="lib:${EFA_PATH}/lib:${CUDA_HOME}/lib64:/usr/local/lib:/lib/x86_64-linux-gnu"
-ENV PATH="${EFA_PATH}/bin:${CUDA_HOME}/bin:${PATH}"
-ENV NCCL_DEBUG=INFO
-ENV NCCL_SOCKET_IFNAME=^docker0
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-ENV PYTHONIOENCODING=UTF-8
-ENV LANG=C.UTF-8
-ENV LC_ALL=C.UTF-8
+ENV CUDA_HOME="/usr/local/cuda" \
+    EFA_PATH="/opt/amazon/efa" \
+    OPEN_MPI_PATH="/opt/amazon/openmpi"
+
+ENV LD_LIBRARY_PATH="lib:${EFA_PATH}/lib:${OPEN_MPI_PATH}/lib:${CUDA_HOME}/lib64:/usr/local/lib:/lib/x86_64-linux-gnu" \
+    PATH="${EFA_PATH}/bin:${OPEN_MPI_PATH}/bin:${CUDA_HOME}/bin:${PATH}" \
+    NCCL_DEBUG=INFO \
+    NCCL_SOCKET_IFNAME=^docker0 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONIOENCODING=UTF-8 \
+    LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8 \
+    NVTE_FRAMEWORK=pytorch
 
 # Install critical system dependencies missing in base Slurm image
 ENV DEBIAN_FRONTEND=noninteractive
@@ -43,13 +46,27 @@ RUN apt-get update && \
     libsm6 \
     libxext6 \
     libxrender-dev \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
-# Copy CUDA/NCCL/EFA stack from DLC
+# Copy CUDA stack from DLC
 COPY --from=dlc /usr/local/cuda /usr/local/cuda
+
+# Copy EFA stack from DLC
 COPY --from=dlc /opt/amazon/efa /opt/amazon/efa
+COPY --from=dlc /opt/amazon/openmpi /opt/amazon/openmpi
+
+# Copy NCCL configuration
 COPY --from=dlc /usr/local/lib/libnccl* /usr/local/lib/
 COPY --from=dlc /etc/nccl.conf /etc/nccl.conf
+
+# Configure OpenMPI
+RUN mv ${OPEN_MPI_PATH}/bin/mpirun ${OPEN_MPI_PATH}/bin/mpirun.real \
+    && echo '#!/bin/bash' > ${OPEN_MPI_PATH}/bin/mpirun \
+    && echo "${OPEN_MPI_PATH}/bin/mpirun.real --allow-run-as-root \"\$@\"" >> ${OPEN_MPI_PATH}/bin/mpirun \
+    && chmod a+x ${OPEN_MPI_PATH}/bin/mpirun \
+    && echo "hwloc_base_binding_policy = none" >> ${OPEN_MPI_PATH}/etc/openmpi-mca-params.conf \
+    && echo "rmaps_base_mapping_policy = slot" >> ${OPEN_MPI_PATH}/etc/openmpi-mca-params.conf
 
 # Copy Python installation
 COPY --from=dlc /usr/local/bin/python${PYTHON_SHORT_VERSION}* /usr/local/bin/
@@ -64,28 +81,31 @@ RUN rm -f /usr/local/bin/python3 && \
     ln -s /usr/local/bin/python${PYTHON_SHORT_VERSION} /usr/local/bin/python
 
 # Additional requirements
-RUN /usr/local/bin/python3 -m pip install --no-cache-dir --no-deps \
+RUN /usr/local/bin/python3 -m pip install --no-cache-dir \
     transformers==4.37.2 \
     datasets==2.17.1
 
+# Remove problematic typing.py to avoid conflicts
+RUN rm -f /usr/local/lib/python${PYTHON_SHORT_VERSION}/site-packages/typing.py
+
 # Install OpenSSH, allow OpenSSH to talk to containers without asking for confirmation
 RUN apt-get update \
- && apt-get install -y --no-install-recommends openssh-client openssh-server \
- && mkdir -p /var/run/sshd \
- && cat /etc/ssh/ssh_config | grep -v StrictHostKeyChecking > /etc/ssh/ssh_config.new \
- && echo "    StrictHostKeyChecking no" >> /etc/ssh/ssh_config.new \
- && mv /etc/ssh/ssh_config.new /etc/ssh/ssh_config \
- && rm -rf /var/lib/apt/lists/* \
- && apt-get clean
+    && apt-get install -y --no-install-recommends openssh-client openssh-server \
+    && mkdir -p /var/run/sshd \
+    && cat /etc/ssh/ssh_config | grep -v StrictHostKeyChecking > /etc/ssh/ssh_config.new \
+    && echo "    StrictHostKeyChecking no" >> /etc/ssh/ssh_config.new \
+    && mv /etc/ssh/ssh_config.new /etc/ssh/ssh_config \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
 # Configure OpenSSH so that nodes can communicate with each other
 RUN mkdir -p /var/run/sshd \
- && sed 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so@g' -i /etc/pam.d/sshd
+    && sed 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so@g' -i /etc/pam.d/sshd
 
 RUN rm -rf /root/.ssh/ \
- && mkdir -p /root/.ssh/ \
- && ssh-keygen -q -t rsa -N '' -f /root/.ssh/id_rsa \
- && cp /root/.ssh/id_rsa.pub /root/.ssh/authorized_keys \
- && printf "Host *\n StrictHostKeyChecking no\n" >> /root/.ssh/config
+    && mkdir -p /root/.ssh/ \
+    && ssh-keygen -q -t rsa -N '' -f /root/.ssh/id_rsa \
+    && cp /root/.ssh/id_rsa.pub /root/.ssh/authorized_keys \
+    && printf "Host *\n StrictHostKeyChecking no\n" >> /root/.ssh/config
 
 WORKDIR /home

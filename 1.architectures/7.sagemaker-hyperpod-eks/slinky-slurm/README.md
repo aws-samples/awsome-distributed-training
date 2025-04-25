@@ -1,21 +1,41 @@
 # Running Slurm on HyperPod EKS with Slinky
 
 ### What is the Slinky Project? 
+
+The [Slinky Project](https://github.com/SlinkyProject/slurm-operator/tree/main) is an open-source solution maintained by SchedMD (the main developer of Slurm) that deploys Slurm on Kubernetes. When paired with HyperPod EKS, the Slinky Project unlocks the ability for enterprises who have standardized infrastructure management on Kubernetes to deliver a Slurm-based experience to their ML scientists. It also enables training, experimentation, and inference to happen on the same cluster of accelerated nodes with the build-in resiliency provided by HyperPod. 
+
 ---
 
-### Architecture
+### Slinky on HypePod EKS Architecture
+![Image Description](./slinky-slurm-hp-eks.png)
+
+The diagram above depicts the resulting proof-of-concept deployment outlined in this guide. An Amazon EKS cluster acts as an orchestration layer, while a HyperPod cluster deliver a resilient instance group of GPU accelerated compute nodes. The Slinky Slurm operator is installed to extend Kubernetes with custom resources and actions, and a containerized Slurm cluster is deployed using Kubernetes pods via Helm chart. This Slurm cluster includes the following components:
+| Component | Description |
+|-----------|-------------|
+| Controller (slurmctld) | The central management daemon that monitors resources, accepts jobs, and assigns work to compute nodes. |
+| Accounting (slurmdbd) | Handles job accounting and user/project management through a MariaDB database backend. |
+| Compute (slurmd) | The worker nodes that execute jobs, organized into NodeSets which can be grouped into different partitions. |
+| Login | Provides SSH access points for users to interact with the Slurm cluster and submit jobs. |
+| REST API (slurmrestd) | Offers HTTP-based API access to Slurm functionality for programmatic interaction with the cluster. |
+| Authentication (sackd) | Manages credential authentication for secure access to Slurm services. |
+| MariaDB | The database backend used by the accounting service to store job, user, and project information. |
+| Slurm Exporter | Collects and exports Slurm metrics for monitoring purposes. |
+
+The login LoadBalancer type service is annotated to dynamically create an AWS Network Load Balancer using the [AWS Load Balancer Controller](https://github.com/kubernetes-sigs/aws-load-balancer-controller), allowing ML scientists to SSH into their login pods without interfacing with the Kubernetes API server via kubectl. 
+
+The login and compute node pods also have FSx for Lustre and FSx for OpenZFS shared filesystems mounted. Having containerized compute node pods allows many dependencies that would traditionally be installed manually using Conda or a Python virtual environment to be baked into the container image, but shared filesystems are still beneficial for storing training artifacts, data, logs, and checkpoints. If Conda environments are still required, FSx for OpenZFS has proven optimal to avoid IOPS saturation with many small files. 
 
 ---
 
 ### Release Notes 
 
-The following was tested on 4 `g5.8xlarge` instances (1 A10G Tensor Core GPU each) for hosting the Worker Pod NodeSet. 2 `m5.2xlarge` instances were also allocated for separately hosting the Controller Pod and Login Pod. Other components (Accounting, MariaDB, RestAPI, Token Creation, Exporter) were also colocated across the 2 `m5.2xlarge` instances for simplicity, but you may wish to deploy them on separate instance depending on your specific needs. This can be accomplished by modifying the associated node affinity configurations, which is discussed in more detail below. 
+The following was tested on 4 `g5.8xlarge` instances (1 A10G Tensor Core GPU each) for hosting the compute NodeSet pods. For simplicity, 2 `m5.2xlarge` instances were also allocated for separately hosting other components like the Controller and Login pods. You can adjust the number and type of instances associated with your HyperPod cluster, as well as the component affinity rules in the [values.yaml](./values.yaml) file to modify how they are spread across your nodes. 
 
-Testing used [Slurm Operator v0.2.1](https://github.com/slinkyproject/slurm-operator/pkgs/container/slurm-operator) (pulled from the Slinky GHCR) and [Slurm Cluster v0.3.0](https://github.com/SlinkyProject/slurm-operator/tree/main/helm/slurm) (packaged and deployed locally using the main Slinky repo branch) in order to include the NoteSet volume mount and Login Pod features. These features are expected to be included in the official Slurm Cluster v0.3.0 release when it becomes available on the Slinky GHCR repo, along with a new version of the Slurm Operator with corresponding validating webhooks.
+Testing used [Slurm Operator v0.2.1](https://github.com/slinkyproject/slurm-operator/pkgs/container/slurm-operator) (pulled as OCI artifacts from the Slinky container registry) and [Slurm Cluster v0.3.0](https://github.com/SlinkyProject/slurm-operator/tree/main/helm/slurm) (packaged and deployed locally using the main branch of the Slinky git repository) in order to include the NoteSet volume mount and Login Pod features. These features are expected to be included in the official Slurm Cluster v0.3.0 release when it becomes available, along with a new version of the Slurm Operator with corresponding validating webhooks.
 
-Note that the [Slinky Project](https://github.com/SlinkyProject) is under active development and could introduce breaking changes that may require modified deployment steps and configuration changes. 
+Note that the [Slinky Project](https://github.com/SlinkyProject) is under active development and could introduce breaking changes that may require modified deployment and configuration steps. 
 
-Worker pods were built with Python 3.12.8 + PyTorch 2.6.0 + CUDA 12.6 + NCCL 2.23.4 pre-installed in the container image. See [Docker Build for the Slurmd Deep Learning Container](./Docker-Build-README.md) for details. 
+Worker pods were built with Python 3.12.8 + PyTorch 2.6.0 + CUDA 12.6 + NCCL 2.23.4 pre-installed in the container image. See the [Docker Build for the Slurmd Deep Learning Container](./Docker-Build-README.md) for details. 
  
 * * *
 
@@ -26,7 +46,7 @@ Follow the [Prerequisites](https://catalog.workshops.aws/sagemaker-hyperpod-eks/
 
 Be sure to modify the Accelerated and General Purpose instance groups as needed to deploy the desired instance type and number of nodes. 
 
-Add an access entry (if needed):
+(Optional) Add an access entry (if needed):
 
 ```
 export AWS_ACCOUNT_ID=<your-account-id-here>
@@ -172,7 +192,7 @@ kubectl get sa aws-load-balancer-controller -n kube-system -oyaml
 
 * * *
 
-### Instill Prerequisites (Cert Manager and Prometheus):  
+### Instill Slinky Prerequisites (Cert Manager and Prometheus):  
 
 Follow the [QuickStart Guide](http://curl%20-l%20https//raw.githubusercontent.com/SlinkyProject/slurm-operator/refs/tags/v0.1.0/helm/slurm-operator/values.yaml%20/%20%20%20-o%20values-operator.yaml%20helm%20install%20slurm-operator%20oci://ghcr.io/slinkyproject/charts/slurm-operator%20/%20%20%20--values=values-operator.yaml%20--version=0.1.0%20--namespace=slinky%20--create-namespace) to install Cert Manager and Prometheus as [Pre-Requisites](https://github.com/SlinkyProject/slurm-operator/blob/main/docs/quickstart.md#pre-requisites).
 
@@ -215,49 +235,87 @@ kubectl get all -n slinky
 
 ### Install the Slurm Cluster:
 
-To deploy the **slurm cluster**, we first need to make some modifications to the [values.yaml](https://github.com/SlinkyProject/slurm-operator/blob/dd65faba359702a8eda6cce9484b702f2fd2ae2e/helm/slurm/values.yaml)` file.  After that, again, in order to test the latest changes in release **v0.3.0**, we’ll locally package and deploy the helm chart from the main branch of the cloned repo. For your convenience, we've provided a copy of the [values.yaml](./values.yaml) file with most of the configuration changes mentioned below already implemented. 
+To deploy the slurm cluster, we first need to make some modifications to the [values.yaml](https://github.com/SlinkyProject/slurm-operator/blob/dd65faba359702a8eda6cce9484b702f2fd2ae2e/helm/slurm/values.yaml)` file.  After that, in order to test the latest changes in release v0.3.0, we’ll locally package and deploy the helm chart from the main branch of the cloned repo. For your convenience, we've provided a copy of the [values.yaml](./values.yaml) file with most of the configuration changes mentioned below already implemented, so you'll only need to make additional changes as needed to further customize your deployment. 
 
+---
+
+#### Clone the Repos 
 Clone the Slurm Operator repository, which also contains the Helm chart artifacts for the Slurm Cluster: 
 ```
 git clone https://github.com/SlinkyProject/slurm-operator.git
 
 ```
-(Optional) If you wish to start from scratch, open the [values.yaml](https://github.com/SlinkyProject/slurm-operator/blob/dd65faba359702a8eda6cce9484b702f2fd2ae2e/helm/slurm/values.yaml)` file associated with the Slurm Cluster Helm Chart: 
+
+Clone the AWSome Distributed Training repo to use the [values.yaml](./values.yaml) file we've provided:
+```
+git clone https://github.com/aws-samples/awsome-distributed-training.git
+
+cd awsome-distributed-training/1.architectures/7.sagemaker-hyperpod-eks/slinky-slurm
+```
+
+(Optional) If you wish to start from scratch, open the [values.yaml](https://github.com/SlinkyProject/slurm-operator/blob/dd65faba359702a8eda6cce9484b702f2fd2ae2e/helm/slurm/values.yaml) file associated with the Slurm Cluster Helm Chart: 
 ```
 code slurm-operator/helm/slurm/values.yaml
-
 ```
-Otherwise, you can use the [values.yaml](./values.yaml) file we've provided. 
+---
 
-Verify the existence of the instance type label for controller affinity: 
+#### Component Affinity:
+
+Verify the existence of the instance type label for non-compute component affinity: 
 
 ```
 export GEN_INSTANCE_TYPE=ml.m5.2xlarge
 
 kubectl get nodes -l node.kubernetes.io/instance-type=$GEN_INSTANCE_TYPE
-
 ```
 
-#### Controller Modifications: 
+Verify the name pod labels applied to each component:
+```
+kubectl get pods -n slurm -L app.kubernetes.io/name
 
-Configure controller affinity: 
+# NAME                              READY   STATUS      RESTARTS   AGE   NAME
+# slurm-accounting-0                1/1     Running     0          12m   slurmdbd
+# slurm-compute-hp-node-0           2/2     Running     0          12m   slurmd
+# slurm-compute-hp-node-1           2/2     Running     0          12m   slurmd
+# slurm-compute-hp-node-2           2/2     Running     0          12m   slurmd
+# slurm-compute-hp-node-3           2/2     Running     0          12m   slurmd
+# slurm-controller-0                2/2     Running     0          12m   slurmctld
+# slurm-exporter-86448948f4-rqtg8   1/1     Running     0          12m   slurm-exporter
+# slurm-login-78b8fc9cd-rz8qj       1/1     Running     0          12m   login
+# slurm-mariadb-0                   1/1     Running     0          12m   mariadb
+# slurm-restapi-55d998b698-gdzc6    1/1     Running     0          12m   slurmrestd
+# slurm-token-create-b297g          0/3     Completed   0          12m   token
+```
+
+For each non-compute component, we apply both a Node Affinity and a Pod Anti-affinity in [values.yaml](./values.yaml) to ensure they are hosted only on the 2 `m5.2xlarge` instances while also being evenly spread between the hosts. 
 
 ```
-controller: 
-...
-  affinity: 
-    nodeAffinity:
-      requiredDuringSchedulingIgnoredDuringExecution:
-        nodeSelectorTerms:
-          - matchExpressions:
-              - key: "node.kubernetes.io/instance-type"
-                operator: "In"
-                values:
-                  - "ml.m5.2xlarge"
-...
+# Inter-pod anti-affinity and node affinity for non-compute components
+commonAffinity: &commonAffinity
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+          - key: "node.kubernetes.io/instance-type"
+            operator: In
+            values:
+              - "ml.m5.2xlarge"
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 100
+      podAffinityTerm:
+        labelSelector:
+          matchExpressions:
+          - key: "app.kubernetes.io/name"
+            operator: In
+            values: ["slurmdbd", "slurmctld", "slurm-exporter", "login", "mariadb", "slurmrestd"]
+        topologyKey: "kubernetes.io/hostname"
 ```
+You can modify this common affinity setting, or apply unique affinity settings for individual components for further customization. 
 
-#### Compute NodeSet Modifications:
+---
+
+#### Compute Node Selector:
 
 Verify the existence of the instance type label for compute node selector:
 
@@ -268,7 +326,7 @@ ACCEL_INSTANCE_TYPE=ml.g5.8xlarge
  
 ```
 
-Change the compute node name, replica count, and node selector:: 
+The instance type label is used as a node selector to ensure the compute pods only run on the `ml.g5.8xlarge` GPU accelerated instances:  
 
 ```
 compute:
@@ -283,14 +341,15 @@ compute:
             node.kubernetes.io/instance-type: ml.g5.8xlarge
 ...
 ```
+---
+
+#### Create an FSx for Lustre Persistent Volume Claim (PVC) in the slurm namespace:
 
 Create the slurm namespace: 
 
 ```
 kubectl create ns slurm
 ```
-
-Create a FSx for Lustre Persistent Volume Claim (PVC) in the slurm namespace:
 
 This is needed to reference for node volume mounts later. 
 
@@ -313,8 +372,9 @@ kubectl get pv $(kubectl get pvc fsx-claim  -n slurm -ojson \
  | jq -r .spec.csi.volumeHandle
  
 ```
+---
 
-Create an FSx for OpenZFS PVC in the slurm namespace:
+#### Create an FSx for OpenZFS PVC in the slurm namespace:
 
 ```
 kubectl apply -f openzfs-pvc-slurm.yaml
@@ -337,26 +397,41 @@ kubectl get pv $(kubectl get pvc openzfs-claim -n slurm -ojson \
  
 ```
 
-Add the  FSx for Lustre and OpenZFS PVCs to the list of compute node volumes:
+Add the FSx for Lustre and OpenZFS PVCs to the list of `volumes` for both the login service and and compute nodes in [values.yaml](./values.yaml):
 
 ```
+login:
+  ...
+  volumes: 
+    - name: fsx-lustre
+        mountPath: /fsx
+        persistentVolumeClaim: 
+          claimName: fsx-claim
+    - name: fsx-openzfs
+        mountPath: /home
+        persistentVolumeClaim:
+          claimName: openzfs-claim
+  ...
+
 compute:
-    nodesets:
-        - name: hp-node
-        ...
-        volumes: 
-            - name: fsx-lustre
-              mountPath: /fsx
-              persistentVolumeClaim: 
-                claimName: fsx-claim
-            - name: fsx-openzfs
-              mountPath: /home
-              persistentVolumeClaim:
-                claimName: openzfs-claim
-        ...
+  nodesets:
+    - name: hp-node
+    ...
+      volumes: 
+        - name: fsx-lustre
+          mountPath: /fsx
+          persistentVolumeClaim: 
+            claimName: fsx-claim
+        - name: fsx-openzfs
+          mountPath: /home
+          persistentVolumeClaim:
+            claimName: openzfs-claim
+      ...
 ```
+---
 
-Configure resources for compute nodes:
+#### Configure Compute Node Resources:
+
 Note: limits are required, otherwise the compute nodes will not deploy. 
 
 ```
@@ -375,8 +450,13 @@ compute:
                 nvidia.com/gpu: "1"
         ...
 ```
+---
 
-Modify the compute node container image to use the [Slurmd Deep Learning Container](./Docker-Build-README.md) (Slurmd DLC) build:
+#### Build and Set the Compute Node Container Image:
+
+Use the provided [dlc-slurmd.Dockerfile](./dlc-slurmd.Dockerfile) to build a [Slurmd Deep Learning Container](./Docker-Build-README.md) (Slurmd DLC), following [the instructions here](./Docker-Build-README.md).
+
+then modify the compute node container image to use your Slurmd DLC build:
 
 ```
 compute: 
@@ -395,27 +475,15 @@ compute:
             tag: "24.11.4-ubuntu24.04"
         ...
 ```
-For your convenience, we've pre-build a Slurmd DLC for and made it available in an ECR public repository, but you can use the provided [dlc-slurmd.Dockerfile](./dlc-slurmd.Dockerfile) to modify and build your own.  
+The Slurm DLC has Python 3.12.8 + PyTorch 2.6.0 + CUDA 12.6 + NCCL 2.23.4 pre-installed in the container image, but you can modify the [dlc-slurmd.Dockerfile](./dlc-slurmd.Dockerfile) for further customization.
 
-#### Login Node Modifications: 
+---
 
-Add the  FSx for Lustre and OpenZFS PVCs to the list of login node volumes:
+#### Login Access: 
 
-```
-login:
-   ...
-   volumes: 
-       - name: fsx-lustre
-            mountPath: /fsx
-            persistentVolumeClaim: 
-              claimName: fsx-claim
+Access to the login service can be configured through several authentication and networking mechanisms. The login service can be exposed either as a `LoadBalancer` (default) or `NodePort` type service, with the external port configurable via `servicePort` (default 22) or `serviceNodePort` (default 32222) respectively. Authentication can be integrated with LDAP through SSSD configuration, where users and groups can be managed via the `sssdConf` settings that define LDAP URIs, search bases, and domain configurations. SSH access can be customized through both `sshdConfig` and `rootSshAuthorizedKeys` parameters, allowing for specific SSH daemon configurations and authorized key management. Additionally, the name service switch configuration (`nsswitchConf`) can be customized to control how various databases like passwd, group, and hosts are resolved, with support for multiple sources including files, SSS, and database lookups.
 
-        - name: fsx-openzfs
-            mountPath: /home
-            persistentVolumeClaim:
-              claimName: openzfs-claim
-   ...
-```
+For simplicity of demonstration, we've disabled SSSD by setting everything in `nsswitchConf` to `files` so the system to only uses local files for authentication and does not to try SSSD or other sources. This is simpler and more reliable when you just want to use SSH key authentication for root access, as the SSH keys are stored in local files (/root/.ssh/authorized_keys).
 
 Generate an SSH key for root authorization: 
 
@@ -440,107 +508,51 @@ login:
         - "ssh-ed25519 <public-key-content> janedoe@example.com"
     ...
 ```
+---
 
-Disable SSSD:  the `nsswitchConf` (Name Service Switch configuration) file tells Linux how to resolve different types of system information like users, groups, passwords, etc. By setting everything to just `files` we're telling the system to only use local files for authentication and not to try SSSD or other sources. This is simpler and more reliable when you just want to use SSH key authentication for root access, as the SSH keys are stored in local files anyway (/root/.ssh/authorized_keys).
+#### Deploy the Slurm Cluster: 
 
+Locally package and deploy the slurm cluster using the modified `values.yaml` file:
+
+Assuming you are still sitting in the `slinky-slurm` directory of the AWSome Distributed Training repo that we cloned and navigated into earlier, and assuming you cloned the Slinky repo into your home directory (adjust the path as needed), copy the Helm chart artifacts in for packaging: 
 ```
-...
-login:     
-  ...  
-  nsswitchConf:
-    passwd: files
-    group: files
-    shadow: files
-    gshadow: files
-    sudoers: files
-    hosts: files
-    networks: files
-    protocols: files
-    services: files
-    ethers: files
-    rpc: files
-    netgroup: files
-    automount: files
-  ...
-...      
+cp -r ~/slurm-operator/helm/slurm .
 ```
 
-Define the content of the sshd_config file:
+Locally package and deploy the Slurm cluster Helm chart v0.3.0: 
 
 ```
-...
-login:
-  sshdConfig:
-    # This is the actual content of the sshd_config file
-    AcceptEnv: "LANG LC_*"
-    AuthorizedKeysFile: "/root/.ssh/authorized_keys"
-    ChallengeResponseAuthentication: "no"
-    ClientAliveCountMax: "3"
-    ClientAliveInterval: "60"
-    LogLevel: "INFO"
-    PasswordAuthentication: "no"
-    PermitRootLogin: "yes"
-    Port: "22"
-    PrintMotd: "no"
-    Protocol: "2"
-    PubkeyAuthentication: "yes"
-    Subsystem: "sftp internal-sftp"
-    TCPKeepAlive: "yes"
-    UseDNS: "no"
-    UsePAM: "no"
-    X11Forwarding: "no"
-...    
-```
+helm dependency update slurm
 
-Update the **slurm-login** service port:
-
-```
-login:
-  ...
-  servicePort: 22
-  ...
-```
-
-#### Deploy the Slurm Cluster 
-
-Locally package and deploy the **slurm cluster** using the modified `values.yaml` file:
-
-```
-helm dependency update slurm-operator/helm/slurm
-
-helm package slurm-operator/helm/slurm
-
-slurm-0.3.0.tgz
+helm package slurm
 
 # Dry run 
 helm install --dry-run slurm slurm-0.3.0.tgz \
---values=values.yaml \
---namespace=slurm 
+-f values.yaml \
+-n slurm 
 
 helm install slurm slurm-0.3.0.tgz \
---values=values.yaml \
---namespace=slurm
-
+-f values.yaml \
+-n slurm
 ```
-
-Note: Release v0.2.1 of the slurm-operator validating webhook may throw a few warning about not recognizing `spec.template.spec.volumes[].mountPath` fields. This is not surprising given we are using the newer pre-release v0.3.0 of the slurm cluster, but it doesn’t appear to cause any functional errors. 
-
 
 Watch the deployment status of the Slurm cluster:
 
 ```
-kubectl --namespace=slurm get pods -l app.kubernetes.io/instance=slurm --watch
+kubectl -n slurm get pods -l app.kubernetes.io/instance=slurm --watch
 ```
 
-Verify deployment status of all components:
+Verify the deployment status of all components:
 
 ```
 kubectl get all -n slurm
 ```
 
-#### Configure Network Load Balancer provisioning using the AWS Load Balancer Controller
+---
 
-Manually add annotation to the slurm-login service:
+#### Configure Login Network Load Balancer provisioning using the AWS Load Balancer Controller:
+
+Manually add annotation to the `slurm-login` service:
 
 ```
 export PUBLIC_SUBNET_ID_1=<your-public-subnet-1-here>
@@ -555,130 +567,117 @@ kubectl annotate service slurm-login -n slurm \
   --overwrite
   
 kubectl describe service slurm-login -n slurm
-
 ```
 
 Any annotations added to the slurm cluster `values.yaml` file for the slurm-login service are currently ignored, but AWS Load Balancer Controller actively watches for and implements annotation changes.  It Automatically adds inbound rules to the node security group to allow traffic from the NLB security group on the target port (22 in this case). 
-* * *
+
+---
 
 ### Basic Tests:
 
 SSH into the login node as root from the NLB endpoint: 
 
 ```
-
 SLURM_LOGIN_HOSTNAME="$(kubectl get services -n slurm -l app.kubernetes.io/instance=slurm,app.kubernetes.io/name=login -o jsonpath="{.items[0].status.loadBalancer.ingress[0].hostname}")"
 ssh -i ~/.ssh/id_ed25519_slurm -p 22 root@$SLURM_LOGIN_HOSTNAME
-
 ```
+---
 
 Check the available nodes: 
 
 ```
-
 sinfo 
 
 PARTITION AVAIL  TIMELIMIT  NODES  STATE NODELIST
 hp-node      up   infinite      4   idle hp-node-[0-3]
 all*         up   infinite      4   idle hp-node-[0-3]
-
 ```
+---
 
 Verify  FSx for Lustre and OpenZFS filesystem mounts on the login pod: 
 
 ```
-
 df -h 
 
-Filesystem                                             Size  Used Avail Use% Mounted on
-overlay                                                500G   30G  471G   6% /
-tmpfs                                                   64M     0   64M   0% /dev
-tmpfs                                                   63G     0   63G   0% /sys/fs/cgroup
-10.1.12.93@tcp:/7c5dpb4v                               1.2T  7.8M  1.2T   1% /fsx
-fs-03221b7c7d3767607.fsx.us-west-2.amazonaws.com:/fsx   64G     0   64G   0% /home
-tmpfs                                                  115G  4.0K  115G   1% /etc/slurm
-/dev/nvme0n1p1                                         100G   23G   78G  23% /run
-/dev/nvme1n1                                           500G   30G  471G   6% /etc/hostname
-shm                                                     64M     0   64M   0% /dev/shm
-tmpfs                                                  115G  4.0K  115G   1% /etc/sssd/sssd.conf
-tmpfs                                                  115G   12K  115G   1% /etc/ssh/ssh_host_rsa_key
-tmpfs                                                   63G     0   63G   0% /proc/acpi
-tmpfs                                                   63G     0   63G   0% /sys/firmware
+# Filesystem                                             Size  Used Avail Use% Mounted on
+# overlay                                                500G   30G  471G   6% /
+# tmpfs                                                   64M     0   64M   0% /dev
+# tmpfs                                                   63G     0   63G   0% /sys/fs/cgroup
+# 10.1.12.93@tcp:/7c5dpb4v                               1.2T  7.8M  1.2T   1% /fsx
+# fs-03221b7c7d3767607.fsx.us-west-2.amazonaws.com:/fsx   64G     0   64G   0% /home
+# tmpfs                                                  115G  4.0K  115G   1% /etc/slurm
+# /dev/nvme0n1p1                                         100G   23G   78G  23% /run
+# /dev/nvme1n1                                           500G   30G  471G   6% /etc/hostname
+# shm                                                     64M     0   64M   0% /dev/shm
+# tmpfs                                                  115G  4.0K  115G   1% /etc/sssd/sssd.conf
+# tmpfs                                                  115G   12K  115G   1% /etc/ssh/ssh_host_rsa_key
+# tmpfs                                                   63G     0   63G   0% /proc/acpi
+# tmpfs                                                   63G     0   63G   0% /sys/firmware
 
 exit
+```
+--- 
+
+Verify  FSx for Lustre and OpenZFS filesystem mounts on the compute node pods: 
 
 ```
-
-Verify  FSx for Lustre and OpenZFS filesystem mounts on the worker node pods: 
-
-```
-
 kubectl -n slurm exec -it pod/slurm-compute-hp-node-0 -- bash --login
 
 df -h
 
-Filesystem                                             Size  Used Avail Use% Mounted on
-overlay                                                500G   31G  470G   7% /
-tmpfs                                                   64M     0   64M   0% /dev
-tmpfs                                                   63G     0   63G   0% /sys/fs/cgroup
-10.1.12.93@tcp:/7c5dpb4v                               1.2T  7.5M  1.2T   1% /fsx
-fs-03221b7c7d3767607.fsx.us-west-2.amazonaws.com:/fsx   64G     0   64G   0% /home
-tmpfs                                                  115G  4.0K  115G   1% /etc/slurm
-/dev/nvme0n1p1                                         100G   23G   78G  23% /run
-/dev/nvme1n1                                           500G   31G  470G   7% /etc/hostname
-shm                                                     64M     0   64M   0% /dev/shm
-tmpfs                                                  115G     0  115G   0% /var/log/slurm
+# Filesystem                                             Size  Used Avail Use% Mounted on
+# overlay                                                500G   31G  470G   7% /
+# tmpfs                                                   64M     0   64M   0% /dev
+# tmpfs                                                   63G     0   63G   0% /sys/fs/cgroup
+# 10.1.12.93@tcp:/7c5dpb4v                               1.2T  7.5M  1.2T   1% /fsx
+# fs-03221b7c7d3767607.fsx.us-west-2.amazonaws.com:/fsx   64G     0   64G   0% /home
+# tmpfs                                                  115G  4.0K  115G   1% /etc/slurm
+# /dev/nvme0n1p1                                         100G   23G   78G  23% /run
+# /dev/nvme1n1                                           500G   31G  470G   7% /etc/hostname
+# shm                                                     64M     0   64M   0% /dev/shm
+# tmpfs                                                  115G     0  115G   0% /var/log/slurm
+```
+---
+
+Check the installed CUDA compiler version on compute node pods:
 
 ```
-
-Check the installed CUDA compiler version on worker node pods:
-
-```
-
 nvcc --version
 
-# nccl-slurmd
-nvcc: NVIDIA (R) Cuda compiler driver
-Copyright (c) 2005-2023 NVIDIA Corporation
-Built on Tue_Aug_15_22:02:13_PDT_2023
-Cuda compilation tools, release 12.2, V12.2.140
-Build cuda_12.2.r12.2/compiler.33191640_0
-
-# dlc-slurmd
-nvcc: NVIDIA (R) Cuda compiler driver
-Copyright (c) 2005-2024 NVIDIA Corporation
-Built on Tue_Oct_29_23:50:19_PDT_2024
-Cuda compilation tools, release 12.6, V12.6.85
-Build cuda_12.6.r12.6/compiler.35059454_0
+# nvcc: NVIDIA (R) Cuda compiler driver
+# Copyright (c) 2005-2024 NVIDIA Corporation
+# Built on Tue_Oct_29_23:50:19_PDT_2024
+# Cuda compilation tools, release 12.6, V12.6.85
+# Build cuda_12.6.r12.6/compiler.35059454_0
 
 ```
+--- 
 
-Check the NCCL version on worker node pods:
+Check the NCCL version on compute node pods:
 
 ```
 ldconfig -v | grep "libnccl.so" | tail -n1 | sed -r 's/^.*\.so\.//'
 
-2.23.4
+# 2.23.4
 ```
+--- 
 
 Confirm NCCL headers are installed worker node pods:
 
 ```
 find /usr/local/lib/ -name "nccl.h" 2>/dev/null
 
-/usr/local/lib/python3.12/site-packages/torch/include/torch/csrc/cuda/nccl.h
+# /usr/local/lib/python3.12/site-packages/torch/include/torch/csrc/cuda/nccl.h
 
 exit
 ```
-
-* * *
+---
 
 ### FSDP Test 
 
 SSH into the login pod as root, clone the repo, and create a checkpoints directory: 
 
 ```
-
 SLURM_LOGIN_HOSTNAME="$(kubectl get services -n slurm -l app.kubernetes.io/instance=slurm,app.kubernetes.io/name=login -o jsonpath="{.items[0].status.loadBalancer.ingress[0].hostname}")"
 ssh -i ~/.ssh/id_ed25519_slurm -p 22 root@$SLURM_LOGIN_HOSTNAME
 
@@ -687,21 +686,24 @@ apt update
 apt install -y git 
 git --version 
 
-# install vim
-`apt install ``-``y vim `
+# install vim (optional)
+apt install -y vim
 vim --version
 
 cd /fsx
 git clone https://github.com/aws-samples/awsome-distributed-training/
 cd awsome-distributed-training/3.test_cases/pytorch/FSDP/slurm
 
-mkdir checkpoints
+mkdir -p checkpoints
 ```
+---
 
 Download the c4 dataset to avoid throttling errors from HuggingFace:
 
 ```
 mkdir -p /fsx/datasets/c4
+
+export SLINKY_PATH=/fsx/awsome-distributed-training/1.architectures/7.sagemaker-hyperpod-eks/slinky-slurm
 
 apt install -y python3.12-venv
 python3 -m venv env
@@ -709,24 +711,28 @@ source env/bin/activate
 pip install --upgrade pip
 pip install datasets
 
-python3 download_c4.py
+python3 ${SLINKY_PATH}/download_c4.py
 
 deactivate
 ```
 
-Kick-off training:
-
+---
+Copy the modified sbatch file and kick-off training:
 ```
+cp ${SLINKY_PATH}/llama2_7b-training.sbatch .
+
 sbatch llama2_7b-training.sbatch
 ```
+---
 
-Watch the output logs from login pod:
-
-```
-
-tail -f logs/llama2_7b-FSDP_$(squeue -h -u $USER -o "%i" | head -1).out
+Watch the output logs from the login pod:
 
 ```
+export JOB_ID=$(squeue -h -u root -o "%i" | head -1)
+
+tail -f logs/llama2_7b-FSDP_${JOB_ID}.out
+```
+---
 
 Watch the error logs from `slurm-compute-hp-node-0`:
 
@@ -735,11 +741,13 @@ Watch the error logs from `slurm-compute-hp-node-0`:
 kubectl -n slurm exec -it pod/slurm-compute-hp-node-0 -- bash --login
 
 cd /fsx/awsome-distributed-training/3.test_cases/pytorch/FSDP/slurm
+export JOB_ID=$(squeue -h -u root -o "%i" | head -1)
 
-watch "grep 'Batch.*Loss' logs/llama2_7b-FSDP_65.err"
+watch "grep 'Batch.*Loss' logs/llama2_7b-FSDP_${JOB_ID}.err"
 
-tail -f logs/llama2_7b-FSDP_$(squeue -h -u $USER -o "%i" | head -1).err | grep --line-buffered 'Batch.*Loss'
+# or
 
+tail -f logs/llama2_7b-FSDP_${JOB_ID}.err | grep --line-buffered 'Batch.*Loss'
 ```
 
 Watch squeue from `slurm-compute-hp-node-1`:

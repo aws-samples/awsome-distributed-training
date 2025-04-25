@@ -1,6 +1,26 @@
 # SPDX-FileCopyrightText: Copyright (C) SchedMD LLC.
 # SPDX-License-Identifier: Apache-2.0
 
+# Inter-pod anti-affinity and node affinity for non-compute components
+commonAffinity: &commonAffinity
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+          - key: "node.kubernetes.io/instance-type"
+            operator: In
+            values:
+              - "ml.m5.2xlarge"
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 100
+      podAffinityTerm:
+        labelSelector:
+          matchExpressions:
+          - key: "app.kubernetes.io/name"
+            operator: In
+            values: ["slurmdbd", "slurmctld", "slurm-exporter", "login", "mariadb", "slurmrestd"]
+        topologyKey: "kubernetes.io/hostname"
 #
 # Debug configuration.
 # @ignored
@@ -275,15 +295,7 @@ controller:
   # -- (object)
   # Set affinity for Kubernetes Pod scheduling.
   # Ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity
-  affinity: 
-    nodeAffinity:
-        requiredDuringSchedulingIgnoredDuringExecution:
-          nodeSelectorTerms:
-            - matchExpressions:
-                - key: "node.kubernetes.io/instance-type"
-                  operator: "In"
-                  values:
-                    - "ml.m5.2xlarge"
+  affinity: *commonAffinity
   #
   # -- (list)
   # Configure pod tolerations.
@@ -507,15 +519,7 @@ login:
   # -- (object)
   # Set affinity for Kubernetes Pod scheduling.
   # Ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity
-  affinity: 
-    nodeAffinity:
-        requiredDuringSchedulingIgnoredDuringExecution:
-          nodeSelectorTerms:
-            - matchExpressions:
-                - key: "node.kubernetes.io/instance-type"
-                  operator: "In"
-                  values:
-                    - "ml.m5.2xlarge"
+  affinity: *commonAffinity
   #
   # -- (list)
   # Configure pod tolerations.
@@ -572,7 +576,7 @@ compute:
       #
       # -- (string)
       # Set the image pull policy.
-      imagePullPolicy: IfNotPresent
+      imagePullPolicy: Always
       #
       # Set the image to use.
       image:
@@ -705,6 +709,7 @@ compute:
           mountPath: /home
           persistentVolumeClaim:
             claimName: openzfs-claim
+      
         # - name: nfs-bin
         #   mountPath: /usr/local/bin
         #   nfs:
@@ -802,15 +807,7 @@ accounting:
   # -- (object)
   # Set affinity for Kubernetes Pod scheduling.
   # Ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity
-  affinity:
-    nodeAffinity:
-        requiredDuringSchedulingIgnoredDuringExecution:
-          nodeSelectorTerms:
-            - matchExpressions:
-                - key: "node.kubernetes.io/instance-type"
-                  operator: "In"
-                  values:
-                    - "ml.m5.2xlarge"
+  affinity: *commonAffinity
   #
   # -- (list)
   # Configure pod tolerations.
@@ -923,11 +920,11 @@ mariadb:
       selector: {}
     priorityClassName: ""
     tolerations: []
+    affinity: *commonAffinity
   metrics:
     enabled: false
     serviceMonitor:
       enabled: false
-  affinity: {}
   resources: {}
 
 #
@@ -982,7 +979,7 @@ restapi:
   # -- (object)
   # Set affinity for Kubernetes Pod scheduling.
   # Ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity
-  affinity: {}
+  affinity: *commonAffinity
   #
   # -- (list)
   # Configure pod tolerations.
@@ -1008,6 +1005,4 @@ slurm-exporter:
   exporter:
     enabled: true
     secretName: "slurm-token-exporter"
-    # image: 
-    #   repository: ghcr.io/slinkyproject/slurm-exporter
-    #   tag: 0.2.0
+    affinity: *commonAffinity 
