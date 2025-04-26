@@ -1,6 +1,6 @@
 # NVSHMEM
 
-NVIDIA NVSHMEM is NVIDIA’s implementation of the OpenSHMEM [PGAS](https://en.wikipedia.org/wiki/Partitioned_global_address_space) model for GPU clusters. It provides an easy-to-use CPU-side interface to allocate pinned memory that is symmetrically distributed across a cluster of NVIDIA GPUs. NVSHMEM can significantly reduce communication and coordination overheads by allowing programmers to perform these operations from within CUDA kernels and on CUDA streams.
+NVIDIA NVSHMEM is NVIDIA's implementation of the OpenSHMEM [PGAS](https://en.wikipedia.org/wiki/Partitioned_global_address_space) model for GPU clusters. It provides an easy-to-use CPU-side interface to allocate pinned memory that is symmetrically distributed across a cluster of NVIDIA GPUs. NVSHMEM can significantly reduce communication and coordination overheads by allowing programmers to perform these operations from within CUDA kernels and on CUDA streams.
 
 One of the options for using the NVSHMEM is to implement high-throughput and low-latency MoE dispatch and combine GPU kernels. [DeepEP](https://github.com/deepseek-ai/DeepEP) and [pplx-kernels](https://github.com/ppl-ai/pplx-kernels) are examples of such implementations.
 
@@ -47,16 +47,6 @@ docker build --progress=plain -f nvshmem.Dockerfile \
        --build-arg="NVSHMEM_VERSION=${NVSHMEM_VERSION}" \
        -t ${NVSHMEM_CONTAINER_IMAGE_NAME_TAG} \
        .
-```
-
-### Slurm
-
-To run the NCCL tests on Slurm, you will need to convert the container into a Squash file using Enroot.
-
-Convert the container image to a squash file via Enroot. If you have the built image locally use the following command:
-
-```bash
-enroot import -o ./nvshmem.sqsh dockerd://${NVSHMEM_CONTAINER_IMAGE_NAME_TAG}
 ```
 
 # Perf Test
@@ -142,6 +132,16 @@ Host point-to-point tests are located in `/opt/nvshmem/bin/perftest/host/pt-to-p
 - latency     
 - stream_latency
 
+## Slurm
+
+To run the NCCL tests on Slurm, you will need to convert the container into a Squash file using Enroot.
+
+Convert the container image to a squash file via Enroot. If you have the built image locally use the following command:
+
+```bash
+enroot import -o ./nvshmem.sqsh dockerd://${NVSHMEM_CONTAINER_IMAGE_NAME_TAG}
+```
+
 ### Example of running shmem_put_bw benchmark on 2 GPUs on a single node and 2 GPUs on two different nodes
 
 NVSHMEM shmem_put_bw benchmark requires 2 processing elements (PEs), so there are two options:
@@ -157,3 +157,27 @@ benchmark 2 GPUs on two different nodes over AWS EFA:
 ```bash
 srun --mpi=pmix --cpu-bind=none --container-image ./nvshmem.sqsh --nodes=2 --ntasks-per-node=1 /opt/nvshmem/bin/perftest/device/pt-to-pt/shmem_put_bw
 ```
+
+## Using Slurm Batch Scripts
+
+The `slurm` directory contains several batch scripts for running NVSHMEM benchmarks on a Slurm cluster. These scripts are configured to run different benchmarks with optimal settings for both intra-node (NVLink) and inter-node (EFA) communication.
+
+### Available Batch Scripts
+
+- `shmem_put_bw_intranode.sbatch`: Runs the shmem_put_bw benchmark between GPUs on the same node (NVLink)
+- `shmem_put_bw_internode.sbatch`: Runs the shmem_put_bw benchmark between GPUs on different nodes (EFA)
+- `alltoall_latency.sbatch`: Runs the alltoall_latency benchmark
+
+### Running a Batch Script
+
+To submit a job using one of these scripts, use the `sbatch` command:
+
+```bash
+sbatch slurm/shmem_put_bw_intranode.sbatch
+```
+
+### Output
+
+The job output and error logs will be written to files named after your job:
+- `put_bw_<job_id>.out` for standard output
+- `put_bw_<job_id>.err` for error messages
