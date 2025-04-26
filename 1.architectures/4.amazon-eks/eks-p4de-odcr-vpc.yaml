@@ -1,13 +1,12 @@
 apiVersion: eksctl.io/v1alpha5
 kind: ClusterConfig
 
-# Update cluster name, region, and eks version if needed
 metadata:
   name: eks-p4de-odcr-vpc
-  version: "1.28"
   region: PLACEHOLDER_AWS_REGION
+  version: "1.32"
 
-# Substitute vpc and subnet ids below
+# Substitute VPC and subnet IDs below
 vpc:
   id: PLACEHOLDER_VPC_ID
   subnets:
@@ -22,9 +21,11 @@ vpc:
       private-two:
         id: PLACEHOLDER_SUBNET_PRIVATE_2
 
-# Fully-managed nodegroups
-managedNodeGroups:
+iam:
+  withOIDC: true
 
+# EKS-managed node group(s)
+managedNodeGroups:
   # Nodegroup for system pods
   - name: sys
     instanceType: c5.2xlarge
@@ -45,18 +46,21 @@ managedNodeGroups:
     minSize: 0
     desiredCapacity: 2
     maxSize: 10
-    volumeSize: 500
     subnets:
-    - PLACEHOLDER_SUBNET_PRIVATE_2
+      - PLACEHOLDER_SUBNET_PRIVATE_2
     capacityReservation:
       capacityReservationTarget:
         capacityReservationID: "PLACEHOLDER_CAPACITY_RESERVATION_ID"
+    # Utilize the local instance store volume(s)
+    overrideBootstrapCommand: |
+      apiVersion: node.eks.aws/v1alpha1
+      kind: NodeConfig
+      spec:
+        instance:
+          localStorage:
+            strategy: RAID0
     iam:
       withAddonPolicies:
-        autoScaler: true
         cloudWatch: true
         ebs: true
         fsx: true
-
-iam:
-  withOIDC: true

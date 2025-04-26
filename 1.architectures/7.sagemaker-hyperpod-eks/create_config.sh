@@ -250,3 +250,34 @@ if [ -z ${NODE_RECOVERY} ]; then
 fi
 echo "export NODE_RECOVERY=${NODE_RECOVERY}" >> env_vars
 echo "[INFO] NODE_RECOVERY = ${NODE_RECOVERY}"
+
+# Set network flag for Docker if in SageMaker Code Editor
+if [ "${SAGEMAKER_APP_TYPE:-}" = "CodeEditor" ]; then 
+    echo "export DOCKER_NETWORK=\"--network sagemaker\"" >> env_vars
+fi 
+
+# Get absolute path of env_vars file
+ENV_VARS_PATH="$(realpath "$(dirname "$0")/env_vars")"
+
+# Persist the environment variables
+add_source_command() {
+    local config_file="$1"
+    local source_line="[ -f \"${ENV_VARS_PATH}\" ] && source \"${ENV_VARS_PATH}\""
+    
+    # Only add if the line doesn't exist already
+    if ! grep -q "source.*${ENV_VARS_PATH}" "$config_file"; then
+        echo "$source_line" >> "$config_file"
+        echo "[INFO] Added environment variables to $config_file"
+    else
+        echo "[INFO] Environment variables already configured in $config_file"
+    fi
+}
+
+# Check shell config files
+if [ -f ~/.bashrc ]; then
+    add_source_command ~/.bashrc
+fi
+
+if [ -f ~/.zshrc ]; then
+    add_source_command ~/.zshrc
+fi

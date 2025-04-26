@@ -1,23 +1,7 @@
-FROM public.ecr.aws/docker/library/ubuntu:20.04
+FROM public.ecr.aws/docker/library/golang:1.24.1-bookworm AS build
 
-ARG EFA_INSTALLER_VERSION=1.30.0
-ARG NODE_EXPORTER_VERSION=v1.6.1
-ARG PROCFS_EXPORTER_VERSION=v0.12.0
-ARG GOLANG_VERSION=1.21.5
-
-# install go
-RUN apt update && apt install curl git build-essential -y
-RUN curl -OL https://go.dev/dl/go${GOLANG_VERSION}.linux-amd64.tar.gz && \
-    tar -C /usr/local -xf go${GOLANG_VERSION}.linux-amd64.tar.gz
-ENV PATH=$PATH:/usr/local/go/bin
-
-# Install EFA
-RUN cd $HOME \
-    && curl -O https://efa-installer.amazonaws.com/aws-efa-installer-${EFA_INSTALLER_VERSION}.tar.gz \
-    && tar -xf $HOME/aws-efa-installer-${EFA_INSTALLER_VERSION}.tar.gz \
-    && cd aws-efa-installer \
-    && ./efa_installer.sh -y -g -d --skip-kmod --skip-limit-conf --no-verify \
-    && rm -rf $HOME/aws-efa-installer
+ARG NODE_EXPORTER_VERSION=v1.9.0
+ARG PROCFS_EXPORTER_VERSION=v0.16.0
 
 # Install ProcFS
 RUN git clone -b $PROCFS_EXPORTER_VERSION https://github.com/prometheus/procfs.git /workspace/procfs
@@ -30,5 +14,9 @@ COPY amazon_efa_linux.go /workspace/node_exporter/collector/
 
 WORKDIR /workspace/node_exporter
 RUN  go mod edit --replace=github.com/prometheus/procfs=/workspace/procfs
-RUN  go mod tidy && go build -o node_exporter
+RUN  go mod tidy && CGO_ENABLE=0 go build -o /go/bin/node_exporter
+
+FROM gcr.io/distroless/static-debian12
+COPY --from=build /go/bin/node_exporter /workspace/
+WORKDIR /workspace
 ENTRYPOINT ["./node_exporter"]
