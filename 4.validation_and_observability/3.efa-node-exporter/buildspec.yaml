@@ -2,21 +2,16 @@ version: 0.2
 
 env:
   variables:
-    GDRCOPY_VERSION: "v2.4.4"
-    EFA_INSTALLER_VERSION: "1.38.1"
-    AWS_OFI_NCCL_VERSION: "v1.14.0"
-    NCCL_VERSION: "v2.26.2-1"
-    NCCL_TESTS_VERSION: "v2.14.1"
+    NODE_EXPORTER_VERSION: "v1.9.0"
+    PROCFS_EXPORTER_VERSION: "v0.16.0"
   exported-variables:
-    - GDRCOPY_VERSION
-    - EFA_INSTALLER_VERSION
-    - AWS_OFI_NCCL_VERSION
-    - NCCL_VERSION
-    - NCCL_TESTS_VERSION
+    - NODE_EXPORTER_VERSION
+    - PROCFS_EXPORTER_VERSION
+    - GOLANG_VERSION
 phases:
   pre_build:
     commands:
-      - export TAG="efa${EFA_INSTALLER_VERSION}-ofi${AWS_OFI_NCCL_VERSION}-nccl${NCCL_VERSION}-tests${NCCL_TESTS_VERSION}"
+      - export TAG="node-exporter${NODE_EXPORTER_VERSION}-procs${PROCFS_EXPORTER_VERSION}"
       - echo "TAG=$TAG"
       - export REPO_COUNT="$(aws ecr describe-repositories | grep repositoryName | grep \"${ECR_REPOSITORY_NAME}\" | wc -l)"
       - if [ "$REPO_COUNT" == 0 ]; then aws ecr create-repository --repository-name ${ECR_REPOSITORY_NAME}; else echo "Repository ${ECR_REPOSITORY_NAME} already exists"; fi
@@ -25,7 +20,7 @@ phases:
       - export REPO_URI="$(aws ecr describe-repositories | grep repositoryUri | grep /${ECR_REPOSITORY_NAME}\" | cut -d '"' -f 4)"
       - echo "REPO_URI=$REPO_URI"
       - echo "Building ${REPO_URI}:${TAG} ..."
-      - cd micro-benchmarks/nccl-tests && docker image build --build-arg GDRCOPY_VERSION=$GDRCOPY_VERSION --build-arg EFA_INSTALLER_VERSION=$EFA_INSTALLER_VERSION --build-arg AWS_OFI_NCCL_VERSION=$AWS_OFI_NCCL_VERSION --build-arg NCCL_VERSION=$NCCL_VERSION --build-arg NCCL_TESTS_VERSION=$NCCL_TESTS_VERSION -t ${REPO_URI}:${TAG} -f ./nccl-tests.Dockerfile .
+      - cd 4.validation_and_observability/3.efa-node-exporter && docker image build --build-arg NODE_EXPORTER_VERSION=$NODE_EXPORTER_VERSION --build-arg PROCFS_EXPORTER_VERSION=$PROCFS_EXPORTER_VERSION -t ${REPO_URI}:${TAG} -f ./Dockerfile .
   post_build:
     commands:
       - export ECR_URI=${REPO_URI%"/${ECR_REPOSITORY_NAME}"}
