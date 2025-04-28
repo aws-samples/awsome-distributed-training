@@ -22,6 +22,7 @@ sudo apt install -y python$PYTHON_VERSION-venv
 $PYTHON_V -m venv env
 source ./env/bin/activate
 
+pip install -U wheel setuptools
 pip install -r ../src/requirements.txt
 
 # Create checkpoint dir
