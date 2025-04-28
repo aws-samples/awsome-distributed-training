@@ -1,0 +1,7 @@
+Miniconda3-latest*
+miniconda3
+pt
+*.yaml
+data
+*.pt
+mlruns
