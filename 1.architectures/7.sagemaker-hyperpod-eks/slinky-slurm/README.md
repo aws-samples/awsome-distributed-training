@@ -53,7 +53,7 @@ export AWS_ACCOUNT_ID=<your-account-id-here>
 
 export EKS_CLUSTER_NAME=sagemaker-hyperpod-eks-cluster
 
-export ROLE_ARN=arn:aws:iam::$AWS_ACCOUNT_ID:role/Administrator
+export ROLE_ARN=arn:aws:iam::$AWS_ACCOUNT_ID:role/<your-role-name-here>
 
 export PLCY_ARN=arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy
 
@@ -100,7 +100,9 @@ kubectl get storageclass fsx-sc -oyaml
 
 ### Create an FSx for OpenZFS Storage Class: 
 
-Install the[OpenZFS CSI driver](https://github.com/kubernetes-sigs/aws-fsx-openzfs-csi-driver/blob/main/docs/install.md). Set up permissions using IAM roles for service accounts, and taint the nodes as recommended:
+Install the [OpenZFS CSI driver](https://github.com/kubernetes-sigs/aws-fsx-openzfs-csi-driver/blob/main/docs/install.md). 
+
+Set up permissions using IAM roles for service accounts, and taint the nodes as recommended:
 
 ```
 
@@ -147,7 +149,7 @@ kubectl get sc openzfs-sc -oyaml
 
 ### Install the AWS Load Balancer Controller:
 
-Following [these instructions](https://docs.aws.amazon.com/eks/latest/userguide/lbc-helm.html): 
+Following the instructions below, which are a consolidation of the full [Install with Helm](https://docs.aws.amazon.com/eks/latest/userguide/lbc-helm.html) instructions found in the Amazon EKS documentation: 
 
 ```
 export EKS_CLUSTER_NAME=sagemaker-hyperpod-eks-cluster
@@ -194,7 +196,7 @@ kubectl get sa aws-load-balancer-controller -n kube-system -oyaml
 
 ### Instill Slinky Prerequisites (Cert Manager and Prometheus):  
 
-Follow the [QuickStart Guide](http://curl%20-l%20https//raw.githubusercontent.com/SlinkyProject/slurm-operator/refs/tags/v0.1.0/helm/slurm-operator/values.yaml%20/%20%20%20-o%20values-operator.yaml%20helm%20install%20slurm-operator%20oci://ghcr.io/slinkyproject/charts/slurm-operator%20/%20%20%20--values=values-operator.yaml%20--version=0.1.0%20--namespace=slinky%20--create-namespace) to install Cert Manager and Prometheus as [Pre-Requisites](https://github.com/SlinkyProject/slurm-operator/blob/main/docs/quickstart.md#pre-requisites).
+Follow the steps included in the [Slinky QuickStart Guide | Pre-Requisites](https://github.com/SlinkyProject/slurm-operator/blob/main/docs/quickstart.md#pre-requisites) section to install Cert Manager and Prometheus. 
 
 Verify Pre-Requisites Instillation: 
 
