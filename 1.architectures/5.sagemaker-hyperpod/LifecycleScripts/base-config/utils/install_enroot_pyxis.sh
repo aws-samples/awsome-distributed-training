@@ -42,6 +42,7 @@ curl -fSsL -O https://github.com/NVIDIA/enroot/releases/download/v${ENROOT_VERSI
 curl -fSsL -O https://github.com/NVIDIA/enroot/releases/download/v${ENROOT_VERSION}/enroot+caps_${ENROOT_VERSION}-1_${arch}.deb # optional
 apt install -y -o DPkg::Lock::Timeout=120 ./enroot_${ENROOT_VERSION}-1_${arch}.deb
 apt install -y -o DPkg::Lock::Timeout=120 ./enroot+caps_${ENROOT_VERSION}-1_${arch}.deb
+apt install -y -o DPkg::Lock::Timeout=120 squashfuse use-overlayfs
 cp $BIN_DIR/enroot.conf /etc/enroot/enroot.conf
 
 git clone --depth 1 --branch $PYXIS_VERSION https://github.com/NVIDIA/pyxis.git $SLURM_INSTALL_DIR/pyxis
