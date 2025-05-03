@@ -22,4 +22,4 @@ $PYTHON_V -m venv pt
 source ./pt/bin/activate
 
 # Install required packages
-pip install torch==2.1.1 torchvision==0.16.1 numpy==1.* mlflow
+pip install torch==2.1.1 torchvision==0.16.1 numpy==1.* mlflow==2.13.2 sagemaker-mlflow==0.1.0
