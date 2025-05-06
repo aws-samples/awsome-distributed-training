@@ -14,7 +14,7 @@ COPY amazon_efa_linux.go /workspace/node_exporter/collector/
 
 WORKDIR /workspace/node_exporter
 RUN  go mod edit --replace=github.com/prometheus/procfs=/workspace/procfs
-RUN  go mod tidy && CGO_ENABLE=0 go build -o /go/bin/node_exporter
+RUN  go mod tidy && CGO_ENABLED=0 go build -o /go/bin/node_exporter
 
 FROM gcr.io/distroless/static-debian12
 COPY --from=build /go/bin/node_exporter /workspace/
