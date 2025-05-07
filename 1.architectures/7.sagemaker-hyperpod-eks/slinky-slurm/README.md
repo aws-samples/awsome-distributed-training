@@ -115,7 +115,7 @@ eksctl create iamserviceaccount \
     --cluster $EKS_CLUSTER_NAME \
     --attach-policy-arn arn:aws:iam::aws:policy/AmazonFSxFullAccess \
     --approve \
-    --role-name AmazonEKSFSxOpenZFSCSIDriverFullAccess \
+    --role-name FSXOCSI-${EKS_CLUSTER_NAME}-${AWS_REGION} \
     --region $AWS_REGION
   
 kubectl taint nodes --all fsx.openzfs.csi.aws.com/agent-not-ready:NoExecute
