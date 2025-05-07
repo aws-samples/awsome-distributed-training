@@ -178,7 +178,7 @@ Resources:
     Properties:
       StudioLifecycleConfigAppType: JupyterLab
       StudioLifecycleConfigContent: 
-        Fn::Base64: |
+        Fn::Base64: !Sub |
           #!/bin/bash
 
           # Create a timestamp for unique log file
