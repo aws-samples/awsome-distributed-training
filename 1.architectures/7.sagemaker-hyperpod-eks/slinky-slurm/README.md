@@ -29,20 +29,23 @@ The login and compute node pods also have FSx for Lustre and FSx for OpenZFS sha
 
 ### Release Notes 
 
-The following was tested on 4 `g5.8xlarge` instances (1 A10G Tensor Core GPU each) for hosting the compute NodeSet pods. For simplicity, 2 `m5.2xlarge` instances were also allocated for separately hosting other components like the Controller and Login pods. You can adjust the number and type of instances associated with your HyperPod cluster, as well as the component affinity rules in the [values.yaml](./values.yaml) file to modify how they are spread across your nodes. 
+The following was tested in two infrastructure scenarios for hosting the compute NodeSet pods: 
+1. On 4 `g5.8xlarge` instances (1 A10G Tensor Core GPU each) 
+2. On 2 `p5.48xlarge` instances (8 H100 Tensor Core GPUs each) with EFAv2
+
+For simplicity, 2 `m5.2xlarge` instances were also allocated for separately hosting other components like the Controller and Login pods. You can adjust the number and type of instances associated with your HyperPod cluster, as well as the component affinity rules in the respective [g5-values.yaml](./g5/g5-values.yaml) or [p5-values.yaml](./p5/p5-values.yaml) files to modify how they are spread across your nodes. 
 
 Testing used [Slurm Operator v0.2.1](https://github.com/slinkyproject/slurm-operator/pkgs/container/slurm-operator) (pulled as OCI artifacts from the Slinky container registry) and [Slurm Cluster v0.3.0](https://github.com/SlinkyProject/slurm-operator/tree/main/helm/slurm) (packaged and deployed locally using the main branch of the Slinky git repository) in order to include the NoteSet volume mount and Login Pod features. These features are expected to be included in the official Slurm Cluster v0.3.0 release when it becomes available, along with a new version of the Slurm Operator with corresponding validating webhooks.
 
 Note that the [Slinky Project](https://github.com/SlinkyProject) is under active development and could introduce breaking changes that may require modified deployment and configuration steps. 
 
-Worker pods were built with Python 3.12.8 + PyTorch 2.6.0 + CUDA 12.6 + NCCL 2.23.4 pre-installed in the container image. See the [Docker Build for the Slurmd Deep Learning Container](./Docker-Build-README.md) for details. 
+Worker pods were built with Python 3.12.8 + PyTorch 2.6.0 + CUDA 12.6 + NCCL 2.23.4 + EFA Installer 1.38.0 (bundled with OFI NCCL plugin) pre-installed in the container image. See the [Docker Build for the Slurmd Deep Learning Container](./Docker-Build-README.md) for details. 
  
 * * *
 
-
 ### Set Up the HyperPod Cluster: 
 
-Follow the [Prerequisites](https://catalog.workshops.aws/sagemaker-hyperpod-eks/en-US/00-setup)and [Cluster Configuration](https://catalog.workshops.aws/sagemaker-hyperpod-eks/en-US/01-cluster) steps of the [HyperPod EKS Workshop](https://catalog.workshops.aws/sagemaker-hyperpod-eks/en-US). 
+Follow the [Prerequisites](https://catalog.workshops.aws/sagemaker-hyperpod-eks/en-US/00-setup) and [Cluster Configuration](https://catalog.workshops.aws/sagemaker-hyperpod-eks/en-US/01-cluster) steps of the [HyperPod EKS Workshop](https://catalog.workshops.aws/sagemaker-hyperpod-eks/en-US). 
 
 Be sure to modify the Accelerated and General Purpose instance groups as needed to deploy the desired instance type and number of nodes. 
 
@@ -270,25 +273,6 @@ export GEN_INSTANCE_TYPE=ml.m5.2xlarge
 
 kubectl get nodes -l node.kubernetes.io/instance-type=$GEN_INSTANCE_TYPE
 ```
-
-Verify the name pod labels applied to each component:
-```
-kubectl get pods -n slurm -L app.kubernetes.io/name
-
-# NAME                              READY   STATUS      RESTARTS   AGE   NAME
-# slurm-accounting-0                1/1     Running     0          12m   slurmdbd
-# slurm-compute-hp-node-0           2/2     Running     0          12m   slurmd
-# slurm-compute-hp-node-1           2/2     Running     0          12m   slurmd
-# slurm-compute-hp-node-2           2/2     Running     0          12m   slurmd
-# slurm-compute-hp-node-3           2/2     Running     0          12m   slurmd
-# slurm-controller-0                2/2     Running     0          12m   slurmctld
-# slurm-exporter-86448948f4-rqtg8   1/1     Running     0          12m   slurm-exporter
-# slurm-login-78b8fc9cd-rz8qj       1/1     Running     0          12m   login
-# slurm-mariadb-0                   1/1     Running     0          12m   mariadb
-# slurm-restapi-55d998b698-gdzc6    1/1     Running     0          12m   slurmrestd
-# slurm-token-create-b297g          0/3     Completed   0          12m   token
-```
-
 For each non-compute component, we apply both a Node Affinity and a Pod Anti-affinity in [values.yaml](./values.yaml) to ensure they are hosted only on the 2 `m5.2xlarge` instances while also being evenly spread between the hosts. 
 
 ```
@@ -322,15 +306,20 @@ You can modify this common affinity setting, or apply unique affinity settings f
 Verify the existence of the instance type label for compute node selector:
 
 ```
+# for g5 instances 
 ACCEL_INSTANCE_TYPE=ml.g5.8xlarge
+
+# for p5 instances
+ACCEL_INSTANCE_TYPE=ml.p5.48xlarge
  
  kubectl get nodes -l node.kubernetes.io/instance-type=$ACCEL_INSTANCE_TYPE
  
 ```
 
-The instance type label is used as a node selector to ensure the compute pods only run on the `ml.g5.8xlarge` GPU accelerated instances:  
+The instance type label is used as a node selector to ensure the compute pods only run on either the `ml.g5.8xlarge` or `ml.p5.48xlarge` GPU accelerated instances:  
 
 ```
+# for g5 instances
 compute:
 ...
     nodeSets:
@@ -341,6 +330,19 @@ compute:
           nodeSelector:
             kubernetes.io/os: linux
             node.kubernetes.io/instance-type: ml.g5.8xlarge
+...
+
+# for p5 instances
+compute:
+...
+    nodeSets:
+        - name: hp-node
+          ...
+          replicas: 4
+          ...
+          nodeSelector:
+            kubernetes.io/os: linux
+            node.kubernetes.io/instance-type: ml.p5.48xlarge
 ...
 ```
 ---
@@ -399,37 +401,51 @@ kubectl get pv $(kubectl get pvc openzfs-claim -n slurm -ojson \
  
 ```
 
-Add the FSx for Lustre and OpenZFS PVCs to the list of `volumes` for both the login service and and compute nodes in [values.yaml](./values.yaml):
+FSx for Lustre and OpenZFS PVCs are added to the list of `extraVolumeMounts` and `extraVolumes` for both the login service and compute nodes:
 
 ```
 login:
   ...
-  volumes: 
+  extraVolumeMounts:
     - name: fsx-lustre
-        mountPath: /fsx
-        persistentVolumeClaim: 
-          claimName: fsx-claim
+      mountPath: /fsx
     - name: fsx-openzfs
-        mountPath: /home
-        persistentVolumeClaim:
-          claimName: openzfs-claim
+      mountPath: /home
   ...
+  extraVolumes: 
+    - name: fsx-lustre
+      persistentVolumeClaim: 
+      claimName: fsx-claim
+    - name: fsx-openzfs
+      persistentVolumeClaim: 
+      claimName: openzfs-claim
 
 compute:
   nodesets:
     - name: hp-node
     ...
-      volumes: 
+      extraVolumeMounts:
         - name: fsx-lustre
           mountPath: /fsx
+        - name: fsx-openzfs
+          mountPath: /home
+        - name: shmem
+          mountPath: /dev/shm
+      ...
+      extraVolumes:
+        - name: fsx-lustre
           persistentVolumeClaim: 
             claimName: fsx-claim
         - name: fsx-openzfs
-          mountPath: /home
-          persistentVolumeClaim:
+          persistentVolumeClaim: 
             claimName: openzfs-claim
-      ...
+        - name: shmem
+          hostPath: 
+                path: /dev/shm
 ```
+
+Note that for the compute nodes we've also added `/dev/shm` to provide access to the EC2 host's shared memory segment. This shared memory is used to for inter-process communication. 
+
 ---
 
 #### Configure Compute Node Resources:
@@ -437,21 +453,34 @@ compute:
 Note: limits are required, otherwise the compute nodes will not deploy. 
 
 ```
+# for g5 instances 
 compute: 
     nodesets: 
         - name: hp-node
         ...
         resources:
             limit: 
-                cpu: "32"
-                memory: "128Gi"
                 nvidia.com/gpu: "1"
             requests:
-                cpu: "1"
-                memory: "1Gi"
                 nvidia.com/gpu: "1"
         ...
+
+# for p5 instances 
+compute: 
+    nodesets: 
+        - name: hp-node
+        ...
+        resources:
+          limits: 
+              nvidia.com/gpu: 4
+              vpc.amazonaws.com/efa: 16
+          requests:
+              nvidia.com/gpu: 4
+              vpc.amazonaws.com/efa: 16
+        ...
 ```
+Note that for p5 capacity, we are allocating half the available GPU and EFA network interfaces to each pod so that two pods can run on one instances. This can be adjusted to accomodate other pod topologies. 
+
 ---
 
 #### Build and Set the Compute Node Container Image:
@@ -470,14 +499,14 @@ compute:
             #
             # -- (string)
             # Set the image repository to use.
-            repository: "<your-account-id-here>.dkr.ecr.us-west-2.amazonaws.com/dlc-slurmd"
+            repository: "<your-account-id-here>.dkr.ecr.<your-region-here>.amazonaws.com/dlc-slurmd"
             #
             # -- (string)
             # Set the image tag to use.
             tag: "24.11.4-ubuntu24.04"
         ...
 ```
-The Slurm DLC has Python 3.12.8 + PyTorch 2.6.0 + CUDA 12.6 + NCCL 2.23.4 pre-installed in the container image, but you can modify the [dlc-slurmd.Dockerfile](./dlc-slurmd.Dockerfile) for further customization.
+The Slurm DLC has Python 3.12.8 + PyTorch 2.6.0 + CUDA 12.6 + NCCL 2.23.4 + EFA Installer 1.38.0 (bundled with OFI NCCL plugin) pre-installed in the container image, but you can modify the [dlc-slurmd.Dockerfile](./dlc-slurmd.Dockerfile) for further customization.
 
 ---
 
@@ -485,7 +514,7 @@ The Slurm DLC has Python 3.12.8 + PyTorch 2.6.0 + CUDA 12.6 + NCCL 2.23.4 pre-in
 
 Access to the login service can be configured through several authentication and networking mechanisms. The login service can be exposed either as a `LoadBalancer` (default) or `NodePort` type service, with the external port configurable via `servicePort` (default 22) or `serviceNodePort` (default 32222) respectively. Authentication can be integrated with LDAP through SSSD configuration, where users and groups can be managed via the `sssdConf` settings that define LDAP URIs, search bases, and domain configurations. SSH access can be customized through both `sshdConfig` and `rootSshAuthorizedKeys` parameters, allowing for specific SSH daemon configurations and authorized key management. Additionally, the name service switch configuration (`nsswitchConf`) can be customized to control how various databases like passwd, group, and hosts are resolved, with support for multiple sources including files, SSS, and database lookups.
 
-For simplicity of demonstration, we've disabled SSSD by setting everything in `nsswitchConf` to `files` so the system to only uses local files for authentication and does not to try SSSD or other sources. This is simpler and more reliable when you just want to use SSH key authentication for root access, as the SSH keys are stored in local files (/root/.ssh/authorized_keys).
+For simplicity of demonstration, we'll use SSH key authentication for root access.
 
 Generate an SSH key for root authorization: 
 
@@ -521,20 +550,33 @@ Assuming you are still sitting in the `slinky-slurm` directory of the AWSome Dis
 cp -r ~/slurm-operator/helm/slurm .
 ```
 
-Locally package and deploy the Slurm cluster Helm chart v0.3.0: 
+Locally package the Slurm cluster Helm chart v0.3.0: 
 
 ```
 helm dependency update slurm
 
 helm package slurm
-
+```
+Option 1: Deploy the Slurm cluster on g5 instances:
+```
 # Dry run 
 helm install --dry-run slurm slurm-0.3.0.tgz \
--f values.yaml \
+-f g5/g5-values.yaml \
 -n slurm 
 
 helm install slurm slurm-0.3.0.tgz \
--f values.yaml \
+-f g5/g5-values.yaml \
+-n slurm
+```
+Option 2: Deploy the Slurm cluster on p5 instances:
+```
+# Dry run 
+helm install --dry-run slurm slurm-0.3.0.tgz \
+-f p5/p5-values.yaml \
+-n slurm 
+
+helm install slurm slurm-0.3.0.tgz \
+-f p5/p5-values.yaml \
 -n slurm
 ```
 
@@ -593,7 +635,10 @@ sinfo
 PARTITION AVAIL  TIMELIMIT  NODES  STATE NODELIST
 hp-node      up   infinite      4   idle hp-node-[0-3]
 all*         up   infinite      4   idle hp-node-[0-3]
+
 ```
+Note that in both scenarios (using 4 `ml.g5.8xlarge` instances or 2 `ml.p5.48xlarge` instances) we should see the same number of slurm compute nodes. When running on 4 `ml.g5.8xlarge` instances, each slurm compute node is mapped to 1 available A10G GPU, whereas when running on 2 `ml.p5.48xlarge` instances, each slurm compute node is mapped to 4 available H100 GPUs and 16 EFA network interfaces. 
+
 ---
 
 Verify  FSx for Lustre and OpenZFS filesystem mounts on the login pod: 
@@ -670,9 +715,28 @@ Confirm NCCL headers are installed worker node pods:
 find /usr/local/lib/ -name "nccl.h" 2>/dev/null
 
 # /usr/local/lib/python3.12/site-packages/torch/include/torch/csrc/cuda/nccl.h
-
-exit
 ```
+For p5 capacity, check EFA availability:
+```
+ls /sys/class/infiniband/
+fi_info -p efa 
+```
+Check that the EFA libraries are properly mounted 
+```
+ls /opt/amazon/efa/lib
+ls /opt/amazon/ofi-nccl/lib/x86_64-linux-gnu
+```
+Verify EFA device allocation:
+```
+ls -l /dev/infiniband/
+```
+Verify intra-node GPU topology:
+```
+nvidia-smi topo -m
+```
+The GPU topology should show all GPUs are connected via NVLink (NV18 indicates 18 NVLink connections).
+The GPUs are split across two NUMA nodes (0-3 on NUMA 0, 4-7 on NUMA 1).
+
 ---
 
 ### FSDP Test 
@@ -699,30 +763,27 @@ cd awsome-distributed-training/3.test_cases/pytorch/FSDP/slurm
 mkdir -p checkpoints
 ```
 ---
-
-Download the c4 dataset to avoid throttling errors from HuggingFace:
-
+Copy the modified sbatch file:
 ```
-mkdir -p /fsx/datasets/c4
-
 export SLINKY_PATH=/fsx/awsome-distributed-training/1.architectures/7.sagemaker-hyperpod-eks/slinky-slurm
 
-apt install -y python3.12-venv
-python3 -m venv env
-source env/bin/activate
-pip install --upgrade pip
-pip install datasets
+# for g5 instances 
+cp ${SLINKY_PATH}/g5/g5-llama2_7b-training.sbatch ./llama2_7b-training.sbatch
 
-python3 ${SLINKY_PATH}/download_c4.py
+# for p5 instances
+cp ${SLINKY_PATH}/p5/p5-llama2_7b-training.sbatch ./llama2_7b-training.sbatch
+```
+---
+Add your Hugging Face token to stream the [allenai/c4](https://huggingface.co/datasets/allenai/c4) dataset without throttling:
+```
+NEW_TOKEN="your_new_token_here"
+sed -i "s/export HF_TOKEN=.*$/export HF_TOKEN=$NEW_TOKEN/" llama2_7b-training.sbatch
 
-deactivate
 ```
 
 ---
-Copy the modified sbatch file and kick-off training:
+Kick-off the training job: 
 ```
-cp ${SLINKY_PATH}/llama2_7b-training.sbatch .
-
 sbatch llama2_7b-training.sbatch
 ```
 ---
@@ -786,8 +847,6 @@ rm -rf checkpoints/*
 
 rm -rf logs/*
 
-kubectl delete pvc fsx-lustre-pvc -n slurm
-
 helm uninstall slurm -n slurm 
 helm uninstall slurm-operator -n slinky
 
@@ -800,6 +859,8 @@ kubectl delete pvc openzfs-claim
 helm uninstall aws-fsx-csi-driver -n kube-system
 helm uninstall aws-fsx-openzfs-csi-driver -n kube-system
 
+helm uninstall aws-load-balancer-controller -n kube-system
+
 eksctl delete iamserviceaccount \
   --name fsx-csi-controller-sa \
   --namespace kube-system \
@@ -809,5 +870,10 @@ eksctl delete iamserviceaccount \
   --name fsx-openzfs-csi-controller-sa \
   --namespace kube-system \
   --cluster $EKS_CLUSTER_NAME
+
+eksctl delete iamserviceaccount \
+  --name aws-load-balancer-controller \
+  --namespace kube-system \
+  --cluster $EKS_CLUSTER_NAME  
 
 ```

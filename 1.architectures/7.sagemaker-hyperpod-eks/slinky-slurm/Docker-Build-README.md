@@ -1,6 +1,6 @@
 # Docker Build for the Slurmd Deep Learning Container
 
-This build includes Python 3.12.8 + PyTorch 2.6.0 + CUDA 12.6 + NCCL 2.23.4
+This build includes Python 3.12.8 + PyTorch 2.6.0 + CUDA 12.6 + NCCL 2.23.4 + EFA Installer 1.38.0 (bundled with OFI NCCL plugin)
 
 Clone the AWSome Distributed Training repo:
 ```

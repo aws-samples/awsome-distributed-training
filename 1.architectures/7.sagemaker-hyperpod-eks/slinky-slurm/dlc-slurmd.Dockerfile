@@ -14,7 +14,7 @@ ENV CUDA_HOME="/usr/local/cuda" \
     EFA_PATH="/opt/amazon/efa" \
     OPEN_MPI_PATH="/opt/amazon/openmpi"
 
-ENV LD_LIBRARY_PATH="lib:${EFA_PATH}/lib:${OPEN_MPI_PATH}/lib:${CUDA_HOME}/lib64:/usr/local/lib:/lib/x86_64-linux-gnu" \
+ENV LD_LIBRARY_PATH="lib:${EFA_PATH}/lib:${OPEN_MPI_PATH}/lib:${CUDA_HOME}/lib64:/usr/local/lib:/lib/x86_64-linux-gnu:/opt/nccl/build/lib:/opt/amazon/ofi-nccl/lib/x86_64-linux-gnu:/usr/local/nvidia/lib" \
     PATH="${EFA_PATH}/bin:${OPEN_MPI_PATH}/bin:${CUDA_HOME}/bin:${PATH}" \
     NCCL_DEBUG=INFO \
     NCCL_SOCKET_IFNAME=^docker0 \
@@ -55,6 +55,7 @@ COPY --from=dlc /usr/local/cuda /usr/local/cuda
 # Copy EFA stack from DLC
 COPY --from=dlc /opt/amazon/efa /opt/amazon/efa
 COPY --from=dlc /opt/amazon/openmpi /opt/amazon/openmpi
+COPY --from=dlc /opt/amazon/ofi-nccl /opt/amazon/ofi-nccl
 
 # Copy NCCL configuration
 COPY --from=dlc /usr/local/lib/libnccl* /usr/local/lib/
