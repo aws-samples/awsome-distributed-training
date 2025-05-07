@@ -240,7 +240,11 @@ kubectl get all -n slinky
 
 ### Install the Slurm Cluster:
 
-To deploy the slurm cluster, we first need to make some modifications to the [values.yaml](https://github.com/SlinkyProject/slurm-operator/blob/dd65faba359702a8eda6cce9484b702f2fd2ae2e/helm/slurm/values.yaml)` file.  After that, in order to test the latest changes in release v0.3.0, we’ll locally package and deploy the helm chart from the main branch of the cloned repo. For your convenience, we've provided a copy of the [values.yaml](./values.yaml) file with most of the configuration changes mentioned below already implemented, so you'll only need to make additional changes as needed to further customize your deployment. 
+To deploy the slurm cluster, we first need to make some modifications to the [values.yaml](https://github.com/SlinkyProject/slurm-operator/blob/dd65faba359702a8eda6cce9484b702f2fd2ae2e/helm/slurm/values.yaml)` file.  After that, in order to test the latest changes in release v0.3.0, we’ll locally package and deploy the helm chart from the main branch of the cloned repo. 
+
+For your convenience, we've provided [g5-values.yaml](./g5/g5-values.yaml) and [p5-values.yaml](./p5/p5-values.yaml) files with most of the configuration changes mentioned below already implemented, so you'll only need to make additional changes as needed to further customize your deployment. 
+
+The two things you must minimally modify are the container image that the slurm compute nodes use ([instructions here](#build-and-set-the-compute-node-container-image)) and the root ssh key used for accessing the login node ([instructions here](#login-access)).  
 
 ---
 
@@ -543,7 +547,7 @@ login:
 
 #### Deploy the Slurm Cluster: 
 
-Locally package and deploy the slurm cluster using the modified `values.yaml` file:
+Locally package and deploy the slurm cluster using the modified `values.yaml` file (either [g5-values.yaml](./g5/g5-values.yaml) or [p5-values.yaml](./p5/p5-values.yaml)):
 
 Assuming you are still sitting in the `slinky-slurm` directory of the AWSome Distributed Training repo that we cloned and navigated into earlier, and assuming you cloned the Slinky repo into your home directory (adjust the path as needed), copy the Helm chart artifacts in for packaging: 
 ```
@@ -557,7 +561,7 @@ helm dependency update slurm
 
 helm package slurm
 ```
-Option 1: Deploy the Slurm cluster on g5 instances:
+**Option 1**: Deploy the Slurm cluster on `ml.g5.8xlarge` instances:
 ```
 # Dry run 
 helm install --dry-run slurm slurm-0.3.0.tgz \
@@ -568,7 +572,7 @@ helm install slurm slurm-0.3.0.tgz \
 -f g5/g5-values.yaml \
 -n slurm
 ```
-Option 2: Deploy the Slurm cluster on p5 instances:
+**Option 2**: Deploy the Slurm cluster on `ml.p5.48xlarge` instances:
 ```
 # Dry run 
 helm install --dry-run slurm slurm-0.3.0.tgz \
@@ -716,6 +720,8 @@ find /usr/local/lib/ -name "nccl.h" 2>/dev/null
 
 # /usr/local/lib/python3.12/site-packages/torch/include/torch/csrc/cuda/nccl.h
 ```
+---
+
 For p5 capacity, check EFA availability:
 ```
 ls /sys/class/infiniband/
@@ -778,7 +784,6 @@ Add your Hugging Face token to stream the [allenai/c4](https://huggingface.co/da
 ```
 NEW_TOKEN="your_new_token_here"
 sed -i "s/export HF_TOKEN=.*$/export HF_TOKEN=$NEW_TOKEN/" llama2_7b-training.sbatch
-
 ```
 
 ---
