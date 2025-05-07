@@ -74,17 +74,14 @@ aws eks associate-access-policy \
  --policy-arn $PLCY_ARN \
  --access-scope type=cluster \
  --region $AWS_REGION
- 
 ```
 
 Update your kubectl context: 
 
 ```
-
 aws eks update-kubeconfig --name $EKS_CLUSTER_NAME
 
 kubectl get nodes
-
 ```
 
 * * *
@@ -103,12 +100,9 @@ kubectl get storageclass fsx-sc -oyaml
 
 ### Create an FSx for OpenZFS Storage Class: 
 
-Install the [OpenZFS CSI driver](https://github.com/kubernetes-sigs/aws-fsx-openzfs-csi-driver/blob/main/docs/install.md). 
-
-Set up permissions using IAM roles for service accounts, and taint the nodes as recommended:
+Install the [OpenZFS CSI driver](https://github.com/kubernetes-sigs/aws-fsx-openzfs-csi-driver) following the steps provided below: 
 
 ```
-
 eksctl create iamserviceaccount \
     --name fsx-openzfs-csi-controller-sa \
     --namespace kube-system \
@@ -117,8 +111,6 @@ eksctl create iamserviceaccount \
     --approve \
     --role-name FSXOCSI-${EKS_CLUSTER_NAME}-${AWS_REGION} \
     --region $AWS_REGION
-  
-kubectl taint nodes --all fsx.openzfs.csi.aws.com/agent-not-ready:NoExecute
 
 helm repo add aws-fsx-openzfs-csi-driver \
     https://kubernetes-sigs.github.io/aws-fsx-openzfs-csi-driver
@@ -132,20 +124,17 @@ helm upgrade --install aws-fsx-openzfs-csi-driver \
     
 kubectl get pods -n kube-system \
  -l app.kubernetes.io/part-of=aws-fsx-openzfs-csi-driver
- 
 ```
 
 Follow the [Dynamic Provisioning](https://github.com/kubernetes-sigs/aws-fsx-openzfs-csi-driver/tree/main/examples/kubernetes/dynamic-provisioning) guide to create an FSx for OpenZFS Storage Class: 
 
 ```
-
 export PRIVATE_SUBNET_ID=<your-subnet-id-here>
 export SECURITY_GROUP_ID=<your-security-group-id-here> 
 
 kubectl apply -f openzfs-storageclass.yaml
 
 kubectl get sc openzfs-sc -oyaml
-
 ```
 
 * * *
@@ -192,7 +181,6 @@ helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
 kubectl get pods -n kube-system -l app.kubernetes.io/name=aws-load-balancer-controller
 
 kubectl get sa aws-load-balancer-controller -n kube-system -oyaml
-
 ```
 
 * * *
@@ -217,7 +205,6 @@ For [Slurm Operator](https://github.com/SlinkyProject/slurm-operator/blob/main/d
  Note: We will locally build and deploy a pre-release v0.3.0 of the [Slurm Cluster](https://github.com/SlinkyProject/slurm-operator/tree/main/helm/slurm) from the main branch of the Slinky Project repository. The project is being actively developed, so there is a risk of pulling down breaking changes, but it includes the features to [add additional volume mounts to compute NodeSets](https://github.com/SlinkyProject/slurm-operator/commit/b0e111b0a8434e38b5fb37a2051e7525d5679319) and [deploy Login Pods](https://github.com/SlinkyProject/slurm-operator/commit/37f020f041556164b9c935f799b51df65d22aefe). 
 
 ```
-
 curl -L https://raw.githubusercontent.com/SlinkyProject/slurm-operator/refs/tags/v0.2.1/helm/slurm-operator/values.yaml \
   -o values-operator-0.2.1.yaml
   
@@ -227,7 +214,6 @@ kubectl delete crd nodesets.slinky.slurm.net
   
 helm install slurm-operator oci://ghcr.io/slinkyproject/charts/slurm-operator \
   --values=values-operator-0.2.1.yaml --version=0.2.1 --namespace=slinky --create-namespace
-
 ```
 
 Verify Slurm Operator Instillation:
@@ -252,7 +238,6 @@ The two things you must minimally modify are the container image that the slurm 
 Clone the Slurm Operator repository, which also contains the Helm chart artifacts for the Slurm Cluster: 
 ```
 git clone https://github.com/SlinkyProject/slurm-operator.git
-
 ```
 
 Clone the AWSome Distributed Training repo to use the [values.yaml](./values.yaml) file we've provided:
@@ -317,7 +302,6 @@ ACCEL_INSTANCE_TYPE=ml.g5.8xlarge
 ACCEL_INSTANCE_TYPE=ml.p5.48xlarge
  
  kubectl get nodes -l node.kubernetes.io/instance-type=$ACCEL_INSTANCE_TYPE
- 
 ```
 
 The instance type label is used as a node selector to ensure the compute pods only run on either the `ml.g5.8xlarge` or `ml.p5.48xlarge` GPU accelerated instances:  
@@ -378,7 +362,6 @@ kubectl get pvc fsx-claim  -n slurm -ojson \
 kubectl get pv $(kubectl get pvc fsx-claim  -n slurm -ojson \
  | jq -r .spec.volumeName) -ojson \
  | jq -r .spec.csi.volumeHandle
- 
 ```
 ---
 
@@ -386,7 +369,6 @@ kubectl get pv $(kubectl get pvc fsx-claim  -n slurm -ojson \
 
 ```
 kubectl apply -f openzfs-pvc-slurm.yaml
-
 ```
 
 Verify FSx for OpenZFS PVC creation: 
@@ -402,7 +384,6 @@ kubectl get pvc openzfs-claim  -n slurm -ojson \
 kubectl get pv $(kubectl get pvc openzfs-claim -n slurm -ojson \
  | jq -r .spec.volumeName) -ojson \
  | jq -r .spec.csi.volumeHandle
- 
 ```
 
 FSx for Lustre and OpenZFS PVCs are added to the list of `extraVolumeMounts` and `extraVolumes` for both the login service and compute nodes:
@@ -523,7 +504,6 @@ For simplicity of demonstration, we'll use SSH key authentication for root acces
 Generate an SSH key for root authorization: 
 
 ```
-
 export EMAIL_ADDR=<your-email-here>
 
 ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_slurm -C "${EMAIL_ADDR}"
@@ -531,7 +511,6 @@ ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_slurm -C "${EMAIL_ADDR}"
 cat ~/.ssh/id_ed25519_slurm.pub
 
 # ssh-ed25519 <public-key-content> janedoe@example.com
-
 ```
 
 Specify the root SSH authorized key in `values.yaml`:
@@ -639,7 +618,6 @@ sinfo
 PARTITION AVAIL  TIMELIMIT  NODES  STATE NODELIST
 hp-node      up   infinite      4   idle hp-node-[0-3]
 all*         up   infinite      4   idle hp-node-[0-3]
-
 ```
 Note that in both scenarios (using 4 `ml.g5.8xlarge` instances or 2 `ml.p5.48xlarge` instances) we should see the same number of slurm compute nodes. When running on 4 `ml.g5.8xlarge` instances, each slurm compute node is mapped to 1 available A10G GPU, whereas when running on 2 `ml.p5.48xlarge` instances, each slurm compute node is mapped to 4 available H100 GPUs and 16 EFA network interfaces. 
 
@@ -700,7 +678,6 @@ nvcc --version
 # Built on Tue_Oct_29_23:50:19_PDT_2024
 # Cuda compilation tools, release 12.6, V12.6.85
 # Build cuda_12.6.r12.6/compiler.35059454_0
-
 ```
 --- 
 
@@ -826,7 +803,6 @@ kubectl -n slurm exec -it pod/slurm-compute-hp-node-1 -- bash --login
 
 # 1 second updates
 watch -n 1 squeue
-
 ```
 
 Watch checkpoints from `slurm-compute-hp-node-2`:
@@ -839,7 +815,6 @@ cd /fsx/awsome-distributed-training/3.test_cases/pytorch/FSDP/slurm
 
 # highlight changes, show timestamps, 5 second updates
 watch -n 5 -d "ls -lh checkpoints"
-
 ```
 
 * * *
@@ -847,7 +822,6 @@ watch -n 5 -d "ls -lh checkpoints"
 ### Clean Up:
 
 ```
-
 rm -rf checkpoints/*
 
 rm -rf logs/*
@@ -879,6 +853,5 @@ eksctl delete iamserviceaccount \
 eksctl delete iamserviceaccount \
   --name aws-load-balancer-controller \
   --namespace kube-system \
-  --cluster $EKS_CLUSTER_NAME  
-
+  --cluster $EKS_CLUSTER_NAME
 ```
