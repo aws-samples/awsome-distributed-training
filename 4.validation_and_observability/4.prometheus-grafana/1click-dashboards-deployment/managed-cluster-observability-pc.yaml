@@ -7,10 +7,14 @@ Description: >
 Parameters:
   PCClusterName:
     Type: String
+    Default: ''
   SubnetId:
     Type: AWS::EC2::Subnet::Id
   VpcId:
     Type: AWS::EC2::VPC::Id
+
+Conditions:
+  IsParallelCluster:  !Not [!Equals [!Ref PCClusterName, '']]
 
 Resources:
   GrafanaPrometheus:
@@ -60,6 +64,7 @@ Resources:
         Application: MLDashboards
 
   PrometheusCollector:
+    Condition: IsParallelCluster
     Type: AWS::Serverless::Application
     DeletionPolicy: Delete
     UpdateReplacePolicy: Delete
@@ -77,3 +82,9 @@ Resources:
       ServiceToken:
         !GetAtt DashboardCreationLambda.Arn
       ServiceTimeout: 300
+
+Outputs:
+  PrometheusClusterSecurityGroup:
+    Condition: IsParallelCluster
+    Description: 'Prometheus Agent Security Group for Cluster'
+    Value: !GetAtt PrometheusCollector.Outputs.PrometheusClusterSecurityGroup

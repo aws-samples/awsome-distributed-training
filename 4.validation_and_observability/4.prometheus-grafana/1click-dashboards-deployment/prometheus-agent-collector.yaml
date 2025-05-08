@@ -439,4 +439,8 @@ Resources:
 #############
 Outputs:
   PrometheusAgentInstanceId:
+    Description: 'Instance Id of Prometheus Agent'
     Value: !GetAtt PrometheusAgentInstance.InstanceId
+  PrometheusClusterSecurityGroup:
+    Description: 'Prometheus Agent Security Group for Cluster'
+    Value: !GetAtt PrometheusAgentSecurityGroup.GroupId
