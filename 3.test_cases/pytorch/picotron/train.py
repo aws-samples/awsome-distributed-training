@@ -80,13 +80,13 @@ if __name__ == "__main__":
     os.environ["TOKENIZERS_PARALLELISM"] = config["environment"]["TOKENIZERS_PARALLELISM"]
     os.environ["FLASH_ATTEN"] = config["environment"]["FLASH_ATTEN"]
     os.environ["DEVICE"] = "cpu" if config["distributed"]["use_cpu"] else "cuda"
-    #if config["environment"].get("HF_TOKEN") is None:
-    #    if "HF_TOKEN" not in os.environ: raise ValueError("HF_TOKEN is neither set in the config file nor in the environment")
-    #else:
-    #    if "HF_TOKEN" not in os.environ:
-    #        os.environ["HF_TOKEN"] = config["environment"]["HF_TOKEN"]
-    #    else:
-    #        print("Warning: HF_TOKEN is set in the environment and the config file. Using the environment variable.")
+    if config["environment"].get("HF_TOKEN") is None:
+        if "HF_TOKEN" not in os.environ: raise ValueError("HF_TOKEN is neither set in the config file nor in the environment")
+    else:
+        if "HF_TOKEN" not in os.environ:
+            os.environ["HF_TOKEN"] = config["environment"]["HF_TOKEN"]
+        else:
+            print("Warning: HF_TOKEN is set in the environment and the config file. Using the environment variable.")
     dtype = torch.bfloat16 if torch.cuda.is_available() and torch.cuda.is_bf16_supported() and not config["distributed"]["use_cpu"] else torch.float32
     assert (dtype == torch.bfloat16 and os.getenv("FLASH_ATTEN") == "1") or os.getenv("FLASH_ATTEN") != "1", "Kernel operations requires dtype=torch.bfloat16"
 
@@ -206,8 +206,6 @@ if __name__ == "__main__":
 
     model = init_model_with_materialized_weights(model, model_config, save_dir=f"./hf_model_safetensors/")
 
-    #TODO: load existing checkpoint here to continue pre-training
-
     if pgm.process_group_manager.cp_world_size > 1:
         model = apply_context_parallel(model)
 
@@ -238,11 +236,11 @@ if __name__ == "__main__":
     checkpoint_manager = CheckpointManager()
 
     trained_tokens, step = 0, 0
-    if config["checkpoint"]["load_path"]:
+    print('checkpoint_manager._get_checkpoint_path(config["checkpoint"]["load_path"]):', checkpoint_manager._get_checkpoint_path(config["checkpoint"]["load_path"]))
+    if os.path.exists(checkpoint_manager._get_checkpoint_path(config["checkpoint"]["load_path"])):
         nvtx.range_push("Load checkpoint")
         step, trained_tokens = checkpoint_manager.load_checkpoint(model, optimizer, config["checkpoint"]["load_path"])
         nvtx.range_pop()
-    
     dist.barrier()
     
     nvtx.range_push("Training loop")
