@@ -124,7 +124,7 @@ RUN pip install transformers==${TRANSFORMERS_VERSION} sentencepiece python-etcd
 #####################
 # Install megatron-lm
 #####################
-RUN pip install -U setuptools==75.1.0
+RUN pip install -U setuptools
 RUN cd /workspace && git clone --depth 1 --branch ${MEGATRON_LM_VERSION} https://github.com/NVIDIA/Megatron-LM.git \
     && cd Megatron-LM \
     && python3 -m pip install nltk  \
