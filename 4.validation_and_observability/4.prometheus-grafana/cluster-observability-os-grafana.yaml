@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: CloudFormation template to monitor SageMaker Hyperpod - launches a t2.medium instance with 30GB of storage, security group, IAM role for Prometheus access, Grafana setup, and a Prometheus workspace.
+Description: Setup to monitor sagemaker hyperpod clusters on AWS. CloudFormation template to monitor SageMaker Hyperpod - launches a t2.medium instance with 30GB of storage, security group, IAM role for Prometheus access, Grafana setup, and a Prometheus workspace.
 
 Parameters:
   LatestAmiId:
@@ -49,54 +49,64 @@ Resources:
       Tags:
         - Key: "Name"
           Value: "SageMaker Hyperpod PrometheusMetrics"
+  
+  GrafanaLaunchTemplate:
+    Type: "AWS::EC2::LaunchTemplate"
+    Properties:
+      LaunchTemplateData:
+        ImageId: !Ref LatestAmiId
+        InstanceType: "t2.medium"
+        IamInstanceProfile: 
+          Name: !Ref MyInstanceProfile
+        MetadataOptions:
+          HttpTokens: required
+          HttpEndpoint: enabled
+          HttpPutResponseHopLimit: 2
+        BlockDeviceMappings:
+          - DeviceName: "/dev/xvda"
+            Ebs:
+              VolumeSize: 30
+        UserData:
+          Fn::Base64: !Sub |
+            #!/bin/bash
+
+            # Update system packages
+            sudo yum update -y
+
+            # Install Docker
+            echo "Installing Docker..."
+            sudo amazon-linux-extras install docker -y
+
+            # Enable Docker to start on boot
+            sudo systemctl enable --now docker
+
+            # Add the current user (ec2-user) to the Docker group to run Docker commands without sudo
+            echo "Adding ec2-user to Docker group..."
+            sudo usermod -aG docker ec2-user
+
+            # Pull the latest Grafana image
+            echo "Pulling the latest Grafana Docker image..."
+            docker pull grafana/grafana:10.4.14-ubuntu
+
+            # Run Grafana container with automatic restart
+            echo "Starting Grafana container with restart policy..."
+            docker run -p 3000:3000 --add-host=metadata.aws:169.254.169.254 --env GF_AUTH_SIGV4_AUTH_ENABLED=true --env AWS_SDK_LOAD_CONFIG=true --env AWS_EC2_METADATA_DISABLED=false -d --name=grafana --restart always grafana/grafana:10.4.14-ubuntu
+
+            # Print Grafana access info
+            echo "Docker and Grafana setup complete."
+            TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+            echo "Grafana is running at http://$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -s http://169.254.169.254/latest/meta-data/public-ipv4):3000"
+            echo "Default Grafana login credentials are admin/admin. Please change the password after the first login."
+
+            # Note: Log out and log back in for Docker permissions to take effect
+            echo "Please log out and back in for Docker group permissions to apply."
 
   MyInstance:
     Type: "AWS::EC2::Instance"
     Properties:
-      InstanceType: "t2.medium"
-      ImageId: !Ref LatestAmiId
-      IamInstanceProfile: !Ref MyInstanceProfile
-      BlockDeviceMappings:
-        - DeviceName: "/dev/xvda"
-          Ebs:
-            VolumeSize: 30
-      UserData:
-        Fn::Base64: !Sub |
-          #!/bin/bash
-
-          # Update system packages
-          sudo yum update -y
-
-          # Install Docker
-          echo "Installing Docker..."
-          sudo amazon-linux-extras install docker -y
-
-          # Start Docker service
-          echo "Starting Docker service..."
-          sudo systemctl start docker
-
-          # Enable Docker to start on boot
-          sudo systemctl enable docker
-
-          # Add the current user (ec2-user) to the Docker group to run Docker commands without sudo
-          echo "Adding ec2-user to Docker group..."
-          sudo usermod -aG docker ec2-user
-
-          # Pull the latest Grafana image
-          echo "Pulling the latest Grafana Docker image..."
-          docker pull grafana/grafana:10.4.14-ubuntu
-
-          # Run Grafana container with automatic restart
-          echo "Starting Grafana container with restart policy..."
-          docker run --env GF_AUTH_SIGV4_AUTH_ENABLED=true --env AWS_SDK_LOAD_CONFIG=true -d -p 3000:3000 --name=grafana --restart always grafana/grafana:10.4.14-ubuntu
-
-          # Print Grafana access info
-          echo "Docker and Grafana setup complete."
-          echo "Grafana is running at http://$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4):3000"
-          echo "Default Grafana login credentials are admin/admin. Please change the password after the first login."
-
-          # Note: Log out and log back in for Docker permissions to take effect
-          echo "Please log out and back in for Docker group permissions to apply."
+      LaunchTemplate:
+        LaunchTemplateId: !Ref GrafanaLaunchTemplate
+        Version: !GetAtt GrafanaLaunchTemplate.DefaultVersionNumber
       Tags:
         - Key: "Name"
           Value: "OS-Grafana"

@@ -29,6 +29,10 @@ class Config:
     # requires s3 permissions to be added to cluster execution role. 
     enable_mount_s3 = False
 
+    # Set true if you want to use FSx OpenZFS in addition to FSxL. 
+    enable_fsx_openzfs = False
+
+
     s3_bucket = "" # required when enable_mount_s3 = True, replace with your actual data bucket name in quotes, ie. "my-dataset-bucket"
 
     if enable_mount_s3 and not s3_bucket:

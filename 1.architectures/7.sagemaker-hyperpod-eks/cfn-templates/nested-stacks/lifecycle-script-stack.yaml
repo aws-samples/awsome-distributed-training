@@ -1,0 +1,121 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Lifecycle Script Stack
+
+Parameters: 
+
+  ResourceNamePrefix:
+    Description: Prefix to be used for all resources created by this template.
+    Type: String
+    Default: sagemaker-hyperpod-eks
+
+  S3BucketName: 
+    Description: The name of the S3 bucket used to store the cluster lifecycle scripts.
+    Type: String
+    Default: sagemaker-hyperpod-eks-bucket
+
+Resources: 
+
+  S3CustomResourceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: S3Access
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: 
+                 - s3:PutObject
+                 - s3:DeleteObject
+                Resource: !Sub 'arn:aws:s3:::${S3BucketName}/*'
+
+  S3CustomResourceFunction: 
+    Type: AWS::Lambda::Function
+    Properties: 
+      FunctionName: !Sub '${ResourceNamePrefix}-lifecycle-script-loader'
+      Environment: 
+        Variables:
+          BUCKET_NAME: !Ref S3BucketName
+          GITHUB_RAW_URL: 'https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/main/1.architectures/7.sagemaker-hyperpod-eks/LifecycleScripts/base-config/on_create.sh'
+      Handler: index.lambda_handler
+      Role: !GetAtt S3CustomResourceRole.Arn
+      Runtime: python3.12
+      Timeout: 600
+      Code: 
+        ZipFile: |
+          import boto3
+          import cfnresponse
+          import os
+          from urllib import request
+
+          def lambda_handler(event, context):
+            try:
+              if event['RequestType'] in ['Create', 'Update']:
+
+                s3 = boto3.client('s3')
+                bucket = os.environ['BUCKET_NAME']
+                github_raw_url = os.environ['GITHUB_RAW_URL']
+
+                try: 
+                    # Fetch content from GitHub using urllib
+                    with request.urlopen(github_raw_url) as response:
+                      script_content = response.read().decode('utf-8')
+                    
+                      # Upload the script to S3
+                      s3.put_object(
+                          Bucket=bucket,
+                          Key='on_create.sh',
+                          Body=script_content,
+                          ContentType='text/x-sh'
+                      )
+                  
+                except s3.exceptions.NoSuchBucket:
+                  # If bucket doesn't exist, return fail
+                  cfnresponse.send(event, context, cfnresponse.FAILED, {
+                    'Message': 'Bucket does not exist'
+                  })
+                
+                cfnresponse.send(event, context, cfnresponse.SUCCESS, {
+                  'Message': 'File uploaded successfully'
+                })
+              elif event['RequestType'] == 'Delete':
+                s3 = boto3.client('s3')
+                bucket = os.environ['BUCKET_NAME']
+                try: 
+                  # Delete the file from S3
+                  s3.delete_object(
+                    Bucket=bucket,
+                    Key='on_create.sh'
+                  )
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, {
+                    'Message': 'File deleted successfully'
+                  })
+                except s3.exceptions.NoSuchKey:
+                  # If file doesn't exist, still return success
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, {
+                    'Message': 'File does not exist'
+                  })
+                except s3.exceptions.NoSuchBucket:
+                  # If bucket is already deleted, still return success
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, {
+                    'Message': 'Bucket does not exist'
+                  })
+            except Exception as e:
+              print(e)
+              cfnresponse.send(event, context, cfnresponse.FAILED, {
+                'Error': str(e)
+              })
+
+  S3CustomResource: 
+    Type: AWS::CloudFormation::CustomResource
+    Properties: 
+      ServiceToken: !GetAtt S3CustomResourceFunction.Arn

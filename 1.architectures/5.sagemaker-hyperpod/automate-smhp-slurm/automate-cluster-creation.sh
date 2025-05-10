@@ -359,6 +359,39 @@ setup_lifecycle_scripts() {
         echo -e "${BLUE}Continuing with Neuron disabled in LCS...${NC}"
     fi
 
+    # Check if FSx OpenZFS was deployed in the stack
+    echo -e "${BLUE}Checking if FSx OpenZFS was deployed in the stack...${NC}"
+
+    export ENABLE_FSX_OPENZFS="false"
+
+    FSX_OPENZFS_DNS=$(aws cloudformation describe-stacks \
+        --stack-name "${STACK_ID_VPC}" \
+        --query 'Stacks[0].Outputs[?OutputKey==`FSxOpenZFSFileSystemDNSname`].OutputValue' \
+        --output text)
+    
+    if [ -n "$FSX_OPENZFS_DNS" ]; then
+        echo -e "${BLUE}FSx OpenZFS detected in stack. DNS: ${FSX_OPENZFS_DNS}${NC}"
+        echo -e "${BLUE}Enabling FSx OpenZFS in LCS...${NC}"
+
+        # Get the FSx OpenZFS File System ID as well
+        FSX_OPENZFS_ID=$(aws cloudformation describe-stacks \
+            --stack-name "${STACK_ID_VPC}" \
+            --query 'Stacks[0].Outputs[?OutputKey==`FSxOpenZFSFileSystemId`].OutputValue' \
+            --output text)
+        
+        ENABLE_FSX_OPENZFS="true"
+        echo "export FSX_OPENZFS_DNS=${FSX_OPENZFS_DNS}" >> env_vars
+        echo "export FSX_OPENZFS_ID=${FSX_OPENZFS_ID}" >> env_vars
+
+        # Update config.py
+        sed -i.bak 's/enable_fsx_openzfs = False/enable_fsx_openzfs = True/' base-config/config.py
+        rm base-config/config.py.bak
+    
+        echo -e "${GREEN}✅ Lifecycle Scripts modified successfully! FSx OpenZFS enabled in config.py${NC}"
+    else
+        echo -e "${BLUE}No FSx OpenZFS detected in stack. Continuing with FSx OpenZFS disabled in LCS...${NC}"
+    fi
+
     echo -e "${YELLOW}Did you deploy the optional hyperpod-observability CloudFormation stack? (yes/no)${NC}"
     read -e DEPLOYED_OBSERVABILITY
 
@@ -743,6 +776,14 @@ EOL
     WORKER_GROUPS+="
         ]"
 
+    # OpenZFS
+    if [[ $ENABLE_FSX_OPENZFS == "true" ]]; then
+        FSX_OPENZFS_CONFIG=",
+                \"fsx_openzfs_dns_name\": \"${FSX_OPENZFS_ID}.fsx.${AWS_REGION}.amazonaws.com\""
+        else
+            FSX_OPENZFS_CONFIG=""
+    fi
+
     #MH 
     if [[ $MH == "true" ]]; then
         SLURM_CONFIGURATIONS="
@@ -765,7 +806,7 @@ EOL
                 "login_group": "login-group",
                 "worker_groups": $WORKER_GROUPS,
                 "fsx_dns_name": "${FSX_ID}.fsx.${AWS_REGION}.amazonaws.com",
-                "fsx_mountname": "${FSX_MOUNTNAME}",
+                "fsx_mountname": "${FSX_MOUNTNAME}"${FSX_OPENZFS_CONFIG},
                 "slurm_configurations": $SLURM_CONFIGURATIONS
             }
 EOL
@@ -778,7 +819,7 @@ EOL
                 "login_group": "login-group",
                 "worker_groups": $WORKER_GROUPS,
                 "fsx_dns_name": "${FSX_ID}.fsx.${AWS_REGION}.amazonaws.com",
-                "fsx_mountname": "${FSX_MOUNTNAME}"
+                "fsx_mountname": "${FSX_MOUNTNAME}"${FSX_OPENZFS_CONFIG}
             }
 EOL
         fi
@@ -791,7 +832,7 @@ EOL
                 "controller_group": "$CONTROLLER_NAME",
                 "worker_groups": $WORKER_GROUPS,
                 "fsx_dns_name": "${FSX_ID}.fsx.${AWS_REGION}.amazonaws.com",
-                "fsx_mountname": "${FSX_MOUNTNAME}",
+                "fsx_mountname": "${FSX_MOUNTNAME}"${FSX_OPENZFS_CONFIG},
                 "slurm_configurations": $SLURM_CONFIGURATIONS
             }
 EOL
@@ -803,7 +844,7 @@ EOL
                 "controller_group": "$CONTROLLER_NAME",
                 "worker_groups": $WORKER_GROUPS,
                 "fsx_dns_name": "${FSX_ID}.fsx.${AWS_REGION}.amazonaws.com",
-                "fsx_mountname": "${FSX_MOUNTNAME}"
+                "fsx_mountname": "${FSX_MOUNTNAME}"${FSX_OPENZFS_CONFIG}
             }
 EOL
         fi
@@ -1094,7 +1135,7 @@ goodbye() {
 
 #===Main Script===
 main() {
-    print_header "🚀 Welcome to the SageMaker HyperPod Cluster Creation Script! 🚀"
+    print_header "🚀 Welcome to the SageMaker HyperPod Slurm Cluster Creation Script! 🚀"
 
     # Prerequisites
     display_important_prereqs

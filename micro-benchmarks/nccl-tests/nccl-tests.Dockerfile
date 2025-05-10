@@ -2,11 +2,11 @@
 # SPDX-License-Identifier: MIT-0
 FROM nvidia/cuda:12.2.2-devel-ubuntu22.04
 
-ARG GDRCOPY_VERSION=v2.4.1
-ARG EFA_INSTALLER_VERSION=1.37.0
-ARG AWS_OFI_NCCL_VERSION=v1.13.2-aws
-ARG NCCL_VERSION=v2.23.4-1
-ARG NCCL_TESTS_VERSION=v2.13.10
+ARG GDRCOPY_VERSION=v2.4.4
+ARG EFA_INSTALLER_VERSION=1.38.1
+ARG AWS_OFI_NCCL_VERSION=v1.14.0
+ARG NCCL_VERSION=v2.26.2-1
+ARG NCCL_TESTS_VERSION=v2.14.1
 
 RUN apt-get update -y && apt-get upgrade -y
 RUN apt-get remove -y --allow-change-held-packages \
@@ -124,11 +124,11 @@ RUN git clone -b ${NCCL_TESTS_VERSION} https://github.com/NVIDIA/nccl-tests.git 
 RUN rm -rf /var/lib/apt/lists/*
 
 ## Set Open MPI variables to exclude network interface and conduit.
-ENV OMPI_MCA_pml=^cm,ucx            \
+ENV OMPI_MCA_pml=^ucx            \
     OMPI_MCA_btl=tcp,self           \
     OMPI_MCA_btl_tcp_if_exclude=lo,docker0,veth_def_agent\
     OPAL_PREFIX=/opt/amazon/openmpi \
-    NCCL_SOCKET_IFNAME=^docker,lo,veth_def_agent,eth
+    NCCL_SOCKET_IFNAME=^docker,lo,veth
 
 ## Turn off PMIx Error https://github.com/open-mpi/ompi/issues/7516
 ENV PMIX_MCA_gds=hash

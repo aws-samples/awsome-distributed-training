@@ -1,5 +1,9 @@
 # ML Training Reference Architectures & Tests <!-- omit from toc -->
 
+> **Warning**
+> We are currently undergoing a major refactoring of this repository, particularly focused on the test cases section. If you prefer to use the previous directory structure and deprecated test cases, please refer to [v1.1.0](https://github.com/aws-samples/awsome-distributed-training/releases/tag/v1.1.0).
+
+
 This repository contains reference architectures and test cases for distributed model training with [Amazon SageMaker Hyperpod](https://docs.aws.amazon.com/sagemaker/latest/dg/sagemaker-hyperpod.html), [AWS ParallelCluster](https://docs.aws.amazon.com/parallelcluster/latest/ug/what-is-aws-parallelcluster.html), [AWS Batch](https://docs.aws.amazon.com/batch/latest/userguide/what-is-batch.html), and [Amazon EKS](https://docs.aws.amazon.com/eks/latest/userguide/getting-started-console.html). The test cases cover different types and sizes of models as well as different frameworks and parallel optimizations (Pytorch DDP/FSDP, MegatronLM, NemoMegatron...).
 
 The major components of this directory are:
@@ -44,29 +48,30 @@ More will come, feel free to add new ones (ex. Ray?). You will also find [docume
 
 Custom machine images can be built using [Packer](www.packer.io) for AWS ParallelCluster, Amazon EKS and plain EC2. These images are based are on Ansible roles and playbooks.
 
-## 3. Test cases: support matrix
+## 3. Test cases
 
-All test cases are under `3.test_cases/`. You can go in each test case directory to learn how to run it.
+Test cases are organized by framework and cover various distributed training scenarios. Each test case includes the necessary scripts and configurations to run distributed training jobs.
 
-| Test cases                                                                    | Slurm | Kubernetes  | 
-| ----------------------------------------------------------------------------- | ----- | ----------- |
-| [`1.megatron-lm`](./3.test_cases/1.megatron-lm)                               |  ✅   | ✅          |
-| [`2.nemo-launcher`](./3.test_cases/2.nemo-launcher)                           |  ✅   | ✅          |
-| [`3.MPT`](./3.test_cases/3.MPT)                                               |  ✅   | ❓          |
-| [`4.DDP`](./3.test_cases/4.DDP)                                               |  ✅   | ❓          |
-| [`5.param-benchmark`](./3.test_cases/5.param-benchmark)                       |  ✅   | ❓          |
-| [`6.stable-diffusion`](./3.test_cases/6.stable-diffusion)                     |  ✅   | ✅          |
-| [`7.tensorflow-distributed`](./3.test_cases/7.tensorflow-distributed)         |  ✅   | ❓          |
-| [`10.FSDP`](./3.test_cases/10.FSDP)                                           |  ✅   | ✅          |
-| [`11.modelparallel`](./3.test_cases/11.modelparallel)                         |  ✅   | ❓          |
-| [`12.SM-dataparallel-FSDP`](./3.test_cases/12.SM-dataparallel-FSDP)           |  ✅   | ❓          |
-| [`13.SM-dataparallel-deepspeed`](./3.test_cases/13.SM-dataparallel-deepspeed) |  ✅   | ❓          |
-| [`14.bionemo`](./3.test_cases/14.bionemo)                                     |  ✅   | ❓          |
-| [`15.gpt-neox`](./3.test_cases/15.gpt-neox)                                   |  ✅   | ❓          |
-| [`16.pytorch-cpu-ddp`](./3.test_cases/16.pytorch-cpu-ddp)                     |  ✅   | ✅          |
-| [`17.SM-modelparallelv2`](./3.test_cases/17.SM-modelparallelv2)               |  ✅   | ❓          |
-| [`18.deepspeed`](./3.test_cases/18.deepspeed)                                 |  ✅   | ❓          |
-| [`jax`](./3.test_cases/jax)                                                   |  ✅   | ❓          |
+### PyTorch Test Cases
+- [`FSDP/`](./3.test_cases/pytorch/FSDP) - Fully Sharded Data Parallel training examples
+- [`megatron-lm/`](./3.test_cases/pytorch/megatron-lm) - Megatron-LM distributed training examples
+- [`nemo-launcher/`](./3.test_cases/pytorch/nemo-launcher) - NeMo Launcher examples for distributed training. This test case is for NeMo version 1.0 only.
+- [`nemo-run/`](./3.test_cases/pytorch/nemo-run) - NeMo framework distributed training examples. This test case is for NeMo version 2.0+.
+- [`neuronx-distributed/`](./3.test_cases/pytorch/neuronx-distributed) - AWS Trainium distributed training examples
+- [`mosaicml-composer/`](./3.test_cases/pytorch/mosaicml-composer) - MosaicML Composer examples
+- [`picotron/`](./3.test_cases/pytorch/picotron) - PicoTron distributed training examples
+- [`torchtitan/`](./3.test_cases/pytorch/torchtitan) - TorchTitan examples
+- [`cpu-ddp/`](./3.test_cases/pytorch/cpu-ddp) - CPU-based Distributed Data Parallel examples
+- [`bionemo/`](./3.test_cases/pytorch/bionemo) - BioNeMo distributed training examples
+
+### JAX Test Cases
+- [`jax/`](./3.test_cases/jax) - JAX-based distributed training examples using PaxML
+
+Each test case includes:
+- Training scripts and configurations
+- Container definitions (where applicable)
+- Launch scripts for different cluster types
+- Performance monitoring and validation tools
 
 ## 4. Validation scripts
 
