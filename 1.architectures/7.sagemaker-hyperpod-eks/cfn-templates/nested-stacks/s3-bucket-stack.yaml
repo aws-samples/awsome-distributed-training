@@ -1,0 +1,26 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: S3 Bucket Stack
+
+Parameters: 
+
+  ResourceNamePrefix:
+    Description: Prefix to be used for all resources created by this template. 
+    Type: String
+    Default: sagemaker-hyperpod-eks
+
+Resources: 
+
+  Bucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Sub '${ResourceNamePrefix}-bucket-${AWS::AccountId}-${AWS::Region}'
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+
+Outputs: 
+
+  S3BucketName: 
+    Description: S3 Bucket Name
+    Value: !Ref Bucket

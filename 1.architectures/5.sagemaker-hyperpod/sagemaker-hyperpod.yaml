@@ -32,9 +32,19 @@ Metadata:
           - PrimarySubnetAZ
           - BackupSubnetAZ
       - Label:
-          default: Fsx Lustre storage size
+          default: FSx Lustre configuration
         Parameters:
           - Capacity
+          - PerUnitStorageThroughput
+          - Compression
+          - LustreVersion
+      - Label:
+          default: (Optional) FSx OpenZFS configuration
+        Parameters:
+          - CreateOpenZFS
+          - OpenZFSThroughput
+          - OpenZFSStorageCapacity
+          - OpenZFSIops
       - Label:
           default: Network and S3 endpoints configuration
         Parameters:
@@ -94,7 +104,6 @@ Parameters:
     Type: String
     Default: "sagemaker-lifecycle"
 
-
   PerUnitStorageThroughput:
     Description: Provisioned Read/Write (MB/s/TiB)
     Type: Number
@@ -129,6 +138,44 @@ Parameters:
       - 'false'
     Description: Boolean on whether or not to create the SSM Session Manager Document (choose false only if it already exists in your account).
 
+  CreateOpenZFS:
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Default: 'false'
+    Description:
+      Creates an FSx OpenZFS file system in addition to the FSxL file system. Default is false
+    Type: String
+ 
+  OpenZFSThroughput:
+    AllowedValues:
+      - 160
+      - 320
+      - 640
+      - 1280
+      - 2560
+      - 3840
+      - 5120
+      - 7680
+      - 10240
+    Default: 160
+    Description: OpenZFS throughput in MB/s. Allowed values are 160, 320, 640, 1280, 2560, 3840, 5120, 7680, 10240
+    Type: Number
+
+  OpenZFSStorageCapacity:
+    Description: Storage capacity in GiB for OpenZFS (64 GiB to 524,288 GiB)
+    Type: Number
+    Default: 64
+    MinValue: 64
+    MaxValue: 524288
+
+  OpenZFSIops:
+    Description: The total number of SSD IOPS provisioned for the file system (LEAVE EMPTY FOR DEFAULT OF 3 IOPS PER GiB OF STORAGE CAPACITY)
+    Type: Number
+    Default: 0
+    MinValue: 0
+    MaxValue: 400000
+
 ###############################
 ## Conditions for Parameters ##
 ###############################
@@ -137,6 +184,8 @@ Conditions:
   S3EndpointCondition: !Equals [!Ref 'CreateS3Endpoint', 'true']
   BackupSubnetCondition: !Not [ !Equals [!Ref 'BackupSubnetAZ', ''] ]
   CreateSSMDocument: !Equals [!Ref 'SSMDocumentName', 'true']
+  CreateOpenZFSCondition: !Equals [!Ref 'CreateOpenZFS', 'true']
+  ConfigureCustomIops: !Not [!Equals [!Ref OpenZFSIops, 0]]
 
 
 ##########################
@@ -411,6 +460,44 @@ Resources:
         MetadataConfiguration:
           Mode: AUTOMATIC
 
+  FSxOpenZFSFileSystem:
+    Type: AWS::FSx::FileSystem
+    Condition: CreateOpenZFSCondition
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      FileSystemType: OPENZFS
+      OpenZFSConfiguration:
+        AutomaticBackupRetentionDays: 30
+        CopyTagsToBackups: Yes
+        CopyTagsToVolumes: Yes
+        DailyAutomaticBackupStartTime: '19:00'
+        DeploymentType: SINGLE_AZ_HA_2
+        DiskIopsConfiguration: !If
+          - ConfigureCustomIops
+          - Mode: USER_PROVISIONED
+            Iops: !Ref OpenZFSIops
+          - !Ref AWS::NoValue
+        Options:
+          - DELETE_CHILD_VOLUMES_AND_SNAPSHOTS
+        RootVolumeConfiguration:
+          DataCompressionType: NONE
+          NfsExports: 
+            - ClientConfigurations: 
+              -  Clients: '*'
+                 Options: 
+                    - rw
+                    - no_root_squash
+                    - crossmnt
+        ThroughputCapacity: !Ref OpenZFSThroughput
+        WeeklyMaintenanceStartTime: '1:04:00'
+      SecurityGroupIds:  
+        - !Ref SecurityGroup
+      StorageType: SSD
+      StorageCapacity: !Ref OpenZFSStorageCapacity
+      SubnetIds:
+        - !Ref PrimaryPrivateSubnet
+
   AmazonSagemakerClusterExecutionRole:
     Type: AWS::IAM::Role
     Properties:
@@ -536,3 +623,11 @@ Outputs:
     Value: !Ref LCScriptsBucket
     Export:
       Name: !Sub ${AWS::StackName}-AmazonSagemakerLCScriptsBucketName
+  FSxOpenZFSFileSystemId:
+    Condition: CreateOpenZFSCondition
+    Description: The ID of the FSxOpenZFS filesystem that has been created
+    Value: !Ref FSxOpenZFSFileSystem
+  FSxOpenZFSFileSystemDNSname:
+    Condition: CreateOpenZFSCondition
+    Description: The DNS of the FSxOpenZFS filesystem that has been created
+    Value: !GetAtt FSxOpenZFSFileSystem.DNSName

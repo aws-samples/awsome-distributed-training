@@ -1138,7 +1138,7 @@ goodbye() {
 
 #===Main Script===
 main() {
-    print_header "🚀 Welcome to the SageMaker HyperPod Cluster Creation Script! 🚀"
+    print_header "🚀 Welcome to the SageMaker HyperPod EKS Cluster Creation Script! 🚀"
 
     # Prerequisites
     display_important_prereqs
