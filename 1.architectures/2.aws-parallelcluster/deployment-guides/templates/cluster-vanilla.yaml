@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT-0
 
 Imds:
-  ImdsSupport: v1.0
+  ImdsSupport: v2.0
 Image:
   Os: ubuntu2204
 HeadNode:
