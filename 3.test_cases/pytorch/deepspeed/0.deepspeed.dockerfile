@@ -117,27 +117,7 @@ RUN mv $OPEN_MPI_PATH/bin/mpirun $OPEN_MPI_PATH/bin/mpirun.real \
  && chmod a+x $OPEN_MPI_PATH/bin/mpirun
 
 ######################
-# Transformers dependencies used in the model
+# DeepSpeed dependencies
 ######################
-RUN pip install transformers==${TRANSFORMERS_VERSION} sentencepiece python-etcd
+RUN pip install transformers==${TRANSFORMERS_VERSION} sentencepiece python-etcd deepspeed accelerate
 
-#####################
-# Install megatron-lm
-#####################
-RUN pip install -U setuptools
-RUN cd /workspace && git clone --depth 1 --branch ${MEGATRON_LM_VERSION} https://github.com/NVIDIA/Megatron-LM.git \
-    && cd Megatron-LM \
-    && python3 -m pip install nltk  \
-    && python -m pip install .
-
-## Set Open MPI variables to exclude network interface and conduit.
-ENV OMPI_MCA_pml=^cm,ucx            \
-    OMPI_MCA_btl=tcp,self           \
-    OMPI_MCA_btl_tcp_if_exclude=lo,docker0,veth_def_agent\
-    OPAL_PREFIX=/opt/amazon/openmpi \
-    NCCL_SOCKET_IFNAME=^docker,lo,veth_def_agent,eth
-
-## Turn off PMIx Error https://github.com/open-mpi/ompi/issues/7516
-ENV PMIX_MCA_gds=hash
-
-WORKDIR /workspace/Megatron-LM

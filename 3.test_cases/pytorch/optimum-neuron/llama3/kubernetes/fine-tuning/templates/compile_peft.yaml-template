@@ -1,0 +1,141 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: etcd
+  namespace: ${NAMESPACE}
+spec:
+  ports:
+    - name: etcd-client-port
+      port: 2379
+      protocol: TCP
+      targetPort: 2379
+  selector:
+    app: etcd
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: etcd
+  name: etcd
+  namespace: ${NAMESPACE}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: etcd
+  template:
+    metadata:
+      labels:
+        app: etcd
+    spec:
+      containers:
+        - name: etcd
+          command: ["/usr/local/bin/etcd"]
+          args:
+            - "--data-dir"
+            - "/var/lib/etcd"
+            - "--enable-v2"
+            - "--listen-client-urls"
+            - "http://0.0.0.0:2379"
+            - "--advertise-client-urls"
+            - "http://0.0.0.0:2379"
+            - "--initial-cluster-state"
+            - "new"
+          image: quay.io/coreos/etcd:v3.5.19
+          ports:
+            - containerPort: 2379
+              name: client
+              protocol: TCP
+            - containerPort: 2380
+              name: server
+              protocol: TCP
+      restartPolicy: Always
+
+---
+apiVersion: "kubeflow.org/v1"
+kind: PyTorchJob
+metadata:
+  name: peft-llama3-do-compile
+  namespace: ${NAMESPACE}
+spec:
+  elasticPolicy:
+    rdzvBackend: etcd
+    rdzvHost: etcd
+    rdzvPort: 2379
+    minReplicas: 1
+    maxReplicas: 64
+    maxRestarts: 100
+  pytorchReplicaSpecs:
+    Worker:
+      replicas: 1
+      restartPolicy: OnFailure
+      template:
+        metadata:
+          labels:
+            app: peft-llama3-do-compile
+        spec:
+          volumes:
+            - name: shmem
+              hostPath: 
+                path: /dev/shm
+            - name: persistent-storage
+              persistentVolumeClaim:
+                claimName: ${FSX_CLAIM}
+            - name: local
+              hostPath:
+                path: /dev
+            - name: hyperpod
+              hostPath:
+                path: /var/log/aws/clusters
+          nodeSelector:
+            node.kubernetes.io/instance-type: ${INSTANCE_TYPE}
+          containers:
+            - name: pytorch
+              image: ${IMAGE_URI}
+              imagePullPolicy: Always
+              resources:
+                requests:
+                  aws.amazon.com/neuron: ${NEURON_PER_NODE}
+                  vpc.amazonaws.com/efa: ${EFA_PER_NODE}
+                limits:
+                  aws.amazon.com/neuron: ${NEURON_PER_NODE}
+                  vpc.amazonaws.com/efa: ${EFA_PER_NODE}
+              env:
+              - name: GPUS_PER_NODE
+                value: "32"
+              - name: NEURON_RT_NUM_CORES
+                value: "32"
+              - name: NEURON_CC_FLAGS
+                value: "--model-type transformer --distribution-strategy=llm-training --cache_dir=${NEURON_CACHE_DIR}"
+              command: 
+                - neuron_parallel_compile
+                - torchrun
+                - --nproc_per_node=8
+                - --nnodes=1
+                - peft_train.py
+                - --bf16=True
+                - --checkpoint_frequency=400
+                - --dataset=${DATASET_NAME}
+                - --max_seq_length=${MAX_SEQ_LENGTH}
+                - --max_steps=200
+                - --epochs=${EPOCHS}
+                - --gradient_accumulation_steps=3
+                - --learning_rate=${LEARNING_RATE}
+                - --model_path=${MODEL_OUTPUT_PATH}
+                - --tokenizer_path=${TOKENIZER_OUTPUT_PATH}
+                - --model_checkpoint_path=${CHECKPOINT_DIR_COMPILE}
+                - --model_final_path=${CHECKPOINT_DIR_COMPILE}/final
+                - --tp_size=${TP_SIZE}
+                - --pp_size=${PP_SIZE}
+                - --train_batch_size=${TRAIN_BATCH_SIZE}
+                - --warmup_steps=100
+                - --weight_decay=0.01
+              volumeMounts:
+                - name: shmem
+                  mountPath: /dev/shm
+                - name: persistent-storage
+                  mountPath: /fsx
+                - name: hyperpod
+                  mountPath: /var/log/aws/clusters

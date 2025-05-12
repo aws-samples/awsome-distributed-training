@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: MIT-0
 
 #SBATCH --nodes=4 # number of nodes to use
-#SBATCH --job-name=FSDP # name of your job
+#SBATCH --job-name=llama2_13b-FSDP # name of your job
 #SBATCH --output=logs/%x_%j.out # logfile for stdout
 #SBATCH --error=logs/%x_%j.err # logfile for stderr, remove it to merge both outputs
 #SBATCH --exclusive # job has exclusive use of the resource, no sharing
@@ -16,6 +16,14 @@ set -ex;
 ###########################
 
 GPUS_PER_NODE=8 # 4 for G5.12x, 8 for P4/P5
+
+###############################
+###### Container Variable #####
+###############################
+# Uncomment if you want to use a container instea of Virtual Environment.
+#export CONTAINER_IMAGE=$(pwd)/pytorch-fsdp.sqsh
+export DATA_PATH=/fsx
+export FSX_MOUNT=$(pwd):$DATA_PATH
 
 ###########################
 ## Environment Variables ##
@@ -41,6 +49,19 @@ export NCCL_SOCKET_IFNAME=^docker,lo,veth,eth
 ## Set HuggingFace metadata timeout (in seconds) for large clusters
 export HF_HUB_ETAG_TIMEOUT=60
 
+
+########################
+####### Container ######
+########################
+
+if [ ! -z $CONTAINER_IMAGE ];
+then
+    declare -a ARGS=(
+        --container-image $CONTAINER_IMAGE
+        --container-mounts $FSX_MOUNT
+    )
+fi
+
 ###########################
 ####### Torch Dist  #######
 ###########################
@@ -57,16 +78,16 @@ export TORCHRUN=torchrun
 export TRAIN_SCRIPT=./train.py
 
 ############################
-# Llama 2 Training Params ##
+# llama2_13b Training Params ##
 ############################
 
 declare -a TRAINING_ARGS=(
     --max_context_width=4096
-    --num_key_value_heads=32 # 7b: 32 13b: 40 70b: 8
-    --intermediate_size=11008 # 7b: 11008 13b: 13824 70b: 28672
-    --hidden_width=4096 # 7b: 4096 13b: 5120 70b: 8192
-    --num_layers=32 # 7b: 32 13b: 40 70b: 80
-    --num_heads=32 # 7b: 32 13b: 40 70b: 64
+    --num_key_value_heads=40
+    --intermediate_size=13824
+    --hidden_width=5120
+    --num_layers=40
+    --num_heads=40
     --model_type=llama_v2
     --tokenizer="hf-internal-testing/llama-tokenizer"
     --checkpoint_freq=5000
@@ -87,4 +108,4 @@ if [ -d "/opt/sagemaker_cluster" ]; then
     echo "Detected Hyperpod cluster.. enabling --auto-resume=1"
     AUTO_RESUME="--auto-resume=1"
 fi
-srun ${AUTO_RESUME} -l ${TORCHRUN} "${TORCHRUN_ARGS[@]}" $TRAIN_SCRIPT "${TRAINING_ARGS[@]}"
+srun ${AUTO_RESUME} -l "${ARGS[@]}" ${TORCHRUN} "${TORCHRUN_ARGS[@]}" $TRAIN_SCRIPT "${TRAINING_ARGS[@]}"

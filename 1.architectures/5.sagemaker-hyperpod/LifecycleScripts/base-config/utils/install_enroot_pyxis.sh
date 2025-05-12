@@ -15,13 +15,7 @@ if [[ -f /opt/slurm/etc/cgroup.conf ]]; then
 fi
 
 apt-get -y -o DPkg::Lock::Timeout=120 install squashfs-tools parallel libnvidia-container-tools
-
-## These are needed for `enroot start xxx.sqsh`, but on SMHP, `enroot start xxx.sqsh` hangs, hence
-## not needed.
-##
-## The hang behavior may be the same as https://github.com/NVIDIA/enroot/issues/130 and the solution
-## is to `enroot create xxx.sqsh ; enroot start xxx ; enroot remove xxx`.
-#apt-get -y -o DPkg::Lock::Timeout=120 install fuse-overlayfs squashfuse
+apt-get -y -o DPkg::Lock::Timeout=120 install fuse-overlayfs squashfuse
 
 SLURM_INSTALL_DIR='/opt/slurm'
 PYXIS_TMP_DIR='/tmp/pyxis'
