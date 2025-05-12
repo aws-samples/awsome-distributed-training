@@ -95,3 +95,4 @@ Each instance type has its own `Sockets` and `CoresPerSocket` values. Below are 
 | p4d.24xlarge  | 2         | 24               |
 
 For other instance types, you'd need to run an instance to check the values.
+
