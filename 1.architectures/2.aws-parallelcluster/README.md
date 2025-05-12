@@ -1,6 +1,7 @@
 # AWS ParallelCluster Distributed Training Reference Architecture
 
-This README provides a "vanilla" reference architectures and deployment guide for setting up distributed training clusters using AWS ParallelCluster. These architectures are optimized for machine learning workloads and include configurations for high-performance computing instances (P and Trn EC2 families) with shared filesystems (FSx for Lustre and OpenZFS). Key features are including:
+This README provides a "vanilla" reference architectures and deployment guide for setting up distributed training clusters using [AWS ParallelCluster](https://github.com/aws/aws-parallelcluster). These architectures are optimized for machine learning workloads and include configurations for high-performance computing instances (P and Trn EC2 families) with shared filesystems (FSx for Lustre and OpenZFS). Key features are including:
+
 - Pre-configured for distributed training workloads
 - Integrated with FSx for Lustre for high-performance storage and OpenZFS for home directory
 - Support for On-Demand Capacity Reservations (ODCR) and Capacity Blocks (CB)
@@ -8,11 +9,26 @@ This README provides a "vanilla" reference architectures and deployment guide fo
 
 ![AWS ParallelCluster diagram](../../0.docs/core-infra-architecture.png)
 
-Compute is represented through the following:
+The infrastructure consists of the two layers:
 
-- **Head-node**: login and controller node that users will use to submit jobs. 
-- **Compute-gpu**: is the queue (or partition) to run your ML training jobs. 
-We also provide more advanced architecture incorporating observability.
+### `parallelcluster-rerequisites`
+
+The core infrastructure for your training cluster that has 3 components.
+
+* An [Amazon Virtual Private Cloud (VPC)](https://aws.amazon.com/vpc/) with one public and one private subnet.
+* An [Amazon FSx for Lustre](https://aws.amazon.com/fsx/lustre/) high performance file system to store training and checkpointing data.
+* An [Amazon FSx for OpenZFS](https://aws.amazon.com/fsx/openzfs/) file system to store home directories data.
+
+
+### `parallelcluster`
+
+The AWS ParallelCluster is an open-source cluster management tool that makes it easy to deploy and manage High Performance Computing (HPC) clusters on AWS. It automates the creation of the infrastructure needed for HPC workloads, including:
+
+- **Head-node**: A login and controller node that users connect to for submitting jobs and managing the cluster. This node runs the scheduler (Slurm) and other management services.
+- **Compute-nodes**: Worker nodes that execute the actual computational workloads. These are dynamically provisioned based on job requirements and can scale up or down automatically.
+
+The architecture follows a traditional HPC design pattern where users interact with the head node to submit jobs, and the scheduler distributes those jobs to the compute nodes. For ML workloads, the compute nodes are typically equipped with GPUs (like P4d, P5, etc.) or AWS Trainium accelerators.
+
 
 
 ## Prerequisites
