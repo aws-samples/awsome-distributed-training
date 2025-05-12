@@ -6,7 +6,7 @@
 
 export OMP_NUM_THREADS=1
 
-srun python3 "/fsx/ubuntu/awsome-distributed-training/3.test_cases/pytorch/optimum-neuron/llama3/slurm/fine-tuning/model_consolidation.py" \
+srun python3 "/fsx/ubuntu/awsome-distributed-training/3.test_cases/pytorch/optimum-neuron/llama3/src/model_consolidation.py" \
     --input_dir "/fsx/ubuntu/peft_ft/model_checkpoints/checkpoint-1251" \
     --output_dir "/fsx/ubuntu/peft_ft/model_checkpoints/adapter_shards_consolidation"\
     --save_format "safetensors"

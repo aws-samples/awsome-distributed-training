@@ -1,42 +1,36 @@
 ## PEFT fine tuning of Llama 3 on Slurm cluster (trn1/trn1n)
 
-### Prerequisites
 This example showcases how to train llama 3 models using AWS Trainium instances and Huggingface Optimum Neuron. 🤗 Optimum Neuron is the interface between the 🤗 Transformers library and AWS Accelerators including AWS Trainium and AWS Inferentia. It provides a set of tools enabling easy model loading, training and inference on single- and multi-Accelerator settings for different downstream tasks.
 
-Before running this training, you'll need to create a slurm cluster with at least 1 trn1.32xlarge/ trn1n.32xlarge instance group. Instructions can be found in the ﻿Cluster Setup﻿ section. 
+### Solution overview
+This solution uses the following components:
 
-You will also need to complete the following prerequisites for configuring and deploying your SageMaker HyperPod cluster for fine tuning:
-- Submit a service quota increase request to get access to Trainium instances in your AWS Region. You will need to request an increase for Amazon EC2 Trn1 instances, ml.trn1.32xlarge or ml.trn1n.32xlarge.
-- Locally, install the AWS Command Line Interface (AWS CLI); the required minimum version needed is 2.14.3.
-- Locally, Install the AWS Systems Manager Session Manager Plugin in order to SSH into your cluster.
+- AWS Trainium chips for deep learning acceleration
+- Hugging Face Optimum-Neuron for integrating Trainium with existing models and tools
+- LoRA for parameter-efficient fine tuning
 
-Additionally, since Llama 3 is a gated model users have to register in Huangface and obtain an ﻿access token﻿ before running this example.
+## 0. Prerequisites
 
-### Setup
-In this section, we will setup our training environment on the cluster. Begin by logging into your cluster by following the ﻿SSH into Cluster﻿ section.
+### 0.1 Cluster Setup
+This guide assumes that you have following:
+* Slurm cluster using 16 [trn1.32xlarge](https://aws.amazon.com/ec2/instance-types/trn1/) instances with a shared parallel filesystem such as [Amazon FSx for Lustre](https://docs.aws.amazon.com/fsx/latest/LustreGuide/getting-started.html). 
 
-#### Step 2: Setup Python Environment
+
+The subsequent sections presume that you are operating from the home directory of this head node as the `ubuntu` user.
+
+
+### 0.2 Setup Python Environment
 Setup a virtual python environment and install your training dependencies. Make sure this repo is stored on the shared FSX volume of your cluster so all nodes have access to it.
 
 ```bash
 chmod +x submit_jobs/0_create_env.sh
 sbatch submit_jobs/0_create_env.sh
 ```
-View the logs created by the scripts in this lab by running this command below. You can update it for the step you are currently running:
-
-```
-tail -f logs/0_create_env.out 
-```
-Before proceeding to the next step throughout this lab, check if the current job has finished by running:
-
-```
-squeue
-```
 
 ### Training
 
 #### Step 1: Compile the model
-Before you begin training on Trainium with Neuron, you will need to pre-compile your model with the ﻿neuron_parallel_compile CLI﻿.  This will trace through the model's training code and apply optimizations to improve performance. 
+Before you begin training on Trainium with Neuron, you will need to pre-compile your model with the neuron_parallel_compile CLI.  This will trace through the model's training code and apply optimizations to improve performance. 
 
 ```bash
 chmod +x 2_compile_model.sh
@@ -47,7 +41,7 @@ The compilation process will generate NEFF (Neuron Executable File Format) files
 #### Step 2: Fine Tuning
 With your model compiled, you can now begin fine tuning your Llama 3 model. 
 
-For the purposes of this workshop, we will use the ﻿dolly 15k dataset﻿. As part of the training process, the script below will download the dataset and format it into a way that the model expects. Each data point will contain an instruction that guides the model's task, optional context that provides background information, and response that represent the desired output.
+For the purposes of this workshop, we will use the dolly 15k dataset. As part of the training process, the script below will download the dataset and format it into a way that the model expects. Each data point will contain an instruction that guides the model's task, optional context that provides background information, and response that represent the desired output.
 
 Now submit the fine tuning job:
 

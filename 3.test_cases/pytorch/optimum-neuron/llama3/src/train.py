@@ -8,8 +8,6 @@ from optimum.neuron import NeuronSFTConfig, NeuronSFTTrainer
 from optimum.neuron.distributed import lazy_load_for_parallelism
 import torch_xla.core.xla_model as xm
 
-HF_token = os.environ["HUGGINGFACE_TOKEN"]
-
 def format_dolly(examples):
     """
     Format a set of examples into a specific prompt structure for the Dolly model.
@@ -111,7 +109,7 @@ if __name__ == "__main__":
     parser.add_argument("--max_steps", type=int)
     parser.add_argument("--max_seq_length", type=int)
     parser.add_argument("--model_type", type=str)
-    parser.add_argument("--seed", type=str)
+    parser.add_argument("--seed", type=str, default="42")
     parser.add_argument("--model_checkpoint_path", type=str)
     parser.add_argument("--model_final_path", type=str)
     args = parser.parse_args()

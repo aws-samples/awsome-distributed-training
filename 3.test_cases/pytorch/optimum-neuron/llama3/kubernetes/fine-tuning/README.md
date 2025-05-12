@@ -4,10 +4,9 @@ This README demonstrates how to perform efficient supervised fine tuning for a M
 ### Solution overview
 This solution uses the following components:
 
-### Distributed training infrastructure
-AWS Trainium chips for deep learning acceleration
-Hugging Face Optimum-Neuron for integrating Trainium with existing models and tools
-LoRA for parameter-efficient fine tuning
+- AWS Trainium chips for deep learning acceleration
+- Hugging Face Optimum-Neuron for integrating Trainium with existing models and tools
+- LoRA for parameter-efficient fine tuning
 
 ## 0. Prerequisites
 
