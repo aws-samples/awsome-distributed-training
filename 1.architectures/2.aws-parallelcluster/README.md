@@ -6,7 +6,7 @@ This README provides a "vanilla" reference architectures and deployment guide fo
 - Support for On-Demand Capacity Reservations (ODCR) and Capacity Blocks (CB)
 - Optimized networking with Elastic Fabric Adapter (EFA)
 
-![AWS ParallelCluster diagram](../../0.docs/parallelcluster-arch-diagram.png )
+![AWS ParallelCluster diagram](../../0.docs/core-infra-architecture.png)
 
 Compute is represented through the following:
 
