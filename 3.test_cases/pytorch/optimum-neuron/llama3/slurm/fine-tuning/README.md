@@ -34,13 +34,13 @@ cp -r ~/awsome-distributed-training/3.test_cases/pytorch/optimum-neuron/llama3/s
 Setup a virtual python environment and install your training dependencies. Make sure this repo is stored on the shared FSX volume of your cluster so all nodes have access to it.
 
 ```bash
-sbatch submit_jobs/0_create_env.sh
+sbatch submit_jobs/0.create_env.sh
 ```
 
 View the logs created by the scripts in this lab by running this command below. You can update it for the step you are currently running:
 
 ```bash
-tail -f logs/0_create_env.out 
+tail -f logs/0.create_env.out 
 ```
 
 Before proceeding to the next step throughout this lab, check if the current job has finished by running:
@@ -53,7 +53,7 @@ squeue
 
 Next, you will download the model to your FSx file volume. Begin by logging into Huggingface using your access token mentioned in the prerequisite steps. With your access token set, you should now be able to download the model.
 
-First modify the `submit_jobs/1_download_model.sh` script to include the Huggingface access token before running it:
+First modify the `submit_jobs/1.download_model.sh` script to include the Huggingface access token before running it:
 
 ```bash
 export HF_TOKEN="<Your Hugging Face Token>"
@@ -62,7 +62,7 @@ export HF_TOKEN="<Your Hugging Face Token>"
 Then trigger the script to download the Llama3 model. 
 
 ```bash
-sbatch submit_jobs/1_download_model.sh
+sbatch submit_jobs/1.download_model.sh
 ```
 
 Now that your SageMaker HyperPod cluster is deployed and your environment is setup up, you can start preparing to execute your fine tuning job. 
@@ -72,7 +72,7 @@ Now that your SageMaker HyperPod cluster is deployed and your environment is set
 Before you begin training on Trainium with Neuron, you will need to pre-compile your model with the [neuron_parallel_compile CLI](https://awsdocs-neuron.readthedocs-hosted.com/en/latest/frameworks/torch/torch-neuronx/api-reference-guide/training/pytorch-neuron-parallel-compile.html). This will trace through the model’s training code and apply optimizations to improve performance. 
 
 ```bash
-sbatch 2_compile_model.sh
+sbatch 2.compile_model.sh
 ```
 The compilation process will generate NEFF (Neuron Executable File Format) files that will speed up your model’s fine tuning job. 
 
@@ -80,12 +80,12 @@ The compilation process will generate NEFF (Neuron Executable File Format) files
 
 With your model compiled, you can now begin fine tuning your Llama 3 model. 
 
-For the purposes of this workshop, we will use the [dolly 15k dataset](https://huggingface.co/datasets/databricks/databricks-dolly-15k). As part of the training process, the script below will download the dataset and format it into a way that the model expects. Each data point will contain an **instruction** that guides the model’s task, optional **context** that provides background information, and **response** that represent the desired output.
+For the purposes of this workshop, we will use the [dolly 15k dataset](https://huggingface.co/datasets/databricks/databricks-dolly-15k). As part of the training process, the script below will download the dataset and format it to a way that the model expects. Each data point will contain an **instruction** that guides the model’s task, optional **context** that provides background information, and **response** that represent the desired output.
 
 Now submit the fine tuning job:
 
 ```bash
-sbatch 3_finetune.sh
+sbatch 3.finetune.sh
 ```
 
 ## Step 6: Model Weight Consolidation
@@ -93,7 +93,7 @@ sbatch 3_finetune.sh
 After training has completed, you will have a new directory for your model checkpoints. This directory will contain the model checkpoint shards from each neuron device that were generated during training. Use the model consolidation script to combine the shards into a single `model.safetensor` file.
 
 ```bash
-sbatch 4_model_consolidation.sh
+sbatch 4.model_consolidation.sh
 ```
 
 The `model.safetensor` file will contain the LoRA weights of your model that were updated during training. 
@@ -103,7 +103,7 @@ The `model.safetensor` file will contain the LoRA weights of your model that wer
 After consolidating the model shards, merge the LoRA adapter weights back to your base Llama 3 model:
 
 ```bash
-sbatch 5_merge_lora_weights.sh
+sbatch 5.merge_lora_weights.sh
 ```
 Your final fine tuned model weights will be saved to the  final_model_path directory.
 
@@ -111,7 +111,7 @@ Your final fine tuned model weights will be saved to the  final_model_path direc
 Now that your model is fine tuned, see how its generations differ from the base model for the dolly-15k dataset. 
 
 ```bash
-sbatch 6_inference.sh
+sbatch 6.inference.sh
 ```
 
 This will generate a prediction for the question “Who are you?”, comparing the response of the base model to the fine tuned model. It will also pass a system prompt to the model to always respond like a pirate. 
