@@ -1,4 +1,3 @@
-# from transformers.models.llama.modeling_llama import LlamaForCausalLM
 import argparse
 import os
 
@@ -18,12 +17,12 @@ def download_model_and_tokenizer(
         model_output_path (str): The local path where the model should be saved.
         tokenizer_output_path (str): The local path where the tokenizer should be saved.
         huggingface_token (str, optional): The Hugging Face authentication token. If not provided,
-            the function will attempt to use the token from the environment variable `HUGGINGFACE_TOKEN`.
+            the function will attempt to use the token from the environment variable `HF_TOKEN`.
     Returns:
         None
     """
     if not huggingface_token:
-        huggingface_token = os.environ.get("HUGGINGFACE_TOKEN", None)
+        huggingface_token = os.environ.get("HF_TOKEN", None)
         if huggingface_token is None:
             print("Huggingface access token is missing!")
         else:

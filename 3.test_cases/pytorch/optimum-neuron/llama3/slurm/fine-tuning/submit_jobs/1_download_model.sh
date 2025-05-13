@@ -5,7 +5,7 @@
 #SBATCH -o /fsx/ubuntu/peft_ft/logs/1_download_model.out
 
 export OMP_NUM_THREADS=1
-export HUGGINGFACE_TOKEN="<Your Hugging Face Token>"
+export HF_TOKEN="<Your Hugging Face Token>"
 
 INPUT_PATH="/fsx/ubuntu/awsome-distributed-training/3.test_cases/pytorch/optimum-neuron/llama3/src/get_model.py"
 MODEL_ID="meta-llama/Meta-Llama-3-8B-Instruct"

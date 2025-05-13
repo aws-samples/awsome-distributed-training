@@ -4,10 +4,10 @@ import torch
 import os
 from transformers import AutoTokenizer, LlamaForCausalLM
 
-huggingface_token = os.environ.get("HUGGINGFACE_TOKEN", None)
+huggingface_token = os.environ.get("HF_TOKEN", None)
     
 if not huggingface_token:
-    raise ValueError("HUGGINGFACE_TOKEN environment variable not set")
+    raise ValueError("HF_TOKEN environment variable not set")
 
 def load_finetuned_pipeline(args):
     model_id = args.model_id

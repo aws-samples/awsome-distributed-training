@@ -21,7 +21,6 @@ fi
 CACHE_DIR='/fsx/ubuntu/peft_ft/cache/neuron_compile_cache/llama3-8B'
 mkdir -p $CACHE_DIR
 export NEURON_CC_FLAGS="--model-type=transformer --distribution-strategy=llm-training --enable-saturate-infinity --target=trn1 --cache_dir=$CACHE_DIR"
-export HUGGINGFACE_TOKEN=""
 export OMP_NUM_THREADS=1
 export NEURON_FUSE_SOFTMAX=1
 export NEURON_RT_ASYNC_EXEC_MAX_INFLIGHT_REQUESTS=5
