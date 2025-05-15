@@ -11,7 +11,7 @@ OPENZFS_MOUNT_POINT="$2"
 NFS_VERSION=4.2
 
 # Ansible Version
-ANSIBLE_VERSION="6.7.0"
+ANSIBLE_VERSION="10.7.0"
 
 # Function for error handling
 handle_error()
