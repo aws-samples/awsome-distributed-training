@@ -40,7 +40,7 @@ print_lustre_version()
 # Load lnet modules
 load_lnet_modules()
 {
-    modprobe -v lnet
+  ansible localhost -b -m ansible.builtin.modprobe -a "name=lnet state=present"
 }
 
 # Mount the FSx Lustre file system using Ansible
@@ -50,15 +50,14 @@ mount_fs()
 
     # Trigger automount by accessing the filesystem
     echo "Triggering automount by accessing $MOUNT_POINT..."
-    ls -la $MOUNT_POINT >/dev/null 2>&1 || true
-    touch /fsx/test_file
-    rm -f /fsx/test_file 
+    ls -la $MOUNT_POINT >/dev/null 2>&1 || true && ansible localhost -m ansible.builtin.file -a "path=$MOUNT_POINT/test_file state=touch" && ansible localhost -m ansible.builtin.file -a "path=$MOUNT_POINT/test_file state=absent"
 }
 
 restart_daemon()
 {
-  systemctl daemon-reload
-  systemctl restart remote-fs.target
+  ansible localhost -b -m ansible.builtin.systemd -a "daemon_reload=yes"
+  ansible localhost -b -m ansible.builtin.systemd -a "name=remote-fs.target state=restarted"
+  # Readable status check
   echo "Check status of fsx automount service..."
   systemctl status fsx.automount
 }
