@@ -47,6 +47,20 @@ load_lnet_modules()
 mount_fs()
 {
     ansible localhost -b -m ansible.posix.mount -a "path=$MOUNT_POINT src=$FSX_DNS_NAME@tcp:/$FSX_MOUNTNAME fstype=lustre opts=noatime,flock,_netdev,x-systemd.automount,x-systemd.requires=network-online.target dump=0 passno=0 state=mounted"
+
+    # Trigger automount by accessing the filesystem
+    echo "Triggering automount by accessing $MOUNT_POINT..."
+    ls -la $MOUNT_POINT >/dev/null 2>&1 || true
+    touch /fsx/test_file
+    rm -f /fsx/test_file 
+}
+
+restart_daemon()
+{
+  systemctl daemon-reload
+  systemctl restart remote-fs.target
+  echo "Check status of fsx automount service..."
+  systemctl status fsx.automount
 }
 
 main() 
@@ -57,6 +71,7 @@ main()
     echo "LUSTRE CLIENT CONFIGURATION $(print_lustre_version)"
     load_lnet_modules
     mount_fs
+    restart_daemon
     echo "FSx Lustre mounted successfully to $MOUNT_POINT"
 }
 
