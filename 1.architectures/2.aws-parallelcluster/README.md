@@ -34,6 +34,24 @@ The architecture follows a traditional HPC design pattern where users interact w
 
 ## Prerequisites
 
+Before you begin, ensure you have the following tools installed on your local machine:
+
+- **Git**: For cloning the repository and version control
+  - Installation: [Git download page](https://git-scm.com/downloads)
+
+- **Python 3.8 or later**: Required for AWS ParallelCluster CLI
+  - Installation: [Python download page](https://www.python.org/downloads/)
+  - Verify with: `python3 --version`
+
+- **yq**: A lightweight command-line YAML processor
+  - Installation:
+    - On macOS: `brew install yq`
+    - On Linux: `sudo snap install yq` or `sudo apt-get install yq`
+    - On Windows: `choco install yq`
+  - Verify with: `yq --version`
+
+These tools are essential for following the deployment steps in this guide and managing your cluster configuration.
+
 First, clone the repository and move to this directory:
 
 ```bash
@@ -51,6 +69,10 @@ export PCLUSTER_VERSION=3.13.0
 export CONFIG_DIR="~/${AWS_REGION}_${CLUSTER_NAME}_${PCLUSTER_VERSION}"
 
 mkdir -p ${CONFIG_DIR}
+touch ${CONFIG_DIR}/config.yaml
+yq -i ".CLUSTER_NAME = \"$CLUSTER_NAME\"" ${CONFIG_DIR}/config.yaml
+yq -i ".AWS_REGION = \"$AWS_REGION\"" ${CONFIG_DIR}/config.yaml 
+yq -i ".PCLUSTER_VERSION = \"$PCLUSTER_VERSION\"" ${CONFIG_DIR}/config.yaml
 ```
 
 
@@ -73,14 +95,14 @@ You can install the AWS ParallelCluster CLI using pip in a Python virtual enviro
 
 
 ```bash
-export VIRTUAL_ENV_PATH=~/pcluster_env # change the path to your liking
+export VIRTUAL_ENV_PATH=~/pcluster_${PCLUSTER_VERSION}_env # change the path to your liking
 # Update pip and the virtual env module
 python3 -m pip install --upgrade pip
 python3 -m pip install --user --upgrade virtualenv
 python3 -m virtualenv ${VIRTUAL_ENV_PATH} # create the virtual env
 source ${VIRTUAL_ENV_PATH}/bin/activate # activate the environment
 pip3 install awscli # install the AWS CLI
-pip3 install aws-parallelcluster==3.13.0 # then AWS ParallelCluster
+pip3 install aws-parallelcluster==${PCLUSTER_VERSION} # then AWS ParallelCluster
 ```
 
 #### Reserved accelerated instance capacity (P/Trn instances) through  On-Demand Capacity Reservation (ODCR) or EC2 Capacity Blocks (CB) for ML
@@ -98,6 +120,23 @@ __You need the following information before proceeding__:
 * Number of instances in the capacity reservation: `NUM_INSTANCES`
 * Instance type: `INSTANCE` (e.g., p5.48xlarge)
 
+Add them to your config file `${CONFIG_DIR}/config.yaml`:
+
+```bash
+# Export your capacity reservation details
+export CAPACITY_RESERVATION_ID=<your-capacity-reservation-id>  # e.g. cr-0123456789abcdef0
+export AZ=<your-availability-zone>  # e.g. ap-northeast-1a
+export NUM_INSTANCES=<number-of-instances>  # e.g. 8
+export INSTANCE=<instance-type>  # e.g. p5.48xlarge
+
+yq -i ".CAPACITY_RESERVATION_ID = \"$CAPACITY_RESERVATION_ID\"" ${CONFIG_DIR}/config.yaml
+yq -i ".AZ = \"$AZ\"" ${CONFIG_DIR}/config.yaml
+yq -i ".NUM_INSTANCES = \"$NUM_INSTANCES\"" ${CONFIG_DIR}/config.yaml
+yq -i ".INSTANCE = \"$INSTANCE\"" ${CONFIG_DIR}/config.yaml
+```
+
+
+
 
 #### EC2 Key Pair for SSH access
 
@@ -109,13 +148,14 @@ First, export the name of the key pair you have or will create:
 
 ```bash
 export KEYPAIR_NAME=<your-keypair-name>  # e.g. ap-northeast-1
+yq -i ".KEYPAIR_NAME = \"$KEYPAIR_NAME\"" ${CONFIG_DIR}/config.yaml
 ```
 
 If you don't have a key pair yet, create one using the AWS CLI:
 
 ```bash
 # Create the key pair and save the private key
-cd ~/.ssh
+pushd ~/.ssh
 aws ec2 create-key-pair \
     --key-name ${KEYPAIR_NAME} \
     --query KeyMaterial \
@@ -125,6 +165,7 @@ aws ec2 create-key-pair \
 
 # Set appropriate permissions on the private key
 chmod 600 ${KEYPAIR_NAME}.pem
+popd
 ```
 
 You can verify the key pair was created successfully by listing your key pairs:
@@ -147,25 +188,26 @@ To deploy the S3 bucket using our CloudFormation template:
 
 1. Click the button below to launch the CloudFormation stack:
 
-[<kbd> <br> 1-Click Deploy 🚀 <br> </kbd>](https://ap-northeast-1.console.aws.amazon.com/cloudformation/home#/stacks/quickcreate?templateUrl=https://awsome-distributed-training.s3.amazonaws.com/templates/0.private-bucket.yaml&stackName=cluster-data-bucket)
+[<kbd> <br> 1-Click Deploy 🚀 <br> </kbd>](https://console.aws.amazon.com/cloudformation/home#/stacks/quickcreate?templateUrl=https://awsome-distributed-training.s3.amazonaws.com/templates/0.private-bucket.yaml&stackName=cluster-data-bucket)
 
 2. In the CloudFormation console:
    - Enter a stack name (e.g., `cluster-data-bucket`)
-   - Review the default parameters
-   - Acknowledge the IAM resource creation
+   - Specify the bucket name
    - Click "Create stack"
 
 3. Once the stack creation is complete, note the bucket name from the Outputs tab. You'll need this for the DRA configuration:
 
 ```bash
 # Get the bucket name from CloudFormation outputs
+# Note: You need to change stack-name if you are using non-default name
 export DATA_BUCKET_NAME=$(aws cloudformation describe-stacks \
     --stack-name cluster-data-bucket \
-    --query 'Stacks[0].Outputs[?OutputKey==`BucketName`].OutputValue' \
+    --query 'Stacks[0].Outputs[?OutputKey==`S3BucketName`].OutputValue' \
     --region ${AWS_REGION} \
     --output text)
 
 echo "Your data bucket name is: ${DATA_BUCKET_NAME}"
+yq -i ".DATA_BUCKET_NAME = \"$DATA_BUCKET_NAME\"" ${CONFIG_DIR}/config.yaml
 ```
 
 > [!NOTE]
@@ -173,8 +215,9 @@ echo "Your data bucket name is: ${DATA_BUCKET_NAME}"
 
 ## Cluster deployment
 
+This section guides you through deploying your AWS ParallelCluster environment. You'll set up the necessary infrastructure components including networking, storage, and compute resources to create a high-performance computing cluster optimized for machine learning workloads. The deployment process is streamlined using CloudFormation templates that handle the complex infrastructure provisioning automatically.
 
-### Deploy parallelcluster-prerequisites
+### Step1: Deploy parallelcluster-prerequisites
 
 In this section, you deploy a custom [_Amazon Virtual Private Cloud_](https://aws.amazon.com/vpc/) (Amazon VPC) network and security groups, as well as supporting services such as FSx for Lustre using the CloudFormation template called `parallelcluster-prerequisites.yaml`. This template is region agnostic and enables you to create a VPC with the required network architecture to run your workloads.
 
@@ -182,13 +225,14 @@ Please follow the steps below to deploy your resources:
 
 1. Click on this link to deploy to CloudFormation:
 
-[<kbd> <br> 1-Click Deploy 🚀 <br> </kbd>](https://ap-northeast-1.console.aws.amazon.com/cloudformation/home?region=ap-northeast-1#/stacks/quickcreate?templateUrl=https://awsome-distributed-training.s3.amazonaws.com/templates/parallelcluster-prerequisites.yaml&stackName=parallelcluster-prerequisites)
+[<kbd> <br> 1-Click Deploy 🚀 <br> </kbd>](https://console.aws.amazon.com/cloudformation/home#/stacks/quickcreate?templateUrl=https://awsome-distributed-training.s3.amazonaws.com/templates/parallelcluster-prerequisites.yaml&stackName=parallelcluster-prerequisites)
 
-The cloudformation stack uses FSx for Lustre Persistent_2 deployment type. If you wish to use Persistent_1 deployment type please use the link below:
+The CloudFormation stack uses FSx for Lustre `PERSISTENT_2` deployment type by default. If your selected availability zone doesn't support `PERSISTENT_2` or you specifically need to use `PERSISTENT_1` deployment type, please use the link below instead:
 
-[<kbd> <br> 1-Click Deploy 🚀 <br> </kbd>](https://ap-northeast-1.console.aws.amazon.com/cloudformation/home?region=ap-northeast-1#/stacks/quickcreate?templateUrl=https://awsome-distributed-training.s3.amazonaws.com/templates/parallelcluster-prerequisites-p1.yaml&stackName=parallelcluster-prerequisites)
+[<kbd> <br> 1-Click Deploy 🚀 <br> </kbd>](https://console.aws.amazon.com/cloudformation/home#/stacks/quickcreate?templateUrl=https://awsome-distributed-training.s3.amazonaws.com/templates/parallelcluster-prerequisites-p1.yaml&stackName=parallelcluster-prerequisites)
 
-They need to open the link and specify the region and availability zone where they have their compute resources. Fill out "Availability Zone configuration for the subnets", and create the stack. 
+> [!NOTE]
+> When opening the link, you must specify the region and availability zone where your compute resources are located. Be sure to fill out the "Availability Zone configuration for the subnets" field, then create the stack.
 
 ![parallelcluster-prerequisites-cfn](../../0.docs/parallelcluster-prerequisites-cfn.png)
 
@@ -197,8 +241,7 @@ They need to open the link and specify the region and availability zone where th
 If you have deployed your S3 data repository in the previous step In this step, you will create a [Data Repository Association (DRA)](https://docs.aws.amazon.com/fsx/latest/LustreGuide/create-dra-linked-data-repo.html) between the S3 bucket and FSx Lustre Filesystem.
 
 ```bash
-export AWS_REGION=ap-northeast-1
-export STACK_ID_VPC=parallelcluster-prerequisites 
+export STACK_ID_VPC=parallelcluster-prerequisites # Change here if you uses non-default stack name
 export FSX_ID=`aws cloudformation describe-stacks \
     --stack-name ${STACK_ID_VPC} \
     --query 'Stacks[0].Outputs[?OutputKey==\`FSxLustreFilesystemId\`].OutputValue' \
@@ -264,30 +307,44 @@ aws fsx describe-data-repository-associations \
 
 Wait until the output becomes `AVAILABLE` . You also can check the status of DRA on AWS console:
 
-## Deploy ParallelCluster
+## Step2: Deploy ParallelCluster
 
 This section guides you through deploying your distributed training cluster. Before proceeding, ensure you have completed all the [prerequisites](#prerequisites) steps.
 
 ### 1. Set Up Environment Variables
 
-First, set up your environment variables for the cluster configuration:
+You should have the following values set 
 
 ```bash
-# Core configuration
-export AWS_REGION=ap-northeast-1 
-export CLUSTER_NAME=ml-cluster
-export PCLUSTER_VERSION=3.13.0
-export CONFIG_DIR=~/${AWS_REGION}_${CLUSTER_NAME}_${PCLUSTER_VERSION}
-
-# Create directory for config files
-mkdir -p ${CONFIG_DIR}
-
-# Instance configuration
-export KEY_PAIR_NAME=<your-keypair-name>  # Your EC2 key pair name (without .pem)
-export CAPACITY_RESERVATION_ID=cr-<YOUR-CR-ID>  # Your ODCR ID from EC2 console
-export INSTANCE=p5.48xlarge  # Or your chosen instance type
-export NUM_INSTANCES=4  # Number of instances in your ODCR
+cat  ${CONFIG_DIR}/config.yaml
 ```
+
+
+```yaml
+AWS_REGION: eu-west-2
+CLUSTER_NAME: ml-cluster
+PCLUSTER_VERSION: 3.13.0
+CAPACITY_RESERVATION_ID: cr-074a0b74e199ae640
+AZ: eu-west-2c
+NUM_INSTANCES: "16"
+INSTANCE: p5.48xlarge
+KEYPAIR_NAME: eu-west-2
+DATA_BUCKET_NAME: cluster-data-bucket-us-west-2-483026362307
+```
+
+Now let's use the following snipett to read them as environment variables:
+
+```bash
+eval $(yq e 'to_entries | .[] | "export " + .key + "=\"" + .value + "\""' ${CONFIG_DIR}/config.yaml) 
+source ${VIRTUAL_ENV_PATH}/bin/activate # activate the environment for pcluster CLI
+```
+
+
+
+
+
+
+
 
 ### 2. Generate Cluster Configuration
 
