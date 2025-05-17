@@ -106,7 +106,7 @@ Parameters:
   HomeThroughput:
     Description: "Home directories storage throughput MB/s"
     Type: Number
-    Default: 320
+    Default: 512
 
 
 ###############################
@@ -320,7 +320,7 @@ Resources:
         CopyTagsToBackups: Yes
         CopyTagsToVolumes: Yes
         DailyAutomaticBackupStartTime: '19:00'
-        DeploymentType: SINGLE_AZ_HA_2
+        DeploymentType: SINGLE_AZ_HA_1
         Options: 
           - DELETE_CHILD_VOLUMES_AND_SNAPSHOTS
         RootVolumeConfiguration: 
@@ -350,37 +350,37 @@ Outputs:
     Description: ID of the VPC
     Export:
       Name: !Sub ${AWS::StackName}-VPC
-  PublicSubnet:
+  PUBLIC_SUBNET:
     Value: !Ref PublicSubnet
     Description: ID of the public subnet
     Export:
       Name: !Sub ${AWS::StackName}-PublicSubnet
-  PrimaryPrivateSubnet:
+  PRIMARY_PRIVATE_SUBNET:
     Value: !Ref PrimaryPrivateSubnet
     Description: ID of the primary private subnet
     Export:
       Name: !Sub ${AWS::StackName}-PrimaryPrivateSubnet
-  SecurityGroup:
+  SECURITY_GROUP:
     Value: !Ref SecurityGroup
     Description: SecurityGroup for Batch
     Export:
       Name: !Sub ${AWS::StackName}-SecurityGroup
-  FSxLustreFilesystemMountname:
+  FSX_LUSTRE_FILESYSTEM_MOUNT_NAME:
     Description: The ID of the FSxL filesystem that has been created
     Value: !GetAtt FSxLFilesystem.LustreMountName
     Export:
       Name: !Sub ${AWS::StackName}-FSxLustreFilesystemMountname
-  FSxLustreFilesystemDNSname:
+  FSX_LUSTRE_FILESYSTEM_DNS_NAME:
     Description: The DNS of the FSxL filesystem that has been created
     Value: !GetAtt FSxLFilesystem.DNSName
     Export:
       Name: !Sub ${AWS::StackName}-FSxLustreFilesystemDNSname
-  FSxLustreFilesystemId:
+  FSX_LUSTRE_FILESYSTEM_ID:
     Description: The ID of the FSxL filesystem that has been created
     Value: !Ref FSxLFilesystem
     Export:
       Name: !Sub ${AWS::StackName}-FSxLustreFilesystemId
-  FSxORootVolumeId:
+  FSX_OPENZFS_ROOT_VOLUME_ID:
     Description: The ID of Fsx OpenZFS root volume
     Value: !GetAtt OpenZFSFileSystem.RootVolumeId
     Export:

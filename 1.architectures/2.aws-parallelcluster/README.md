@@ -66,7 +66,7 @@ Then create a directory under home directory to store cluster config files:
 export AWS_REGION=ap-northeast-1 
 export CLUSTER_NAME=ml-cluster
 export PCLUSTER_VERSION=3.13.0
-export CONFIG_DIR="~/${AWS_REGION}_${CLUSTER_NAME}_${PCLUSTER_VERSION}"
+export CONFIG_DIR="${HOME}/${CLUSTER_NAME}_${AWS_REGION}_${PCLUSTER_VERSION}"
 
 mkdir -p ${CONFIG_DIR}
 touch ${CONFIG_DIR}/config.yaml
@@ -236,12 +236,19 @@ The CloudFormation stack uses FSx for Lustre `PERSISTENT_2` deployment type by d
 
 ![parallelcluster-prerequisites-cfn](../../0.docs/parallelcluster-prerequisites-cfn.png)
 
+2. Once the CloudFormation stack deployment is complete, you'll need to export the stack name as an environment variable for future steps:
+
+```bash
+export STACK_ID_VPC=parallelcluster-prerequisites # Change here if you uses non-default stack name
+yq -i ".STACK_ID_VPC = \"$STACK_ID_VPC\"" ${CONFIG_DIR}/config.yaml
+```
+
+
 #### (Optional) Associate Lustre storage with S3 bucket with data-repository-association (DRA)
 
 If you have deployed your S3 data repository in the previous step In this step, you will create a [Data Repository Association (DRA)](https://docs.aws.amazon.com/fsx/latest/LustreGuide/create-dra-linked-data-repo.html) between the S3 bucket and FSx Lustre Filesystem.
 
 ```bash
-export STACK_ID_VPC=parallelcluster-prerequisites # Change here if you uses non-default stack name
 export FSX_ID=`aws cloudformation describe-stacks \
     --stack-name ${STACK_ID_VPC} \
     --query 'Stacks[0].Outputs[?OutputKey==\`FSxLustreFilesystemId\`].OutputValue' \
@@ -339,12 +346,26 @@ eval $(yq e 'to_entries | .[] | "export " + .key + "=\"" + .value + "\""' ${CONF
 source ${VIRTUAL_ENV_PATH}/bin/activate # activate the environment for pcluster CLI
 ```
 
+And now retrieve additional environment variables from `parallelcluster-prerequisites` stack:
 
+```bash
+# Grab all the outputs from the CloudFormation stack in a single command and append to config.yaml
+# First create a temporary file with the stack outputs
+aws cloudformation describe-stacks \
+    --stack-name $STACK_ID_VPC \
+    --query 'Stacks[0].Outputs[?contains(@.OutputKey, ``)].{OutputKey:OutputKey, OutputValue:OutputValue}' \
+    --region ${AWS_REGION} \
+    --output json | yq e '.[] | .OutputKey + ": " + .OutputValue' - > ${CONFIG_DIR}/stack_outputs.yaml
+# Merge the stack outputs with config.yaml without duplicating entries
+yq eval-all 'select(fileIndex == 0) * select(fileIndex == 1)' ${CONFIG_DIR}/config.yaml ${CONFIG_DIR}/stack_outputs.yaml > ${CONFIG_DIR}/config_updated.yaml
+mv ${CONFIG_DIR}/config_updated.yaml ${CONFIG_DIR}/config.yaml
+rm ${CONFIG_DIR}/stack_outputs.yaml
 
-
-
-
-
+# You can also view the updated config file
+cat ${CONFIG_DIR}/config.yaml
+# Read all the environment variables we have in config.yaml
+eval $(yq e 'to_entries | .[] | "export " + .key + "=\"" + .value + "\""' ${CONFIG_DIR}/config.yaml) 
+```
 
 ### 2. Generate Cluster Configuration
 
@@ -352,7 +373,7 @@ Generate the cluster configuration using our template:
 
 ```bash
 # Generate the configuration file
-cat templates/cluster-vanilla.yaml | envsubst > ${CONFIG_DIR}/cluster-vanilla.yaml
+cat cluster-templates/cluster-vanilla.yaml | envsubst > ${CONFIG_DIR}/cluster.yaml
 ```
 
 > [!IMPORTANT]  
@@ -371,7 +392,7 @@ Deploy your cluster using the generated configuration:
 ```bash
 pcluster create-cluster \
     --cluster-name ${CLUSTER_NAME} \
-    --cluster-configuration ${CONFIG_DIR}/cluster-vanilla.yaml \
+    --cluster-configuration ${CONFIG_DIR}/cluster.yaml \
     --region ${AWS_REGION} \
     --rollback-on-failure false
 ```

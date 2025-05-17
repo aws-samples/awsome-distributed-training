@@ -1,6 +1,6 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
-
+Region: ${AWS_REGION}
 Imds:
   ImdsSupport: v2.0
 Image:
