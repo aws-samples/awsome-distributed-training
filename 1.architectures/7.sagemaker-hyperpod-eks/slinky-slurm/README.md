@@ -209,7 +209,7 @@ Following the instructions below, which are a consolidation of the full [Install
 
 Create the IAM policy to give the AWS Load Balancer Controller permission to make calls to AWS APIs on your behalf: 
 ```
-curl -O https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.12.0/docs/install/iam_policy.json
+curl -O https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/refs/heads/release-2.13/docs/install/iam_policy.json
 
 aws iam create-policy \
     --policy-name AWSLoadBalancerControllerIAMPolicy-v2.12.0 \
@@ -602,7 +602,7 @@ cat ~/.ssh/id_ed25519_slurm.pub
 # ssh-ed25519 <public-key-content> janedoe@example.com
 ```
 
-Specify the root SSH authorized key in `values.yaml`:
+Specify the root SSH authorized key in either [g5-values.yaml](./g5/g5-values.yaml) or [p5-values.yaml](./p5/p5-values.yaml):
 
 ```
 login: 
@@ -615,7 +615,7 @@ login:
 
 #### Deploy the Slurm Cluster: 
 
-Locally package and deploy the slurm cluster using the modified `values.yaml` file (either [g5-values.yaml](./g5/g5-values.yaml) or [p5-values.yaml](./p5/p5-values.yaml)):
+Locally package and deploy the slurm cluster using either [g5-values.yaml](./g5/g5-values.yaml) or [p5-values.yaml](./p5/p5-values.yaml): 
 
 Assuming you are still sitting in the `slinky-slurm` directory of the AWSome Distributed Training repo that we cloned and navigated into earlier, and assuming you cloned the Slinky repo into your home directory (adjust the path as needed), copy the Helm chart artifacts in for packaging: 
 ```

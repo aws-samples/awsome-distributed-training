@@ -76,8 +76,8 @@ jwt:
   hs256:
     #
     # -- (string)
-    # The existing secret to use otherwise one will be generated.
-    existingSecret: ""
+    # The existing secret containing the jwt_hs256.key, otherwise one will be generated.
+    secretName: ""
 
 #
 # Slurm configurations.
@@ -87,8 +87,8 @@ slurm:
   auth:
     #
     # -- (string)
-    # The existing secret to use otherwise one will be generated.
-    existingSecret: ""
+    # The existing secret containing the slurm.key, otherwise one will be generated.
+    secretName: ""
   #
   # -- (map[string]string | map[string][]string)
   # Extra slurmdbd configuration lines to append to `slurmdbd.conf`.
@@ -112,7 +112,8 @@ slurm:
   # Extra slurm configuration lines to append to `slurm.conf`, represetned as a string or a map.
   # WARNING: Values can override existing ones.
   # Ref: https://slurm.schedmd.com/slurm.conf.html
-  extraSlurmConf: {}
+  extraSlurmConf:
+    SlurmctldHost: slurm-controller
     # MinJobAge: 2
     # MaxNodeCount: 1024
     ### LOGGING ###
@@ -244,6 +245,12 @@ controller:
   # Ref: https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#priorityclass
   priorityClassName: ""
   #
+  # -- (map)
+  # Selector which must match a node's labels for the pod to be scheduled on that node.
+  # Ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector
+  nodeSelector:
+    kubernetes.io/os: linux
+  #
   # -- (object)
   # Set affinity for Kubernetes Pod scheduling.
   # Ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity
@@ -352,7 +359,7 @@ login:
   # -- (list)
   # The `/root/.ssh/authorized_keys` file to write, represented as a list.
   rootSshAuthorizedKeys:
-   - "<your-public-ssh-key-here>"
+    - "<your-public-ssh-key-here>"
   #
   # -- (map)
   # The `/etc/ssh/sshd_config` file to use, represented as a map.
@@ -461,6 +468,12 @@ login:
   # Ref: https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#priorityclass
   priorityClassName: ""
   #
+  # -- (map)
+  # Selector which must match a node's labels for the pod to be scheduled on that node.
+  # Ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector
+  nodeSelector:
+    kubernetes.io/os: linux
+  #
   # -- (object)
   # Set affinity for Kubernetes Pod scheduling.
   # Ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity
@@ -555,6 +568,7 @@ compute:
       #
       # -- (object)
       # Set affinity for Kubernetes Pod scheduling.
+      # Ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity
       affinity: {}
         # nodeAffinity:
         #   requiredDuringSchedulingIgnoredDuringExecution:
@@ -688,20 +702,14 @@ compute:
           State: UP
           MaxTime: UNLIMITED
       #
-      # -- (string)
-      # Set Slurm node GRES.
-      # Ref: https://slurm.schedmd.com/slurm.conf.html#OPT_Gres_1
-      nodeGres: ""
-      #
-      # -- (list)
-      # Set Slurm node Features as a list(string).
-      # Ref: https://slurm.schedmd.com/slurm.conf.html#OPT_Features
-      nodeFeatures: []
-      #
-      # -- (string)
-      # Set Slurm node weight for Slurm scheduling.
-      # Ref: https://slurm.schedmd.com/slurm.conf.html#OPT_Weight
-      nodeWeight: 1
+      # --(map[string]string || map[string][]string)
+      # Extra Slurm node configuration appended into the --conf arguments.
+      # WARNING: Values can override existing ones.
+      # Ref: https://slurm.schedmd.com/slurm.conf.html#lbAE
+      nodeConfig: {}
+        # Features: []
+        # Gres: []
+        # Weight: 1
   #
   # -- (list)
   # Slurm Partitions by object list.
@@ -752,6 +760,45 @@ accounting:
     # Set the image tag to use.
     tag: 24.11-ubuntu24.04
   #
+  # Configuration for an external database (e.g. mariadb, mysql).
+  external:
+    #
+    # -- (bool)
+    # Use an external database instead of creating one.
+    # WARNING: `accounting.external.enabled=true` is mutually exclusive with `mariadb.enabled=true`.
+    enabled: false
+    #
+    # -- (string)
+    # The database user to use.
+    user: slurm
+    #
+    # -- (string)
+    # The database context to use.
+    database: slurm_acct_db
+    #
+    # -- (string)
+    # The plaintext user password to the database.
+    # NOTE: ignored when secretName is not empty.
+    password: ""
+    #
+    # -- (string)
+    # The existing secret containing the user password to the database.
+    secretName: ""
+    #
+    # -- (string)
+    # The host or service to communicate with.
+    host: ""
+    #
+    # -- (integer)
+    # The database port to use.
+    port: 3306
+  #
+  # -- (map)
+  # Selector which must match a node's labels for the pod to be scheduled on that node.
+  # Ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector
+  nodeSelector:
+    kubernetes.io/os: linux
+  #
   # -- (object)
   # Set affinity for Kubernetes Pod scheduling.
   # Ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity
@@ -772,21 +819,6 @@ accounting:
     # limits:
     #   cpu: 2
     #   memory: 4Gi
-  #
-  # Configuration for an external accounting instance (slurmdbd).
-  external:
-    #
-    # -- (bool)
-    # Use an external acounting instance (slurmdbd) instead of deploying one.
-    enabled: false
-    #
-    # -- (string)
-    # The external acounting instance (slurmdbd) host.
-    host: ""
-    #
-    # -- (integer)
-    # The external acounting instance (slurmdbd) port.
-    port: 6819
 
 #
 # `bitnami/mariadb` subchart configurations.
@@ -873,6 +905,9 @@ mariadb:
     enabled: false
     serviceMonitor:
       enabled: false
+  nodeSelector:
+    kubernetes.io/os: linux
+  affinity: {}
   resources: {}
 
 #
@@ -924,6 +959,12 @@ restapi:
   # Ref: https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#priorityclass
   priorityClassName: ""
   #
+  # -- (map)
+  # Selector which must match a node's labels for the pod to be scheduled on that node.
+  # Ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector
+  nodeSelector:
+    kubernetes.io/os: linux
+  #
   # -- (object)
   # Set affinity for Kubernetes Pod scheduling.
   # Ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity
@@ -949,7 +990,7 @@ restapi:
 # `slurm-exporter` subchart configurations.
 # Ref: https://github.com/SlinkyProject/slurm-exporter/-/blob/main/helm/slurm-exporter/values.yaml
 slurm-exporter:
-  enabled: true
+  enabled: false
   exporter:
     enabled: true
     secretName: "slurm-token-exporter"
