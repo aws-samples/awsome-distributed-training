@@ -22,6 +22,12 @@ resource "aws_iam_role" "sagemaker_execution_role" {
 # Attach managed policy to the role
 resource "aws_iam_role_policy_attachment" "sagemaker_managed_policy_attachment" {
     role = aws_iam_role.sagemaker_execution_role.name
+    policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
+}
+
+# Attach managed policy to the role
+resource "aws_iam_role_policy_attachment" "sagemaker_managed_policy_attachment" {
+    role = aws_iam_role.sagemaker_execution_role.name
     policy_arn = "arn:aws:iam::aws:policy/AmazonSageMakerClusterInstanceRolePolicy"
 }
 
