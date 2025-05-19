@@ -45,22 +45,41 @@ Worker pods were built with Python 3.12.8 + PyTorch 2.6.0 + CUDA 12.6 + NCCL 2.2
 
 ### Set Up the HyperPod Cluster: 
 
-Follow the [Prerequisites](https://catalog.workshops.aws/sagemaker-hyperpod-eks/en-US/00-setup) and [Cluster Configuration](https://catalog.workshops.aws/sagemaker-hyperpod-eks/en-US/01-cluster) steps of the [HyperPod EKS Workshop](https://catalog.workshops.aws/sagemaker-hyperpod-eks/en-US). 
+Deploy the [HyperPod EKS CloudFormation Stack](https://catalog.workshops.aws/sagemaker-hyperpod-eks/en-US/00-setup/own-account/workshop-infra/02-workshop-infra-cfn). Be sure to modify the Accelerated and General Purpose instance groups as needed to deploy the desired instance type and number of nodes. 
 
-Be sure to modify the Accelerated and General Purpose instance groups as needed to deploy the desired instance type and number of nodes. 
+To test on g5 capacity using the [g5-values.yaml](./g5/g5-values.yaml) file: 
+- Set `AcceleratedInstanceType` to `ml.g5.8xlarge` (the default)
+- Set`AcceleratedInstanceCount` to `4`
 
-(Optional) Add an access entry (if needed):
+To test on p5 capacity using the [p5-values.yaml](./p5/p5-values.yaml) file: 
+- Set `AcceleratedInstanceType` to `ml.p5.48xlarge`
+- Set`AcceleratedInstanceCount` to `2`
 
+In both cases, set the `GeneralPurposeInstanceCount` to 2
+
+Run the `create_config.sh` script to set your environment variables using the output of the deployed CloudFormation stack: 
 ```
-export AWS_ACCOUNT_ID=<your-account-id-here>
+export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 
-export EKS_CLUSTER_NAME=sagemaker-hyperpod-eks-cluster
+export STACK_ID=hyperpod-eks-full-stack
 
+curl -O https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/main/1.architectures/7.sagemaker-hyperpod-eks/create_config.sh 
+
+chmod +x create_config.sh
+
+./create_config.sh
+
+source env_vars
+```
+Verify that the required environment variables are set: 
+```
+echo $AWS_ACCOUNT_ID $AWS_REGION $EKS_CLUSTER_NAME $VPC_ID $PRIVATE_SUBNET_ID $SECURITY_GROUP_ID
+```
+(Optional) Add an EKS access entry (if needed):
+```
 export ROLE_ARN=arn:aws:iam::$AWS_ACCOUNT_ID:role/<your-role-name-here>
 
 export PLCY_ARN=arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy
-
-export AWS_REGION=us-west-2
 
 aws eks create-access-entry \
  --cluster-name $EKS_CLUSTER_NAME \
@@ -88,20 +107,58 @@ kubectl get nodes
 
 ### Create an FSx for Lustre Storage Class: 
 
-Follow the [Setup FSx for Lustre File System](https://catalog.workshops.aws/sagemaker-hyperpod-eks/en-US/01-cluster/06-fsx-for-lustre) of the [HyperPod EKS Workshop](https://catalog.workshops.aws/sagemaker-hyperpod-eks/en-US). 
-
-Verify` fsx-sc` Storage Class: 
-
+Create an [IAM OpenID Connect (OIDC)](https://docs.aws.amazon.com/eks/latest/userguide/enable-iam-roles-for-service-accounts.html) identity provider for your cluster: 
 ```
-kubectl get storageclass fsx-sc -oyaml
+eksctl utils associate-iam-oidc-provider --cluster $EKS_CLUSTER_NAME --approve
+```
+Create a service account with an IAM role mapped to it for use with the FSx for Lustre CSI driver: 
+```
+eksctl create iamserviceaccount \
+  --name fsx-csi-controller-sa \
+  --namespace kube-system \
+  --cluster $EKS_CLUSTER_NAME \
+  --attach-policy-arn arn:aws:iam::aws:policy/AmazonFSxFullAccess \
+  --approve \
+  --role-name FSXLCSI-${EKS_CLUSTER_NAME}-${AWS_REGION} \
+  --region $AWS_REGION
+```
+Verify proper annotation of the service account with the IAM role ARN: 
+```
+kubectl get sa fsx-csi-controller-sa -n kube-system -oyaml
+```
+Install the [FSx for Lustre CSI Driver](https://github.com/kubernetes-sigs/aws-fsx-csi-driver) using Helm: 
+```
+helm repo add aws-fsx-csi-driver \
+ https://kubernetes-sigs.github.io/aws-fsx-csi-driver
+ 
+helm repo update
+
+helm upgrade --install aws-fsx-csi-driver \
+  --namespace kube-system \
+  --set controller.serviceAccount.create=false \
+  aws-fsx-csi-driver/aws-fsx-csi-driver
+```
+Verify instillation of the FSx for Lustre CSI driver: 
+```
+kubectl get pods -n kube-system \
+ -l app.kubernetes.io/name=aws-fsx-csi-driver
+```
+Create an FSx for Lustre storage class: 
+```
+envsubst < lustre-storageclass.yaml | kubectl apply -f -
+```
+Note: This example uses [envsubst](https://github.com/a8m/envsubst) to inject the `PRIVATE_SUBNET_ID` and `SECURITY_GROUP_ID` environment variables into the storage class Kubernetes manifest. If you don't have envsubst in your development environment, install it by following the [instructions here.](https://github.com/a8m/envsubst?tab=readme-ov-file#installation)
+
+Verify the `fsx-sc` storage class was created: 
+```
+kubectl get sc fsx-sc -oyaml
 ```
 
 * * *
 
-### Create an FSx for OpenZFS Storage Class: 
+### (Optional) Create an FSx for OpenZFS Storage Class: 
 
-Install the [OpenZFS CSI driver](https://github.com/kubernetes-sigs/aws-fsx-openzfs-csi-driver) following the steps provided below: 
-
+Create a service account with an IAM role mapped to it for use with the FSx for OpenZFS CSI driver: 
 ```
 eksctl create iamserviceaccount \
     --name fsx-openzfs-csi-controller-sa \
@@ -111,7 +168,13 @@ eksctl create iamserviceaccount \
     --approve \
     --role-name FSXOCSI-${EKS_CLUSTER_NAME}-${AWS_REGION} \
     --region $AWS_REGION
-
+```
+Verify proper annotation of the service account with the IAM role ARN: 
+```
+kubectl get sa fsx-openzfs-csi-controller-sa -n kube-system -oyaml
+```
+Install the [FSx for OpenZFS CSI driver](https://github.com/kubernetes-sigs/aws-fsx-openzfs-csi-driver) using Helm: 
+```
 helm repo add aws-fsx-openzfs-csi-driver \
     https://kubernetes-sigs.github.io/aws-fsx-openzfs-csi-driver
  
@@ -121,19 +184,20 @@ helm upgrade --install aws-fsx-openzfs-csi-driver \
     --namespace kube-system \
     --set controller.serviceAccount.create=false \
     aws-fsx-openzfs-csi-driver/aws-fsx-openzfs-csi-driver
-    
+```
+Verify instillation of the FSx for OpenZFS CSI driver: 
+```
 kubectl get pods -n kube-system \
  -l app.kubernetes.io/part-of=aws-fsx-openzfs-csi-driver
 ```
-
-Follow the [Dynamic Provisioning](https://github.com/kubernetes-sigs/aws-fsx-openzfs-csi-driver/tree/main/examples/kubernetes/dynamic-provisioning) guide to create an FSx for OpenZFS Storage Class: 
-
+Create an FSx for OpenZFS Storage Class: 
 ```
-export PRIVATE_SUBNET_ID=<your-subnet-id-here>
-export SECURITY_GROUP_ID=<your-security-group-id-here> 
+envsubst < openzfs-storageclass.yaml | kubectl apply -f -
+```
+Note: This example uses [envsubst](https://github.com/a8m/envsubst) to inject the `PRIVATE_SUBNET_ID` and `SECURITY_GROUP_ID` environment variables into the storage class Kubernetes manifest. If you don't have envsubst in your development environment, install it by following the [instructions here.](https://github.com/a8m/envsubst?tab=readme-ov-file#installation)
 
-kubectl apply -f openzfs-storageclass.yaml
-
+Verify the `openzfs-sc` storage class was created:
+```
 kubectl get sc openzfs-sc -oyaml
 ```
 
@@ -143,21 +207,17 @@ kubectl get sc openzfs-sc -oyaml
 
 Following the instructions below, which are a consolidation of the full [Install with Helm](https://docs.aws.amazon.com/eks/latest/userguide/lbc-helm.html) instructions found in the Amazon EKS documentation: 
 
+Create the IAM policy to give the AWS Load Balancer Controller permission to make calls to AWS APIs on your behalf: 
 ```
-export EKS_CLUSTER_NAME=sagemaker-hyperpod-eks-cluster
-export VPC_ID=<your-vpc-id-here>
-export AWS_REGION=us-west-2
-export AWS_ACCOUNT_ID=<your-account-id-here>
-
-# manually update crds
-kubectl apply -k "github.com/aws/eks-charts/stable/aws-load-balancer-controller/crds?ref=master"
-
 curl -O https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.12.0/docs/install/iam_policy.json
 
 aws iam create-policy \
     --policy-name AWSLoadBalancerControllerIAMPolicy-v2.12.0 \
     --policy-document file://iam_policy.json
-    
+```
+
+Create a service account with an IAM role mapped to it for use with the AWS Load Balancer Controller: 
+``` 
 eksctl create iamserviceaccount \
     --cluster=$EKS_CLUSTER_NAME \
     --namespace=kube-system \
@@ -166,7 +226,13 @@ eksctl create iamserviceaccount \
     --override-existing-serviceaccounts \
     --region $AWS_REGION \
     --approve
-    
+```
+Verify proper annotation of the service account with the IAM role ARN: 
+```
+kubectl get sa aws-load-balancer-controller -n kube-system -oyaml
+```
+Install the AWS Load Balancer Controller using Helm:
+```
 helm repo add eks https://aws.github.io/eks-charts
 helm repo update
 
@@ -177,19 +243,34 @@ helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
   --set serviceAccount.name=aws-load-balancer-controller \
   --set region=$AWS_REGION \
   --set vpcId=$VPC_ID
-  
+```
+Verify instillation of the AWS Load Balancer Controller: 
+```
 kubectl get pods -n kube-system -l app.kubernetes.io/name=aws-load-balancer-controller
-
-kubectl get sa aws-load-balancer-controller -n kube-system -oyaml
 ```
 
 * * *
 
-### Instill Slinky Prerequisites (Cert Manager and Prometheus):  
+### Instill Slinky Prerequisites:  
 
-Follow the steps included in the [Slinky QuickStart Guide | Pre-Requisites](https://github.com/SlinkyProject/slurm-operator/blob/main/docs/quickstart.md#pre-requisites) section to install Cert Manager and Prometheus. 
+Follow the steps below to install [cert-manager](https://github.com/cert-manager/cert-manager) and the [Prometheus operator](https://github.com/prometheus-operator/kube-prometheus?tab=readme-ov-file#kube-prometheus):
 
-Verify Pre-Requisites Instillation: 
+```
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo add metrics-server https://kubernetes-sigs.github.io/metrics-server/
+helm repo add bitnami https://charts.bitnami.com/bitnami
+helm repo add jetstack https://charts.jetstack.io
+
+helm repo update
+
+helm install cert-manager jetstack/cert-manager \
+	--namespace cert-manager --create-namespace --set crds.enabled=true
+
+helm install prometheus prometheus-community/kube-prometheus-stack \
+	--namespace prometheus --create-namespace --set installCRDs=true
+```
+
+Verify pre-requisite instillation: 
 
 ```
  kubectl get all -n cert-manager
@@ -230,7 +311,15 @@ To deploy the slurm cluster, we first need to make some modifications to the [va
 
 For your convenience, we've provided [g5-values.yaml](./g5/g5-values.yaml) and [p5-values.yaml](./p5/p5-values.yaml) files with most of the configuration changes mentioned below already implemented, so you'll only need to make additional changes as needed to further customize your deployment. 
 
-The two things you must minimally modify are the container image that the slurm compute nodes use ([instructions here](#build-and-set-the-compute-node-container-image)) and the root ssh key used for accessing the login node ([instructions here](#login-access)).  
+The following was tested in two infrastructure scenarios for hosting the compute NodeSet pods:
+1. On 4 `g5.8xlarge` instances (1 A10G Tensor Core GPU each) using the [g5-values.yaml](./g5/g5-values.yaml) file
+2. On 2 `p5.48xlarge` instances (8 H100 Tensor Core GPUs each) with EFAv2 using the [p5-values.yaml](./p5/p5-values.yaml) file
+
+For simplicity, 2 `m5.2xlarge` instances were also allocated for separately hosting other components like the Controller and Login pods. You can adjust the number and type of instances associated with your HyperPod cluster, as well as the component affinity rules in the respective [g5-values.yaml](./g5/g5-values.yaml) or [p5-values.yaml](./p5/p5-values.yaml) files to modify how they are spread across your nodes. 
+
+The two things you must minimally modify are:
+- The container image that the slurm compute nodes use ([instructions here](#build-and-set-the-compute-node-container-image))
+- The root ssh key used for accessing the login node ([instructions here](#login-access)) 
 
 ---
 
@@ -240,7 +329,7 @@ Clone the Slurm Operator repository, which also contains the Helm chart artifact
 git clone https://github.com/SlinkyProject/slurm-operator.git
 ```
 
-Clone the AWSome Distributed Training repo to use the [values.yaml](./values.yaml) file we've provided:
+Clone the AWSome Distributed Training repo to use the [g5-values.yaml](./g5/g5-values.yaml) or [p5-values.yaml](./p5/p5-values.yaml) file we've provided:
 ```
 git clone https://github.com/aws-samples/awsome-distributed-training.git
 
@@ -262,7 +351,7 @@ export GEN_INSTANCE_TYPE=ml.m5.2xlarge
 
 kubectl get nodes -l node.kubernetes.io/instance-type=$GEN_INSTANCE_TYPE
 ```
-For each non-compute component, we apply both a Node Affinity and a Pod Anti-affinity in [values.yaml](./values.yaml) to ensure they are hosted only on the 2 `m5.2xlarge` instances while also being evenly spread between the hosts. 
+For each non-compute component, we apply both a Node Affinity and a Pod Anti-affinity in [g5-values.yaml](./g5/g5-values.yaml) and [p5-values.yaml](./p5/p5-values.yaml) to ensure they are hosted only on the 2 `m5.2xlarge` instances while also being evenly spread between the hosts. 
 
 ```
 # Inter-pod anti-affinity and node affinity for non-compute components
@@ -304,7 +393,7 @@ ACCEL_INSTANCE_TYPE=ml.p5.48xlarge
  kubectl get nodes -l node.kubernetes.io/instance-type=$ACCEL_INSTANCE_TYPE
 ```
 
-The instance type label is used as a node selector to ensure the compute pods only run on either the `ml.g5.8xlarge` or `ml.p5.48xlarge` GPU accelerated instances:  
+The instance type label is used as a node selector to ensure the compute nodes only run on either the `ml.g5.8xlarge` or `ml.p5.48xlarge` GPU accelerated instances:  
 
 ```
 # for g5 instances
@@ -370,9 +459,7 @@ kubectl get pv $(kubectl get pvc fsx-claim  -n slurm -ojson \
 ```
 kubectl apply -f openzfs-pvc-slurm.yaml
 ```
-
 Verify FSx for OpenZFS PVC creation: 
-
 ```
 kubectl get pvc -n slurm
 
@@ -386,7 +473,7 @@ kubectl get pv $(kubectl get pvc openzfs-claim -n slurm -ojson \
  | jq -r .spec.csi.volumeHandle
 ```
 
-FSx for Lustre and OpenZFS PVCs are added to the list of `extraVolumeMounts` and `extraVolumes` for both the login service and compute nodes:
+FSx for Lustre and OpenZFS PVCs are added to the list of `extraVolumeMounts` and `extraVolumes` for both the login service and compute nodes in [g5-values.yaml](./g5/g5-values.yaml) and [p5-values.yaml](./p5/p5-values.yaml): 
 
 ```
 login:
@@ -435,10 +522,10 @@ Note that for the compute nodes we've also added `/dev/shm` to provide access to
 
 #### Configure Compute Node Resources:
 
-Note: limits are required, otherwise the compute nodes will not deploy. 
+ You'll find the compute nodes pre-configured with the following resources: 
 
+In [g5-values.yaml](./g5/g5-values.yaml#L544):
 ```
-# for g5 instances 
 compute: 
     nodesets: 
         - name: hp-node
@@ -450,7 +537,9 @@ compute:
                 nvidia.com/gpu: "1"
         ...
 
-# for p5 instances 
+```
+In [p5-values.yaml](./p5/p5-values.yaml#L539):
+```
 compute: 
     nodesets: 
         - name: hp-node
@@ -464,7 +553,7 @@ compute:
               vpc.amazonaws.com/efa: 16
         ...
 ```
-Note that for p5 capacity, we are allocating half the available GPU and EFA network interfaces to each pod so that two pods can run on one instances. This can be adjusted to accomodate other pod topologies. 
+Note that for p5 capacity, we are allocating half the available GPUs (4 of 8) and EFA network interfaces (16 of 32) to each pod so that two pods can run on one `ml.p5.48xlarge` instances. This can be adjusted to accomodate other pod topologies. 
 
 ---
 
@@ -821,24 +910,40 @@ watch -n 5 -d "ls -lh checkpoints"
 
 ### Clean Up:
 
+(Optional) From the login pod, clear out the checkpoints and logs directories as needed to make room for additional training runs:
 ```
+cd /fsx/awsome-distributed-training/3.test_cases/pytorch/FSDP/slurm
+
 rm -rf checkpoints/*
 
 rm -rf logs/*
 
+exit
+```
+Uninstall the Slurm cluster and the Slurm operator:
+```
 helm uninstall slurm -n slurm 
 helm uninstall slurm-operator -n slinky
-
+```
+Uninstall the Prometheus operator and cert-manager:
+```
 helm uninstall prometheus -n prometheus
 helm uninstall cert-manager -n cert-manager
-
+```
+Delete the FSx persistent volume claims: 
+```
 kubectl delete pvc fsx-claim -n slurm
-kubectl delete pvc openzfs-claim
-
+kubectl delete pvc openzfs-claim -n slurm
+```
+Delete the FSx storage classes: 
+```
+kubectl delete sc fsx-sc
+kubectl delete sc openzfs-sc
+```
+Uninstall the FSx CSI drivers and delete the IAM roles mapped to their service accounts:
+```
 helm uninstall aws-fsx-csi-driver -n kube-system
 helm uninstall aws-fsx-openzfs-csi-driver -n kube-system
-
-helm uninstall aws-load-balancer-controller -n kube-system
 
 eksctl delete iamserviceaccount \
   --name fsx-csi-controller-sa \
@@ -849,9 +954,20 @@ eksctl delete iamserviceaccount \
   --name fsx-openzfs-csi-controller-sa \
   --namespace kube-system \
   --cluster $EKS_CLUSTER_NAME
+```
+Uninstall the AWS Load Balancer Controller and delete the IAM role mapped to its service account:
+```
+helm uninstall aws-load-balancer-controller -n kube-system
 
 eksctl delete iamserviceaccount \
   --name aws-load-balancer-controller \
   --namespace kube-system \
   --cluster $EKS_CLUSTER_NAME
+
+aws iam delete-policy --policy-arn arn:aws:iam::$AWS_ACCOUNT_ID:policy/AWSLoadBalancerControllerIAMPolicy-v2.12.0
+```
+
+Delete the HyperPod EKS CloudFormation stack: 
+```
+aws cloudformation delete-stack --stack-name $STACK_ID --region $AWS_REGION
 ```
