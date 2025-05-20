@@ -22,7 +22,7 @@ spec:
       image: '${IMAGE_URI}'
       command:
         - python 
-        - merge_lora.py 
+        - merge_lora_weights.py 
         - --final_model_path=${FINAL_MODEL_PATH}
         - --adapter_config_path=${CHECKPOINT_DIR}/checkpoint-${MAX_TRAINING_STEPS}/adapter_config.json
         - --base_model_path=${MODEL_OUTPUT_PATH}
