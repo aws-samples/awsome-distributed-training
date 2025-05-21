@@ -1,0 +1,20 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: fsx-sc
+provisioner: fsx.csi.aws.com
+parameters:
+  subnetId: ${FSX_SUBNET_ID}  # Replace with your subnet ID
+  securityGroupIds: ${FSX_SECURITY_GROUP_ID}  # Replace with your security group ID
+  deploymentType: PERSISTENT_2
+  perUnitStorageThroughput: 250
+  automaticBackupRetentionDays: "0"
+  copyTagsToBackups: "false"
+  dailyAutomaticBackupStartTime: "03:00"
+  dataCompressionType: "NONE"
+  driveCacheType: "READ"
+  exportPath: /fsx
+  importedFileChunkSize: "1024"
+  weeklyMaintenanceStartTime: "1:00:00"
+reclaimPolicy: Retain
+volumeBindingMode: Immediate 
