@@ -51,12 +51,13 @@ if [[ -f /opt/slurm/etc/cgroup.conf ]]; then
         || echo "ConstrainDevices=yes" >> /opt/slurm/etc/cgroup.conf
 fi
 
-# Check and install packages with specific versions
+# Check for libnvidia-container-tools versions https://github.com/NVIDIA/nvidia-container-toolkit/issues/1093
 if dpkg -l | grep libnvidia-container-tools | grep -q "1.17.6-1"; then
-    echo "Correct version of libnvidia-container-tools already installed"
+    echo "Version 1.17.6-1 of libnvidia-container-tools already installed, proceeding with script. This version is pinned to avoid known issue with newer versions as of 05/21/2025. For more info: https://github.com/NVIDIA/nvidia-container-toolkit/issues/1093"
 else
     apt_install_with_retry "squashfs-tools parallel libnvidia-container-tools=1.17.6-1"
     sudo apt-mark hold nvidia-container-toolkit nvidia-container-runtime libnvidia-container-tools libnvidia-container1
+    echo "Installed 1.17.6-1 of libnvidia-container-tools already, proceeding with script. This version is pinned to avoid known issue with newer versions as of 05/21/2025. For more info: https://github.com/NVIDIA/nvidia-container-toolkit/issues/1093"
 fi
 
 apt_install_with_retry "fuse-overlayfs squashfuse"
