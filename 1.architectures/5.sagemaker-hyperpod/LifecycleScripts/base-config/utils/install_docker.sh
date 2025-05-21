@@ -40,6 +40,8 @@ curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --yes 
     sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
 sudo apt update
 sudo apt-get install -y -o DPkg::Lock::Timeout=120 nvidia-container-toolkit=${NVIDIA_CONTAINER_TLK_VERSION} nvidia-container-toolkit-base=${NVIDIA_CONTAINER_TLK_VERSION} libnvidia-container-tools=${NVIDIA_CONTAINER_TLK_VERSION} libnvidia-container1=${NVIDIA_CONTAINER_TLK_VERSION}
+# Lock nvidia-container-toolkit version
+sudo apt-mark hold nvidia-container-toolkit nvidia-container-toolkit-base libnvidia-container-tools libnvidia-container1
 
 # add user to docker group
 sudo usermod -aG docker ubuntu
