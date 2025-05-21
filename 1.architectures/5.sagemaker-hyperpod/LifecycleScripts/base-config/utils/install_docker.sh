@@ -32,12 +32,17 @@ chmod g+s $(which docker)
 systemctl enable docker.service
 systemctl start docker.service
 
-# install nvidia docker toolkit
+# install nvidia docker toolkit 
+### Temp fix to pin nvidia-container-toolkit to v1.17.6-1 due to this known issue: https://github.com/NVIDIA/nvidia-container-toolkit/issues/1093
+export NVIDIA_CONTAINER_TLK_VERSION="1.17.6-1"
 curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --yes --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg \
   && curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
     sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
     sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
-sudo apt-get install -y -o DPkg::Lock::Timeout=120 nvidia-container-toolkit
+sudo apt update
+sudo apt-get install -y -o DPkg::Lock::Timeout=120 nvidia-container-toolkit=${NVIDIA_CONTAINER_TLK_VERSION} nvidia-container-toolkit-base=${NVIDIA_CONTAINER_TLK_VERSION} libnvidia-container-tools=${NVIDIA_CONTAINER_TLK_VERSION} libnvidia-container1=${NVIDIA_CONTAINER_TLK_VERSION}
+# Lock nvidia-container-toolkit version
+sudo apt-mark hold nvidia-container-toolkit nvidia-container-toolkit-base libnvidia-container-tools libnvidia-container1
 
 # add user to docker group
 sudo usermod -aG docker ubuntu
@@ -143,31 +148,12 @@ chmod g+s $(which docker)
 systemctl enable docker.service
 systemctl start docker.service
 
-#################################################################################################################################################
-### Temp fix to pin nvidia-container-toolkit to v1.17.6-1 due to this known issue: https://github.com/NVIDIA/nvidia-container-toolkit/issues/1093
 # Install nvidia docker toolkit with retry
 retry_with_backoff 5 5 60 "curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --yes --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg"
-
 retry_with_backoff 5 5 60 "curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
     sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
     sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list"
-
-# Update package list
-sudo apt-get update
-
-# Install specific version
-sudo apt-get install -y -o DPkg::Lock::Timeout=120 \
-    nvidia-container-toolkit=1.17.6-1 \
-    nvidia-container-runtime=3.17.6-1 \
-    libnvidia-container-tools=1.17.6-1 \
-    libnvidia-container1=1.17.6-1
-
-# Hold the package version to prevent automatic updates
-sudo apt-mark hold nvidia-container-toolkit nvidia-container-runtime libnvidia-container-tools libnvidia-container1
-
-###################################################################################################################################################
-
-
+sudo apt-get install -y -o DPkg::Lock::Timeout=120 nvidia-container-toolkit
 
 # add user to docker group
 sudo usermod -aG docker ubuntu
