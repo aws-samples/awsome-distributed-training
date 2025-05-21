@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# This file assumes that install_docker.sh script was executed prior.
 set -e
 
 BIN_DIR=$(dirname $(readlink -e ${BASH_SOURCE[0]}))
@@ -52,7 +53,7 @@ if [[ -f /opt/slurm/etc/cgroup.conf ]]; then
 fi
 
 # Install packages with retry
-apt_install_with_retry "squashfs-tools parallel libnvidia-container-tools"
+apt_install_with_retry "squashfs-tools parallel"
 apt_install_with_retry "fuse-overlayfs squashfuse"
 
 SLURM_INSTALL_DIR='/opt/slurm'
