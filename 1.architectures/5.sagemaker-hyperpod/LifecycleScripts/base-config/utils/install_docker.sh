@@ -33,11 +33,13 @@ systemctl enable docker.service
 systemctl start docker.service
 
 # install nvidia docker toolkit
+export NVIDIA_CONTAINER_TLK_VERSION="1.17.6-1"
 curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --yes --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg \
   && curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
     sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
     sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
-sudo apt-get install -y -o DPkg::Lock::Timeout=120 nvidia-container-toolkit
+sudo apt update
+sudo apt-get install -y -o DPkg::Lock::Timeout=120 nvidia-container-toolkit=${NVIDIA_CONTAINER_TLK_VERSION} nvidia-container-toolkit-base=${NVIDIA_CONTAINER_TLK_VERSION} libnvidia-container-tools=${NVIDIA_CONTAINER_TLK_VERSION} libnvidia-container1=${NVIDIA_CONTAINER_TLK_VERSION}
 
 # add user to docker group
 sudo usermod -aG docker ubuntu
