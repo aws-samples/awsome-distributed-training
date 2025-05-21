@@ -51,8 +51,14 @@ if [[ -f /opt/slurm/etc/cgroup.conf ]]; then
         || echo "ConstrainDevices=yes" >> /opt/slurm/etc/cgroup.conf
 fi
 
-# Install packages with retry
-apt_install_with_retry "squashfs-tools parallel libnvidia-container-tools"
+# Check and install packages with specific versions
+if dpkg -l | grep libnvidia-container-tools | grep -q "1.17.6-1"; then
+    echo "Correct version of libnvidia-container-tools already installed"
+else
+    apt_install_with_retry "squashfs-tools parallel libnvidia-container-tools=1.17.6-1"
+    sudo apt-mark hold nvidia-container-toolkit nvidia-container-runtime libnvidia-container-tools libnvidia-container1
+fi
+
 apt_install_with_retry "fuse-overlayfs squashfuse"
 
 SLURM_INSTALL_DIR='/opt/slurm'
@@ -175,3 +181,9 @@ fi
 # Restart Slurm services if they're running
 retry_with_backoff 5 5 60 "systemctl is-active --quiet slurmctld && systemctl restart slurmctld || echo 'This instance does not run slurmctld'"
 retry_with_backoff 5 5 60 "systemctl is-active --quiet slurmd && systemctl restart slurmd || echo 'This instance does not run slurmd'"
+
+# Final check to ensure NVIDIA Container Toolkit version hasn't changed
+if ! dpkg -l | grep libnvidia-container-tools | grep -q "1.17.6-1"; then
+    echo "WARNING: libnvidia-container-tools version changed from expected 1.17.6-1"
+    exit 1
+fi

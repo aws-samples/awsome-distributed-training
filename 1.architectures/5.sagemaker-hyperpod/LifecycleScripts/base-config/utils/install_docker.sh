@@ -143,12 +143,31 @@ chmod g+s $(which docker)
 systemctl enable docker.service
 systemctl start docker.service
 
+#################################################################################################################################################
+### Temp fix to pin nvidia-container-toolkit to v1.17.6-1 due to this known issue: https://github.com/NVIDIA/nvidia-container-toolkit/issues/1093
 # Install nvidia docker toolkit with retry
 retry_with_backoff 5 5 60 "curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --yes --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg"
+
 retry_with_backoff 5 5 60 "curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
     sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
     sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list"
-sudo apt-get install -y -o DPkg::Lock::Timeout=120 nvidia-container-toolkit
+
+# Update package list
+sudo apt-get update
+
+# Install specific version
+sudo apt-get install -y -o DPkg::Lock::Timeout=120 \
+    nvidia-container-toolkit=1.17.6-1 \
+    nvidia-container-runtime=3.17.6-1 \
+    libnvidia-container-tools=1.17.6-1 \
+    libnvidia-container1=1.17.6-1
+
+# Hold the package version to prevent automatic updates
+sudo apt-mark hold nvidia-container-toolkit nvidia-container-runtime libnvidia-container-tools libnvidia-container1
+
+###################################################################################################################################################
+
+
 
 # add user to docker group
 sudo usermod -aG docker ubuntu
