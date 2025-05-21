@@ -32,7 +32,7 @@ chmod g+s $(which docker)
 systemctl enable docker.service
 systemctl start docker.service
 
-# install nvidia docker toolkit
+# install nvidia docker toolkit, pinning to version 1.17.6-1 due to known issue https://github.com/NVIDIA/nvidia-container-toolkit/issues/1093
 export NVIDIA_CONTAINER_TLK_VERSION="1.17.6-1"
 curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --yes --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg \
   && curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
@@ -42,6 +42,10 @@ sudo apt update
 sudo apt-get install -y -o DPkg::Lock::Timeout=120 nvidia-container-toolkit=${NVIDIA_CONTAINER_TLK_VERSION} nvidia-container-toolkit-base=${NVIDIA_CONTAINER_TLK_VERSION} libnvidia-container-tools=${NVIDIA_CONTAINER_TLK_VERSION} libnvidia-container1=${NVIDIA_CONTAINER_TLK_VERSION}
 # Lock nvidia-container-toolkit version
 sudo apt-mark hold nvidia-container-toolkit nvidia-container-toolkit-base libnvidia-container-tools libnvidia-container1
+
+# Print NV_COTNAINER_TLK_VERSIONS to logs 
+echo "Expected NV_TLK_VERSION: ${NVIDIA_CONTAINER_TLK_VERSION}"
+echo "Installed NV_TLK_VERSION: $(dpkg -l nvidia-container-toolkit | awk '/nvidia-container-toolkit/ {print $3}')"
 
 # add user to docker group
 sudo usermod -aG docker ubuntu
