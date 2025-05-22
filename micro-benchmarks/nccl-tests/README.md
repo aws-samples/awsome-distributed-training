@@ -35,20 +35,21 @@ The NCCL tests are packaged in a container.
 
 > | Variable              | Default     | Repository                                                                                  |
 > |-----------------------|-------------|---------------------------------------------------------------------------------------------|
+> |`CUDA_VERSION`         | `12.8.1`    |                                                                                             |
 > |`GDRCOPY_VERSION`      | `v2.4.4`    | [link](https://github.com/NVIDIA/gdrcopy)                                                   |
-> |`EFA_INSTALLER_VERSION`| `1.38.1`    | [link](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa-start.html#efa-start-enable) |
-> |`AWS_OFI_NCCL_VERSION` | `v1.14.0-aws`| [link](https://github.com/aws/aws-ofi-nccl)                                                 |
-> |`NCCL_VERSION`         | `v2.26.2-1` | [link](https://github.com/NVIDIA/nccl)                                                      |
-> |`NCCL_TESTS_VERSION`   | `v2.14.1`   | [link](https://github.com/NVIDIA/nccl-tests)                                                |
+> |`EFA_INSTALLER_VERSION`| `1.41.0`    | [link](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa-start.html#efa-start-enable) |
+> |`AWS_OFI_NCCL_VERSION` | `v1.14.2`   | [link](https://github.com/aws/aws-ofi-nccl)                                                 |
+> |`NCCL_VERSION`         | `v2.26.6-1` | [link](https://github.com/NVIDIA/nccl)                                                      |
+> |`NCCL_TESTS_VERSION`   | `v2.15.2`   | [link](https://github.com/NVIDIA/nccl-tests)                                                |
 
 You must pick each version of the library and set them as variables before proceed:
 
 ```bash
 GDRCOPY_VERSION=v2.4.4
-EFA_INSTALLER_VERSION=1.38.1
-AWS_OFI_NCCL_VERSION=v1.14.0
-NCCL_VERSION=v2.26.2-1
-NCCL_TESTS_VERSION=v2.14.1
+EFA_INSTALLER_VERSION=1.41.0
+AWS_OFI_NCCL_VERSION=v1.14.2
+NCCL_VERSION=v2.26.6-1
+NCCL_TESTS_VERSION=v2.15.2
 TAG="efa${EFA_INSTALLER_VERSION}-ofi${AWS_OFI_NCCL_VERSION}-nccl${NCCL_VERSION}-tests${NCCL_TESTS_VERSION}"
 CONTAINER_IMAGE_NAME_TAG="nccl-tests:${TAG}"
 ```
@@ -73,7 +74,7 @@ If you wish to build the containar image by yourself, follow this section. Alter
    REPOSITORY               TAG                        IMAGE ID       CREATED         SIZE
    nccl                     latest                     6e981e5cf6a5   5 hours ago     8.61GB
    ...
-   nvidia/cuda              12.2.0-devel-ubuntu20.04   a86c511c87e1   2 weeks ago     6.56GB
+   nvidia/cuda              12.8.1-devel-ubuntu22.04   a86c511c87e1   2 weeks ago     6.56GB
    ```
 
 ### Slurm
