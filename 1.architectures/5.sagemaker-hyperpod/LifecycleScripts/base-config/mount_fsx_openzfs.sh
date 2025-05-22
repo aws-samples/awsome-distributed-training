@@ -78,10 +78,10 @@ install_nfs_client()
 {
     if [ -f /etc/lsb-release ]; then
         # Ubuntu
-        retry_with_backoff $MAX_ATTEMPTS $INITIAL_BACKOFF "ansible ********* -b -m ansible.builtin.apt -a 'name=nfs-common state=present update_cache=yes'"
+        retry_with_backoff $MAX_ATTEMPTS $INITIAL_BACKOFF "ansible localhost -b -m ansible.builtin.apt -a 'name=nfs-common state=present update_cache=yes'"
     elif [ -f /etc/redhat-release ]; then
         # CentOS/RHEL
-        retry_with_backoff $MAX_ATTEMPTS $INITIAL_BACKOFF "ansible ********* -b -m ansible.builtin.yum -a 'name=nfs-utils state=present'"
+        retry_with_backoff $MAX_ATTEMPTS $INITIAL_BACKOFF "ansible localhost -b -m ansible.builtin.yum -a 'name=nfs-utils state=present'"
     fi
 }
 
@@ -93,7 +93,7 @@ mount_fs()
         mkdir -p "$OPENZFS_MOUNT_POINT"
     fi
 
-    retry_with_backoff $MAX_ATTEMPTS $INITIAL_BACKOFF "ansible ********* -b -m ansible.posix.mount -a \"path=$OPENZFS_MOUNT_POINT src=$FSX_OPENZFS_DNS_NAME:/fsx fstype=nfs opts=nfsvers=$NFS_VERSION,_netdev,nconnect=16,x-systemd.automount,x-systemd.requires=network-online.target dump=0 passno=0 state=mounted\""
+    retry_with_backoff $MAX_ATTEMPTS $INITIAL_BACKOFF "ansible localhost -b -m ansible.posix.mount -a \"path=$OPENZFS_MOUNT_POINT src=$FSX_OPENZFS_DNS_NAME:/fsx fstype=nfs opts=nfsvers=$NFS_VERSION,_netdev,nconnect=16,x-systemd.automount,x-systemd.requires=network-online.target dump=0 passno=0 state=mounted\""
 }
 
 # Verify mount was successful
