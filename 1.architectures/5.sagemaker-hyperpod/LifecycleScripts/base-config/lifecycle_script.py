@@ -160,6 +160,8 @@ def main(args):
     params = ProvisioningParameters(args.provisioning_parameters)
     resource_config = ResourceConfig(args.resource_config)
 
+    ExecuteBashScript("./utils/install_ansible.sh").run()
+
     fsx_dns_name, fsx_mountname = params.fsx_settings
     if fsx_dns_name and fsx_mountname:
         print(f"Mount fsx: {fsx_dns_name}. Mount point: {fsx_mountname}")
@@ -206,7 +208,10 @@ def main(args):
 
         # Only configure home directory on FSx if either FSx Lustre or FSx OpenZFS is configured and provided in the provisioning params
         if (fsx_dns_name and fsx_mountname) or (Config.enable_fsx_openzfs and fsx_openzfs_dns_name):
-            ExecuteBashScript("./utils/fsx_ubuntu.sh").run()
+            if Config.enable_fsx_openzfs and fsx_openzfs_dns_name:
+                ExecuteBashScript("./utils/fsx_ubuntu.sh").run(1)
+            else:
+                ExecuteBashScript("./utils/fsx_ubuntu.sh").run(0)
 
         ExecuteBashScript("./start_slurm.sh").run(node_type, ",".join(controllers))
         ExecuteBashScript("./utils/gen-keypair-ubuntu.sh").run()
