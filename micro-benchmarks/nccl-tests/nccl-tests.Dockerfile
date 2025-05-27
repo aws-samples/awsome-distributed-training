@@ -120,7 +120,7 @@ RUN git clone -b ${NCCL_TESTS_VERSION} https://github.com/NVIDIA/nccl-tests.git 
     MPI_HOME=/opt/amazon/openmpi/ \
     CUDA_HOME=/usr/local/cuda \
     NCCL_HOME=/opt/nccl/build \
-    NVCC_GENCODE="-gencode=arch=compute_80,code=sm_80 -gencode=arch=compute_86,code=sm_86 -gencode=arch=compute_89,code=sm_89 -gencode=arch=compute_90,code=sm_90"
+    NVCC_GENCODE="-gencode=arch=compute_80,code=sm_80 -gencode=arch=compute_86,code=sm_86 -gencode=arch=compute_89,code=sm_89 -gencode=arch=compute_90,code=sm_90 -gencode=arch=compute_100,code=sm_100"
 
 RUN rm -rf /var/lib/apt/lists/*
 
