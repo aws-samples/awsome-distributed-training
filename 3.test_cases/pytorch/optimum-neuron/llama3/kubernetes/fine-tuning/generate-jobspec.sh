@@ -39,7 +39,6 @@ export MAX_TRAINING_STEPS=1200
 # Generate the final yaml files from templates
 for template in tokenize_data compile_peft launch_peft_train consolidation merge_lora; do
     cat templates/${template}.yaml-template | envsubst > ${template}.yaml
-    chmod +x ${template}.yaml
 done
 
 echo "Generated all YAML files successfully."

@@ -24,9 +24,7 @@ Begin by downloading the training scripts from the aws-awesome-distributed repo:
 cd ~/
 git clone https://github.com/aws-samples/awsome-distributed-training
 
-mkdir ~/peft_ft 
-cd ~/peft_ft
-cp -r ~/awsome-distributed-training/3.test_cases/pytorch/optimum-neuron/llama3/slurm/fine-tuning/submit_jobs .
+cd ~/awsome-distributed-training/3.test_cases/pytorch/optimum-neuron/llama3/slurm/fine-tuning
 ```
 
 ## Step 2: Setup Python Environment
