@@ -88,16 +88,26 @@ If you'd like to instead use your own dataset, you can do so by [formatting it a
 
 Generate the Kubernetes manifest and apply it to the cluster.
 
-```bash
+Create environment variables:
+
+``` bash
+cat << EOF > env_vars
 export IMAGE_URI=${REGISTRY}fsdp:pytorch2.5.1
 export INSTANCE_TYPE=
 export NUM_NODES=
 export GPU_PER_NODE=
 export EFA_PER_NODE=
 export FI_PROVIDER=efa
-cat llama2_7b-fsdp.yaml | envsubst > llama2_7b-fsdp.yaml
+EOF
+```
+Please fill in `env_vars` and then source variables:
+``` bash
+source env_vars
+```
 
-kubectl apply -f ./llama2_7b-fsdp.yaml
+Apply yaml:
+``` bash
+envsubst < llama2_7b-fsdp.yaml | kubectl apply -f - 
 ```
 
 EFA level variables are available for adjustment in fsdp.yaml-template
@@ -120,7 +130,6 @@ NAME   STATE     AGE
 fsdp   Running   5m
 
 NAME                    READY   STATUS    RESTARTS        AGE
-etcd-7787559c74-l9g92   1/1     Running   0               5m
 fsdp-worker-0           1/1     Running   0               5m
 fsdp-worker-1           1/1     Running   0               5m
 fsdp-worker-2           1/1     Running   0               5m
