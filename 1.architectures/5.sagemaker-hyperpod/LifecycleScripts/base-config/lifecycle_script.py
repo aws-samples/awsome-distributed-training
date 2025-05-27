@@ -205,7 +205,11 @@ def main(args):
 
         ExecuteBashScript("./apply_hotfix.sh").run(node_type)
         ExecuteBashScript("./utils/motd.sh").run(node_type, ",".join(head_node_ip), ",".join(login_node_ip))
-        ExecuteBashScript("./utils/fsx_ubuntu.sh").run()
+
+        # Only configure home directory on FSx if either FSx Lustre or FSx OpenZFS is configured and provided in the provisioning params
+        if (fsx_dns_name and fsx_mountname) or (Config.enable_fsx_openzfs and fsx_openzfs_dns_name):
+            ExecuteBashScript("./utils/fsx_ubuntu.sh").run()
+
         ExecuteBashScript("./start_slurm.sh").run(node_type, ",".join(controllers))
         ExecuteBashScript("./utils/gen-keypair-ubuntu.sh").run()
         ExecuteBashScript("./utils/ssh-to-compute.sh").run()
