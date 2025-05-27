@@ -60,6 +60,7 @@ resource "aws_iam_policy" "sagemaker_execution_policy" {
           "ecr:GetAuthorizationToken",
           "ecr:GetDownloadUrlForLayer",
           "eks-auth:AssumeRoleForPodIdentity"
+          "cloudwatch:DescribeAlarms"
         ]
         Resource = "*"
       },
