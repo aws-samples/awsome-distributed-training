@@ -207,9 +207,9 @@ def main(args):
         # Only configure home directory on FSx if either FSx Lustre or FSx OpenZFS is configured and provided in the provisioning params
         if (fsx_dns_name and fsx_mountname) or (Config.enable_fsx_openzfs and fsx_openzfs_dns_name):
             if Config.enable_fsx_openzfs and fsx_openzfs_dns_name:
-                ExecuteBashScript("./utils/fsx_ubuntu.sh").run(1)
+                ExecuteBashScript("./utils/fsx_ubuntu.sh").run("1")
             else:
-                ExecuteBashScript("./utils/fsx_ubuntu.sh").run(0)
+                ExecuteBashScript("./utils/fsx_ubuntu.sh").run("0")
 
         ExecuteBashScript("./start_slurm.sh").run(node_type, ",".join(controllers))
         ExecuteBashScript("./utils/gen-keypair-ubuntu.sh").run()
