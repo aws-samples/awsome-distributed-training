@@ -93,14 +93,14 @@ Create environment variables:
 ``` bash
 cat << EOF > env_vars
 export IMAGE_URI=${REGISTRY}fsdp:pytorch2.5.1
-export INSTANCE_TYPE=
-export NUM_NODES=
-export GPU_PER_NODE=
-export EFA_PER_NODE=
+export INSTANCE_TYPE=<INSTANCE TYPE>
+export NUM_NODES=<NUMBER OF NODES>
+export GPU_PER_NODE=<NUMBER OF GPUS PER NODE>
+export EFA_PER_NODE=<NUMBER OF EFA PER NODE>
 export FI_PROVIDER=efa
 EOF
 ```
-Please fill in `env_vars` and then source variables:
+Fill in `env_vars` and then source variables:
 ``` bash
 source env_vars
 ```

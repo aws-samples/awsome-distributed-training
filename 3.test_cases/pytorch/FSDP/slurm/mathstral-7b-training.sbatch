@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: MIT-0
 
 #SBATCH --nodes=4 # number of nodes to use
-#SBATCH --job-name=llama2_13b-FSDP # name of your job
+#SBATCH --job-name=mathstral-7b-FSDP # name of your job
 #SBATCH --output=logs/%x_%j.out # logfile for stdout
 #SBATCH --error=logs/%x_%j.err # logfile for stderr, remove it to merge both outputs
 #SBATCH --exclusive # job has exclusive use of the resource, no sharing
@@ -78,28 +78,50 @@ export TORCHRUN=torchrun
 export TRAIN_SCRIPT=./train.py
 
 ############################
-# llama2_13b Training Params ##
+# mathstral-7b Training Params ##
 ############################
 
 declare -a TRAINING_ARGS=(
-    --max_context_width=4096
-    --num_key_value_heads=40
-    --intermediate_size=13824
-    --hidden_width=5120
-    --num_layers=40
-    --num_heads=40
-    --model_type=llama_v2
-    --tokenizer="hf-internal-testing/llama-tokenizer"
-    --checkpoint_freq=5000
-    --validation_freq=500
-    --max_steps=5000
-    --checkpoint_dir=./checkpoints
-    --dataset='allenai/c4'
-    --dataset_config_name='en'
-    --resume_from_checkpoint=./checkpoints
-    --train_batch_size=1
-    --val_batch_size=1
-    --sharding_strategy="full" # https://pytorch.org/docs/stable/fsdp.html
+    --train_batch_size=1 
+    --val_batch_size=1 
+    --max_steps=5000 
+    --seed=42 
+    --grad_clip=1.0 
+    --weight_decay=0.2 
+    --beta1=0.9 
+    --beta2=0.95 
+    --activation_checkpointing=1 
+    --intermediate_size=14336 
+    --num_key_value_heads=8 
+    --logging_freq=1 
+    --max_context_width=32768 
+    --vocab_size=32768 
+    --hidden_width=4096 
+    --num_layers=32 
+    --num_heads=32 
+    --resid_pdrop=0.1 
+    --embd_pdrop=0.1 
+    --attn_pdrop=0.1 
+    --summary_first_pdrop=0.1 
+    --initializer_range=0.02 
+    --model_type=mistral 
+    --rotary_pct=0.25 
+    --rotary_emb_base=10000 
+    --lr=0.0001 
+    --lr_decay_style=cosine 
+    --min_lr=1e-5 
+    --warmup=0.0032 
+    --plateau=0.0 
+    --dataset=allenai/c4 
+    --tokenizer=mistralai/mathstral-7B-v0.1 
+    --epochs=3 
+    --checkpoint_dir=./checkpoints/mathstral-7B 
+    --resume_from_checkpoint=./checkpoints/mathstral-7B 
+    --checkpoint_freq=50 
+    --validation_freq=500 
+    --dataset_config_name=en 
+    --limit_all_gathers=1 
+    --sharding_strategy=full  # https://pytorch.org/docs/stable/fsdp.html
     --offload_activations=1
 )
 

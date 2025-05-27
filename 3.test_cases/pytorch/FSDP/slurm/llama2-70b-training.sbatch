@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: MIT-0
 
 #SBATCH --nodes=4 # number of nodes to use
-#SBATCH --job-name=llama2_70b-FSDP # name of your job
+#SBATCH --job-name=llama2-70b-FSDP # name of your job
 #SBATCH --output=logs/%x_%j.out # logfile for stdout
 #SBATCH --error=logs/%x_%j.err # logfile for stderr, remove it to merge both outputs
 #SBATCH --exclusive # job has exclusive use of the resource, no sharing
@@ -78,7 +78,7 @@ export TORCHRUN=torchrun
 export TRAIN_SCRIPT=./train.py
 
 ############################
-# llama2_70b Training Params ##
+# llama2-70b Training Params ##
 ############################
 
 declare -a TRAINING_ARGS=(
@@ -89,17 +89,17 @@ declare -a TRAINING_ARGS=(
     --num_layers=80
     --num_heads=64
     --model_type=llama_v2
-    --tokenizer="hf-internal-testing/llama-tokenizer"
+    --tokenizer=hf-internal-testing/llama-tokenizer
     --checkpoint_freq=5000
     --validation_freq=500
     --max_steps=5000
     --checkpoint_dir=./checkpoints
-    --dataset='allenai/c4'
-    --dataset_config_name='en'
+    --dataset=allenai/c4
+    --dataset_config_name=en
     --resume_from_checkpoint=./checkpoints
     --train_batch_size=1
     --val_batch_size=1
-    --sharding_strategy="full" # https://pytorch.org/docs/stable/fsdp.html
+    --sharding_strategy=full # https://pytorch.org/docs/stable/fsdp.html
     --offload_activations=1
 )
 

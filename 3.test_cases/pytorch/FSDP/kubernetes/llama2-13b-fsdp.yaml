@@ -22,7 +22,7 @@ spec:
       template:
         metadata:
           labels:
-            app: llama2_13b-fsdp
+            app: llama2-13b-fsdp
         spec:
           volumes:
             - name: shmem
