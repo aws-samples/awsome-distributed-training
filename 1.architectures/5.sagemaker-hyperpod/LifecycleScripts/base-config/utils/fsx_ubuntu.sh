@@ -37,19 +37,18 @@ wait_for_mount()
 
 # Check if OpenZFS is mounted
 if wait_for_mount "$FSX_OPENZFS_DNS_NAME"; then
+    sudo mkdir -p "$FSX_OPENZFS_DNS_NAME/ubuntu"
     echo "OpenZFS is mounted at $FSX_OPENZFS_DNS_NAME"
-    if [ -d "$FSX_OPENZFS_DNS_NAME" ]; then
-        # Set home directory to /home/ubuntu
-        sudo usermod -m -d "$FSX_OPENZFS_DNS_NAME/ubuntu" ubuntu
-        echo "Home directory set to $FSX_OPENZFS_DNS_NAME/ubuntu"
+    # Set home directory to /home/ubuntu
+    sudo usermod -m -d "$FSX_OPENZFS_DNS_NAME/ubuntu" ubuntu
+    echo "Home directory set to $FSX_OPENZFS_DNS_NAME/ubuntu"
 
-        # Maintain access to /fsx/ubuntu
-        if wait_for_mount "$FSX_L_DNS_NAME"; then
-            sudo mkdir -p "$FSX_L_DNS_NAME/ubuntu"
-            sudo chown ubuntu:ubuntu "$FSX_L_DNS_NAME/ubuntu"
-        else
-            echo "Warning: FSx mount not available, skipping $FSX_L_DNS_NAME/ubuntu setup"
-        fi
+    # Maintain access to /fsx/ubuntu
+    if wait_for_mount "$FSX_L_DNS_NAME"; then
+        sudo mkdir -p "$FSX_L_DNS_NAME/ubuntu"
+        sudo chown ubuntu:ubuntu "$FSX_L_DNS_NAME/ubuntu"
+    else
+        echo "Warning: FSx mount not available, skipping $FSX_L_DNS_NAME/ubuntu setup"
     fi
 else
     echo "OpenZFS is not mounted. Using FSxL file system as home"
