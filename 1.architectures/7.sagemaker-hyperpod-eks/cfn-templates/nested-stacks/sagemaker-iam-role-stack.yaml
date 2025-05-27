@@ -55,6 +55,7 @@ Resources:
                   - 'ecr:GetAuthorizationToken'
                   - 'ecr:GetDownloadUrlForLayer'
                   - 'eks-auth:AssumeRoleForPodIdentity'
+                  - 'cloudwatch:DescribeAlarms'
                 Resource: '*'
               - Effect: Allow
                 Action: 
