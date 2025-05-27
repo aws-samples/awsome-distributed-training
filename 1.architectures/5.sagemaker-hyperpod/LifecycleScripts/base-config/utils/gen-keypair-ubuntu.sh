@@ -7,6 +7,7 @@ FSX_OZFS_DIR="/home/ubuntu"
 
 mkdir -p $FSX_DIR/.ssh
 
+# Creating symlink between /fsx/ubuntu/.ssh and /home/ubuntu/.ssh
 if [ -d "$FSX_OZFS_DIR" ]; then
     if [ -L "$FSX_OZFS_DIR/.ssh" ]; then
         echo "$FSX_OZFS_DIR/.ssh is already a symbolic link"
