@@ -16,6 +16,12 @@ handle_error()
     local exit_code=$?
     echo "Error occurred in command: $BASH_COMMAND"
     echo "Exit code: $exit_code"
+    echo "Script failed, checking logs..."
+    sudo dmesg | tail -n 20
+    echo "Mount status:"
+    mount | grep lustre || true
+    echo "LNet status:"
+    sudo lctl list_nids || true
     exit $exit_code
 }
 
