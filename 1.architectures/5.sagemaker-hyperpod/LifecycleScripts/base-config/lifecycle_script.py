@@ -160,8 +160,6 @@ def main(args):
     params = ProvisioningParameters(args.provisioning_parameters)
     resource_config = ResourceConfig(args.resource_config)
 
-    ExecuteBashScript("./utils/install_ansible.sh").run()
-
     fsx_dns_name, fsx_mountname = params.fsx_settings
     if fsx_dns_name and fsx_mountname:
         print(f"Mount fsx: {fsx_dns_name}. Mount point: {fsx_mountname}")
