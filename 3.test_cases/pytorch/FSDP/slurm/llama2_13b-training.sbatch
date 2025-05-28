@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: MIT-0
 
 #SBATCH --nodes=4 # number of nodes to use
-#SBATCH --job-name=llama2-13b-FSDP # name of your job
+#SBATCH --job-name=llama2_13b-FSDP # name of your job
 #SBATCH --output=logs/%x_%j.out # logfile for stdout
 #SBATCH --error=logs/%x_%j.err # logfile for stderr, remove it to merge both outputs
 #SBATCH --exclusive # job has exclusive use of the resource, no sharing
@@ -78,7 +78,7 @@ export TORCHRUN=torchrun
 export TRAIN_SCRIPT=./train.py
 
 ############################
-# llama2-13b Training Params ##
+# llama2_13b Training Params ##
 ############################
 
 declare -a TRAINING_ARGS=(
