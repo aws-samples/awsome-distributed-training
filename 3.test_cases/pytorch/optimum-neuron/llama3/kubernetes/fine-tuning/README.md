@@ -4,10 +4,9 @@ This README demonstrates how to perform efficient supervised fine tuning for a M
 ### Solution overview
 This solution uses the following components:
 
-### Distributed training infrastructure
-AWS Trainium chips for deep learning acceleration
-Hugging Face Optimum-Neuron for integrating Trainium with existing models and tools
-LoRA for parameter-efficient fine tuning
+- AWS Trainium chips for deep learning acceleration
+- Hugging Face Optimum-Neuron for integrating Trainium with existing models and tools
+- LoRA for parameter-efficient fine tuning
 
 ## 0. Prerequisites
 
@@ -36,7 +35,11 @@ docker pull ${dlc_account_id}.dkr.ecr.${region}.amazonaws.com/huggingface-pytorc
 
 ### Build Docker Image and push to ECR
 
-We will build docker image using the [Dockerfile](Dockerfile) in this directory.  
+We will build docker image using the [Dockerfile](Dockerfile) in the llama3 source directory (awsome-distributed-training/3.test_cases/pytorch/optimum-neuron/llama3)
+
+```sh
+cd ../../
+```
 
 ```sh
 export AWS_REGION=$(aws ec2 describe-availability-zones --output text --query 'AvailabilityZones[0].[RegionName]')
@@ -44,7 +47,7 @@ export ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
 export REGISTRY=${ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com/
 export IMAGE=peft-optimum-neuron
 export TAG=:latest
-docker build -t ${REGISTRY}${IMAGE}${TAG} .
+docker build -t ${REGISTRY}${IMAGE}${TAG} -f kubernetes/fine-tuning/Dockerfile .
 ```
 
 Then push the image to your private registry
