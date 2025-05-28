@@ -107,7 +107,7 @@ source env_vars
 
 Apply yaml:
 ``` bash
-envsubst < llama2-7b-fsdp.yaml | kubectl apply -f - 
+envsubst < llama2_7b-fsdp.yaml | kubectl apply -f - 
 ```
 
 EFA level variables are available for adjustment in fsdp.yaml-template
