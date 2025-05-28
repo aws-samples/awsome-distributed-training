@@ -16,6 +16,12 @@ handle_error()
     local exit_code=$?
     echo "Error occurred in command: $BASH_COMMAND"
     echo "Exit code: $exit_code"
+    echo "Exit logs:"
+    sudo dmesg | tail -n 20
+    echo "Mount status:"
+    mount | grep lustre || true
+    echo "LNet status:"
+    sudo lctl list_nids || true
     exit $exit_code
 }
 
@@ -41,6 +47,8 @@ print_lustre_version()
 load_lnet_modules()
 {
   ansible localhost -b -m ansible.builtin.modprobe -a "name=lnet state=present"
+  ansible localhost -b -m ansible.builtin.modprobe -a "name=lustre state=present"
+  lctl network up || { echo "Error: Failed to bring up LNet network"; exit 1; }     # Simplifying: Instead of using ansible.builtin.shell
 }
 
 # Mount the FSx Lustre file system using Ansible
