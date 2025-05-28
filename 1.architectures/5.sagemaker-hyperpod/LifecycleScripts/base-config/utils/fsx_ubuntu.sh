@@ -3,6 +3,7 @@
 # RETRY CONFIG
 ATTEMPTS=6
 WAIT=10
+FSX_OZFS_EXISTS=$1
 FSX_OPENZFS_DNS_NAME="/home"
 FSX_L_DNS_NAME="/fsx"
 
@@ -35,10 +36,20 @@ wait_for_mount()
     done
 }
 
+if [ -z "$FSX_OZFS_EXISTS" ]; then
+    echo "Error: Missing parameter. Usage: $0 <1|0> (1 if OpenZFS exists, 0 otherwise)"
+    exit 1
+fi
+
 # Check if OpenZFS is mounted
-if wait_for_mount "$FSX_OPENZFS_DNS_NAME"; then
-    echo "OpenZFS is mounted at $FSX_OPENZFS_DNS_NAME"
-    if [ -d "$FSX_OPENZFS_DNS_NAME" ]; then
+if [ $FSX_OZFS_EXISTS -eq 1 ]; then 
+    echo "OpenZFS is mounted. Looping to ensure FSxOZFS is mounted."
+
+    if wait_for_mount "$FSX_OPENZFS_DNS_NAME"; then
+        sudo mkdir -p "$FSX_OPENZFS_DNS_NAME/ubuntu"
+        sudo chown ubuntu:ubuntu "$FSX_OPENZFS_DNS_NAME/ubuntu"
+
+        echo "OpenZFS is mounted at $FSX_OPENZFS_DNS_NAME"
         # Set home directory to /home/ubuntu
         sudo usermod -m -d "$FSX_OPENZFS_DNS_NAME/ubuntu" ubuntu
         echo "Home directory set to $FSX_OPENZFS_DNS_NAME/ubuntu"
@@ -52,7 +63,9 @@ if wait_for_mount "$FSX_OPENZFS_DNS_NAME"; then
         fi
     fi
 else
-    echo "OpenZFS is not mounted. Using FSxL file system as home"
+    echo "OpenZFS is not mounted. Skipped OZFS check loop, and looping for FSxL only."
+    echo "Using FSxL file system as home..."
+
     if ! wait_for_mount "$FSX_L_DNS_NAME"; then
         echo "Warning: FSx mount not available. Exiting."
         exit 1
@@ -60,6 +73,20 @@ else
     if [ -d "$FSX_L_DNS_NAME/ubuntu" ]; then
         sudo usermod -d "$FSX_L_DNS_NAME/ubuntu" ubuntu
     elif [ -d "$FSX_L_DNS_NAME" ]; then
-        sudo usermod -m -d "$FSX_L_DNS_NAME/ubuntu" ubuntu
+        # Create the directory (race condition: if it doesn't get detected)
+        sudo mkdir -p "$FSX_L_DNS_NAME/ubuntu"
+        sudo chown ubuntu:ubuntu "$FSX_L_DNS_NAME/ubuntu"
+
+        # Try to change home directory with move (race condition)
+        if ! sudo usermod -m -d "$FSX_L_DNS_NAME/ubuntu" ubuntu; then
+            echo "Warning: Could not move home directory. Setting home without moving files."
+
+            sudo rsync -a /home/ubuntu/ "$FSX_L_DNS_NAME/ubuntu/"
+            sudo chown -R ubuntu:ubuntu "$FSX_L_DNS_NAME/ubuntu"
+
+            sudo usermod -d "$FSX_L_DNS_NAME/ubuntu" ubuntu
+        else
+            echo "Home directory moved successfully to $FSX_L_DNS_NAME/ubuntu"
+        fi
     fi
 fi

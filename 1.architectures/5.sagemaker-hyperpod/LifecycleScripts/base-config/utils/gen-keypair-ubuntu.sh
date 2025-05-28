@@ -2,8 +2,26 @@
 
 set -exuo pipefail
 
-mkdir -p /fsx/ubuntu/.ssh
-cd /fsx/ubuntu/.ssh
+FSX_DIR="/fsx/ubuntu"
+FSX_OZFS_DIR="/home/ubuntu"
+
+mkdir -p $FSX_DIR/.ssh
+
+# Creating symlink between /fsx/ubuntu/.ssh and /home/ubuntu/.ssh
+if [ -d "$FSX_OZFS_DIR" ]; then
+    if [ -L "$FSX_OZFS_DIR/.ssh" ]; then
+        echo "$FSX_OZFS_DIR/.ssh is already a symbolic link"
+    elif [ -e "$FSX_OZFS_DIR/.ssh" ]; then
+        echo "Removing existing $FSX_OZFS_DIR/.ssh and creating symbolic link..."
+        rm -rf "$FSX_OZFS_DIR/.ssh"
+        ln -s "$FSX_DIR/.ssh" "$FSX_OZFS_DIR/.ssh"
+    else
+        echo "Linking $FSX_DIR/.ssh to $FSX_OZFS_DIR/.ssh..."
+        ln -s "$FSX_DIR/.ssh" "$FSX_OZFS_DIR/.ssh"
+    fi
+fi
+
+cd $FSX_DIR/.ssh
 
 # Check if id_rsa exists
 if [ ! -f id_rsa ]; then
@@ -18,16 +36,21 @@ else
 fi
 if [[ $GENERATE_KEYPAIR == 1 ]]; then
     echo Generate a new keypair...
-    ssh-keygen -t rsa  -b 4096 -q -f id_rsa -N ""
+    ssh-keygen -t rsa -b 4096 -q -f id_rsa -N "" 2>/dev/null || true
     cat id_rsa.pub >> authorized_keys
-    # Set permissions for the ssh keypair
-    chmod 600 id_rsa
-    chmod 644 id_rsa.pub
-    # Set permissions for the .ssh directory
-    chmod 700 /fsx/ubuntu/.ssh
-    # Change ownership to the ubuntu user
-    chown ubuntu:ubuntu id_rsa id_rsa.pub authorized_keys
-    chown ubuntu:ubuntu /fsx/ubuntu/.ssh
 else
     echo Use existing keypair...
 fi
+
+# (diff: do this regardless of if new kp is generated to ensure consistent permissions)
+# Set permissions for the ssh keypair 
+chmod 600 id_rsa
+chmod 644 id_rsa.pub
+# Set permissions for authorized_keys
+touch authorized_keys
+chmod 600 authorized_keys
+# Set permissions for the .ssh directory
+chmod 700 $FSX_DIR/.ssh
+# Change ownership to the ubuntu user
+chown ubuntu:ubuntu id_rsa id_rsa.pub authorized_keys
+chown ubuntu:ubuntu $FSX_DIR/.ssh
