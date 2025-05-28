@@ -36,7 +36,7 @@ else
 fi
 if [[ $GENERATE_KEYPAIR == 1 ]]; then
     echo Generate a new keypair...
-    ssh-keygen -t rsa  -b 4096 -q -f id_rsa -N ""
+    ssh-keygen -t rsa -b 4096 -q -f id_rsa -N "" 2>/dev/null || true
     cat id_rsa.pub >> authorized_keys
 else
     echo Use existing keypair...
