@@ -80,7 +80,7 @@ docker image push ${REGISTRY}fsdp:pytorch2.5.1
 
 ## 3. Data
 
-For this example, we'll be using the [C4 dataset](https://huggingface.co/datasets/allenai/c4), which is several hundred gigabytes. Instead of downloading the whole thing, the `create_streaming_dataloaders` function will stream the dataset from [HuggingFace](https://huggingface.co/datasets), so there's no data prep required for running this training. 
+For this example, we'll be using the [Nvidia-DeepLearningExamples](https://huggingface.co/datasets/BEE-spoke-data/Nvidia-DeepLearningExamples/viewer/default/train?views%5B%5D=train). Instead of downloading the whole thing, the `create_streaming_dataloaders` function will stream the dataset from [HuggingFace](https://huggingface.co/datasets), so there's no data prep required for running this training. 
 
 If you'd like to instead use your own dataset, you can do so by [formatting it as a HuggingFace dataset](https://huggingface.co/docs/datasets/create_dataset), and passing its location to the `--dataset_path` argument.
 
