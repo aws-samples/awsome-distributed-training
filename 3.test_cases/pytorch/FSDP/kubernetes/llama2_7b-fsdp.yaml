@@ -99,8 +99,8 @@ spec:
                 - --validation_freq=500
                 - --max_steps=5000
                 - --checkpoint_dir=./checkpoints
-                - --dataset=allenai/c4
-                - --dataset_config_name=en
+                - --dataset=BEE-spoke-data/Nvidia-DeepLearningExamples
+                - --dataset_config_name=default
                 - --resume_from_checkpoint=./checkpoints
                 - --train_batch_size=1
                 - --val_batch_size=1
