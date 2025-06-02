@@ -1,0 +1,123 @@
+name: FSDP Regression Test
+
+on: 
+  pull_request:
+    paths:
+      - 'FSDP/**'
+      - 'models/**'
+      - 'src/**'
+      - 'slurm/**'
+  workflow_dispatch:
+
+
+jobs:
+  regression:
+    runs-on: [self-hosted, p5-cluster]
+    timeout-minutes: 60
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Create test directory
+        run: |
+          TEST_DIR=$(mktemp -d)
+          echo "TEST_DIR=$TEST_DIR" >> $GITHUB_ENV
+          mkdir -p $TEST_DIR/slurm $TEST_DIR/src/model_utils $TEST_DIR/logs
+          cp -r src/model_utils/* $TEST_DIR/src/model_utils/
+          cp slurm/create_venv.sh $TEST_DIR/slurm/
+          cp src/train.py src/requirements.txt $TEST_DIR/src/
+
+
+      - name: Create regression test script
+        run: |
+          cat > $TEST_DIR/slurm/regression_test.sbatch << 'EOF'
+          #!/bin/bash
+
+          #SBATCH --nodes=4
+          #SBATCH --job-name=fsdp_regression_test
+          #SBATCH --output=logs/regression_test_%x_%j.out
+          #SBATCH --error=logs/regression_test_%x_%j.err
+          #SBATCH --exclusive
+
+          set -ex;
+
+          GPUS_PER_NODE=8
+
+          export DATA_PATH=/fsx
+          export FSX_MOUNT=$(pwd):$DATA_PATH
+
+          export FI_LOG_LEVEL=warn
+          export NCCL_DEBUG=info
+          export FI_PROVIDER=efa
+          export FI_EFA_USE_HUGE_PAGE=0
+          export FI_EFA_SET_CUDA_SYNC_MEMOPS=0
+          export LD_PRELOAD=/usr/local/cuda-12.4/lib/libnccl.so
+          export NCCL_SOCKET_IFNAME=^docker,lo,veth,eth
+          export HF_HUB_ETAG_TIMEOUT=60
+
+          mkdir -p logs
+          ./slurm/create_venv.sh
+          source ./env/bin/activate
+
+          declare -a TORCHRUN_ARGS=(
+              --nproc_per_node=$GPUS_PER_NODE
+              --nnodes=$SLURM_JOB_NUM_NODES
+              --rdzv_id=$SLURM_JOB_ID
+              --rdzv_backend=c10d
+              --rdzv_endpoint=$(hostname)
+          )
+          
+          export TORCHRUN=torchrun
+          export TRAIN_SCRIPT=./train.py
+
+          declare -a TRAINING_ARGS=(
+              --max_context_width=4096
+              --num_key_value_heads=32
+              --intermediate_size=11008
+              --hidden_width=4096
+              --num_layers=32
+              --num_heads=32
+              --model_type=llama_v2
+              --tokenizer=hf-internal-testing/llama-tokenizer
+              --checkpoint_freq=5000
+              --validation_freq=500
+              --max_steps=5000
+              --checkpoint_dir=./checkpoints
+              --dataset=allenai/c4
+              --dataset_config_name=en
+              --resume_from_checkpoint=./checkpoints
+              --train_batch_size=1
+              --val_batch_size=1
+              --sharding_strategy=full # https://pytorch.org/docs/stable/fsdp.html
+              --offload_activations=1
+          )
+
+          cd src
+          srun -l torchrun "${TORCHRUN_ARGS[@]}" ./train.py "${TRAINING_ARGS[@]}"
+          exit $?
+          EOF
+          chmod +x $TEST_DIR/slurm/regression_test.sbatch
+
+      - name: Run regression test
+        working-directory: ${{ env.TEST_DIR }}
+        run: |
+          sbatch --wait slurm/regression_test.sbatch
+          exit_code=$?
+          if [ $exit_code -ne 0 ]; then
+            echo "Regression test failed with exit code $exit_code"
+            exit $exit_code
+          fi
+          echo "Regression test passed"
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: regression-test-logs
+          path: ${{ env.TEST_DIR }}/logs
+      
+      - name: Clean Up
+        if: always()
+        run: |
+          rm -rf ${{ env.TEST_DIR }}
+
