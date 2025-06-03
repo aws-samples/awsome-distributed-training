@@ -10,9 +10,6 @@ FSX_OPENZFS_DNS_NAME="$1"
 OPENZFS_MOUNT_POINT="$2"
 NFS_VERSION=4.2
 
-# Ansible Version
-ANSIBLE_VERSION="10.7.0"
-
 # Retry settings
 MAX_ATTEMPTS=5
 INITIAL_BACKOFF=1
@@ -64,15 +61,6 @@ verify_parameters()
     fi
 }
 
-# Install Ansible and collections
-install_ansible()
-{
-    retry_with_backoff $MAX_ATTEMPTS $INITIAL_BACKOFF "apt-get update"
-    retry_with_backoff $MAX_ATTEMPTS $INITIAL_BACKOFF "apt-get install -y python3-pip"
-    retry_with_backoff $MAX_ATTEMPTS $INITIAL_BACKOFF "python3 -m pip install 'ansible==${ANSIBLE_VERSION}'"
-    retry_with_backoff $MAX_ATTEMPTS $INITIAL_BACKOFF "ansible-galaxy collection install ansible.posix"
-}
-
 # Install NFS Client based on OS
 install_nfs_client()
 {
@@ -110,7 +98,6 @@ main()
     echo "Mount_fsx_openzfs called with fsx_openzfs_dns_name: $FSX_OPENZFS_DNS_NAME"
     echo "Using openzfs_mount_point: $OPENZFS_MOUNT_POINT"
     verify_parameters
-    install_ansible
     install_nfs_client
     mount_fs
     verify_mount
