@@ -1,0 +1,105 @@
+apiVersion: "kubeflow.org/v1"
+kind: "PyTorchJob"
+metadata:
+  name: nemo-training
+  namespace: nemo-training
+spec:
+  pytorchReplicaSpecs:
+    Master:
+      replicas: 1
+      restartPolicy: OnFailure
+      template:
+        spec:
+          containers:
+          - name: pytorch
+            image: ${REGISTRY}${IMAGE}${TAG}
+            resources:
+              limits:
+                nvidia.com/gpu: 8
+                vpc.amazonaws.com/efa: 4
+              requests:
+                nvidia.com/gpu: 8
+                vpc.amazonaws.com/efa: 4
+            volumeMounts:
+            - name: training-data
+              mountPath: /workspace/data
+            - name: training-results
+              mountPath: /workspace/results
+            env:
+            - name: MASTER_ADDR
+              value: "nemo-training-master-0"
+            - name: MASTER_PORT
+              value: "29500"
+            - name: WORLD_SIZE
+              value: "2"
+            - name: RANK
+              value: "0"
+            - name: NCCL_DEBUG
+              value: "INFO"
+            - name: NCCL_SOCKET_IFNAME
+              value: "efa"
+            command: ["python"]
+            args: ["train.py"]
+          volumes:
+          - name: training-data
+            persistentVolumeClaim:
+              claimName: fsx-pvc
+          - name: training-results
+            persistentVolumeClaim:
+              claimName: fsx-pvc
+    Worker:
+      replicas: 1
+      restartPolicy: OnFailure
+      template:
+        spec:
+          containers:
+          - name: pytorch
+            image: ${REGISTRY}${IMAGE}${TAG}
+            resources:
+              limits:
+                nvidia.com/gpu: 8
+                vpc.amazonaws.com/efa: 32
+              requests:
+                nvidia.com/gpu: 8
+                vpc.amazonaws.com/efa: 32
+            volumeMounts:
+            - name: training-data
+              mountPath: /workspace/data
+            - name: training-results
+              mountPath: /workspace/results
+            env:
+            - name: MASTER_ADDR
+              value: "nemo-training-master-0"
+            - name: MASTER_PORT
+              value: "29500"
+            - name: WORLD_SIZE
+              value: "2"
+            - name: RANK
+              value: "1"
+            - name: NCCL_DEBUG
+              value: "INFO"
+            - name: NCCL_IB_DISABLE
+              value: "0"
+            - name: NCCL_P2P_DISABLE
+              value: "0"
+            - name: NCCL_IB_TIMEOUT
+              value: "1800"
+            - name: NCCL_IB_RETRY_CNT
+              value: "5"
+            - name: NCCL_IB_SL
+              value: "0"
+            - name: NCCL_IB_TC
+              value: "106"
+            - name: NCCL_IB_GID_INDEX
+              value: "3"
+            - name: NCCL_SOCKET_IFNAME
+              value: "eth0"
+            command: ["python"]
+            args: ["train.py"]
+          volumes:
+          - name: training-data
+            persistentVolumeClaim:
+              claimName: fsx-pvc
+          - name: training-results
+            persistentVolumeClaim:
+              claimName: fsx-pvc 
