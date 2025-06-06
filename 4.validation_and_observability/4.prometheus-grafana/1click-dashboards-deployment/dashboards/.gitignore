@@ -1,6 +1,7 @@
 attr*
 bin
 certifi*
+cfnresponse*
 charset_normalizer*
 grafana_client*
 grafanalib*
