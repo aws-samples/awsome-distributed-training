@@ -101,7 +101,7 @@ jobs:
         with:
           name: regression-logs-${{ matrix.model_config }}-${{ matrix.cluster }}-${{ github.run_id }}
           path: ${{ env.LOG_DIR }}
-          retention-days: 7
+          retention-days: 60
 
       - name: Cleanup
         if: always()
