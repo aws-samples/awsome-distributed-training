@@ -939,9 +939,15 @@ deploy_stack() {
         --template-file ${temp_file} \
         --stack-name ${stack_name} \
         --region ${AWS_REGION} \
-        --profile ${AWS_PROFILE:-default} \
         --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
         ${parameter_override_string}"
+        
+    # Add profile parameter only if AWS_PROFILE is set or default profile exists
+    if [[ -n "${AWS_PROFILE}" ]]; then
+        deploy_cmd+=" --profile ${AWS_PROFILE}"
+    elif aws configure list-profiles 2>/dev/null | grep -q "^default$"; then
+        deploy_cmd+=" --profile default"
+    fi
 
     echo -e "${GREEN}✨ Deploying CloudFormation stack ${stack_name} to region ${AWS_REGION}...${NC}"
     echo -e "${GREEN}This will take approximately 15 minutes to complete...${NC}"
