@@ -105,12 +105,6 @@ def parse_args():  # pylint: disable=too-many-statements
         help=
         "CPU offloading https://pytorch.org/docs/stable/fsdp.html#torch.distributed.fsdp.CPUOffload"
     )
-    fsdp_grp.add_argument(
-    "--pin_memory_offload",
-    type=int,
-    default=1,
-    help="Whether to pin memory when offloading to CPU"
-    )
 
     # learning rate
     lr_grp = parser.add_argument_group(
