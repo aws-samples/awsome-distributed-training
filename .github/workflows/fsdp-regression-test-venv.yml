@@ -1,0 +1,214 @@
+name: FSDP Regression Test (venv)
+
+# TODO: Additional configuration options as inputs (egs. number of nodes (auto change num GPUs and EFA variables accordingly), add support for g* instances etc)
+
+on: 
+  pull_request:
+    paths:
+      - 'FSDP/**'
+      - 'models/**'
+      - 'src/**'
+      - 'slurm/**'
+  workflow_dispatch:
+    inputs:
+      model_config:
+        description: 'Model configuration to use (egs. llama2_7b). Make sure this file is defined in /awsome-distributed-training/3.test_cases/pytorch/FSDP/models/<model_config>.txt'
+        required: true
+        default: 'llama2_7b'
+        type: string
+      cluster:
+        description: 'Cluster to run the test on (egs. p5)'
+        required: true
+        default: 'p5'
+        type: choice
+        options:
+          - p4de
+          - p5
+          - p5en
+          - p6
+jobs:
+  regression:
+    runs-on: [self-hosted, "${{ github.event.inputs.cluster || 'p5' }}"]
+    timeout-minutes: 360  # 6 hours for the full Llama 2 test
+    env:
+      USER_NAME: amanrsh
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set env vars
+        run: |
+          HOME_DIR="/home/${{ env.USER_NAME }}"
+          TIMESTAMP=$(date +%s)
+          TEST_ROOT="${HOME_DIR}/regression-test-${TIMESTAMP}"
+          TEST_DIR="${TEST_ROOT}/test"
+          LOG_DIR="${TEST_ROOT}/regression-logs"
+          CHECKPOINT_DIR="${TEST_ROOT}/regression-checkpoints"
+
+          MODEL_CONFIG="${{ github.event.inputs.model_config || 'llama2_7b' }}"
+
+          echo "HOME_DIR=$HOME_DIR" >> $GITHUB_ENV
+          echo "TEST_ROOT=$TEST_ROOT" >> $GITHUB_ENV
+          echo "TEST_DIR=$TEST_DIR" >> $GITHUB_ENV
+          echo "LOG_DIR=$LOG_DIR" >> $GITHUB_ENV
+          echo "CHECKPOINT_DIR=$CHECKPOINT_DIR" >> $GITHUB_ENV
+          echo "MODEL_CONFIG=$MODEL_CONFIG" >> $GITHUB_ENV
+          echo "Env vars set successfully!"
+
+      - name: Create test directory
+        run: |
+          FSDP_DIR=$(pwd)/3.test_cases/pytorch/FSDP
+          cd $FSDP_DIR
+          mkdir -p ${{ env.TEST_DIR }}/slurm ${{ env.TEST_DIR }}/src/model_utils ${{ env.TEST_DIR }}/models
+          mkdir -p ${{ env.LOG_DIR }} ${{ env.CHECKPOINT_DIR }}
+          chmod 755 ${{ env.LOG_DIR }} ${{ env.CHECKPOINT_DIR }}
+          cp -r src/model_utils/* ${{ env.TEST_DIR }}/src/model_utils/
+          cp slurm/create_venv.sh ${{ env.TEST_DIR }}/slurm/
+          cp src/train.py src/requirements.txt ${{ env.TEST_DIR }}/src/
+          cp -r models/* ${{ env.TEST_DIR }}/models/
+          echo "Test directory created successfully!"
+      
+      - name: Create virtual environment
+        working-directory: ${{ env.TEST_DIR }}
+        run: |
+          python3 -m venv env
+          source env/bin/activate
+          pip install -U wheel setuptools
+          pip install -r src/requirements.txt
+          echo "Virtual environment created successfully!"
+
+      - name: Create regression test script
+        working-directory: ${{ env.TEST_DIR }}
+        run: |
+          cat > $TEST_DIR/slurm/regression_test.sbatch << EOF
+          #!/bin/bash
+
+          #SBATCH --nodes=4
+          #SBATCH --job-name=fsdp_regression_test
+          #SBATCH --output=${{ env.LOG_DIR }}/regression_test_%j.out
+          #SBATCH --error=${{ env.LOG_DIR }}/regression_test_%j.err
+          #SBATCH --exclusive
+
+          set -ex;
+
+          GPUS_PER_NODE=8
+
+          WORKING_DIR=${{ env.TEST_DIR }}
+          MODEL_CONFIG=${{ env.MODEL_CONFIG }}
+
+          export DATA_PATH=/fsx
+          export FSX_MOUNT=\$WORKING_DIR:\$DATA_PATH
+
+          export FI_LOG_LEVEL=warn
+          export NCCL_DEBUG=info
+          export FI_PROVIDER=efa
+          export FI_EFA_USE_HUGE_PAGE=0
+          export FI_EFA_SET_CUDA_SYNC_MEMOPS=0
+          export LD_PRELOAD=/usr/local/cuda-12.8/lib/libnccl.so
+          export NCCL_SOCKET_IFNAME=^docker,lo,veth,eth
+          export HF_HUB_ETAG_TIMEOUT=60
+
+          # Debug information
+          echo "Current directory: \$(pwd)"
+          echo "Working directory: \$WORKING_DIR"
+          ls -la
+          echo "Python version: \$(python3 --version)"
+          
+          # Change to the working directory
+          cd \$WORKING_DIR
+          
+          # Activate the virtual environment using the full path
+          source \$WORKING_DIR/env/bin/activate
+                                        
+          # Check if torchrun is available
+          which torchrun || {
+            echo "torchrun not found in PATH"
+            pip list | grep torch
+            exit 1
+          }
+
+          declare -a TORCHRUN_ARGS=(
+              --nproc_per_node=\$GPUS_PER_NODE
+              --nnodes=\$SLURM_JOB_NUM_NODES
+              --rdzv_id=\$SLURM_JOB_ID
+              --rdzv_backend=c10d
+              --rdzv_endpoint=\$(hostname)
+          )
+          
+          export TORCHRUN=torchrun
+          export TRAIN_SCRIPT=\$WORKING_DIR/src/train.py
+
+          CONFIG_FILE=\$WORKING_DIR/models/\${MODEL_CONFIG}.txt
+          if [ ! -f \$CONFIG_FILE ]; then
+            echo "Config file \$CONFIG_FILE does not exist!"
+            exit 1
+          fi
+
+          # For future (like SMHP)
+          declare -a ARGS=()
+
+          TRAINING_ARGS=()
+          while IFS= read -r line || [ -n "\$line" ]; do
+            [[ -z "\$line" || "\$line" =~ ^[[:space:]]*# ]] && continue
+
+            # Strip comments!!!
+            cleaned_line="\${line%%#*}"
+            cleaned_line="\$(echo "\$cleaned_line" | sed 's/[[:space:]]*$//')"
+
+            [[ -z "\$cleaned_line" ]] && continue
+
+            if [[ "\$cleaned_line" == *"--checkpoint_dir="* ]]; then
+              TRAINING_ARGS+=("--checkpoint_dir=${{ env.CHECKPOINT_DIR }}")
+            else
+              TRAINING_ARGS+=("\$cleaned_line")
+            fi
+
+          done < "\$CONFIG_FILE"
+
+          echo "Training arguments:"
+          printf "  %s\n" "\${TRAINING_ARGS[@]}"
+
+          cd \$WORKING_DIR/src
+          echo "Running training with torchrun"
+          srun -l "${ARGS[@]}" \${TORCHRUN} "\${TORCHRUN_ARGS[@]}" \${TRAIN_SCRIPT} "\${TRAINING_ARGS[@]}"
+          exit \$?
+          EOF
+          chmod +x $TEST_DIR/slurm/regression_test.sbatch
+
+
+      - name: Run regression test
+        id: run_test
+        working-directory: ${{ env.TEST_DIR }}
+        run: |
+          echo "Submitting Slurm job..."
+          TEST_DIR=${{ env.TEST_DIR }} sbatch --wait slurm/regression_test.sbatch
+          exit_code=$?
+          echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
+          echo "Slurm job completed with exit code: $exit_code"
+
+      - name: List logs
+        if: always()
+        run: |
+          echo "Contents of logs directory:"
+          ls -la ${{ env.LOG_DIR }}/ || echo "No logs directory found"
+          for log in ${{ env.LOG_DIR }}/regression_test_*.out; do
+            if [ -f "$log" ]; then
+              echo "=== Job Output ($log) ==="
+              cat "$log"
+            fi
+          done
+          for log in ${{ env.LOG_DIR }}/regression_test_*.err; do
+            if [ -f "$log" ]; then
+              echo "=== Job Error ($log) ==="
+              cat "$log"
+            fi
+          done
+
+      - name: Cleanup
+        if: success()
+        run: |
+          echo "Cleaning up..."
+          rm -rf ${{ env.TEST_ROOT }}
+          echo "Test directory cleaned up successfully!"
+
+    
