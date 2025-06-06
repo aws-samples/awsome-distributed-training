@@ -94,13 +94,17 @@ declare -a TRAINING_ARGS=(
     --validation_freq=500
     --max_steps=5000
     --checkpoint_dir=./checkpoints
-    --dataset=BEE-spoke-data/Nvidia-DeepLearningExamples
-    --dataset_config_name=default
+    --dataset=wikimedia/wikipedia
+    --dataset_config_name=20231101.en
     --resume_from_checkpoint=./checkpoints
     --train_batch_size=1
     --val_batch_size=1
     --sharding_strategy=full # https://pytorch.org/docs/stable/fsdp.html
     --offload_activations=1
+    --train_split=train
+    --val_split=train
+    --n_samples_train=4920
+    --n_samples_val=1230
 )
 
 AUTO_RESUME=""

@@ -255,13 +255,15 @@ def main(args):
                                                    args.tokenizer, 
                                                    name=args.dataset_config_name, 
                                                    batch_size=args.train_batch_size, 
-                                                   split='train')
+                                                   split=args.train_split,
+                                                   n_samples=int(args.n_samples_train))
     
     val_dataloader = create_streaming_dataloader(args.dataset, 
                                                   args.tokenizer, 
                                                   name=args.dataset_config_name, 
                                                   batch_size=args.train_batch_size, 
-                                                  split='validation')
+                                                  split=args.val_split,
+                                                  n_samples=int(args.n_samples_val))
     
     train(model, 
           optimizer, 
