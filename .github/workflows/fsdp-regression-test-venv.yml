@@ -3,6 +3,10 @@ name: FSDP Regression Test (venv)
 # TODO: Additional test cases to matrix. Change max-parallel.
 
 on: 
+  push:
+    branches: [ "main" ]
+    paths: 
+      - '3.test_cases/pytorch/FSDP/**'
   pull_request:
     paths:
       - '3.test_cases/pytorch/FSDP/**'
