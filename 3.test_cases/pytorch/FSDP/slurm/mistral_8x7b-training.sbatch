@@ -113,13 +113,17 @@ declare -a TRAINING_ARGS=(
     --min_lr=1e-5 
     --warmup=0.0032 
     --plateau=0.0 
-    --dataset=BEE-spoke-data/Nvidia-DeepLearningExamples
+    --dataset=wikimedia/wikipedia
     --tokenizer=mistralai/Mixtral-8x7B-v0.1 
     --epochs=3 
-    --dataset_config_name=default
+    --dataset_config_name=20231101.en
     --limit_all_gathers=1 
     --sharding_strategy=full  # https://pytorch.org/docs/stable/fsdp.html
     --offload_activations=1
+    --train_split=train
+    --val_split=train
+    --n_samples_train=4920
+    --n_samples_val=1230
 )
 
 AUTO_RESUME=""
