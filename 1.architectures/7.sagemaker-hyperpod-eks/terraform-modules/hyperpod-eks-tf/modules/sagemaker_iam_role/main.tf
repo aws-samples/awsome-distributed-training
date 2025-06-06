@@ -59,7 +59,7 @@ resource "aws_iam_policy" "sagemaker_execution_policy" {
           "ecr:BatchGetImage",
           "ecr:GetAuthorizationToken",
           "ecr:GetDownloadUrlForLayer",
-          "eks-auth:AssumeRoleForPodIdentity"
+          "eks-auth:AssumeRoleForPodIdentity",
           "cloudwatch:DescribeAlarms"
         ]
         Resource = "*"
