@@ -15,7 +15,7 @@ set -ex;
 ###### User Variables #####
 ###########################
 
-GPUS_PER_NODE=8 # 4 for G5.12x, 8 for P4/P5
+GPUS_PER_NODE=8 # 4 for G5.12x/G6e.12xlarge, 8 for P4/P5/P6
 
 ###############################
 ###### Container Variable #####
@@ -43,7 +43,7 @@ export FI_EFA_SET_CUDA_SYNC_MEMOPS=0
 # LD_PRELOAD is required for PyTorch to find the NCCL library
 # This path assumes you are using the Deep Learning AMI
 # If you are not using the DLAMI, you may need to update this path
-export LD_PRELOAD=/usr/local/cuda-12.4/lib/libnccl.so
+export LD_PRELOAD=/usr/local/cuda-12.8/lib/libnccl.so
 export NCCL_SOCKET_IFNAME=^docker,lo,veth,eth
 
 ## Set HuggingFace metadata timeout (in seconds) for large clusters
@@ -75,7 +75,7 @@ declare -a TORCHRUN_ARGS=(
 )
 
 export TORCHRUN=torchrun
-export TRAIN_SCRIPT=./train.py
+export TRAIN_SCRIPT=../src/train.py
 
 ############################
 # llama2_70b Training Params ##
