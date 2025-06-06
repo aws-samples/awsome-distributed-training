@@ -190,5 +190,29 @@ def parse_args():  # pylint: disable=too-many-statements
         default=10,
         help="number of batches to estimate validation loss",
     )
+    parser.add_argument(
+        "--train_split",
+        type=str,
+        default="train",
+        help="Split to use for training data"
+    )
+    parser.add_argument(
+        "--val_split",
+        type=str,
+        default="train",
+        help="Split to use for validation data"
+    )
+    parser.add_argument(
+        "--n_samples_train",
+        type=str,
+        default="4920",
+        help="Number of samples to use for training split"
+    )
+    parser.add_argument(
+        "--n_samples_val",
+        type=str,
+        default="1230",
+        help="Number of samples to use for validation split"
+    )
 
     return parser.parse_known_args()
