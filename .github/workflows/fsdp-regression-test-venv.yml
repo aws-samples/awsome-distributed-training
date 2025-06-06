@@ -53,9 +53,6 @@ jobs:
         working-directory: ${{ env.FSDP_DIR }}
         run: |
           bash slurm/create_venv.sh
-          source env/bin/activate
-          pip install -U wheel setuptools
-          pip install -r src/requirements.txt
           echo "Virtual environment created successfully!"
 
       - name: Run regression test
