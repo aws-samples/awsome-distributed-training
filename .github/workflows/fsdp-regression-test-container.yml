@@ -5,10 +5,8 @@ name: FSDP Regression Test (container)
 on: 
   pull_request:
     paths:
-      - 'FSDP/**'
-      - 'models/**'
-      - 'src/**'
-      - 'slurm/**'
+      - '3.test_cases/pytorch/FSDP/**'
+
   workflow_dispatch:
     inputs:
       model_config:
@@ -31,16 +29,18 @@ jobs:
     runs-on: [self-hosted, "${{ github.event.inputs.cluster || 'p5' }}"]
     timeout-minutes: 360  # 6 hours for the full Llama 2 test
     env:
-      USER_NAME: amanrsh
+      USER_NAME: github
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          path: ${{ github.event.run_id }}
 
       - name: Set env vars
         run: |
           HOME_DIR="/home/${{ env.USER_NAME }}"
-          TIMESTAMP=$(date +%s)
-          TEST_ROOT="${HOME_DIR}/regression-test-${TIMESTAMP}"
+          BUILD_ID="${{ github.run_id }}"
+          TEST_ROOT="${HOME_DIR}/regression-test-${BUILD_ID}"
           TEST_DIR="${TEST_ROOT}/test"
           LOG_DIR="${TEST_ROOT}/regression-logs"
           CHECKPOINT_DIR="${TEST_ROOT}/regression-checkpoints"
@@ -71,39 +71,19 @@ jobs:
           cp -r ../../../micro-benchmarks/ ${{ env.TEST_DIR }}
           echo "Test directory created successfully!"
       
-      - name: Build container and convert to squash file
+      - name: Build container [on head node]
         working-directory: ${{ env.TEST_DIR }}
         run: |
-          echo "Building container on compute node..."
-          cat > ${{ env.TEST_DIR }}/slurm/build_container.sbatch << EOF
-          #!/bin/bash
+          echo "Building FSDP image"
+          docker build -t fsdp:pytorch .
+          echo "FSDP Image built!"
 
-          #SBATCH --nodes=1
-          #SBATCH --job-name=build_container
-          #SBATCH --output=${{ env.LOG_DIR }}/build_container_%j.out
-          #SBATCH --error=${{ env.LOG_DIR }}/build_container_%j.err
-
-          set -ex;
-
-          cd ${{ env.TEST_DIR }}
-          echo "Building nccl tests image"
-          docker build -t nccl-tests:latest -f micro-benchmarks/nccl-tests/nccl-tests.Dockerfile . --tag gh-actions-test          
-          echo "Building fsdp image"
-          docker build -t fsdp:pytorch2.2 .
-          sudo enroot import -o ${{ env.CONTAINER_DIR }}/fsdp.sqsh dockerd://fsdp:pytorch2.2 
-          ls -la ${{ env.CONTAINER_DIR }}/fsdp.sqsh
-          EOF
-          chmod +x ${{ env.TEST_DIR }}/slurm/build_container.sbatch
-
-          echo "Submitting build container job..."
-          sbatch --wait ${{ env.TEST_DIR }}/slurm/build_container.sbatch
-          if [ ! -f "${{ env.CONTAINER_DIR }}/fsdp.sqsh" ]; then
-            echo "Container squash file not found! Build failed."
-            cat ${{ env.LOG_DIR }}/build_container_*.out
-            cat ${{ env.LOG_DIR }}/build_container_*.err
-            exit 1
-          fi
-          echo "Container built and converted to squash file successfully!"      
+      - name: Convert built container to squash file [on head node]
+        working-directory: ${{ env.TEST_DIR }}
+        run: |
+          echo "Converting container to squash file..."
+          enroot import -o ${{ env.CONTAINER_DIR }}/fsdp.sqsh dockerd://fsdp:pytorch
+          echo "Container converted to squash file successfully!"
 
       - name: Create regression test script
         working-directory: ${{ env.TEST_DIR }}
@@ -238,3 +218,5 @@ jobs:
           echo "Cleaning up..."
           rm -rf ${{ env.TEST_ROOT }}
           echo "Test directory cleaned up successfully!"
+
+    

@@ -5,10 +5,8 @@ name: FSDP Regression Test (venv)
 on: 
   pull_request:
     paths:
-      - 'FSDP/**'
-      - 'models/**'
-      - 'src/**'
-      - 'slurm/**'
+      - '3.test_cases/pytorch/FSDP/**'
+
   workflow_dispatch:
     inputs:
       model_config:
@@ -31,16 +29,18 @@ jobs:
     runs-on: [self-hosted, "${{ github.event.inputs.cluster || 'p5' }}"]
     timeout-minutes: 360  # 6 hours for the full Llama 2 test
     env:
-      USER_NAME: amanrsh
+      USER_NAME: github
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          path: ${{ github.event.run_id }}
 
       - name: Set env vars
         run: |
           HOME_DIR="/home/${{ env.USER_NAME }}"
-          TIMESTAMP=$(date +%s)
-          TEST_ROOT="${HOME_DIR}/regression-test-${TIMESTAMP}"
+          BUILD_ID="${{ github.run_id }}"
+          TEST_ROOT="${HOME_DIR}/regression-test-${BUILD_ID}"
           TEST_DIR="${TEST_ROOT}/test"
           LOG_DIR="${TEST_ROOT}/regression-logs"
           CHECKPOINT_DIR="${TEST_ROOT}/regression-checkpoints"
@@ -170,7 +170,7 @@ jobs:
 
           cd \$WORKING_DIR/src
           echo "Running training with torchrun"
-          srun -l "${ARGS[@]}" \${TORCHRUN} "\${TORCHRUN_ARGS[@]}" \${TRAIN_SCRIPT} "\${TRAINING_ARGS[@]}"
+          srun -l \${ARGS[@]} \${TORCHRUN} "\${TORCHRUN_ARGS[@]}" \${TRAIN_SCRIPT} "\${TRAINING_ARGS[@]}"
           exit \$?
           EOF
           chmod +x $TEST_DIR/slurm/regression_test.sbatch
