@@ -3,6 +3,10 @@ name: FSDP Regression Test (container)
 # TODO: Additional configuration options as inputs (egs. number of nodes (auto change num GPUs and EFA variables accordingly), add support for g* instances etc)
 
 on: 
+  push:
+    branches: [ "main" ]
+    paths: 
+      - '3.test_cases/pytorch/FSDP/**'
   pull_request:
     paths:
       - '3.test_cases/pytorch/FSDP/**'
