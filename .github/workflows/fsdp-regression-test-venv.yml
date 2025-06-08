@@ -52,14 +52,14 @@ jobs:
       - name: Create virtual environment
         working-directory: ${{ env.FSDP_DIR }}
         run: |
-          bash slurm/create_venv.sh
+          cd slurm && bash ./create_venv.sh
           echo "Virtual environment created successfully!"
 
       - name: Run regression test
         id: run_test
         working-directory: ${{ env.FSDP_DIR }}
         run: |
-          source env/bin/activate
+          source slurm/env/bin/activate
           SBATCH_FILE="slurm/${{ matrix.model_config }}-training.sbatch"
           TMP_SBATCH="slurm/regression_test_${{ matrix.model_config }}.sbatch"          
 
