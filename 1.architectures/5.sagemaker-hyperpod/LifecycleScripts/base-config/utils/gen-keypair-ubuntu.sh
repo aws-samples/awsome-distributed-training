@@ -44,11 +44,10 @@ fi
 
 # (diff: do this regardless of if new kp is generated to ensure consistent permissions)
 # Set permissions for the ssh keypair 
-chmod 600 id_rsa
-chmod 644 id_rsa.pub
-# Set permissions for authorized_keys
-touch authorized_keys
-chmod 600 authorized_keys
+ansible localhost -m ansible.builtin.file -a "path=$FSX_DIR/.ssh/authorized_keys state=touch"
+ansible localhost -b -m ansible.builtin.file -a "path='$FSX_DIR/.ssh/id_rsa' owner=ubuntu group=ubuntu mode=0600"
+ansible localhost -b -m ansible.builtin.file -a "path='$FSX_DIR/.ssh/id_rsa.pub' owner=ubuntu group=ubuntu mode=0644"
+ansible localhost -b -m ansible.builtin.file -a "path='$FSX_DIR/.ssh/authorized_keys' owner=ubuntu group=ubuntu mode=0600"
 # Set permissions for the .ssh directory
 chmod 700 $FSX_DIR/.ssh
 # Change ownership to the ubuntu user
