@@ -145,7 +145,7 @@ You can list your existing key pairs in the [AWS Console](https://console.aws.am
 First, export the name of the key pair you have or will create:
 
 ```bash
-export KEYPAIR_NAME=<your-keypair-name>  # e.g. ap-northeast-1
+export KEYPAIR_NAME=<your-keypair-name> 
 yq -i ".KEYPAIR_NAME = \"$KEYPAIR_NAME\"" ${CONFIG_DIR}/config.yaml
 ```
 
@@ -209,7 +209,7 @@ yq -i ".DATA_BUCKET_NAME = \"$DATA_BUCKET_NAME\"" ${CONFIG_DIR}/config.yaml
 ```
 
 > [!NOTE]
-> The bucket will be retained even if you delete the cluster, ensuring your data persists across cluster lifecycles.
+> The bucket will be retained even if you delete the cluster, ensuring your data persists across cluster life cycles.
 
 ## Cluster deployment
 
@@ -225,9 +225,9 @@ Please follow the steps below to deploy your resources:
 
 [<kbd> <br> 1-Click Deploy 🚀 <br> </kbd>](https://console.aws.amazon.com/cloudformation/home#/stacks/quickcreate?templateUrl=https://awsome-distributed-training.s3.amazonaws.com/templates/parallelcluster-prerequisites.yaml&stackName=parallelcluster-prerequisites)
 
-The CloudFormation stack uses FSx for Lustre `PERSISTENT_2` deployment type by default. If your selected availability zone doesn't support `PERSISTENT_2` or you specifically need to use `PERSISTENT_1` deployment type, please use the link below instead:
-
-[<kbd> <br> 1-Click Deploy 🚀 <br> </kbd>](https://console.aws.amazon.com/cloudformation/home#/stacks/quickcreate?templateUrl=https://awsome-distributed-training.s3.amazonaws.com/templates/parallelcluster-prerequisites-p1.yaml&stackName=parallelcluster-prerequisites)
+> [!INFO]
+> The CloudFormation stack uses FSx for Lustre `PERSISTENT_2` deployment type by default. If your selected availability zone doesn't support `PERSISTENT_2` or you specifically need to use `PERSISTENT_1` deployment type, please use the link below instead:
+> [<kbd> <br> 1-Click Deploy 🚀 <br> </kbd>](https://console.aws.amazon.com/cloudformation/home#/stacks/quickcreate?templateUrl=https://awsome-distributed-training.s3.amazonaws.com/templates/parallelcluster-prerequisites-p1.yaml&stackName=parallelcluster-prerequisites)
 
 > [!NOTE]
 > When opening the link, you must specify the region and availability zone where your compute resources are located. Be sure to fill out the "Availability Zone configuration for the subnets" field, then create the stack.
