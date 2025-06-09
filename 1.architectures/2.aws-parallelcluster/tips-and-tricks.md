@@ -1,7 +1,7 @@
 
-## 7. Tips and tricks
+## Tips and tricks
 
-### 7.1. Connect to your cluster
+### Connect to your cluster
 
 To easily login to your cluster via [AWS Systems Manager](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-sessions-start.html) we've included a script `easy-ssh.sh` that you can run like so, assuming `ml-cluster` is the name of your cluster:
 
@@ -56,6 +56,7 @@ EOF
 ssh ml-cluster
 ```
 
+### Custom Slurm Settings
 
 Parallel Cluster, as of this writing (v3.8.0), does not automatically set the correct number of sockets and cores-per-socket in Slurm partitions. For ML training on multiple GPUs, this should not have adverse impact on performance since NCCL does the topology detection. However, it might have impact on the training performance for single-GPU training or inference, or in the rare case to support Slurm affinity/binding feature.
 

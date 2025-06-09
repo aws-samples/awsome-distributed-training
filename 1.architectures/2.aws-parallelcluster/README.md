@@ -136,8 +136,6 @@ yq -i ".INSTANCE = \"$INSTANCE\"" ${CONFIG_DIR}/config.yaml
 ```
 
 
-
-
 #### EC2 Key Pair for SSH access
 
 The EC2 key pair enables you to connect to your cluster's head node through SSH or [AWS Systems Manager](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-sessions-start.html). We'll cover SSM below.
