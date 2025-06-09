@@ -58,6 +58,8 @@ jobs:
       - name: Run regression test
         id: run_test
         working-directory: ${{ env.FSDP_DIR }}
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           source slurm/env/bin/activate
           SBATCH_FILE="slurm/${{ matrix.model_config }}-training.sbatch"
