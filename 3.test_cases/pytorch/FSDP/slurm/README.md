@@ -12,26 +12,21 @@ On your cluster head node,
 ```bash
 cd /fsx
 git clone https://github.com/aws-samples/awsome-distributed-training/
-cd awsome-distributed-training/3.test_cases/pytorch/FSDP/slurm
+cd awsome-distributed-training/3.test_cases/pytorch/FSDP
 ```
 
 3. Create a Python Virtual Environment to install the necessary packages. Run the `create_venv.sh` script.
 
 ```bash
-. ./create_venv.sh
+bash create_venv.sh
+source env/bin/activate
 ```
 
 * By creating this environment on the shared FSx for Lustre volume, all compute nodes in our cluster will have access to it.
 
 ## Data
 
-For this example, we'll be using the [allenai/c4](https://huggingface.co/datasets/allenai/c4) dataset. Instead of downloading the whole thing, the `create_streaming_dataloaders` function will stream the dataset from [HuggingFace](https://huggingface.co/datasets), so there's no data prep required for running this training.
-
-**For this dataset, we will need a Hugging Face access token**. First, create a [Hugging Face account](https://huggingface.co/welcome). Then [generate your access token with read permissions](https://huggingface.co/docs/hub/en/security-tokens). Set your HuggingFace Token as an environment variable in your Python Virtual Environment by running:
-
-``` bash
-export HF_TOKEN=<YOUR HF ACCESS TOKEN>
-```
+For this example, you'll be using the [C4 dataset](https://huggingface.co/datasets/allenai/c4), which is several hundred gigabytes. Instead of downloading the whole thing, the `create_streaming_dataloaders` function will stream the dataset from [HuggingFace](https://huggingface.co/datasets), so there's no data prep required for running this training.
 
 If you'd like to instead use your own dataset, you can do so by [formatting it as a HuggingFace dataset](https://huggingface.co/docs/datasets/create_dataset), and passing its location to the `--dataset_path` argument.
 
@@ -86,7 +81,7 @@ Then you will need to create a [user access token](https://huggingface.co/docs/h
 Once created you will need to define it in your environment:
 
 ```bash
-export HF_TOKEN=<YOUR TOKEN>
+export HF_TOKEN=>YOUR TOKEN>
 ```
 
 You are now ready to launch your training for Mistral 8x7B with the following command:

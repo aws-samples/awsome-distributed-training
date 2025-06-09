@@ -43,7 +43,7 @@ export FI_EFA_SET_CUDA_SYNC_MEMOPS=0
 # LD_PRELOAD is required for PyTorch to find the NCCL library
 # This path assumes you are using the Deep Learning AMI
 # If you are not using the DLAMI, you may need to update this path
-export LD_PRELOAD=/usr/local/cuda-12.8/lib/libnccl.so
+export LD_PRELOAD=/usr/local/cuda-12.4/lib/libnccl.so
 export NCCL_SOCKET_IFNAME=^docker,lo,veth,eth
 
 ## Set HuggingFace metadata timeout (in seconds) for large clusters
@@ -56,8 +56,6 @@ export HF_HUB_ETAG_TIMEOUT=60
 
 if [ ! -z $CONTAINER_IMAGE ];
 then
-    export TRAIN_SCRIPT=./train.py
-    
     declare -a ARGS=(
         --container-image $CONTAINER_IMAGE
         --container-mounts $FSX_MOUNT
@@ -77,7 +75,7 @@ declare -a TORCHRUN_ARGS=(
 )
 
 export TORCHRUN=torchrun
-export TRAIN_SCRIPT=${TRAIN_SCRIPT:=../src/train.py}
+export TRAIN_SCRIPT=./train.py
 
 ############################
 # llama2_13b Training Params ##
@@ -92,9 +90,9 @@ declare -a TRAINING_ARGS=(
     --num_heads=40
     --model_type=llama_v2
     --tokenizer=hf-internal-testing/llama-tokenizer
-    --checkpoint_freq=50
-    --validation_freq=25
-    --max_steps=100
+    --checkpoint_freq=5000
+    --validation_freq=500
+    --max_steps=5000
     --checkpoint_dir=./checkpoints
     --dataset=allenai/c4
     --dataset_config_name=en

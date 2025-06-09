@@ -4,7 +4,11 @@
 # SPDX-License-Identifier: MIT-0
 
 #SBATCH --nodes=4 # number of nodes to use
+<<<<<<<< HEAD:3.test_cases/pytorch/FSDP/slurm/training-sub.template
+#SBATCH --job-name={{ MODEL_NAME }}-FSDP # name of your job
+========
 #SBATCH --job-name=llama2_7b-FSDP # name of your job
+>>>>>>>> 852fe20 (Resolved merge conflict in sagemaker_iam_role/main.tf):3.test_cases/pytorch/FSDP/slurm/llama2_7b-training.sbatch
 #SBATCH --output=logs/%x_%j.out # logfile for stdout
 #SBATCH --error=logs/%x_%j.err # logfile for stderr, remove it to merge both outputs
 #SBATCH --exclusive # job has exclusive use of the resource, no sharing
@@ -56,8 +60,11 @@ export HF_HUB_ETAG_TIMEOUT=60
 
 if [ ! -z $CONTAINER_IMAGE ];
 then
+<<<<<<<< HEAD:3.test_cases/pytorch/FSDP/slurm/training-sub.template
     export TRAIN_SCRIPT=./train.py
     
+========
+>>>>>>>> 852fe20 (Resolved merge conflict in sagemaker_iam_role/main.tf):3.test_cases/pytorch/FSDP/slurm/llama2_7b-training.sbatch
     declare -a ARGS=(
         --container-image $CONTAINER_IMAGE
         --container-mounts $FSX_MOUNT
@@ -80,6 +87,13 @@ export TORCHRUN=torchrun
 export TRAIN_SCRIPT=${TRAIN_SCRIPT:=../src/train.py}
 
 ############################
+<<<<<<<< HEAD:3.test_cases/pytorch/FSDP/slurm/training-sub.template
+# {{MODEL_NAME}} Training Params ##
+############################
+
+declare -a TRAINING_ARGS=(
+    {{ MODEL_PARAMETERS | indent(4) }}
+========
 # llama2_7b Training Params ##
 ############################
 
@@ -92,9 +106,9 @@ declare -a TRAINING_ARGS=(
     --num_heads=32
     --model_type=llama_v2
     --tokenizer=hf-internal-testing/llama-tokenizer
-    --checkpoint_freq=50
-    --validation_freq=100
-    --max_steps=100
+    --checkpoint_freq=5000
+    --validation_freq=500
+    --max_steps=5000
     --checkpoint_dir=./checkpoints
     --dataset=allenai/c4
     --dataset_config_name=en
@@ -103,6 +117,7 @@ declare -a TRAINING_ARGS=(
     --val_batch_size=1
     --sharding_strategy=full # https://pytorch.org/docs/stable/fsdp.html
     --offload_activations=1
+>>>>>>>> 852fe20 (Resolved merge conflict in sagemaker_iam_role/main.tf):3.test_cases/pytorch/FSDP/slurm/llama2_7b-training.sbatch
 )
 
 AUTO_RESUME=""
@@ -110,4 +125,8 @@ if [ -d "/opt/sagemaker_cluster" ]; then
     echo "Detected Hyperpod cluster.. enabling --auto-resume=1"
     AUTO_RESUME="--auto-resume=1"
 fi
+<<<<<<<< HEAD:3.test_cases/pytorch/FSDP/slurm/training-sub.template
 srun ${AUTO_RESUME} -l "${ARGS[@]}" ${TORCHRUN} "${TORCHRUN_ARGS[@]}" $TRAIN_SCRIPT "${TRAINING_ARGS[@]}"
+========
+srun ${AUTO_RESUME} -l "${ARGS[@]}" ${TORCHRUN} "${TORCHRUN_ARGS[@]}" $TRAIN_SCRIPT "${TRAINING_ARGS[@]}"
+>>>>>>>> 852fe20 (Resolved merge conflict in sagemaker_iam_role/main.tf):3.test_cases/pytorch/FSDP/slurm/llama2_7b-training.sbatch

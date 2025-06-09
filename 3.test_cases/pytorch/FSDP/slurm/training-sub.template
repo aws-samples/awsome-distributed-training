@@ -4,7 +4,11 @@
 # SPDX-License-Identifier: MIT-0
 
 #SBATCH --nodes=4 # number of nodes to use
+<<<<<<<< HEAD:3.test_cases/pytorch/FSDP/slurm/llama2_70b-training.sbatch
+#SBATCH --job-name=llama2_70b-FSDP # name of your job
+========
 #SBATCH --job-name={{ MODEL_NAME }}-FSDP # name of your job
+>>>>>>>> 852fe20 (Resolved merge conflict in sagemaker_iam_role/main.tf):3.test_cases/pytorch/FSDP/slurm/training-sub.template
 #SBATCH --output=logs/%x_%j.out # logfile for stdout
 #SBATCH --error=logs/%x_%j.err # logfile for stderr, remove it to merge both outputs
 #SBATCH --exclusive # job has exclusive use of the resource, no sharing
@@ -43,7 +47,11 @@ export FI_EFA_SET_CUDA_SYNC_MEMOPS=0
 # LD_PRELOAD is required for PyTorch to find the NCCL library
 # This path assumes you are using the Deep Learning AMI
 # If you are not using the DLAMI, you may need to update this path
+<<<<<<<< HEAD:3.test_cases/pytorch/FSDP/slurm/llama2_70b-training.sbatch
 export LD_PRELOAD=/usr/local/cuda-12.8/lib/libnccl.so
+========
+export LD_PRELOAD=/usr/local/cuda-12.4/lib/libnccl.so
+>>>>>>>> 852fe20 (Resolved merge conflict in sagemaker_iam_role/main.tf):3.test_cases/pytorch/FSDP/slurm/training-sub.template
 export NCCL_SOCKET_IFNAME=^docker,lo,veth,eth
 
 ## Set HuggingFace metadata timeout (in seconds) for large clusters
@@ -56,8 +64,11 @@ export HF_HUB_ETAG_TIMEOUT=60
 
 if [ ! -z $CONTAINER_IMAGE ];
 then
+<<<<<<<< HEAD:3.test_cases/pytorch/FSDP/slurm/llama2_70b-training.sbatch
     export TRAIN_SCRIPT=./train.py
     
+========
+>>>>>>>> 852fe20 (Resolved merge conflict in sagemaker_iam_role/main.tf):3.test_cases/pytorch/FSDP/slurm/training-sub.template
     declare -a ARGS=(
         --container-image $CONTAINER_IMAGE
         --container-mounts $FSX_MOUNT
@@ -80,11 +91,37 @@ export TORCHRUN=torchrun
 export TRAIN_SCRIPT=${TRAIN_SCRIPT:=../src/train.py}
 
 ############################
+<<<<<<<< HEAD:3.test_cases/pytorch/FSDP/slurm/llama2_70b-training.sbatch
+# llama2_70b Training Params ##
+############################
+
+declare -a TRAINING_ARGS=(
+    --max_context_width=4096
+    --num_key_value_heads=8
+    --intermediate_size=28672
+    --hidden_width=8192
+    --num_layers=80
+    --num_heads=64
+    --model_type=llama_v2
+    --tokenizer=hf-internal-testing/llama-tokenizer
+    --checkpoint_freq=15
+    --validation_freq=10
+    --max_steps=30
+    --checkpoint_dir=./checkpoints
+    --dataset=allenai/c4
+    --dataset_config_name=en
+    --resume_from_checkpoint=./checkpoints
+    --train_batch_size=1
+    --val_batch_size=1
+    --sharding_strategy=full # https://pytorch.org/docs/stable/fsdp.html
+    --offload_activations=1
+========
 # {{MODEL_NAME}} Training Params ##
 ############################
 
 declare -a TRAINING_ARGS=(
     {{ MODEL_PARAMETERS | indent(4) }}
+>>>>>>>> 852fe20 (Resolved merge conflict in sagemaker_iam_role/main.tf):3.test_cases/pytorch/FSDP/slurm/training-sub.template
 )
 
 AUTO_RESUME=""
@@ -92,4 +129,8 @@ if [ -d "/opt/sagemaker_cluster" ]; then
     echo "Detected Hyperpod cluster.. enabling --auto-resume=1"
     AUTO_RESUME="--auto-resume=1"
 fi
+<<<<<<<< HEAD:3.test_cases/pytorch/FSDP/slurm/llama2_70b-training.sbatch
 srun ${AUTO_RESUME} -l "${ARGS[@]}" ${TORCHRUN} "${TORCHRUN_ARGS[@]}" $TRAIN_SCRIPT "${TRAINING_ARGS[@]}"
+========
+srun ${AUTO_RESUME} -l "${ARGS[@]}" ${TORCHRUN} "${TORCHRUN_ARGS[@]}" $TRAIN_SCRIPT "${TRAINING_ARGS[@]}"
+>>>>>>>> 852fe20 (Resolved merge conflict in sagemaker_iam_role/main.tf):3.test_cases/pytorch/FSDP/slurm/training-sub.template

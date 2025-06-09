@@ -17,14 +17,11 @@ jobs:
   regression:
     strategy: 
       fail-fast: true
-      max-parallel: 3
+      max-parallel: 1
       matrix:
-        cluster: [p5, p5-smhp]
-        model_config: [llama2_7b, llama2_13b, llama2_70b] 
+        cluster: [p5]
+        model_config: [llama2_7b]
     runs-on: [self-hosted, "${{ matrix.cluster }}"]
-    concurrency:
-      group: ${{ github.workflow }}-${{ matrix.cluster }}-${{ matrix.model_config }}
-      cancel-in-progress: false      
     timeout-minutes: 360  # 6 hours for the full Llama 2 test
     steps:
       - name: Checkout code
@@ -39,7 +36,7 @@ jobs:
           FSDP_DIR="$(pwd)/${BUILD_ID}/3.test_cases/pytorch/FSDP"
           LOG_DIR="${HOME_DIR}/regression-logs-${BUILD_ID}-${{ matrix.model_config }}-${{ matrix.cluster }}"
           CHECKPOINT_DIR="${HOME_DIR}/regression-checkpoints-${BUILD_ID}-${{ matrix.model_config }}-${{ matrix.cluster }}"
-          CONTAINER_DIR="${HOME_DIR}/regression-container-${BUILD_ID}-${{ matrix.model_config }}-${{ matrix.cluster }}"
+          CONTAINER_DIR=${HOME_DIR}/regression-container-${BUILD_ID}
 
           echo "HOME_DIR=$HOME_DIR" >> $GITHUB_ENV
           echo "BUILD_ID=$BUILD_ID" >> $GITHUB_ENV

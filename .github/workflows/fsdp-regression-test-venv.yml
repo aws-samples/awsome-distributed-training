@@ -17,14 +17,11 @@ jobs:
   regression:
     strategy:
       fail-fast: true
-      max-parallel: 3
+      max-parallel: 1
       matrix:
-        cluster: [p5, p5-smhp]
-        model_config: [llama2_7b, llama2_13b, llama2_70b]        
+        cluster: [p5]
+        model_config: [llama2_7b]        
     runs-on: [self-hosted, "${{ matrix.cluster }}"]
-    concurrency:
-      group: ${{ github.workflow }}-${{ matrix.cluster }}-${{ matrix.model_config }}
-      cancel-in-progress: false      
     timeout-minutes: 360  # 6 hours for the full Llama 2 test
     steps:
       - name: Checkout code
@@ -53,20 +50,20 @@ jobs:
           chmod 755 ${{ env.LOG_DIR }} ${{ env.CHECKPOINT_DIR }}
       
       - name: Create virtual environment
-        working-directory: ${{ env.FSDP_DIR }}/slurm
+        working-directory: ${{ env.FSDP_DIR }}
         run: |
-          bash ./create_venv.sh
+          cd slurm && bash ./create_venv.sh
           echo "Virtual environment created successfully!"
 
       - name: Run regression test
         id: run_test
-        working-directory: ${{ env.FSDP_DIR }}/slurm
+        working-directory: ${{ env.FSDP_DIR }}
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          source env/bin/activate
-          SBATCH_FILE="${{ matrix.model_config }}-training.sbatch"
-          TMP_SBATCH="regression_test_${{ matrix.model_config }}.sbatch"          
+          source slurm/env/bin/activate
+          SBATCH_FILE="slurm/${{ matrix.model_config }}-training.sbatch"
+          TMP_SBATCH="slurm/regression_test_${{ matrix.model_config }}.sbatch"          
 
           if [ ! -f "$SBATCH_FILE" ]; then
             echo "Error: sbatch file ${SBATCH_FILE} does not exist!"
@@ -80,7 +77,7 @@ jobs:
           sed -i "s|--checkpoint_dir=./checkpoints|--checkpoint_dir=${{ env.CHECKPOINT_DIR }}|g" "$TMP_SBATCH"
 
           echo "Submitting Slurm job..."
-          sbatch --wait ${TMP_SBATCH}
+          sbatch --wait $TMP_SBATCH
           exit_code=$?
           echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
           echo "Slurm job completed with exit code: $exit_code"

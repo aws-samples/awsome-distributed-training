@@ -17,10 +17,29 @@ git clone https://github.com/aws-samples/awsome-distributed-training/
 cd awsome-distributed-training/3.test_cases/pytorch/FSDP/kubernetes
 ```
 
-### 0.3. Envsubst
+### 0.3. Base image
+The example requires building a container. We are going to use the [nccl-tests](github.com/aws-samples/awsome-distributed-training/micro-benchmarks/nccl-tests/nccl-tests.Dockerfile) container as base. The [nccl-tests](https://gallery.ecr.aws/hpc-cloud/nccl-tests) container image is a prerequisite. 
+
+It can either be pulled from [gallery.ecr.aws/hpc-cloud](https://gallery.ecr.aws/hpc-cloud) 
+
+```bash
+aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/hpc-cloud
+docker pull public.ecr.aws/hpc-cloud/nccl-tests:latest
+```
+
+or it can be built using the code below.
+
+```bash
+pushd ../../../micro-benchmarks/nccl-tests
+docker build -t nccl-tests:latest -f nccl-tests.Dockerfile .
+popd
+```
+It is recommended to use the public image as base. Building the base image from source can take longer than 30 min. If you decide to build your base image from source, then please change the `FROM` line in the [Dockerfile](Dockerfile) to your local base image, prior to building the `fsdp` image.
+
+### 0.4. Envsubst
 If the [envsubst](https://github.com/a8m/envsubst) utility is not available in your environment, please install it, following the instructions appropriate for your operating system.
 
-### 0.4. Kubeflow training operator
+### 0.5. Kubeflow training operator
 Deploy the Kubeflow training operator
 
 ```bash
@@ -39,8 +58,6 @@ pushd ../
 docker build -f Dockerfile -t ${REGISTRY}fsdp:pytorch2.5.1 .
 popd
 ```
-
-The PyTorch FSDP container uses the [nccl-tests](github.com/aws-samples/awsome-distributed-training/micro-benchmarks/nccl-tests/nccl-tests.Dockerfile) container as base.
 
 ## 2. Push container image to Amazon ECR
 
@@ -63,9 +80,7 @@ docker image push ${REGISTRY}fsdp:pytorch2.5.1
 
 ## 3. Data
 
-For this example, we'll be using the [allenai/c4](https://huggingface.co/datasets/allenai/c4) dataset. Instead of downloading the whole thing, the `create_streaming_dataloaders` function will stream the dataset from [HuggingFace](https://huggingface.co/datasets), so there's no data prep required for running this training.
-
-**For this dataset, we will need a Hugging Face access token**. First, create a [Hugging Face account](https://huggingface.co/welcome). Then [generate your access token with read permissions](https://huggingface.co/docs/hub/en/security-tokens). We will use this token and set it in our environment variables in the next step.
+For this example, we'll be using the [C4 dataset](https://huggingface.co/datasets/allenai/c4), which is several hundred gigabytes. Instead of downloading the whole thing, the `create_streaming_dataloaders` function will stream the dataset from [HuggingFace](https://huggingface.co/datasets), so there's no data prep required for running this training. 
 
 If you'd like to instead use your own dataset, you can do so by [formatting it as a HuggingFace dataset](https://huggingface.co/docs/datasets/create_dataset), and passing its location to the `--dataset_path` argument.
 
@@ -83,7 +98,6 @@ export NUM_NODES=<NUMBER OF NODES>
 export GPU_PER_NODE=<NUMBER OF GPUS PER NODE>
 export EFA_PER_NODE=<NUMBER OF EFA PER NODE>
 export FI_PROVIDER=efa
-export HF_TOKEN=<YOUR HF ACCESS TOKEN>
 EOF
 ```
 Fill in `env_vars` and then source variables:
