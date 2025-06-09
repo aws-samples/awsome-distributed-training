@@ -22,7 +22,7 @@ spec:
       image: '${IMAGE_URI}'
       command:
         - python 
-        - consolidation.py 
+        - model_consolidation.py 
         - --input_dir=${CHECKPOINT_DIR}/checkpoint-${MAX_TRAINING_STEPS}
         - --output_dir=${CHECKPOINT_DIR}/adapter_shards_consolidation
         - --save_format=safetensors

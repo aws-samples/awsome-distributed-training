@@ -114,7 +114,7 @@ spec:
                 - torchrun
                 - --nproc_per_node=8
                 - --nnodes=1
-                - peft_train.py
+                - train.py
                 - --bf16=True
                 - --checkpoint_frequency=400
                 - --dataset=${DATASET_NAME}
