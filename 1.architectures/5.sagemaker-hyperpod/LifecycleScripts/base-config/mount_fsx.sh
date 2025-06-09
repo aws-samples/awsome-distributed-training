@@ -2,8 +2,7 @@
 
 # must be run as sudo
 
-set -x
-set -e
+set -eux 
 
 # FSx Lustre Endpoints
 FSX_DNS_NAME="$1"
