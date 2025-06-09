@@ -65,7 +65,7 @@ Then create a directory under home directory to store cluster config files:
 # For example
 export AWS_REGION=ap-northeast-1 
 export CLUSTER_NAME=ml-cluster
-export PCLUSTER_VERSION=3.13.0
+export PCLUSTER_VERSION=3.13.1
 export CONFIG_DIR="${HOME}/${CLUSTER_NAME}_${AWS_REGION}_${PCLUSTER_VERSION}"
 
 mkdir -p ${CONFIG_DIR}
