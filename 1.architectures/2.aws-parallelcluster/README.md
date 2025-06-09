@@ -375,7 +375,17 @@ cat cluster-templates/cluster-vanilla.yaml | envsubst > ${CONFIG_DIR}/cluster.ya
 ```
 
 > [!IMPORTANT]  
-> The default configuration has `PlacementGroup` set to `False`. This is recommended when using AWS-provided ODCR or Capacity Blocks, as enabling placement groups may conflict with the placement group assigned to your ODCR/CB and cause *Insufficient Capacity Error* (ICE).
+> The default configuration has `PlacementGroup` set to `False`. This is recommended when using AWS-provided ODCR or Capacity Blocks, as enabling placement groups may conflict with the placement group assigned to your ODCR/CB and cause *Insufficient Capacity Error* (ICE). 
+>
+> However, when using user-procured Capacity Reservations (CR) for distributed training workloads, you should set `PlacementGroup` to `True` and specify a cluster placement group. This ensures optimal network performance between instances. Configure it like this:
+>
+> ```yaml
+> PlacementGroup:
+>   Enabled: True
+>   Name: <Your Placement Group Name>
+> ```
+>
+> It's recommended to create a cluster placement group first and use its name when reserving capacity for distributed training workloads.
 
 > [!TIP]  
 > If using AWS CloudShell and `envsubst` is not available, install it with:
