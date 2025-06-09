@@ -28,7 +28,11 @@ source env/bin/activate
 
 For this example, we'll be using the [allenai/c4](https://huggingface.co/datasets/allenai/c4) dataset. Instead of downloading the whole thing, the `create_streaming_dataloaders` function will stream the dataset from [HuggingFace](https://huggingface.co/datasets), so there's no data prep required for running this training.
 
-**For this dataset, we will need a Hugging Face access token**. First, create a [Hugging Face account](https://huggingface.co/welcome). Then [generate your access token with read permissions](https://huggingface.co/docs/hub/en/security-tokens). We will use this token in the next step. 
+**For this dataset, we will need a Hugging Face access token**. First, create a [Hugging Face account](https://huggingface.co/welcome). Then [generate your access token with read permissions](https://huggingface.co/docs/hub/en/security-tokens). Set your HuggingFace Token as an environment variable in your Python Virtual Environment by running:
+
+``` bash
+export HF_TOKEN=<YOUR HF ACCESS TOKEN>
+```
 
 If you'd like to instead use your own dataset, you can do so by [formatting it as a HuggingFace dataset](https://huggingface.co/docs/datasets/create_dataset), and passing its location to the `--dataset_path` argument.
 
@@ -39,7 +43,7 @@ You can adjust the number of training nodes by modifying `#SBATCH --nodes=4` to 
 
 If you are using non-EFA enabled instances, such as G4dn, or single GPU g5 nodes, comment out all EFA environment variables on lines 24-25.
 
-Also, under `User Variables` make sure to adjust `GPUS_PER_NODE` to match the number of GPUs on your instance type (8 for P4d(e)/P5, 4 for G5.12xlarge, 1 for G5.xlarge). Also under `User Variables` make sure to input your `HF_ACCESS_TOKEN` that we generated in the previous step. 
+Also, under `User Variables` make sure to adjust `GPUS_PER_NODE` to match the number of GPUs on your instance type (8 for P4d(e)/P5, 4 for G5.12xlarge, 1 for G5.xlarge).
 
 You can also adjust the training parameters in `TRAINING_ARGS` (for example, to increase batch size). Additional parameters can be found in `model/arguments.py`. Note that we use the same directory for both `--checkpoint_dir` and `--resume_from_checkpoint`. If there are multiple checkpoints, `--resume_from_checkpoint` will automatically select the most recent one. This way if our training is interupted for any reason, it will automatically pick up the most recent checkpoint.
 
@@ -79,11 +83,11 @@ You'll find a new file in the FSDP directory of the form `llama2_7b-FSDP_[JOB ID
 ###  Mistral 8x7B
 
 To run Mistral 8x7B model, you will need first to review the terms of usage on [HuggingFace](https://huggingface.co/mistralai/Mixtral-8x7B-v0.1).
-Then you will need to create a [user access token](https://huggingface.co/docs/hub/en/security-tokens) to access the gated Mathstral 7B model.
+Then you will need to use the previously created token or create a [user access token](https://huggingface.co/docs/hub/en/security-tokens) to access the gated Mathstral 7B model.
 Once created you will need to define it in your environment:
 
 ```bash
-export HF_TOKEN=>YOUR TOKEN>
+export HF_TOKEN=<YOUR TOKEN>
 ```
 
 You are now ready to launch your training for Mistral 8x7B with the following command:
@@ -124,7 +128,7 @@ You'll find a new file in the FSDP directory of the form `mistral_8x7b-FSDP_[JOB
 ###  Mistral Mathstral 7B
 
 To run Mistral Mathstral 7B model, you will need first to review the terms of usage on [HuggingFace](https://huggingface.co/mistralai/Mistral-7B-v0.1).
-Then you will need to create a [user access token](https://huggingface.co/docs/hub/en/security-tokens) to access the gated Mathstral 7B model.
+Then you will need to use the previously created token or create a [user access token](https://huggingface.co/docs/hub/en/security-tokens) to access the gated Mathstral 7B model.
 Once created you will need to define it in your environment:
 
 ```bash

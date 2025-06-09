@@ -41,4 +41,3 @@
 --offload_activations=1
 --train_split=train
 --val_split=validation
---hf_access_token=${HF_ACCESS_TOKEN}

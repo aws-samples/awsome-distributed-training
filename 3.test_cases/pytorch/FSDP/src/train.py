@@ -255,15 +255,13 @@ def main(args):
                                                    args.tokenizer, 
                                                    name=args.dataset_config_name, 
                                                    batch_size=args.train_batch_size, 
-                                                   split=args.train_split,
-                                                   hf_access_token=args.hf_access_token)
+                                                   split=args.train_split)
     
     val_dataloader = create_streaming_dataloader(args.dataset, 
                                                   args.tokenizer, 
                                                   name=args.dataset_config_name, 
                                                   batch_size=args.train_batch_size, 
-                                                  split=args.val_split,
-                                                  hf_access_toke=args.hf_access_token)
+                                                  split=args.val_split)
     
     train(model, 
           optimizer, 

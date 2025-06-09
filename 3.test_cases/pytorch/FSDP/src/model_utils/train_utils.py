@@ -474,11 +474,10 @@ def create_streaming_dataloader(dataset,
                       batch_size=1,
                       max_context_width=4096,
                       workers=4,
-                      split=None,
-                      hf_access_token=None):
+                      split=None):
     print(f"dataset={dataset}, name={name}")
     tokenizer = AutoTokenizer.from_pretrained(tokenizer)
-    data = load_dataset(dataset, name=name, streaming=True, split=split, token=hf_access_token, trust_remote_code=True).shuffle(42+global_rank)
+    data = load_dataset(dataset, name=name, streaming=True, split=split, trust_remote_code=True).shuffle(42+global_rank)
     train_concat_dataset = ConcatTokensDataset(data, tokenizer, max_context_width, True)
     train_dataloader = DataLoader(train_concat_dataset,
                                        batch_size=batch_size,

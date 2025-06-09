@@ -82,7 +82,7 @@ docker image push ${REGISTRY}fsdp:pytorch2.5.1
 
 For this example, we'll be using the [allenai/c4](https://huggingface.co/datasets/allenai/c4) dataset. Instead of downloading the whole thing, the `create_streaming_dataloaders` function will stream the dataset from [HuggingFace](https://huggingface.co/datasets), so there's no data prep required for running this training.
 
-**For this dataset, we will need a Hugging Face access token**. First, create a [Hugging Face account](https://huggingface.co/welcome). Then [generate your access token with read permissions](https://huggingface.co/docs/hub/en/security-tokens). We will use this token in the next step.
+**For this dataset, we will need a Hugging Face access token**. First, create a [Hugging Face account](https://huggingface.co/welcome). Then [generate your access token with read permissions](https://huggingface.co/docs/hub/en/security-tokens). We will use this token and set it in our environment variables in the next step.
 
 If you'd like to instead use your own dataset, you can do so by [formatting it as a HuggingFace dataset](https://huggingface.co/docs/datasets/create_dataset), and passing its location to the `--dataset_path` argument.
 
@@ -100,7 +100,7 @@ export NUM_NODES=<NUMBER OF NODES>
 export GPU_PER_NODE=<NUMBER OF GPUS PER NODE>
 export EFA_PER_NODE=<NUMBER OF EFA PER NODE>
 export FI_PROVIDER=efa
-export HF_ACCESS_TOKEN=<YOUR HF ACCESS TOKEN>
+export HF_TOKEN=<YOUR HF ACCESS TOKEN>
 EOF
 ```
 Fill in `env_vars` variables, including your HF access token that we created in the previous step, and then source variables:

@@ -76,6 +76,8 @@ spec:
                 value: "^lo"
               - name: TORCH_NCCL_ASYNC_ERROR_HANDLING
                 value: "1"
+              - name: HF_TOKEN
+                value: "${HF_TOKEN}"
               #- name: TORCH_DIST_INIT_BARRIER
               #  value: "1"
               #- name: NCCL_IGNORE_DISABLED_P2P
@@ -130,7 +132,6 @@ spec:
                 - --offload_activations=1
                 - --train_split=train
                 - --val_split=validation
-                - --hf_access_token=${HF_ACCESS_TOKEN}
               volumeMounts:
                 - name: shmem
                   mountPath: /dev/shm

@@ -16,7 +16,6 @@ set -ex;
 ###########################
 
 GPUS_PER_NODE=8 # 4 for G5.12x, 8 for P4/P5
-HF_ACCESS_TOKEN=<insert huggingface access token>
 
 ###############################
 ###### Container Variable #####
@@ -104,7 +103,7 @@ declare -a TRAINING_ARGS=(
     --offload_activations=1
     --train_split=train
     --val_split=validation
-    --hf_access_token=${HF_ACCESS_TOKEN}
+
 )
 
 AUTO_RESUME=""

@@ -202,11 +202,5 @@ def parse_args():  # pylint: disable=too-many-statements
         default="train",
         help="Split to use for validation data"
     )
-    parser.add_argument(
-        "--hf_access_token",
-        type=str,
-        default=None,
-        help="Your HuggingFace Access Token"
-    )
 
     return parser.parse_known_args()
