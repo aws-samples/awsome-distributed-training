@@ -50,7 +50,7 @@ if [ $FSX_OZFS_EXISTS -eq 1 ]; then
 
         echo "OpenZFS is mounted at $FSX_OPENZFS_DNS_NAME"
         # Set home directory to /home/ubuntu
-        sudo usermod -m -d "$FSX_OPENZFS_DNS_NAME/ubuntu" ubuntu
+       ansible localhost -b -m ansible.builtin.user -a "name=ubuntu home='$FSX_OPENZFS_DNS_NAME/ubuntu' move_home=yes"
         echo "Home directory set to $FSX_OPENZFS_DNS_NAME/ubuntu"
 
         # Maintain access to /fsx/ubuntu
