@@ -57,7 +57,9 @@ mount_fs()
 
     # Trigger automount by accessing the filesystem
     echo "Triggering automount by accessing $MOUNT_POINT..."
-    ls -la $MOUNT_POINT >/dev/null 2>&1 || true && ansible localhost -m ansible.builtin.file -a "path=$MOUNT_POINT/test_file state=touch" && ansible localhost -m ansible.builtin.file -a "path=$MOUNT_POINT/test_file state=absent"
+ls -la "$MOUNT_POINT" >/dev/null 2>&1 || true
+ansible localhost -m ansible.builtin.file -a "path=$MOUNT_POINT/test_file state=touch"
+ansible localhost -m ansible.builtin.file -a "path=$MOUNT_POINT/test_file state=absent"
 }
 
 restart_daemon()
