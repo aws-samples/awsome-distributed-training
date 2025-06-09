@@ -1,5 +1,5 @@
 
-## 6. Troubleshooting
+## Troubleshooting
 
 A common issue we see customer face is a problem with the post install scripts or issue to access capacity due to a mis-configuration. This can manifest itself through a `HeadNodeWaitCondition` that'll cause the ParallelCluster to fail a cluster deployment.
 
@@ -34,3 +34,4 @@ If you have multiple ODCR's you can group them together into a [*Capacity Reserv
     ```yaml
         CapacityReservationTarget:
             CapacityReservationResourceGroupArn: arn:aws:resource-groups:us-east-2:123456789012:group/MyCRGroup
+    ```
