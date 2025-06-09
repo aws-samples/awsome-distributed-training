@@ -203,16 +203,10 @@ def parse_args():  # pylint: disable=too-many-statements
         help="Split to use for validation data"
     )
     parser.add_argument(
-        "--n_samples_train",
+        "--hf_access_token",
         type=str,
-        default="4920",
-        help="Number of samples to use for training split"
-    )
-    parser.add_argument(
-        "--n_samples_val",
-        type=str,
-        default="1230",
-        help="Number of samples to use for validation split"
+        default=None,
+        help="Your HuggingFace Access Token"
     )
 
     return parser.parse_known_args()

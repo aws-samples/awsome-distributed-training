@@ -16,6 +16,7 @@ set -ex;
 ###########################
 
 GPUS_PER_NODE=8 # 4 for G5.12x, 8 for P4/P5
+HF_ACCESS_TOKEN=<insert huggingface access token>
 
 ###############################
 ###### Container Variable #####
@@ -94,17 +95,16 @@ declare -a TRAINING_ARGS=(
     --validation_freq=500
     --max_steps=5000
     --checkpoint_dir=./checkpoints
-    --dataset=wikimedia/wikipedia
-    --dataset_config_name=20231101.en
+    --dataset=allenai/c4
+    --dataset_config_name=en
     --resume_from_checkpoint=./checkpoints
     --train_batch_size=1
     --val_batch_size=1
     --sharding_strategy=full # https://pytorch.org/docs/stable/fsdp.html
     --offload_activations=1
     --train_split=train
-    --val_split=train
-    --n_samples_train=4920
-    --n_samples_val=1230
+    --val_split=validation
+    --hf_access_token=${HF_ACCESS_TOKEN}
 )
 
 AUTO_RESUME=""
