@@ -53,4 +53,3 @@ chmod 600 authorized_keys
 chmod 700 $FSX_DIR/.ssh
 # Change ownership to the ubuntu user
 chown ubuntu:ubuntu id_rsa id_rsa.pub authorized_keys
-chown ubuntu:ubuntu $FSX_DIR/.ssh
