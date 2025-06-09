@@ -8,11 +8,11 @@ Image:
 HeadNode:
   InstanceType: m5.8xlarge
   Networking:
-    SubnetId: ${PUBLIC_SUBNET_ID}
+    SubnetId: ${PublicSubnet}
     AdditionalSecurityGroups:
-      - ${SECURITY_GROUP}
+      - ${SecurityGroup}
   Ssh:
-    KeyName: ${KEY_PAIR_NAME}
+    KeyName: ${KEYPAIR_NAME}
   LocalStorage:
     RootVolume:
       Size: 500
@@ -29,8 +29,8 @@ HeadNode:
         - Script: 'https://raw.githubusercontent.com/aws-samples/aws-parallelcluster-post-install-scripts/main/docker/postinstall.sh'
         - Script: 'https://raw.githubusercontent.com/aws-samples/aws-parallelcluster-post-install-scripts/main/nccl/postinstall.sh'
           Args:
-            - v2.26.2-1 # NCCL version
-            - v1.14.0 # AWS OFI NCCL version
+            - v2.26.6-1 # NCCL version
+            - v1.14.2   # AWS OFI NCCL version
             
         - Script: 'https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/main/1.architectures/5.sagemaker-hyperpod/LifecycleScripts/base-config/utils/install_slurm_exporter.sh'
         - Script: 'https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/main/1.architectures/5.sagemaker-hyperpod/LifecycleScripts/base-config/utils/install_head_node_exporter.sh'
@@ -62,13 +62,13 @@ Scheduling:
         PlacementGroup:
           Enabled: false  # set this to false if using a targeted ODCR
         AdditionalSecurityGroups:
-          - ${SECURITY_GROUP}
+          - ${SecurityGroup}
       ComputeSettings:
         LocalStorage:
           EphemeralVolume:
             MountDir: /scratch # each instance has a local scratch on NVMe
           RootVolume:
-            Size: 200
+            Size: 500
       ComputeResources:
         - Name: distributed-ml
           InstanceType: ${INSTANCE}
@@ -84,8 +84,8 @@ Scheduling:
             - Script: 'https://raw.githubusercontent.com/aws-samples/aws-parallelcluster-post-install-scripts/main/docker/postinstall.sh'
             - Script: 'https://raw.githubusercontent.com/aws-samples/aws-parallelcluster-post-install-scripts/main/nccl/postinstall.sh'
               Args:
-                - v2.26.2-1 # NCCL version
-                - v1.14.0 # AWS OFI NCCL version
+                - v2.26.6-1 # NCCL version
+                - v1.14.2   # AWS OFI NCCL version
                 
             - Script: 'https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/main/1.architectures/5.sagemaker-hyperpod/LifecycleScripts/base-config/utils/install_dcgm_exporter.sh'
             - Script: 'https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/main/1.architectures/5.sagemaker-hyperpod/LifecycleScripts/base-config/utils/install_efa_node_exporter.sh'
@@ -97,12 +97,12 @@ SharedStorage:
     MountDir: /home
     StorageType: FsxOpenZfs
     FsxOpenZfsSettings:
-      VolumeId: ${FSXO_ID}
+      VolumeId: ${FSxORootVolumeId}
   - MountDir: /fsx
     Name: fsx
     StorageType: FsxLustre
     FsxLustreSettings:
-      FileSystemId: ${FSX_ID}
+      FileSystemId: ${FSxLustreFilesystemId}
 Monitoring:
   DetailedMonitoring: true
   Logs:

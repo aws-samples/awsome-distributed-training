@@ -109,7 +109,7 @@ pip3 install aws-parallelcluster==${PCLUSTER_VERSION} # then AWS ParallelCluster
 
 Distributed training usually requires P or Trn instances, both of which are high demand and hard to launch from the on-demand pool. It is strongly recommended to reserve capacity using On-Demand Capacity Reservation (ODCR) or EC2 Capacity Blocks (CB) for ML.
 
-On-Demand Capacity Reservation (ODCR) is a tool for reserving capacity without having to launch and run the EC2 instances. The CRs for P or Trn instances are typically *created by AWS*, not by users, which affects how to correctly configure the cluster networking (section [5.3](#53-network-efa-elastic-fabric-adapter)).
+On-Demand Capacity Reservation (ODCR) is a tool for reserving capacity without having to launch and run the EC2 instances. The CRs for P or Trn instances are typically *created by AWS*, not by users, which affects how to correctly configure the cluster networking.
 
 [Amazon EC2 Capacity Blocks for ML](https://aws.amazon.com/ec2/capacity-blocks/) is another way to reserve compute capacity for your ML workloads. Unlike ODCR, Capacity Blocks allows you to reserve capacity for a specific time window (from 1 to 14 days) with a specific start time. This is particularly useful for planned ML training jobs that require high-performance P/Trn instances. Pricing varies by region and instance type. You can find the complete pricing information and available instance types in each region on the [Amazon EC2 Capacity Blocks for ML pricing page](https://aws.amazon.com/ec2/capacityblocks/pricing/).
 
@@ -165,12 +165,11 @@ aws ec2 create-key-pair \
 chmod 600 ${KEYPAIR_NAME}.pem
 popd
 ```
-
-You can verify the key pair was created successfully by listing your key pairs:
-
-```bash
-aws ec2 describe-key-pairs --region ${AWS_REGION}
-```
+>[!TIP]
+>You can verify the key pair was created successfully by listing your key pairs:
+> ```bash
+> aws ec2 describe-key-pairs --region ${AWS_REGION}
+> ```
 
 #### (Optional) S3 bucket for data persistence
 
@@ -225,12 +224,13 @@ Please follow the steps below to deploy your resources:
 
 [<kbd> <br> 1-Click Deploy 🚀 <br> </kbd>](https://console.aws.amazon.com/cloudformation/home#/stacks/quickcreate?templateUrl=https://awsome-distributed-training.s3.amazonaws.com/templates/parallelcluster-prerequisites.yaml&stackName=parallelcluster-prerequisites)
 
-> [!INFO]
-> The CloudFormation stack uses FSx for Lustre `PERSISTENT_2` deployment type by default. If your selected availability zone doesn't support `PERSISTENT_2` or you specifically need to use `PERSISTENT_1` deployment type, please use the link below instead:
-> [<kbd> <br> 1-Click Deploy 🚀 <br> </kbd>](https://console.aws.amazon.com/cloudformation/home#/stacks/quickcreate?templateUrl=https://awsome-distributed-training.s3.amazonaws.com/templates/parallelcluster-prerequisites-p1.yaml&stackName=parallelcluster-prerequisites)
+> [!IMPORTANT]
+> When opening the link, you must specify the region and availability zone where your compute resources are located. Be sure to select the correct region and fill out the "Availability Zone configuration for the subnets" field, when you create the stack.
+
 
 > [!NOTE]
-> When opening the link, you must specify the region and availability zone where your compute resources are located. Be sure to fill out the "Availability Zone configuration for the subnets" field, then create the stack.
+> The above CloudFormation stack uses FSx for Lustre `PERSISTENT_2` deployment type by default. If your selected availability zone doesn't support `PERSISTENT_2` or you specifically need to use `PERSISTENT_1` deployment type, please use the link below instead:
+> [<kbd> <br> 1-Click Deploy 🚀 <br> </kbd>](https://console.aws.amazon.com/cloudformation/home#/stacks/quickcreate?templateUrl=https://awsome-distributed-training.s3.amazonaws.com/templates/parallelcluster-prerequisites-p1.yaml&stackName=parallelcluster-prerequisites)
 
 ![parallelcluster-prerequisites-cfn](../../0.docs/parallelcluster-prerequisites-cfn.png)
 
@@ -302,15 +302,14 @@ You shall see output like below:
 }
 ```
 
-You can query the status of the DRA creation as below:
-
-```bash
-aws fsx describe-data-repository-associations \
-    --filters "Name=file-system-id,Values=${FSX_ID}" --query "Associations[0].Lifecycle" --output text
-    --region ${AWS_REGION}
-```
-
-Wait until the output becomes `AVAILABLE` . You also can check the status of DRA on AWS console:
+[!TIPS]
+> You can query the status of the DRA creation as below:
+> ```bash
+> aws fsx describe-data-repository-associations \
+>     --filters "Name=file-system-id,Values=${FSX_ID}" --query "Associations[0].Lifecycle" --output text
+>     --region ${AWS_REGION}
+> ```
+> Wait until the output becomes `AVAILABLE`. You also can check the status of DRA on [AWS console](https://console.aws.amazon.com/fsx/home#file-systems).
 
 ## Step2: Deploy ParallelCluster
 
@@ -318,33 +317,35 @@ This section guides you through deploying your distributed training cluster. Bef
 
 ### 1. Set Up Environment Variables
 
-You should have the following values set 
+First, make sure that you are in virtual environment if you have `pcluster` installed:
+
+```bash
+source ${VIRTUAL_ENV_PATH}/bin/activate # activate the environment for pcluster CLI
+```
+
+You should have the following values set:
 
 ```bash
 cat  ${CONFIG_DIR}/config.yaml
 ```
 
-
 ```yaml
-AWS_REGION: eu-west-2
+# Example values - these will vary by environment
 CLUSTER_NAME: ml-cluster
-PCLUSTER_VERSION: 3.13.0
-CAPACITY_RESERVATION_ID: cr-074a0b74e199ae640
+AWS_REGION: eu-west-2
+PCLUSTER_VERSION: 3.13.1
+CAPACITY_RESERVATION_ID: cr-XXXXXXXXXXXXXXXXX
 AZ: eu-west-2c
 NUM_INSTANCES: "16"
 INSTANCE: p5.48xlarge
 KEYPAIR_NAME: eu-west-2
-DATA_BUCKET_NAME: cluster-data-bucket-us-west-2-483026362307
+DATA_BUCKET_NAME: "cluster-data-bucket-us-west-2-XXXXXXXXXXXX"
+STACK_ID_VPC: parallelcluster-prerequisites
 ```
 
-Now let's use the following snipett to read them as environment variables:
+## 2. Generate Cluster Configuration
 
-```bash
-eval $(yq e 'to_entries | .[] | "export " + .key + "=\"" + .value + "\""' ${CONFIG_DIR}/config.yaml) 
-source ${VIRTUAL_ENV_PATH}/bin/activate # activate the environment for pcluster CLI
-```
-
-And now retrieve additional environment variables from `parallelcluster-prerequisites` stack:
+Retrieve additional environment variables from the `parallelcluster-prerequisites` stack and generate the cluster configuration using our template:
 
 ```bash
 # Grab all the outputs from the CloudFormation stack in a single command and append to config.yaml
@@ -358,18 +359,14 @@ aws cloudformation describe-stacks \
 yq eval-all 'select(fileIndex == 0) * select(fileIndex == 1)' ${CONFIG_DIR}/config.yaml ${CONFIG_DIR}/stack_outputs.yaml > ${CONFIG_DIR}/config_updated.yaml
 mv ${CONFIG_DIR}/config_updated.yaml ${CONFIG_DIR}/config.yaml
 rm ${CONFIG_DIR}/stack_outputs.yaml
+# Now let's use the following snippet to read them as environment variables
+eval $(yq e 'to_entries | .[] | "export " + .key + "=\"" + .value + "\""' ${CONFIG_DIR}/config.yaml) 
 
 # You can also view the updated config file
 cat ${CONFIG_DIR}/config.yaml
+
 # Read all the environment variables we have in config.yaml
 eval $(yq e 'to_entries | .[] | "export " + .key + "=\"" + .value + "\""' ${CONFIG_DIR}/config.yaml) 
-```
-
-### 2. Generate Cluster Configuration
-
-Generate the cluster configuration using our template:
-
-```bash
 # Generate the configuration file
 cat cluster-templates/cluster-vanilla.yaml | envsubst > ${CONFIG_DIR}/cluster.yaml
 ```
@@ -377,7 +374,7 @@ cat cluster-templates/cluster-vanilla.yaml | envsubst > ${CONFIG_DIR}/cluster.ya
 > [!IMPORTANT]  
 > The default configuration has `PlacementGroup` set to `False`. This is recommended when using AWS-provided ODCR or Capacity Blocks, as enabling placement groups may conflict with the placement group assigned to your ODCR/CB and cause *Insufficient Capacity Error* (ICE). 
 >
-> However, when using user-procured Capacity Reservations (CR) for distributed training workloads, you should set `PlacementGroup` to `True` and specify a cluster placement group. This ensures optimal network performance between instances. Configure it like this:
+> However, when using user-procured Capacity Reservations (CR) for distributed training workloads, you should set `PlacementGroup` to `True` and specify a cluster placement group name. This ensures optimal network performance between instances. Configure it like this:
 >
 > ```yaml
 > PlacementGroup:
@@ -385,7 +382,7 @@ cat cluster-templates/cluster-vanilla.yaml | envsubst > ${CONFIG_DIR}/cluster.ya
 >   Name: <Your Placement Group Name>
 > ```
 >
-> It's recommended to create a cluster placement group first and use its name when reserving capacity for distributed training workloads.
+> It's recommended to create a cluster placement group first and use its name when reserving capacity for distributed training workloads. 
 
 > [!TIP]  
 > If using AWS CloudShell and `envsubst` is not available, install it with:
