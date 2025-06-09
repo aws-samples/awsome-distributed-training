@@ -350,37 +350,37 @@ Outputs:
     Description: ID of the VPC
     Export:
       Name: !Sub ${AWS::StackName}-VPC
-  PUBLIC_SUBNET:
+  PublicSubnet:
     Value: !Ref PublicSubnet
     Description: ID of the public subnet
     Export:
       Name: !Sub ${AWS::StackName}-PublicSubnet
-  PRIMARY_PRIVATE_SUBNET:
+  PrimaryPrivateSubnet:
     Value: !Ref PrimaryPrivateSubnet
     Description: ID of the primary private subnet
     Export:
       Name: !Sub ${AWS::StackName}-PrimaryPrivateSubnet
-  SECURITY_GROUP:
+  SecurityGroup:
     Value: !Ref SecurityGroup
     Description: SecurityGroup for Batch
     Export:
       Name: !Sub ${AWS::StackName}-SecurityGroup
-  FSX_LUSTRE_FILESYSTEM_MOUNT_NAME:
+  FSxLustreFilesystemMountname:
     Description: The ID of the FSxL filesystem that has been created
     Value: !GetAtt FSxLFilesystem.LustreMountName
     Export:
       Name: !Sub ${AWS::StackName}-FSxLustreFilesystemMountname
-  FSX_LUSTRE_FILESYSTEM_DNS_NAME:
+  FSxLustreFilesystemDNSname:
     Description: The DNS of the FSxL filesystem that has been created
     Value: !GetAtt FSxLFilesystem.DNSName
     Export:
       Name: !Sub ${AWS::StackName}-FSxLustreFilesystemDNSname
-  FSX_LUSTRE_FILESYSTEM_ID:
+  FSxLustreFilesystemId:
     Description: The ID of the FSxL filesystem that has been created
     Value: !Ref FSxLFilesystem
     Export:
       Name: !Sub ${AWS::StackName}-FSxLustreFilesystemId
-  FSX_OPENZFS_ROOT_VOLUME_ID:
+  FSxORootVolumeId:
     Description: The ID of Fsx OpenZFS root volume
     Value: !GetAtt OpenZFSFileSystem.RootVolumeId
     Export:
