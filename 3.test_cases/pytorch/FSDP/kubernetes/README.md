@@ -87,7 +87,6 @@ For this example, we'll be using the [allenai/c4](https://huggingface.co/dataset
 If you'd like to instead use your own dataset, you can do so by [formatting it as a HuggingFace dataset](https://huggingface.co/docs/datasets/create_dataset), and passing its location to the `--dataset_path` argument.
 
 ## 4. Launch Llama2 7B training job
-
 Generate the Kubernetes manifest and apply it to the cluster.
 
 Create environment variables:

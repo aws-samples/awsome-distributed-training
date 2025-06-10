@@ -52,7 +52,8 @@ You can also adjust the training parameters in `TRAINING_ARGS` (for example, to 
 To launch your training for Llama2 7B, run
 
 ```bash
-sbatch llama2_7b-training.sbatch
+cd ../src
+sbatch ../slurm/llama2_7b-training.sbatch
 ```
 
 You'll find a new file in the FSDP directory of the form `llama2_7b-FSDP_[JOB ID].out`. This will be continuously updated with your training logs. Don't be worried if you see a long stream of NCCL logs (we prefer to use `NCCL_DEBUG=INFO` for verbose logging). After about a minute, you should see your model training, with an output similar to below for Llama2 :
