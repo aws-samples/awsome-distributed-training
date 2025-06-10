@@ -77,7 +77,7 @@ jobs:
           sed -i "s|--checkpoint_dir=./checkpoints|--checkpoint_dir=${{ env.CHECKPOINT_DIR }}|g" "$TMP_SBATCH"
 
           echo "Submitting Slurm job..."
-          sbatch --wait $TMP_SBATCH
+          pushd src && sbatch --wait ../${TMP_SBATCH} && popd
           exit_code=$?
           echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
           echo "Slurm job completed with exit code: $exit_code"
