@@ -18,8 +18,7 @@ cd awsome-distributed-training/3.test_cases/pytorch/FSDP/slurm
 3. Create a Python Virtual Environment to install the necessary packages. Run the `create_venv.sh` script.
 
 ```bash
-bash create_venv.sh
-source env/bin/activate
+. ./create_venv.sh
 ```
 
 * By creating this environment on the shared FSx for Lustre volume, all compute nodes in our cluster will have access to it.
