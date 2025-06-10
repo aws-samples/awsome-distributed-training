@@ -21,11 +21,10 @@ jobs:
       matrix:
         cluster: [p5]
         model_config: [llama2_7b, llama2_13b, llama2_70b] 
-        runs-on: [self-hosted, "${{ matrix.cluster }}"]
-      concurrency:
-        group: ${{ github.workflow }}-${{ matrix.cluster }}-${{ matrix.model_config }}
-        cancel-in-progress: false      
-        
+    runs-on: [self-hosted, "${{ matrix.cluster }}"]
+    concurrency:
+      group: ${{ github.workflow }}-${{ matrix.cluster }}-${{ matrix.model_config }}
+      cancel-in-progress: false      
     timeout-minutes: 360  # 6 hours for the full Llama 2 test
     steps:
       - name: Checkout code
