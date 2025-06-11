@@ -19,7 +19,7 @@ jobs:
       fail-fast: true
       max-parallel: 3
       matrix:
-        cluster: [p5]
+        cluster: [p5, p5-smhp]
         model_config: [llama2_7b, llama2_13b, llama2_70b] 
     runs-on: [self-hosted, "${{ matrix.cluster }}"]
     concurrency:
