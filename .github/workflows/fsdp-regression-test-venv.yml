@@ -53,18 +53,18 @@ jobs:
           chmod 755 ${{ env.LOG_DIR }} ${{ env.CHECKPOINT_DIR }}
       
       - name: Create virtual environment
-        working-directory: ${{ env.FSDP_DIR }}
+        working-directory: ${{ env.FSDP_DIR }}/slurm
         run: |
-          cd slurm && bash ./create_venv.sh
+          bash ./create_venv.sh
           echo "Virtual environment created successfully!"
 
       - name: Run regression test
         id: run_test
-        working-directory: ${{ env.FSDP_DIR }}
+        working-directory: ${{ env.FSDP_DIR }}/slurm
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          source slurm/env/bin/activate
+          source env/bin/activate
           SBATCH_FILE="slurm/${{ matrix.model_config }}-training.sbatch"
           TMP_SBATCH="slurm/regression_test_${{ matrix.model_config }}.sbatch"          
 
