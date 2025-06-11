@@ -32,7 +32,6 @@ kubectl apply -k "github.com/kubeflow/training-operator/manifests/overlays/stand
 Build a container image for this example using the code below:
 
 ```bash
-aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/hpc-cloud
 export AWS_REGION=$(aws ec2 describe-availability-zones --output text --query 'AvailabilityZones[0].[RegionName]')
 export ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
 export REGISTRY=${ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com/
@@ -41,7 +40,7 @@ docker build -f Dockerfile -t ${REGISTRY}fsdp:pytorch2.5.1 .
 popd
 ```
 
-We use the [nccl-tests](github.com/aws-samples/awsome-distributed-training/micro-benchmarks/nccl-tests/nccl-tests.Dockerfile) container as base.
+The PyTorch FSDP container uses the [nccl-tests](github.com/aws-samples/awsome-distributed-training/micro-benchmarks/nccl-tests/nccl-tests.Dockerfile) container as base.
 
 ## 2. Push container image to Amazon ECR
 
