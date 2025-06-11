@@ -5,7 +5,7 @@
 --num_layers=32
 --num_heads=32
 --model_type=llama_v3
---tokenizer=hf-internal-testing/llama-tokenizer
+--tokenizer=baseten/Meta-Llama-3-tokenizer
 --checkpoint_freq=5000
 --validation_freq=500
 --max_steps=5000

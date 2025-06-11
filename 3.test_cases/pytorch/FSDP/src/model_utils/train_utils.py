@@ -505,7 +505,7 @@ def create_streaming_dataloader(dataset,
                       workers=4,
                       split=None):
     print(f"dataset={dataset}, name={name}")
-    tokenizer = AutoTokenizer.from_pretrained(tokenizer)
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer,legacy=False)
     data = load_dataset(dataset, name=name, streaming=True, split=split, trust_remote_code=True).shuffle(42+global_rank)
     train_concat_dataset = ConcatTokensDataset(data, tokenizer, max_context_width, True)
     train_dataloader = DataLoader(train_concat_dataset,
