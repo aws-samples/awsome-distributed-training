@@ -39,7 +39,7 @@ jobs:
           FSDP_DIR="$(pwd)/${BUILD_ID}/3.test_cases/pytorch/FSDP"
           LOG_DIR="${HOME_DIR}/regression-logs-${BUILD_ID}-${{ matrix.model_config }}-${{ matrix.cluster }}"
           CHECKPOINT_DIR="${HOME_DIR}/regression-checkpoints-${BUILD_ID}-${{ matrix.model_config }}-${{ matrix.cluster }}"
-          CONTAINER_DIR=${HOME_DIR}/regression-container-${BUILD_ID}
+          CONTAINER_DIR="${HOME_DIR}/regression-container-${BUILD_ID}-${{ matrix.model_config }}-${{ matrix.cluster }}"
 
           echo "HOME_DIR=$HOME_DIR" >> $GITHUB_ENV
           echo "BUILD_ID=$BUILD_ID" >> $GITHUB_ENV
