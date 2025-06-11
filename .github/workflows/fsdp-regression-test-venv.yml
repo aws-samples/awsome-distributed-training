@@ -65,8 +65,8 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           source env/bin/activate
-          SBATCH_FILE="slurm/${{ matrix.model_config }}-training.sbatch"
-          TMP_SBATCH="slurm/regression_test_${{ matrix.model_config }}.sbatch"          
+          SBATCH_FILE="${{ matrix.model_config }}-training.sbatch"
+          TMP_SBATCH="regression_test_${{ matrix.model_config }}.sbatch"          
 
           if [ ! -f "$SBATCH_FILE" ]; then
             echo "Error: sbatch file ${SBATCH_FILE} does not exist!"
