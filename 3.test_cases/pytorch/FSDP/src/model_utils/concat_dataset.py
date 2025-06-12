@@ -28,7 +28,7 @@ class ConcatTokensDataset(IterableDataset):
         mask_buffer = []
         for sample in self.hf_dataset:
             encoded = self.tokenizer(sample['text'],
-                                     truncation=False,
+                                     truncation=True,
                                      padding=False)
             iids = encoded['input_ids']
             mask = encoded['attention_mask']
