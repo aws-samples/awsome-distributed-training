@@ -1,3 +1,4 @@
 certifi
+cfnresponse
 grafana-client==4.3.2
 grafanalib==0.7.1
