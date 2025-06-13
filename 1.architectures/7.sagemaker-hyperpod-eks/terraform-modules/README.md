@@ -137,7 +137,16 @@ cd hyperpod-eks-tf
 terraform plan -destroy
 ```
 
+If you created a `custom.tfvars` file, plan using the `-var-file` flag: 
+```bash
+terraform plan -destroy -var-file=custom.tfvars
+```
+
 Once you've validated the changes, you can proceed to destroy the resources: 
 ```bash 
 terraform destroy
+```
+If you created a `custom.tfvars` file, destroy using the `-var-file` flag: 
+```bash
+terraform destroy -var-file=custom.tfvars
 ```
