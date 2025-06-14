@@ -60,6 +60,7 @@ class ProvisioningParameters:
     WORKLOAD_MANAGER_KEY: str = "workload_manager"
     FSX_DNS_NAME: str = "fsx_dns_name"
     FSX_MOUNT_NAME: str = "fsx_mountname"
+    FSX_OPENZFS_DNS_NAME: str = "fsx_openzfs_dns_name"
     SLURM_CONFIGURATIONS: str = "slurm_configurations"
 
     def __init__(self, path: str):
@@ -73,6 +74,10 @@ class ProvisioningParameters:
     @property
     def fsx_settings(self) -> Tuple[str, str]:
         return self._params.get(ProvisioningParameters.FSX_DNS_NAME), self._params.get(ProvisioningParameters.FSX_MOUNT_NAME)
+
+    @property
+    def fsx_openzfs_settings(self) -> Optional[str]:
+        return self._params.get(ProvisioningParameters.FSX_OPENZFS_DNS_NAME)
 
     @property
     def controller_group(self) -> Optional[str]:
@@ -160,6 +165,12 @@ def main(args):
         print(f"Mount fsx: {fsx_dns_name}. Mount point: {fsx_mountname}")
         ExecuteBashScript("./mount_fsx.sh").run(fsx_dns_name, fsx_mountname, "/fsx")
 
+    # Add FSx OpenZFS mount section
+    fsx_openzfs_dns_name = params.fsx_openzfs_settings
+    if Config.enable_fsx_openzfs and fsx_openzfs_dns_name:
+        print(f"Mount FSx OpenZFS: {fsx_openzfs_dns_name}. Mount point: /home")
+        ExecuteBashScript("./mount_fsx_openzfs.sh").run(fsx_openzfs_dns_name, "/home")
+
     ExecuteBashScript("./add_users.sh").run()
 
     if params.workload_manager == "slurm":
@@ -192,7 +203,14 @@ def main(args):
 
         ExecuteBashScript("./apply_hotfix.sh").run(node_type)
         ExecuteBashScript("./utils/motd.sh").run(node_type, ",".join(head_node_ip), ",".join(login_node_ip))
-        ExecuteBashScript("./utils/fsx_ubuntu.sh").run()
+
+        # Only configure home directory on FSx if either FSx Lustre or FSx OpenZFS is configured and provided in the provisioning params
+        if (fsx_dns_name and fsx_mountname) or (Config.enable_fsx_openzfs and fsx_openzfs_dns_name):
+            if Config.enable_fsx_openzfs and fsx_openzfs_dns_name:
+                ExecuteBashScript("./utils/fsx_ubuntu.sh").run("1")
+            else:
+                ExecuteBashScript("./utils/fsx_ubuntu.sh").run("0")
+
         ExecuteBashScript("./start_slurm.sh").run(node_type, ",".join(controllers))
         ExecuteBashScript("./utils/gen-keypair-ubuntu.sh").run()
         ExecuteBashScript("./utils/ssh-to-compute.sh").run()

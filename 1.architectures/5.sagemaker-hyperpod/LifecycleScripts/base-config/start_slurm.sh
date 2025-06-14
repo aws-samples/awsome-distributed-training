@@ -30,7 +30,7 @@ main() {
     systemctl enable --now slurmd
 
     mv /etc/systemd/system/slurmctld{,_DO_NOT_START_ON_CONTROLLER}.service \
-        || { echo "Failed to mask slurmctldd, perhaps the AMI already masked it?" ; }
+        || { echo "Failed to mask slurmctld, perhaps the AMI already masked it?" ; }
   fi
 
   echo "[INFO] Start Slurm Script completed"

@@ -1,0 +1,421 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+ Prometheus Agent Collector
+ Author: maxhaws@amazon.com
+
+
+
+####################
+## Stack Metadata
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label: 
+          default: "Network Configuration"
+        Parameters: 
+          - VpcId
+          - SubnetId
+      - Label: 
+          default: "Amazon Prometheus"
+        Parameters: 
+          - ManagedPrometheusUrl
+      - Label: 
+          default: "AWS ParallelCluster"
+        Parameters: 
+          - PCClusterNAME
+      - Label: 
+          default: "EC2 Instance Configuration"
+        Parameters: 
+          - InstanceType
+          - LatestUbuntuAmiId
+          - EBSBootSize
+    ParameterLabels:
+      SubnetId:
+        default: Subnet Id
+      ManagedPrometheusUrl:
+        default: Amazon Prometheus Remote Write URL
+      LatestUbuntuAmiId:
+        default: Latest Ubuntu 22.04 AMI Id
+      PCClusterNAME:
+        default: AWS ParallelCluster Name
+
+
+####################
+## Parameters
+Parameters:
+  InstanceType:
+    Description: EC2 instance type
+    Type: String
+    Default: t3a.micro
+    AllowedValues:
+      - t3a.micro
+      - t3a.small
+      - t3a.medium
+      - t3a.large
+      - t2.small
+
+  LatestUbuntuAmiId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: '/aws/service/canonical/ubuntu/server/22.04/stable/current/amd64/hvm/ebs-gp2/ami-id'
+    Description: 'Ubuntu 22.04 AMI Id'
+
+  EBSBootSize:
+    Type: Number
+    Default: 20
+    Description: 'Size in GiB of EBS root volume'
+
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
+    Description: 'Public or Private Subnet Id with internet access'
+
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+
+  ManagedPrometheusUrl:
+    Type: String
+
+  PCClusterNAME:
+    Type: String
+    Description: "Cluster name. For example: training-cluster"
+
+############################
+## Prometheus Resources
+Resources:
+  PrometheusAgentInstancePolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: "PrometheusAgentInstancePolicy"
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - ec2:DescribeInstances
+            Resource:
+              - '*'
+      Roles:
+       - !Ref PrometheusAgentInstanceRole
+
+  PrometheusAgentInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - arn:aws:iam::aws:policy/AmazonPrometheusRemoteWriteAccess
+
+  PrometheusAgentInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref PrometheusAgentInstanceRole
+
+#################
+# Security groups
+  InternetSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: 'Allow communication to Internet'
+      GroupName: 'prometheus-agent-outbound'
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: 'Communication to the internet'
+          FromPort: -1
+          IpProtocol: -1
+          ToPort: -1
+      Tags:
+        - Key: 'Name'
+          Value: 'prometheus-agent'
+      VpcId: !Ref VpcId
+
+  PrometheusAgentSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: 'Allow communication to/from Cluster'
+      GroupName: 'prometheus-agent-to-cluster'
+      Tags:
+        - Key: 'Name'
+          Value: 'prometheus-agent-to-cluster'
+      VpcId: !Ref VpcId
+
+  PrometheusAgentSecurityGroupIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      Description: 'Allow communication to Prometheus'
+      IpProtocol: -1
+      FromPort: -1
+      ToPort: -1
+      GroupId: !Ref PrometheusAgentSecurityGroup
+      SourceSecurityGroupId: !Ref PrometheusAgentSecurityGroup
+
+################
+# Prometheus Agent Instance
+  PrometheusAgentInstance:
+    Type: 'AWS::EC2::Instance'
+    Metadata:
+      AWS::CloudFormation::Init:
+        configSets:
+          full_install:
+            - install_and_enable_cfn_hup
+        install_and_enable_cfn_hup:
+          files:
+            /etc/cfn/cfn-hup.conf:
+              content: !Sub |
+                [main]
+                stack=${AWS::StackId}
+                region=${AWS::Region}
+              mode: "000400"
+              owner: root
+              group: root
+            /etc/cfn/hooks.d/cfn-auto-reloader.conf:
+              content: !Sub |
+                [cfn-auto-reloader-hook]
+                triggers=post.update
+                path=Resources.EC2Instance.Metadata.AWS::CloudFormation::Init
+                action=/opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource PrometheusAgentInstance --configsets InstallAndRun --region ${AWS::Region}
+                runas=root
+              mode: "000400"
+              owner: root
+              group: root
+            /lib/systemd/system/cfn-hup.service:
+              content: |
+                [Unit]
+                Description=cfn-hup daemon
+                [Service]
+                Type=simple
+                ExecStart=/usr/local/bin/cfn-hup
+                Restart=always
+                [Install]
+                WantedBy=multi-user.target
+          commands:
+            01enable_cfn_hup:
+              command: systemctl enable cfn-hup.service
+            02start_cfn_hup:
+              command: systemctl start cfn-hup.service
+    Properties:
+      BlockDeviceMappings:
+      - DeviceName: '/dev/sda1'
+        Ebs:
+          DeleteOnTermination: false
+          Encrypted: true
+          Iops: 3000
+          VolumeSize: !Ref EBSBootSize
+          VolumeType: 'gp3'
+      IamInstanceProfile: !Ref PrometheusAgentInstanceProfile
+      ImageId: !Ref LatestUbuntuAmiId
+      InstanceType: !Ref InstanceType
+      SecurityGroupIds:
+        - !Ref InternetSecurityGroup
+        - !Ref PrometheusAgentSecurityGroup
+      SubnetId: !Ref SubnetId
+      Tags:
+        - Key: Name
+          Value: 'Prometheus Agent'
+      UserData:
+        Fn::Base64: !Sub
+          - |
+            MIME-Version: 1.0
+            Content-Type: multipart/mixed; boundary="==MYBOUNDARY=="
+
+            --==MYBOUNDARY==
+            Content-Type: text/x-shellscript; charset="us-ascii"
+
+            #!/bin/bash
+
+            export DEBIAN_FRONTEND='non-interactive'
+
+          
+            echo "Using pinned Prometheus version"
+            LATEST_VERSION=3.2.1
+
+            echo "Prometheus version: $LATEST_VERSION"
+
+            # Construct the download URL with the correct version format
+            DOWNLOAD_URL="https://github.com/prometheus/prometheus/releases/download/v$LATEST_VERSION/prometheus-$LATEST_VERSION.linux-amd64.tar.gz"
+
+            # Download the latest Prometheus release tarball
+            echo "Downloading Prometheus version $LATEST_VERSION from $DOWNLOAD_URL ..."
+            wget --progress=dot:giga "$DOWNLOAD_URL"
+
+            # Extract Prometheus
+            echo "Extracting Prometheus"
+            tar xvfz prometheus-$LATEST_VERSION.linux-amd64.tar.gz
+
+            # Move to Prometheus directory
+            cd prometheus-$LATEST_VERSION.linux-amd64
+
+            # Move binaries to /usr/bin/
+            echo "Moving Prometheus binaries to /usr/bin/"
+            sudo mv prometheus /usr/bin/
+            sudo mv promtool /usr/bin/
+
+            # Create Prometheus config directory
+            echo "Creating Prometheus config directory"
+            sudo mkdir -p /etc/prometheus
+
+            # Move prometheus.yml to config directory
+            echo "Moving prometheus.yml to /etc/prometheus/"
+            sudo mv prometheus.yml /etc/prometheus/prometheus.yml
+
+
+            # Replace placeholders in the configuration template
+            echo "Replacing placeholders in the Prometheus configuration template"
+            sudo tee /etc/prometheus/prometheus.yml > /dev/null <<EOF
+            global:
+              scrape_interval: 15s
+              evaluation_interval: 15s
+              scrape_timeout: 15s
+
+            scrape_configs:
+              - job_name: 'slurm_exporter'
+                scrape_interval: 5s
+                ec2_sd_configs:
+                  - port: 8080
+                    region: ${AWS_REGION}
+                    refresh_interval: 10s
+                    filters:
+                      - name: instance-state-name
+                        values:
+                          - running
+                      - name: tag:Name
+                        values:
+                          - HeadNode
+                      - name: tag:parallelcluster:cluster-name
+                        values: 
+                          - ${PARALLELCLUSTER_NAME}
+
+              - job_name: 'efa_node_exporter'
+                scrape_interval: 5s
+                ec2_sd_configs:
+                  - port: 9100
+                    region: ${AWS_REGION}
+                    refresh_interval: 10s
+                    filters:
+                      - name: instance-state-name
+                        values:
+                          - running
+                      - name: tag:Name
+                        values:
+                          - Compute
+                      - name: tag:parallelcluster:cluster-name
+                        values:
+                          - ${PARALLELCLUSTER_NAME}
+                      - name: instance-type
+                        values:
+                          - p4d.24xlarge
+                          - p4de.24xlarge
+                          - p5.48xlarge
+                          - p5e.48xlarge
+                          - p5en.48xlarge
+
+              - job_name: 'dcgm_exporter'
+                scrape_interval: 5s
+                ec2_sd_configs:
+                  - port: 9400
+                    region: ${AWS_REGION}
+                    refresh_interval: 10s
+                    filters:
+                      - name: instance-state-name
+                        values:
+                          - running
+                      - name: tag:Name
+                        values:
+                          - Compute
+                      - name: tag:parallelcluster:cluster-name
+                        values: 
+                          - ${PARALLELCLUSTER_NAME}
+                      - name: instance-type
+                        values:
+                          - p4d.24xlarge
+                          - p4de.24xlarge
+                          - p5.48xlarge
+                          - p5e.48xlarge
+                          - p5en.48xlarge
+
+                relabel_configs:
+                  - source_labels: [__meta_ec2_tag_Name]
+                    target_label: instance_name
+                  - source_labels: [__meta_ec2_tag_Application]
+                    target_label: instance_grafana
+                  - source_labels: [__meta_ec2_instance_id]
+                    target_label: instance_id
+                  - source_labels: [__meta_ec2_availability_zone]
+                    target_label: instance_az
+                  - source_labels: [__meta_ec2_instance_state]
+                    target_label: instance_state
+                  - source_labels: [__meta_ec2_instance_type]
+                    target_label: instance_type
+                  - source_labels: [__meta_ec2_vpc_id]
+                    target_label: instance_vpc
+
+            remote_write:
+              - url: ${ManagedPrometheusUrl}
+                queue_config:
+                  max_samples_per_send: 1000
+                  max_shards: 200
+                  capacity: 2500
+                sigv4:
+                  region: ${AWS::Region}
+            EOF
+
+            # Create Prometheus systemd service file
+            echo "Creating Prometheus systemd service file"
+            sudo tee /etc/systemd/system/prometheus.service > /dev/null <<EOF
+            [Unit]
+            Description=Prometheus Exporter
+
+            [Service]
+            Environment=PATH=/opt/slurm/bin:\$PATH
+            ExecStart=/usr/bin/prometheus --config.file=/etc/prometheus/prometheus.yml --agent --storage.agent.path="/opt/prometheus/data-agent"
+            Restart=on-failure
+            RestartSec=15
+            Type=simple
+
+            [Install]
+            WantedBy=multi-user.target
+            EOF
+
+            # Reload systemd and enable Prometheus service
+            echo "Reloading systemd and enabling Prometheus service"
+            sudo systemctl daemon-reload
+            sudo systemctl enable --now prometheus
+
+            echo "Prometheus setup completed successfully"
+
+
+            # Notify CloudFormation once completed
+            /usr/local/bin/cfn-init -v --stack ${AWS::StackName} \
+              --resource PrometheusAgentInstance \
+              --configsets full_install \
+              --region ${AWS::Region}
+
+            /usr/local/bin/cfn-signal \
+              -e $? \
+              --stack ${AWS::StackName} \
+              --region ${AWS::Region} \
+              --resource PrometheusAgentInstance
+
+            --==MYBOUNDARY==--
+          - {
+              AWS_REGION: !Ref "AWS::Region",
+              PARALLELCLUSTER_NAME: !Ref PCClusterNAME
+            }
+
+    # CreationPolicy:
+    #   ResourceSignal:
+    #     Timeout: PT10M
+
+#############
+## Outputs ##
+#############
+Outputs:
+  PrometheusAgentInstanceId:
+    Value: !GetAtt PrometheusAgentInstance.InstanceId

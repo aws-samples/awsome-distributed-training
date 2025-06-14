@@ -32,11 +32,17 @@ This guide demonstrates how to run distributed training across two GPU instances
 1. **Create Configuration File**
    ```bash
    # TensorParallelism on 2 GPUs
-   docker run --rm -v ${PWD}:${PWD} picotron python3 create_config.py \
+   enroot create --name picotron picotron.sqsh
+   enroot start --mount ${PWD}:${PWD} \
+      --env NVIDIA_VISIBLE_DEVICES=void picotron \
+       python3 /picotron/create_config.py \
        --out_dir ${PWD}/conf --exp_name llama-1B-tp2 --dp 1 --tp 2 --pp 1  \
        --pp_engine 1f1b --model_name HuggingFaceTB/SmolLM-1.7B --num_hidden_layers 5 \
-       --grad_acc_steps 2 --mbs 4 --seq_len 128 --hf_token ${HF_TOKEN}
+       --total_train_steps 5000 \
+       --grad_acc_steps 2 --mbs 4 --seq_len 128 --hf_token ${HF_TOKEN} 
+   enroot remove -f picotron
    ```
+
    This will create a config file `./conf/llama-1B-dp2-tp2-pp2/config.json` describing training configurations, including model architecture, training configuration, and dataset to use.
 
 2. **Submit the Training Job**

@@ -1,12 +1,13 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
-FROM nvidia/cuda:12.2.2-devel-ubuntu22.04
+ARG CUDA_VERSION=12.8.1
+FROM nvidia/cuda:${CUDA_VERSION}-devel-ubuntu22.04
 
 ARG GDRCOPY_VERSION=v2.4.4
-ARG EFA_INSTALLER_VERSION=1.38.1
-ARG AWS_OFI_NCCL_VERSION=v1.14.0
-ARG NCCL_VERSION=v2.26.2-1
-ARG NCCL_TESTS_VERSION=v2.14.1
+ARG EFA_INSTALLER_VERSION=1.41.0
+ARG AWS_OFI_NCCL_VERSION=v1.14.2
+ARG NCCL_VERSION=v2.26.6-1
+ARG NCCL_TESTS_VERSION=v2.15.2
 
 RUN apt-get update -y && apt-get upgrade -y
 RUN apt-get remove -y --allow-change-held-packages \
@@ -87,7 +88,7 @@ RUN cd $HOME \
 RUN git clone -b ${NCCL_VERSION} https://github.com/NVIDIA/nccl.git  /opt/nccl \
     && cd /opt/nccl \
     && make -j $(nproc) src.build CUDA_HOME=/usr/local/cuda \
-    NVCC_GENCODE="-gencode=arch=compute_80,code=sm_80 -gencode=arch=compute_86,code=sm_86 -gencode=arch=compute_89,code=sm_89 -gencode=arch=compute_90,code=sm_90"
+    NVCC_GENCODE="-gencode=arch=compute_80,code=sm_80 -gencode=arch=compute_86,code=sm_86 -gencode=arch=compute_89,code=sm_89 -gencode=arch=compute_90,code=sm_90 -gencode=arch=compute_100,code=sm_100"
 
 ###################################################
 ## Install AWS-OFI-NCCL plugin
@@ -119,7 +120,7 @@ RUN git clone -b ${NCCL_TESTS_VERSION} https://github.com/NVIDIA/nccl-tests.git 
     MPI_HOME=/opt/amazon/openmpi/ \
     CUDA_HOME=/usr/local/cuda \
     NCCL_HOME=/opt/nccl/build \
-    NVCC_GENCODE="-gencode=arch=compute_80,code=sm_80 -gencode=arch=compute_86,code=sm_86 -gencode=arch=compute_89,code=sm_89 -gencode=arch=compute_90,code=sm_90"
+    NVCC_GENCODE="-gencode=arch=compute_80,code=sm_80 -gencode=arch=compute_86,code=sm_86 -gencode=arch=compute_89,code=sm_89 -gencode=arch=compute_90,code=sm_90 -gencode=arch=compute_100,code=sm_100"
 
 RUN rm -rf /var/lib/apt/lists/*
 
