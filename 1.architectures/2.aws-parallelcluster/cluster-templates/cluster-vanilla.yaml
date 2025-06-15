@@ -30,8 +30,7 @@ HeadNode:
           Args:
             - v2.26.6-1 # NCCL version
             - v1.14.2   # AWS OFI NCCL version
-            
-        - Script: 'https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/geniac/1.architectures/2.aws-parallelcluster/deployment-guides/post-install-scripts/configure_pyxis_enroot_headnode.sh'
+        - Script: 'https://github.com/aws-samples/aws-parallelcluster-post-install-scripts/blob/main/pyxis/postinstall.sh'
   Imds:
     Secured: false
 Scheduling:
