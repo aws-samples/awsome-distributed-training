@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gpu-test
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gpu-test
+  template:
+    metadata:
+      labels:
+        app: gpu-test
+    spec:
+      tolerations:
+      - key: nvidia.com/gpu
+        operator: Equal
+        value: "true"
+        effect: NoSchedule
+      nodeSelector:
+        nvidia.com/gpu: "true"
+      containers:
+      - name: gpu-container
+        image: nvidia/cuda:11.8-base-ubuntu20.04
+        resources:
+          limits:
+            nvidia.com/gpu: 1
+          requests:
+            nvidia.com/gpu: 1
+        command: 
+        - /bin/bash
+        - -c
+        - |
+          nvidia-smi
+          echo "GPU test completed successfully"
+          sleep 3600
+        env:
+        - name: NVIDIA_VISIBLE_DEVICES
+          value: "all"
+        - name: NVIDIA_DRIVER_CAPABILITIES
+          value: "compute,utility"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gpu-test-service
+  namespace: default
+spec:
+  selector:
+    app: gpu-test
+  ports:
+  - port: 80
+    targetPort: 8080
+  type: ClusterIP

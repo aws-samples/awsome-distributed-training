@@ -1,0 +1,67 @@
+# AWS Configuration
+region = "us-west-2"
+environment = "dev"
+
+# EKS Cluster Configuration
+cluster_name = "eks-reference"
+cluster_version = "1.28"
+
+# Network Configuration
+vpc_cidr = "10.0.0.0/16"
+private_subnets = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
+public_subnets = ["10.0.101.0/24", "10.0.102.0/24", "10.0.103.0/24"]
+
+# Restrict API server access (replace with your IP ranges)
+cluster_endpoint_public_access_cidrs = ["0.0.0.0/0"]
+
+# Default Node Group Configuration
+default_instance_types = ["m5.large", "m5.xlarge"]
+default_min_size = 1
+default_max_size = 10
+default_desired_size = 3
+
+# Node Auto Repair Configuration for Default Nodes
+default_health_check_grace_period = 300  # 5 minutes
+default_health_check_type = "EC2"
+
+# GPU Node Group Configuration
+gpu_instance_types = ["g4dn.xlarge", "g4dn.2xlarge"]
+gpu_min_size = 0
+gpu_max_size = 5
+gpu_desired_size = 1
+
+# Node Auto Repair Configuration for GPU Nodes (longer grace period due to GPU driver initialization)
+gpu_health_check_grace_period = 600  # 10 minutes
+gpu_health_check_type = "EC2"
+
+# FSx for Lustre Configuration
+fsx_storage_capacity = 1200
+fsx_deployment_type = "SCRATCH_2"
+fsx_per_unit_storage_throughput = 50
+# fsx_s3_import_path = "s3://your-bucket-name/import-path/"
+# fsx_s3_export_path = "s3://your-bucket-name/export-path/"
+
+# S3 Mountpoint Configuration
+s3_mountpoint_bucket_name = "your-s3-bucket-name"
+s3_mountpoint_namespace = "kube-system"
+
+# Karpenter Configuration
+enable_karpenter = true
+karpenter_chart_version = "v0.32.1"
+
+# Karpenter Node Pool Configuration
+karpenter_default_capacity_types = ["spot", "on-demand"]
+karpenter_default_instance_types = ["m5.large", "m5.xlarge", "m5.2xlarge", "m5a.large", "m5a.xlarge", "m5a.2xlarge", "c5.large", "c5.xlarge", "c5.2xlarge"]
+
+karpenter_gpu_capacity_types = ["on-demand"]
+karpenter_gpu_instance_types = ["g4dn.xlarge", "g4dn.2xlarge", "g4dn.4xlarge", "g5.xlarge", "g5.2xlarge", "p3.2xlarge"]
+
+# Add-on Configuration
+enable_aws_load_balancer_controller = true
+enable_nvidia_device_plugin = true
+enable_metrics_server = true
+
+# Node Health Monitoring Configuration
+enable_node_health_monitoring = true
+enable_sns_alerts = false
+# alert_email = "your-email@example.com"  # Uncomment and set your email for alerts
