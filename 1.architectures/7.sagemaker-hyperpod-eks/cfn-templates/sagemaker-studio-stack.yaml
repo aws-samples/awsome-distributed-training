@@ -591,6 +591,7 @@ Resources:
           - Action:
             - sagemaker:*App*
             - sagemaker:*Space*
+            - sagemaker:AddTags
             Effect: Allow
             Resource: '*'
           - Action:
@@ -813,8 +814,15 @@ Resources:
           USER_BIN="/home/sagemaker-user/.local/bin"
           mkdir -p $USER_BIN
 
-          # Add to PATH in both .bashrc and .bash_profile
+          # Add to PATH in .bashrc and create .bash_profile if it doesn't exist
           grep -q "export PATH=$USER_BIN:\$PATH" /home/sagemaker-user/.bashrc || echo "export PATH=$USER_BIN:$PATH" >> /home/sagemaker-user/.bashrc
+          
+          # Create .bash_profile if it doesn't exist
+          if [ ! -f /home/sagemaker-user/.bash_profile ]; then
+            touch /home/sagemaker-user/.bash_profile
+          fi
+          
+          # Add PATH to .bash_profile
           grep -q "export PATH=$USER_BIN:\$PATH" /home/sagemaker-user/.bash_profile || echo "export PATH=$USER_BIN:$PATH" >> /home/sagemaker-user/.bash_profile
 
           # Set PATH for current session
@@ -822,26 +830,37 @@ Resources:
 
           # install kubectl if not present
           if [ ! -f $USER_BIN/kubectl ]; then
-            curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-            chmod +x kubectl
-            mv kubectl $USER_BIN/
+            KUBECTL_VERSION=$(curl -L -s https://dl.k8s.io/release/stable.txt)
+            if [ -n "$KUBECTL_VERSION" ]; then
+              curl -LO "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
+              chmod +x kubectl
+              mv kubectl $USER_BIN/
+            else
+              echo "Failed to get kubectl version, skipping kubectl installation"
+            fi
           fi
 
           # install eksctl if not present
           if [ ! -f $USER_BIN/eksctl ]; then
-            curl -sLO "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_Linux_amd64.tar.gz"
-            tar -xzf eksctl_Linux_amd64.tar.gz
-            chmod +x eksctl
-            mv eksctl $USER_BIN/
-            rm eksctl_Linux_amd64.tar.gz
+            if curl -sLO "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_Linux_amd64.tar.gz"; then
+              tar -xzf eksctl_Linux_amd64.tar.gz
+              chmod +x eksctl
+              mv eksctl $USER_BIN/
+              rm eksctl_Linux_amd64.tar.gz
+            else
+              echo "Failed to download eksctl, skipping installation"
+            fi
           fi 
 
           # install helm if not present
           if ! command -v helm &> /dev/null; then
-            curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3
-            chmod 700 get_helm.sh
-            ./get_helm.sh
-            rm get_helm.sh
+            if curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3; then
+              chmod 700 get_helm.sh
+              ./get_helm.sh
+              rm get_helm.sh
+            else
+              echo "Failed to download Helm installation script, skipping installation"
+            fi
           fi
 
           # Function to compare versions
@@ -867,8 +886,8 @@ Resources:
           # Update AWS CLI if needed
           if ! check_aws_cli_version; then
             echo "Installing/Updating AWS CLI to version >= 2.17.47"
-            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-            unzip -o awscliv2.zip
+            curl -s "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip -q -o awscliv2.zip
             ./aws/install -i ~/.local/aws-cli -b ~/.local/bin --update
             rm -rf aws awscliv2.zip
           fi
@@ -876,11 +895,24 @@ Resources:
           # install docker if not present
           if ! command -v docker &> /dev/null; then
             sudo install -m 0755 -d /etc/apt/keyrings
-            sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-            sudo chmod a+r /etc/apt/keyrings/docker.asc
-            echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-            sudo apt update -qq
-            sudo apt install -y -qq docker-ce=5:20.10.24~3-0~ubuntu-jammy docker-ce-cli=5:20.10.24~3-0~ubuntu-jammy docker-buildx-plugin=0.17.1-1~ubuntu.22.04~jammy docker-compose-plugin=2.29.7-1~ubuntu.22.04~jammy
+            if sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc; then
+              sudo chmod a+r /etc/apt/keyrings/docker.asc
+              # Get OS version codename safely
+              if [ -f /etc/os-release ]; then
+                . /etc/os-release
+                if [ -n "$VERSION_CODENAME" ]; then
+                  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $VERSION_CODENAME stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+                  sudo apt update -qq
+                  sudo apt install -y -qq docker-ce docker-ce-cli docker-buildx-plugin docker-compose-plugin
+                else
+                  echo "Could not determine OS version codename, skipping Docker installation"
+                fi
+              else
+                echo "Could not find /etc/os-release, skipping Docker installation"
+              fi
+            else
+              echo "Failed to download Docker GPG key, skipping installation"
+            fi
           fi
 
           # add completion if not present
