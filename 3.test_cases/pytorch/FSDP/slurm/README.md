@@ -23,26 +23,24 @@ cd awsome-distributed-training/3.test_cases/pytorch/FSDP/slurm
 Run the `create_venv.sh` script:
 
 ```bash
-bash create_venv.sh
+. ./create_venv.sh
 source env/bin/activate
 ```
 * By creating this environment on the shared FSx for Lustre volume, all compute nodes in our cluster will have access to it.
 
 ### Option 2: Build a container image and the squash file
 
-We first build the container image with the command below:
+You will first build the container image with the command below:
 
 
 ```bash
 export AWS_REGION=$(aws ec2 describe-availability-zones --output text --query 'AvailabilityZones[0].[RegionName]')
 export ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
 export REGISTRY=${ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com/
-pushd ../
-docker build -f Dockerfile -t ${REGISTRY}fsdp:pytorch2.7.1 .
-popd
+docker build -f ../Dockerfile -t ${REGISTRY}fsdp:pytorch2.7.1 .
 ```
 
-We then convert the container image to a squash file via Enroot:
+You will then convert the container image to a squash file via Enroot:
 
 ```bash
 enroot import -o pytorch-fsdp.sqsh  dockerd://${REGISTRY}fsdp:pytorch2.7.1
@@ -90,30 +88,29 @@ sbatch llama3_1_8b-training.sbatch
 You'll find a new file in the FSDP directory of the form `llama3_1_8b-FSDP_[JOB ID].out`. This will be continuously updated with your training logs. Don't be worried if you see a long stream of NCCL logs (we prefer to use `NCCL_DEBUG=INFO` for verbose logging). After about a minute, you should see your model training, with an output similar to below for Llama3.1 8B:
 
 ```text
-+ TORCHRUN_ARGS=('--nproc_per_node=8' '--nnodes=2' '--rdzv_id=98' '--rdzv_backend=c10d' '--rdzv_endpoint=p5-dy-gpu-1')
++ TORCHRUN_ARGS=('--nproc_per_node=8' '--nnodes=4' '--rdzv_id=288' '--rdzv_backend=c10d' '--rdzv_endpoint=p5-dy-gpu-1')
 + declare -a TORCHRUN_ARGS
 + export TORCHRUN=torchrun
 + TORCHRUN=torchrun
 + export TRAIN_SCRIPT=../src/train.py
 + TRAIN_SCRIPT=../src/train.py
-+ TRAINING_ARGS=('--max_context_width=128256' '--num_key_value_heads=8' '--intermediate_size=14336' '--hidden_width=4096' '--num_layers=32' '--num_heads=32' '--model_type=llama_v3' '--tokenizer=hf-internal-testing/llama-tokenizer' '--checkpoint_freq=5000' '--validation_freq=500' '--max_steps=5000' '--checkpoint_dir=./checkpoints' '--dataset=allenai/c4' '--dataset_config_name=en' '--resume_from_checkpoint=./checkpoints' '--train_batch_size=1' '--val_batch_size=1' '--sharding_strategy=full' '--offload_activations=1')
-+
++ TRAINING_ARGS=('--max_context_width=8192' '--num_key_value_heads=8' '--intermediate_size=14336' '--hidden_width=4096' '--num_layers=32' '--num_heads=32' '--model_type=llama_v3' '--tokenizer=hf-internal-testing/llama-tokenizer' '--checkpoint_freq=50' '--validation_freq=25' '--max_steps=100' '--checkpoint_dir=./checkpoints' '--dataset=allenai/c4' '--dataset_config_name=en' '--resume_from_checkpoint=./checkpoints' '--train_batch_size=1' '--val_batch_size=1' '--sharding_strategy=full' '--offload_activations=1')
 ...
-0: 2025-06-10 13:25:51 I [train.py:156] Creating Model
-0: 2025-06-10 13:27:04 I [train.py:172] Created model with total parameters: 7392727040 (7.39 B)
+0: 2025-06-17 16:23:09 I [train.py:156] Creating Model
+0: 2025-06-17 16:24:21 I [train.py:172] Created model with total parameters: 7392727040 (7.39 B)
 ...
-0: 2025-06-10 13:29:17 I [train.py:103] Batch 34 Loss: 7.96630, Speed: 5.80 samples/sec, lr: 0.000100
-0: 2025-06-10 13:29:20 I [train.py:103] Batch 35 Loss: 8.04526, Speed: 5.21 samples/sec, lr: 0.000100
-0: 2025-06-10 13:29:23 I [train.py:103] Batch 36 Loss: 7.20530, Speed: 5.28 samples/sec, lr: 0.000100
-0: 2025-06-10 13:29:26 I [train.py:103] Batch 37 Loss: 7.86750, Speed: 5.37 samples/sec, lr: 0.000100
-0: 2025-06-10 13:29:29 I [train.py:103] Batch 38 Loss: 8.02228, Speed: 5.78 samples/sec, lr: 0.000100
-0: 2025-06-10 13:29:32 I [train.py:103] Batch 39 Loss: 7.86903, Speed: 5.78 samples/sec, lr: 0.000100
-0: 2025-06-10 13:29:34 I [train.py:103] Batch 40 Loss: 6.80665, Speed: 5.79 samples/sec, lr: 0.000100
-0: 2025-06-10 13:29:37 I [train.py:103] Batch 41 Loss: 8.44204, Speed: 5.41 samples/sec, lr: 0.000100
-0: 2025-06-10 13:29:40 I [train.py:103] Batch 42 Loss: 7.88105, Speed: 5.79 samples/sec, lr: 0.000100
-0: 2025-06-10 13:29:43 I [train.py:103] Batch 43 Loss: 7.38831, Speed: 5.54 samples/sec, lr: 0.000100
+1: p5-dy-gpu-3:47930:47930 [0] NCCL INFO NCCL version 2.26.2+cuda12.2
+1: p5-dy-gpu-3:47936:47936 [6] NCCL INFO cudaDriverVersion 12080
+2: p5-dy-gpu-4:930643:930850 [7] NCCL INFO NET/OFI Initializing aws-ofi-nccl 1.13.2-aws
+2: p5-dy-gpu-4:930643:930850 [7] NCCL INFO NET/OFI Using Libfabric version 1.22
+...
+0: 2025-06-17 16:24:52 I [train.py:103] Batch 0 Loss: 11.61653, Speed: 4.88 samples/sec, lr: 0.000100
+0: 2025-06-17 16:24:55 I [train.py:103] Batch 1 Loss: 11.64398, Speed: 10.90 samples/sec, lr: 0.000100
+0: 2025-06-17 16:24:58 I [train.py:103] Batch 2 Loss: 10.58705, Speed: 11.09 samples/sec, lr: 0.000100
+0: 2025-06-17 16:25:01 I [train.py:103] Batch 3 Loss: 15.01381, Speed: 10.61 samples/sec, lr: 0.000100
+0: 2025-06-17 16:25:04 I [train.py:103] Batch 4 Loss: 11.78982, Speed: 10.18 samples/sec, lr: 0.000099
+0: 2025-06-17 16:25:08 I [train.py:103] Batch 5 Loss: 14.34635, Speed: 8.98 samples/sec, lr: 0.000099
 ```
-
 
 ###  Mistral 8x7B
 
@@ -217,7 +214,7 @@ Llama 2 and  Llama 3.x models parameters are based on the values in the [Llama 2
 | hidden_width         | 4096       | 5120        | 8192        | 4096         | 8192          | 2048         | 3072         |
 | num_layers           | 32         | 40          | 80          | 32           | 80            | 16           | 28           |
 | num_heads            | 32         | 40          | 64          | 32           | 64            | 32           | 24           |
-| max_context_length   | 4096       | 4096        | 4096        | 128K         | 128K          | 128K         | 128K         |
+| max_context_length   | 4096       | 4096        | 4096        | 8192         | 8192          | 8192         | 8192         |
 
 
 If you need to cancel or modify your job, see the Slurm commands available in the [Slurm documentation](https://slurm.schedmd.com/quickstart.html).
