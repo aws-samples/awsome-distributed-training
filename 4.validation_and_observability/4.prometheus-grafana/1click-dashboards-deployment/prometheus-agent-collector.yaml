@@ -214,6 +214,7 @@ Resources:
                           - p5.48xlarge
                           - p5e.48xlarge
                           - p5en.48xlarge
+                          - p6-b200.48xlarge
 
               - job_name: dcgm_exporter
                 scrape_interval: 60s
@@ -238,6 +239,7 @@ Resources:
                           - p5.48xlarge
                           - p5e.48xlarge
                           - p5en.48xlarge
+                          - p6-b200.48xlarge
 
                 relabel_configs:
                   - source_labels: [__meta_ec2_tag_Name]
