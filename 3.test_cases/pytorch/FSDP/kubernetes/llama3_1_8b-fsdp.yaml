@@ -96,9 +96,9 @@ spec:
                 - --num_layers=32
                 - --num_heads=32
                 - --model_type=llama_v3
-                - --tokenizer=baseten/Meta-Llama-3-tokenizer
+                - --tokenizer=hf-internal-testing/llama-tokenizer
                 - --checkpoint_freq=50
-                - --validation_freq=100
+                - --validation_freq=25
                 - --max_steps=100
                 - --checkpoint_dir=./checkpoints
                 - --dataset=allenai/c4

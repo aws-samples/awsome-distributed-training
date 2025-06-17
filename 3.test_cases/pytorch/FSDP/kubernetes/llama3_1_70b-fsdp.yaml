@@ -96,7 +96,7 @@ spec:
                 - --num_layers=80
                 - --num_heads=64
                 - --model_type=llama_v3
-                - --tokenizer=baseten/Meta-Llama-3-tokenizer
+                - --tokenizer=hf-internal-testing/llama-tokenizer
                 - --checkpoint_freq=15
                 - --validation_freq=10
                 - --max_steps=30
