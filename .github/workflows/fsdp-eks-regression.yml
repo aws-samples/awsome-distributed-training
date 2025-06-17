@@ -171,7 +171,7 @@ jobs:
           done
           
           echo "PyTorch Job Name: $(kubectl get pytorchjob)"
-          echo "Job Pods: "kubectl get pods
+          echo "Job Pods: $(kubectl get pods)"
 
       - name: Monitor training run 
         id: monitor_job
@@ -184,7 +184,17 @@ jobs:
           exit_code=0
           expected_pods=${{ env.NUM_NODES }}
           last_log_time=$(date +%s)
-          master_pod=""
+
+          echo "Finding master pod for logs..."
+          WORKER_POD_0=$(kubectl get pods -l app=${{ env.ACTUAL_JOB_NAME }} -o name | head -1 | cut -d'/' -f2)
+          master_pod=$(kubectl logs $WORKER_POD_0 | grep master_addr= | head -1 | awk -F'=' '{print $2}' | tr -d '[:space:]')
+
+          if [ -z "$master_pod" ]; then
+            echo "Could not determine master pod, using first pod for logs"
+            master_pod=$WORKER_POD_0
+          fi
+          
+          echo "Selected pod for logs: $master_pod"
 
           while true; do
             current_time=$(date +%s)
@@ -231,24 +241,11 @@ jobs:
 
             # Check if all expected pods are running
             if [ $total_pods -eq $expected_pods ] && [ $running_pods -eq $total_pods ]; then
-              echo "All expected pods (${expected_pods}/{expected_pods}) are running"
-              # Try to identify master pod and print logs if all pods are running
-              if [ -z "$master_pod" ] || [ $((current_time - last_log_time)) -gt 300 ]; then
-                echo "Finding master pod for logs..."
-                WORKER_POD_0=$(kubectl get pods -l app=${ACTUAL_JOB_NAME} -o name | head -1 | cut -d'/' -f2)
-                master_pod=$(kubectl logs $WORKER_POD_0 | grep master_addr= | head -1 | awk -F'=' '{print $2}' | tr -d '[:space:]')
-                
-                if [ -z "$master_pod" ]; then
-                  echo "Could not determine master pod, showing logs from first pod"
-                  master_pod=$WORKER_POD_0
-                fi
-                
+              echo "All expected pods (${running_pods}/${expected_pods}) are running"                
                 echo "=== Recent logs from pod $master_pod ==="
                 kubectl logs $master_pod --tail=20
-                echo "=== End of logs ==="
-                
+                echo "=== End of recent logs ==="
                 last_log_time=$current_time
-              fi
             elif [ $total_pods -lt $expected_pods ]; then
               echo "Warning: Only $total_pods pods found, expected $expected_pods"
             elif [ $running_pods -lt $total_pods ]; then
@@ -306,5 +303,3 @@ jobs:
           kubectl delete pytorchjob ${{ env.ACTUAL_JOB_NAME }} || true
           rm -rf pod-logs
           echo "Cleaned up successfully!"
-          
-
