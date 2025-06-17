@@ -903,7 +903,7 @@ Resources:
                 if [ -n "$VERSION_CODENAME" ]; then
                   echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $VERSION_CODENAME stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
                   sudo apt update -qq
-                  sudo apt install -y -qq docker-ce docker-ce-cli docker-buildx-plugin docker-compose-plugin
+                  sudo apt install -y -qq docker-ce=5:20.10.24~3-0~ubuntu-jammy docker-ce-cli=5:20.10.24~3-0~ubuntu-jammy docker-buildx-plugin=0.17.1-1~ubuntu.22.04~jammy docker-compose-plugin=2.29.7-1~ubuntu.22.04~jammy
                 else
                   echo "Could not determine OS version codename, skipping Docker installation"
                 fi
