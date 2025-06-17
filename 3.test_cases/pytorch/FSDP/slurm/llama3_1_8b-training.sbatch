@@ -84,7 +84,7 @@ export TRAIN_SCRIPT=${TRAIN_SCRIPT:=../src/train.py}
 ############################
 
 declare -a TRAINING_ARGS=(
-    --max_context_width=128256
+    --max_context_width=8192
     --num_key_value_heads=8
     --intermediate_size=14336
     --hidden_width=4096

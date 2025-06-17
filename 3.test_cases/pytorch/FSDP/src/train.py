@@ -275,6 +275,8 @@ def main(args):
           world_size,
           total_steps,
           start_batch_index)
+  
+    dist.destroy_process_group()
 
 if __name__ == "__main__":
     args, _ = parse_args()
