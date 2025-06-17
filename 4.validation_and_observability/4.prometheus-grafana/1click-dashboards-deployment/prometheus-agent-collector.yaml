@@ -169,17 +169,17 @@ Resources:
       Value: !Sub
           - |
             global:
-              scrape_interval: 15s
-              evaluation_interval: 15s
-              scrape_timeout: 15s
+              scrape_interval: 1m
+              evaluation_interval: 2m
+              scrape_timeout: 5m
 
             scrape_configs:
               - job_name: slurm_exporter
-                scrape_interval: 5s
+                scrape_interval: 60s
                 ec2_sd_configs:
                   - port: 8080
                     region:  ${AWS::Region}
-                    refresh_interval: 10s
+                    refresh_interval: 300s
                     filters:
                       - name: instance-state-name
                         values:
@@ -192,11 +192,11 @@ Resources:
                           - ${PARALLELCLUSTER_NAME}
 
               - job_name: efa_node_exporter
-                scrape_interval: 5s
+                scrape_interval: 60s
                 ec2_sd_configs:
                   - port: 9100
                     region:  ${AWS::Region}
-                    refresh_interval: 10s
+                    refresh_interval: 300s
                     filters:
                       - name: instance-state-name
                         values:
@@ -216,11 +216,11 @@ Resources:
                           - p5en.48xlarge
 
               - job_name: dcgm_exporter
-                scrape_interval: 5s
+                scrape_interval: 60s
                 ec2_sd_configs:
                   - port: 9400
                     region:  ${AWS::Region}
-                    refresh_interval: 10s
+                    refresh_interval: 300s
                     filters:
                       - name: instance-state-name
                         values:
