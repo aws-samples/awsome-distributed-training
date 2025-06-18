@@ -20,7 +20,7 @@ jobs:
       max-parallel: 3
       matrix:
         cluster: [p5, p5-smhp]
-        model_config: [llama2_7b, llama2_13b, llama2_70b] 
+        model_config: [llama2_7b, llama2_13b, llama2_70b, llama3_1_8b, llama3_1_70b]
     runs-on: [self-hosted, "${{ matrix.cluster }}"]
     concurrency:
       group: ${{ github.workflow }}-${{ matrix.cluster }}-${{ matrix.model_config }}
