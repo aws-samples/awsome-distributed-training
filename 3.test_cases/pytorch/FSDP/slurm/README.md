@@ -19,31 +19,27 @@ cd awsome-distributed-training/3.test_cases/pytorch/FSDP/slurm
    - Option 1: Creating a Python Virtual Environment.
    - Option 2: Building a container image by converting it a squash file via Enroot.
 
-### Option 1: Create a Python Virtual Environment to install the necessary packages
+### Option 1: Creating a Python Virtual Environment to install the necessary packages.
 Run the `create_venv.sh` script:
 
 ```bash
 . ./create_venv.sh
-source env/bin/activate
 ```
 * By creating this environment on the shared FSx for Lustre volume, all compute nodes in our cluster will have access to it.
 
-### Option 2: Build a container image and the squash file
+### Option 2: Create a container image to install the packages and run.
 
 You will first build the container image with the command below:
 
 
 ```bash
-export AWS_REGION=$(aws ec2 describe-availability-zones --output text --query 'AvailabilityZones[0].[RegionName]')
-export ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
-export REGISTRY=${ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com/
-docker build -f ../Dockerfile -t ${REGISTRY}fsdp:pytorch2.7.1 .
+docker build -f ../Dockerfile -t fsdp:pytorch2.7.1 .
 ```
 
 You will then convert the container image to a squash file via Enroot:
 
 ```bash
-enroot import -o pytorch-fsdp.sqsh  dockerd://${REGISTRY}fsdp:pytorch2.7.1
+enroot import -o pytorch-fsdp.sqsh  dockerd://fsdp:pytorch2.7.1
 ```
 
 ## Data
@@ -60,7 +56,7 @@ If you'd like to instead use your own dataset, you can do so by [formatting it a
 
 ## Launch Training
 
-In this solution, you will find FSDP training examples for Llama 2(7B, 13B, 70B), Llama3.1(8B, 70B), Llama 3.2(1B,3B),  Mistral 8x7b and Mistral Mathstral.
+In this solution, you will find FSDP training examples for Llama 2(7B, 13B, 70B), Llama 3.1(8B, 70B), Llama 3.2(1B, 3B),  Mistral 8x7b and Mistral Mathstral.
 You can adjust the number of training nodes by modifying `#SBATCH --nodes=4` to match the size of your cluster.
 
 If you are using a container image, you need to uncomment the line below in the sbatch script to use the squash file
