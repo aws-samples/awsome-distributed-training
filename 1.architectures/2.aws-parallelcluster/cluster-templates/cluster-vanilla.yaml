@@ -78,7 +78,7 @@ Scheduling:
                 - v1.14.2   # AWS OFI NCCL version
         OnNodeStart:
           Sequence:
-            - Script: 'https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/geniac/1.architectures/2.aws-parallelcluster/deployment-guides/post-install-scripts/configure_pyxis_enroot_computenode.sh'
+            - Script: 'https://github.com/aws-samples/aws-parallelcluster-post-install-scripts/blob/main/pyxis/postinstall.sh'
 SharedStorage:
   - Name: HomeDirs
     MountDir: /home
