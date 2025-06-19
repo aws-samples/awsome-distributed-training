@@ -15,13 +15,32 @@ git clone https://github.com/aws-samples/awsome-distributed-training/
 cd awsome-distributed-training/3.test_cases/pytorch/FSDP/slurm
 ```
 
-3. Create a Python Virtual Environment to install the necessary packages. Run the `create_venv.sh` script.
+3. You can launch the training through:
+   - Option 1: Creating a Python Virtual Environment to install the necessary packages.
+   - Option 2: Create a container image to install the packages and run.
+
+### Option 1: Creating a Python Virtual Environment to install the necessary packages.
+Run the `create_venv.sh` script:
 
 ```bash
 . ./create_venv.sh
 ```
-
 * By creating this environment on the shared FSx for Lustre volume, all compute nodes in our cluster will have access to it.
+
+### Option 2: Create a container image to install the packages and run.
+
+You will first build the container image with the command below:
+
+
+```bash
+docker build -f ../Dockerfile -t fsdp:pytorch2.7.1 .
+```
+
+You will then convert the container image to a squash file via Enroot:
+
+```bash
+enroot import -o pytorch-fsdp.sqsh  dockerd://fsdp:pytorch2.7.1
+```
 
 ## Data
 
@@ -37,8 +56,14 @@ If you'd like to instead use your own dataset, you can do so by [formatting it a
 
 ## Launch Training
 
-In this solution, you will find FSDP training examples for Llama2 (7B, 13B, 70B), Mistral 8x&b and Mistral Mathstral.
+In this solution, you will find FSDP training examples for Llama 2(7B, 13B, 70B), Llama 3.1(8B, 70B), Llama 3.2(1B, 3B),  Mistral 8x7b and Mistral Mathstral.
 You can adjust the number of training nodes by modifying `#SBATCH --nodes=4` to match the size of your cluster.
+
+If you are using a container image, you need to uncomment the line below in the sbatch script to use the squash file
+
+```bash
+#export CONTAINER_IMAGE=$(pwd)/pytorch-fsdp.sqsh
+```
 
 If you are using non-EFA enabled instances, such as G4dn, or single GPU g5 nodes, comment out all EFA environment variables on lines 24-25.
 
@@ -46,37 +71,41 @@ Also, under `User Variables` make sure to adjust `GPUS_PER_NODE` to match the nu
 
 You can also adjust the training parameters in `TRAINING_ARGS` (for example, to increase batch size). Additional parameters can be found in `model/arguments.py`. Note that we use the same directory for both `--checkpoint_dir` and `--resume_from_checkpoint`. If there are multiple checkpoints, `--resume_from_checkpoint` will automatically select the most recent one. This way if our training is interupted for any reason, it will automatically pick up the most recent checkpoint.
 
-### Llama 2 7B training
+If you are using a container image, you need to uncomment the line below in the 
 
-To launch your training for Llama2 7B, run
+### Llama 3.1 8B training
+
+To launch your training for Llama 3.1 8B, run
 
 ```bash
-sbatch llama2_7b-training.sbatch
+sbatch llama3_1_8b-training.sbatch
 ```
 
-You'll find a new file in the FSDP directory of the form `llama2_7b-FSDP_[JOB ID].out`. This will be continuously updated with your training logs. Don't be worried if you see a long stream of NCCL logs (we prefer to use `NCCL_DEBUG=INFO` for verbose logging). After about a minute, you should see your model training, with an output similar to below for Llama2 :
+You'll find a new file in the FSDP directory of the form `llama3_1_8b-FSDP_[JOB ID].out`. This will be continuously updated with your training logs. Don't be worried if you see a long stream of NCCL logs (we prefer to use `NCCL_DEBUG=INFO` for verbose logging). After about a minute, you should see your model training, with an output similar to below for Llama3.1 8B:
 
 ```text
-+ TORCHRUN_ARGS=('--nproc_per_node=8' '--nnodes=4' '--rdzv_id=2513' '--rdzv_backend=c10d' '--rdzv_endpoint=p5-dy-gpu-1')
++ TORCHRUN_ARGS=('--nproc_per_node=8' '--nnodes=4' '--rdzv_id=288' '--rdzv_backend=c10d' '--rdzv_endpoint=p5-dy-gpu-1')
++ declare -a TORCHRUN_ARGS
++ export TORCHRUN=torchrun
 + TORCHRUN=torchrun
-+ export TRAIN_SCRIPT=./train.py
-+ TRAIN_SCRIPT=./train.py
-+ TRAINING_ARGS=('--max_context_width=4096' '--num_key_value_heads=32' '--intermediate_size=11008' '--hidden_width=4096' '--num_layers=32' '--num_heads=32' '--model_type=llama_v2' '--tokenizer=hf-internal-testing/llama-tokenizer' '--checkpoint_freq=5000' '--validation_freq=500' '--max_steps=5000' '--checkpoint_dir=./checkpoints' '--dataset=c4' '--dataset_config_name=en' '--resume_from_checkpoint=./checkpoints' '--train_batch_size=1' '--val_batch_size=1' '--sharding_strategy=full' '--offload_activations=1')
++ export TRAIN_SCRIPT=../src/train.py
++ TRAIN_SCRIPT=../src/train.py
++ TRAINING_ARGS=('--max_context_width=8192' '--num_key_value_heads=8' '--intermediate_size=14336' '--hidden_width=4096' '--num_layers=32' '--num_heads=32' '--model_type=llama_v3' '--tokenizer=hf-internal-testing/llama-tokenizer' '--checkpoint_freq=50' '--validation_freq=25' '--max_steps=100' '--checkpoint_dir=./checkpoints' '--dataset=allenai/c4' '--dataset_config_name=en' '--resume_from_checkpoint=./checkpoints' '--train_batch_size=1' '--val_batch_size=1' '--sharding_strategy=full' '--offload_activations=1')
 ...
-0: 2025-04-04 19:56:52 I [train.py:156] Creating Model
-0: 2025-04-04 19:57:57 I [train.py:172] Created model with total parameters: 6889410560 (6.89 B)
+0: 2025-06-17 16:23:09 I [train.py:156] Creating Model
+0: 2025-06-17 16:24:21 I [train.py:172] Created model with total parameters: 7392727040 (7.39 B)
 ...
-1: p5-dy-gpu-2:62571:62571 [1] NCCL INFO NCCL version 2.26.2+cuda12.2
-1: p5-dy-gpu-2:62574:62574 [4] NCCL INFO cudaDriverVersion 12040
-2: p5-dy-gpu-3:60823:61204 [2] NCCL INFO NET/OFI Initializing aws-ofi-nccl 1.14.0
-2: p5-dy-gpu-3:60823:61204 [2] NCCL INFO NET/OFI Using Libfabric version 1.22
+1: p5-dy-gpu-3:47930:47930 [0] NCCL INFO NCCL version 2.26.2+cuda12.2
+1: p5-dy-gpu-3:47936:47936 [6] NCCL INFO cudaDriverVersion 12080
+2: p5-dy-gpu-4:930643:930850 [7] NCCL INFO NET/OFI Initializing aws-ofi-nccl 1.13.2-aws
+2: p5-dy-gpu-4:930643:930850 [7] NCCL INFO NET/OFI Using Libfabric version 1.22
 ...
-0: 2025-04-04 19:58:26 I [train.py:103] Batch 0 Loss: 11.63327, Speed: 2.80 samples/sec, lr: 0.000006
-0: 2025-04-04 19:58:28 I [train.py:103] Batch 1 Loss: 11.64674, Speed: 17.06 samples/sec, lr: 0.000013
-0: 2025-04-04 19:58:30 I [train.py:103] Batch 2 Loss: 11.56934, Speed: 17.61 samples/sec, lr: 0.000019
-0: 2025-04-04 19:58:32 I [train.py:103] Batch 3 Loss: 11.30075, Speed: 17.66 samples/sec, lr: 0.000025
-0: 2025-04-04 19:58:33 I [train.py:103] Batch 4 Loss: 11.00539, Speed: 17.66 samples/sec, lr: 0.000031
-0: 2025-04-04 19:58:35 I [train.py:103] Batch 5 Loss: 10.39471, Speed: 17.28 samples/sec, lr: 0.000038
+0: 2025-06-17 16:24:52 I [train.py:103] Batch 0 Loss: 11.61653, Speed: 4.88 samples/sec, lr: 0.000100
+0: 2025-06-17 16:24:55 I [train.py:103] Batch 1 Loss: 11.64398, Speed: 10.90 samples/sec, lr: 0.000100
+0: 2025-06-17 16:24:58 I [train.py:103] Batch 2 Loss: 10.58705, Speed: 11.09 samples/sec, lr: 0.000100
+0: 2025-06-17 16:25:01 I [train.py:103] Batch 3 Loss: 15.01381, Speed: 10.61 samples/sec, lr: 0.000100
+0: 2025-06-17 16:25:04 I [train.py:103] Batch 4 Loss: 11.78982, Speed: 10.18 samples/sec, lr: 0.000099
+0: 2025-06-17 16:25:08 I [train.py:103] Batch 5 Loss: 14.34635, Speed: 8.98 samples/sec, lr: 0.000099
 ```
 
 ###  Mistral 8x7B
@@ -171,14 +200,17 @@ For Mathstral, your output should look similar to the one below:
 ```
 
 ## References
-Llama2 models parameters based on the values in the [Llama 2 paper](https://arxiv.org/abs/2307.09288).
+Llama 2 and  Llama 3.x models parameters are based on the values in the [Llama 2 paper](https://arxiv.org/abs/2307.09288) and [Llama 3 paper](https://arxiv.org/abs/2407.21783) 
 
-| Param                    |     7B      |     13B     |     70B     |
-| ------------------------ | ----------- | ----------- | ----------- |
-| intermediate_size        | 11008       | 13824       | 28672       |
-| num_key_value_heads      | 32          | 40          | 8           |
-| hidden_width             | 4096        | 5120        | 8192        |
-| num_layers               | 32          | 40          | 80          |
-| num_heads                | 32          | 40          | 64          |
+
+| Parameter            | Llama 2 7B | Llama 2 13B | Llama 2 70B | Llama 3.1 8B | Llama 3.1 70B | Llama 3.2 1B | Llama 3.2 3B |
+|----------------------|------------|-------------|-------------|--------------|---------------|--------------|--------------|
+| intermediate_size    | 11008      | 13824       | 28672       | 14336        | 28672         | 8192         | 11008        |
+| num_key_value_heads  | 32         | 40          | 8           | 8            | 8             | 8            | 8            |
+| hidden_width         | 4096       | 5120        | 8192        | 4096         | 8192          | 2048         | 3072         |
+| num_layers           | 32         | 40          | 80          | 32           | 80            | 16           | 28           |
+| num_heads            | 32         | 40          | 64          | 32           | 64            | 32           | 24           |
+| max_context_length   | 4096       | 4096        | 4096        | 8192         | 8192          | 8192         | 8192         |
+
 
 If you need to cancel or modify your job, see the Slurm commands available in the [Slurm documentation](https://slurm.schedmd.com/quickstart.html).
