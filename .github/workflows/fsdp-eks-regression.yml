@@ -118,57 +118,14 @@ jobs:
           popd
 
           # Wait for training to start before monitoring
-          echo "Waiting for pods to start..."   # Change this to logic that checks for when Status becomes "Running"
-          
-          # Fix job name (replace underscore with hyphen :) )
-          JOB_NAME="${{ matrix.model_config }}-fsdp"
-          ACTUAL_JOB_NAME=$(echo $JOB_NAME | tr '_' '-')
-          echo "JOB_NAME=$JOB_NAME" >> $GITHUB_ENV
-          echo "ACTUAL_JOB_NAME=$ACTUAL_JOB_NAME" >> $GITHUB_ENV
-          
-          echo "Job name: $JOB_NAME"
-          echo "Actual job name: $ACTUAL_JOB_NAME"
-
-          expected_pods=${{ env.NUM_NODES }}
-
-          start_wait=$(date +%s)
-          wait_timeout=600  
-
-          kubectl get pods
-
-          while true; do
-            current_time=$(date +%s)
-            elapsed_wait=$((current_time - start_wait))
-            
-            if [ $elapsed_wait -gt $wait_timeout ]; then
-              echo "Timed out waiting for pods to start after $wait_timeout seconds"
+          echo "Waiting for pods to become Ready using kubectl wait..."
+          kubectl wait --for=condition=Ready pod -l app=${ACTUAL_JOB_NAME} --timeout=10m
+          if [ $? -ne 0 ]; then
+              echo "Timed out waiting for pods to become Ready"
               kubectl get pods -l app=${ACTUAL_JOB_NAME}
               exit 1
-            fi
-            
-            # Count running and ready pods
-            running_pods=$(kubectl get pods -l app=${ACTUAL_JOB_NAME} -o jsonpath='{.items[?(@.status.phase=="Running")].metadata.name}' | wc -w)
-            ready_pods=$(kubectl get pods -l app=${ACTUAL_JOB_NAME} -o jsonpath='{.items[?(@.status.containerStatuses[0].ready==true)].metadata.name}' | wc -w)
-            total_pods=$(kubectl get pods -l app=${ACTUAL_JOB_NAME} | grep -v NAME | wc -l)
-            
-            echo "Pods status: $ready_pods/$running_pods/$total_pods (ready/running/total), expected: $expected_pods (elapsed: $elapsed_wait seconds)"
-            
-            # Check if all expected pods are running and ready
-            if [ $total_pods -eq $expected_pods ] && [ $running_pods -eq $expected_pods ] && [ $ready_pods -eq $expected_pods ]; then
-              echo "All pods are running and ready!"
-              break
-            fi
-            
-            # Check for error conditions
-            container_statuses=$(kubectl get pods -l app=${ACTUAL_JOB_NAME} -o jsonpath='{.items[*].status.containerStatuses[*].state}' 2>/dev/null)
-            if echo "$container_statuses" | grep -q "CrashLoopBackOff\|ImagePullBackOff\|ErrImagePull"; then
-              echo "Error detected in container status while waiting for pods to start"
-              kubectl get pods -l app=${ACTUAL_JOB_NAME}
-              exit 1
-            fi
-            
-            sleep 5
-          done
+          fi
+          echo "All pods are running and ready!"
           
           echo "PyTorch Job Name: $(kubectl get pytorchjob)"
           echo "Job Pods: $(kubectl get pods)"
