@@ -1,285 +1,487 @@
-# AWS ParallelCluster Distributed Training Reference Architectures <!-- omit in toc -->
+# AWS ParallelCluster Distributed Training Reference Architecture
 
-## 1. Architectures
+This README provides a "vanilla" reference architectures and deployment guide for setting up distributed training clusters using [AWS ParallelCluster](https://github.com/aws/aws-parallelcluster). These architectures are optimized for machine learning workloads and include configurations for high-performance computing instances (P and Trn EC2 families) with shared filesystems (FSx for Lustre and OpenZFS). Key features are including:
 
-Clusters in AWS ParallelCluster share similar components: a head-node, compute nodes (typically P or Trn EC2 family of instances) and one or multiple shared filesystems (FSx for Lustre). You will find below a section on the architectures themselves and how to deploy them. After this section, you will be brief on key elements of these templates (or things you wanna know to avoid potential mistakes).
+- Pre-configured for distributed training workloads
+- Integrated with FSx for Lustre for high-performance storage and OpenZFS for home directory
+- Support for On-Demand Capacity Reservations (ODCR) and Capacity Blocks (CB)
+- Optimized networking with Elastic Fabric Adapter (EFA)
 
-## 2. Pre-requisites
+## Architecture
 
-Before deploying a cluster, let's ensure you have installed the AWS ParallelCluster (PC) CLI, and that you have generated an EC2 key pair for the head node later on. If you have both PC installed and the key pair generated then skip this section and go [deploy-a-cluster section](#3-deploy-clusters).
+![AWS ParallelCluster diagram](../../0.docs/core-infra-architecture.png)
 
-### 2.1. Install AWS ParallelCluster CLI
+The infrastructure consists of the two layers:
 
-Run the script below to install AWS ParallelCluster in a Python virtual environment and access this environment.
+### `parallelcluster-rerequisites`
+
+The core infrastructure for your training cluster that has 3 components.
+
+* An [Amazon Virtual Private Cloud (VPC)](https://aws.amazon.com/vpc/) with one public and one private subnet.
+* An [Amazon FSx for Lustre](https://aws.amazon.com/fsx/lustre/) high performance file system to store training and checkpointing data.
+* An [Amazon FSx for OpenZFS](https://aws.amazon.com/fsx/openzfs/) file system to store home directories data.
+
+
+### `parallelcluster`
+
+The AWS ParallelCluster is an open-source cluster management tool that makes it easy to deploy and manage High Performance Computing (HPC) clusters on AWS. It automates the creation of the infrastructure needed for HPC workloads, including:
+
+- **Head-node**: A login and controller node that users connect to for submitting jobs and managing the cluster. This node runs the scheduler (Slurm) and other management services.
+- **Compute-nodes**: Worker nodes that execute the actual computational workloads. These are dynamically provisioned based on job requirements and can scale up or down automatically.
+
+The architecture follows a traditional HPC design pattern where users interact with the head node to submit jobs, and the scheduler distributes those jobs to the compute nodes. For ML workloads, the compute nodes are typically equipped with GPUs (like P4d, P5, etc.) or AWS Trainium accelerators. 
+
+
+## Prerequisites
+
+Before you begin, ensure you have the following tools installed on your local machine:
+
+- **Git**: For cloning the repository and version control
+  - Installation: [Git download page](https://git-scm.com/downloads)
+
+- **Python 3.8 or later**: Required for AWS ParallelCluster CLI
+  - Installation: [Python download page](https://www.python.org/downloads/)
+  - Verify with: `python3 --version`
+
+- **yq**: A lightweight command-line YAML processor
+  - Installation:
+    - On macOS: `brew install yq`
+    - On Linux: `sudo snap install yq` or `sudo apt-get install yq`
+    - On Windows: `choco install yq`
+  - Verify with: `yq --version`
+
+These tools are essential for following the deployment steps in this guide and managing your cluster configuration.
+
+First, clone the repository and move to this directory:
 
 ```bash
-#!/bin/bash
+git clone https://github.com/aws-samples/awsome-distributed-training.git
+cd awsome-distributed-training/1.architectures/2.aws-parallelcluster
+```
 
-VIRTUAL_ENV_PATH=~/apc-ve # change the path to your liking
+Then create a directory under home directory to store cluster config files:
 
+```bash
+# For example
+export AWS_REGION=ap-northeast-1 
+export CLUSTER_NAME=ml-cluster
+export PCLUSTER_VERSION=3.13.1
+export CONFIG_DIR="${HOME}/${CLUSTER_NAME}_${AWS_REGION}_${PCLUSTER_VERSION}"
+
+mkdir -p ${CONFIG_DIR}
+touch ${CONFIG_DIR}/config.yaml
+yq -i ".CLUSTER_NAME = \"$CLUSTER_NAME\"" ${CONFIG_DIR}/config.yaml
+yq -i ".AWS_REGION = \"$AWS_REGION\"" ${CONFIG_DIR}/config.yaml 
+yq -i ".PCLUSTER_VERSION = \"$PCLUSTER_VERSION\"" ${CONFIG_DIR}/config.yaml
+```
+
+
+The rest of this section describes following required/optional components.
+
+- [AWS Account with administrator permissions](#aws-account-with-appropriate-permissions-to-create-and-manage-resources)
+- [AWS ParallelCluster CLI for cluster deployment and management](#aws-parallelcluster-cli-for-cluster-deployment-and-management)
+- [Reserved accelerated instance capacity (P/Trn instances) through  On-Demand Capacity Reservation (ODCR) or EC2 Capacity Blocks (CB) for ML](#reserved-accelerated-instance-capacity-ptrn-instances-through--on-demand-capacity-reservation-odcr-or-ec2-capacity-blocks-cb-for-ml)
+- [EC2 Key Pair for SSH access](#ec2-key-pair-for-ssh-access)
+- [(Optional) S3 bucket for data persistence](#optional-s3-bucket-for-data-persistence)
+
+#### AWS Account with appropriate permissions to create and manage resources
+
+To deploy AWS ParallelCluster, you need to be an Administrator user of the AWS account. See [this issue](https://github.com/aws/aws-parallelcluster/issues/2060) for the related discussion. You need to use the IAM user to create clusters using AWS ParallelCluster CLI from local console, for that you need to configure your AWS credentials by running `aws configure`.
+
+#### AWS ParallelCluster CLI for cluster deployment and management
+The AWS ParallelCluster CLI is a command-line tool that helps you deploy and manage HPC clusters on AWS. It provides commands for creating, updating, and deleting clusters, as well as managing cluster resources. The CLI is built on top of the AWS SDK and provides a simple interface for interacting with AWS ParallelCluster. For detailed information about the CLI and its commands, refer to the [AWS ParallelCluster Command Line Interface Reference](https://docs.aws.amazon.com/parallelcluster/latest/ug/commands-v3.html). The CLI requires Python 3.7 or later installed on your local environment.
+
+You can install the AWS ParallelCluster CLI using pip in a Python virtual environment:
+
+
+```bash
+export VIRTUAL_ENV_PATH=~/pcluster_${PCLUSTER_VERSION}_env # change the path to your liking
 # Update pip and the virtual env module
 python3 -m pip install --upgrade pip
 python3 -m pip install --user --upgrade virtualenv
-
-python3 -m virtualenv $VIRTUAL_ENV_PATH # create the virtual env
-
-source $VIRTUAL_ENV_PATH/bin/activate # activate the environment
+python3 -m virtualenv ${VIRTUAL_ENV_PATH} # create the virtual env
+source ${VIRTUAL_ENV_PATH}/bin/activate # activate the environment
 pip3 install awscli # install the AWS CLI
-pip3 install aws-parallelcluster # then AWS ParallelCluster
+pip3 install aws-parallelcluster==${PCLUSTER_VERSION} # then AWS ParallelCluster
 ```
 
-> **Note**: you can use virtual environments to test different versions of AWS ParallelCluster by setting the version during the installation. For example to use 3.9.1, change the command `pip3 install aws-parallelcluster==3.9.1`.
+#### Reserved accelerated instance capacity (P/Trn instances) through  On-Demand Capacity Reservation (ODCR) or EC2 Capacity Blocks (CB) for ML
 
-### 2.2. Create your EC2 Keypair (if needed)
+Distributed training usually requires P or Trn instances, both of which are high demand and hard to launch from the on-demand pool. It is strongly recommended to reserve capacity using On-Demand Capacity Reservation (ODCR) or EC2 Capacity Blocks (CB) for ML.
 
-The EC2 key pair enables your to connect to your cluster on the head-node through ssh or [AWS Systems Manager](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-sessions-start.html). We will cover for SSH here.
+On-Demand Capacity Reservation (ODCR) is a tool for reserving capacity without having to launch and run the EC2 instances. The CRs for P or Trn instances are typically *created by AWS*, not by users, which affects how to correctly configure the cluster networking.
 
-You can list your public keys on your [AWS Console](https://console.aws.amazon.com/ec2/home?#KeyPairs:) and you may also check your SSH directory for the private keys (`~/ssh` if using Linux or OSX).
+[Amazon EC2 Capacity Blocks for ML](https://aws.amazon.com/ec2/capacity-blocks/) is another way to reserve compute capacity for your ML workloads. Unlike ODCR, Capacity Blocks allows you to reserve capacity for a specific time window (from 1 to 14 days) with a specific start time. This is particularly useful for planned ML training jobs that require high-performance P/Trn instances. Pricing varies by region and instance type. You can find the complete pricing information and available instance types in each region on the [Amazon EC2 Capacity Blocks for ML pricing page](https://aws.amazon.com/ec2/capacityblocks/pricing/).
 
-If you do not have a keypair that you can use then we will create one with the command below (see [this documentation](https://docs.aws.amazon.com/parallelcluster/latest/ug/set-up-keypair.html)).
+__You need the following information before proceeding__:
+
+* An ODCR ID (usually for P or Trn instances) on the account: `CAPACITY_RESERVATION_ID`
+* Availability Zone for the capacity: `AZ`
+* Number of instances in the capacity reservation: `NUM_INSTANCES`
+* Instance type: `INSTANCE` (e.g., p5.48xlarge)
+
+Add them to your config file `${CONFIG_DIR}/config.yaml`:
 
 ```bash
-#!/bin/bash
+# Export your capacity reservation details
+export CAPACITY_RESERVATION_ID=<your-capacity-reservation-id>  # e.g. cr-0123456789abcdef0
+export AZ=<your-availability-zone>  # e.g. ap-northeast-1a
+export NUM_INSTANCES=<number-of-instances>  # e.g. 8
+export INSTANCE=<instance-type>  # e.g. p5.48xlarge
 
-AWS_TARGET_REGION=us-east-1
-KEYPAIR_NAME=pcluster-workshop-key
-
-# Create the key pair using the AWS CLI and retrieve the private part (.pem file)
-aws ec2 create-key-pair --key-name pcluster-workshop-key \
-                        --query KeyMaterial \
-                        --region $AWS_TARGET_REGION \
-                        --output text > $KEYPAIR_NAME.pem
-
-# The above command will also generate a private key in the current directory.
-# We must change the access rights to the current user only, otherwise the ssh
-# client refuses to use this private key to open an ssh connection.
-sudo chmod 600 $KEYPAIR_NAME.pem
+yq -i ".CAPACITY_RESERVATION_ID = \"$CAPACITY_RESERVATION_ID\"" ${CONFIG_DIR}/config.yaml
+yq -i ".AZ = \"$AZ\"" ${CONFIG_DIR}/config.yaml
+yq -i ".NUM_INSTANCES = \"$NUM_INSTANCES\"" ${CONFIG_DIR}/config.yaml
+yq -i ".INSTANCE = \"$INSTANCE\"" ${CONFIG_DIR}/config.yaml
 ```
 
-### 2.2 Connect to your cluster
 
-To easily login to your cluster via [AWS Systems Manager](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-sessions-start.html) we've included a script `easy-ssh.sh` that you can run like so, assuming `ml-cluster` is the name of your cluster:
+#### EC2 Key Pair for SSH access
+
+The EC2 key pair enables you to connect to your cluster's head node through SSH or [AWS Systems Manager](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-sessions-start.html). We'll cover SSM below.
+
+You can list your existing key pairs in the [AWS Console](https://console.aws.amazon.com/ec2/home?#KeyPairs:) or check your SSH directory for private keys (`~/.ssh` if using Linux or macOS).
+
+First, export the name of the key pair you have or will create:
 
 ```bash
-./easy-ssh.sh ml-cluster
+export KEYPAIR_NAME=<your-keypair-name> 
+yq -i ".KEYPAIR_NAME = \"$KEYPAIR_NAME\"" ${CONFIG_DIR}/config.yaml
 ```
 
-You'll need a few pre-requisites for this script:
-* JQ: `brew install jq`
-* aws cli
-* `pcluster` cli
-* [Session Manager Plugin](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html)
-
-Once you've run the script you'll see the following output:
-
-```
-Instance Id: i-0096542c11ccb02b5
-Os: ubuntu2004
-User: ubuntu
-Add the following to your ~/.ssh/config to easily connect:
-
-cat <<EOF >> ~/.ssh/config
-Host ml-cluster
-  User ubuntu
-  ProxyCommand sh -c "aws ssm start-session --target i-0095542c11ccb02b5 --document-name AWS-StartSSHSession --parameters 'portNumber=%p'"
-EOF
-
-Add your ssh keypair and then you can do:
-
-$ ssh ml-cluster
-
-Connecting to ml-cluster...
-
-Starting session with SessionId: ...
-root@ip-10-0-24-126:~#
-```
-
-1. Add your public key to the file `~/.ssh/authorized_keys`
-
-2. Now paste in the lines from the output of to your terminal, this will add them to your `~/.ssh/config`.
-
-```
-cat <<EOF >> ~/.ssh/config
-Host ml-cluster
-  User ubuntu
-  ProxyCommand sh -c "aws ssm start-session --target i-0095542c11ccb02b5 --document-name AWS-StartSSHSession --parameters 'portNumber=%p'"
-EOF
-```
-3. Now you ssh in, assuming `ml-cluster` is the name of your cluster with:
-
-```
-ssh ml-cluster
-```
-
-
-## 3. Deploy a Cluster
-
-To create the cluster use the command below and replace `CLUSTER_CONFIG_FILE` by the path to the cluster configuration file (see next section) and `NAME_OF_YOUR_CLUSTER` by the name of your cluster (`realpotato` is a cool name).
+If you don't have a key pair yet, create one using the AWS CLI:
 
 ```bash
-pcluster create-cluster --cluster-configuration CLUSTER_CONFIG_FILE --cluster-name NAME_OF_YOUR_CLUSTER --region us-east-1
+# Create the key pair and save the private key
+pushd ~/.ssh
+aws ec2 create-key-pair \
+    --key-name ${KEYPAIR_NAME} \
+    --query KeyMaterial \
+    --key-type ed25519 \
+    --region ${AWS_REGION} \
+    --output text > ${KEYPAIR_NAME}.pem
+
+# Set appropriate permissions on the private key
+chmod 600 ${KEYPAIR_NAME}.pem
+popd
+```
+>[!TIP]
+>You can verify the key pair was created successfully by listing your key pairs:
+> ```bash
+> aws ec2 describe-key-pairs --region ${AWS_REGION}
+> ```
+
+#### (Optional) S3 bucket for data persistence
+
+An S3 bucket can be used to persist training data, model checkpoints, and other artifacts across cluster deployments. This is particularly useful for:
+- Storing training datasets
+- Saving model checkpoints
+- Maintaining experiment logs
+- Preserving output artifacts
+
+The bucket can be integrated with FSx for Lustre through a Data Repository Association (DRA) later.
+
+To deploy the S3 bucket using our CloudFormation template:
+
+1. Click the button below to launch the CloudFormation stack:
+
+[<kbd> <br> 1-Click Deploy 🚀 <br> </kbd>](https://console.aws.amazon.com/cloudformation/home#/stacks/quickcreate?templateUrl=https://awsome-distributed-training.s3.amazonaws.com/templates/0.private-bucket.yaml&stackName=cluster-data-bucket)
+
+2. In the CloudFormation console:
+   - Enter a stack name (e.g., `cluster-data-bucket`)
+   - Specify the bucket name
+   - Click "Create stack"
+
+3. Once the stack creation is complete, note the bucket name from the Outputs tab. You'll need this for the DRA configuration:
+
+```bash
+# Get the bucket name from CloudFormation outputs
+# Note: You need to change stack-name if you are using non-default name
+export DATA_BUCKET_NAME=$(aws cloudformation describe-stacks \
+    --stack-name cluster-data-bucket \
+    --query 'Stacks[0].Outputs[?OutputKey==`S3BucketName`].OutputValue' \
+    --region ${AWS_REGION} \
+    --output text)
+
+echo "Your data bucket name is: ${DATA_BUCKET_NAME}"
+yq -i ".DATA_BUCKET_NAME = \"$DATA_BUCKET_NAME\"" ${CONFIG_DIR}/config.yaml
 ```
 
-You can follow the [documentation](https://docs.aws.amazon.com/parallelcluster/latest/ug/commands-v3.html) to review the list of all AWS ParallelCluster commands.
+> [!NOTE]
+> The bucket will be retained even if you delete the cluster, ensuring your data persists across cluster life cycles.
 
-### 3.1. Cluster templates
+## Cluster deployment
 
-Each reference architectures provides an example of cluster configuration (`.yaml`) for different use cases. The architectures most commonly used are:
+This section guides you through deploying your AWS ParallelCluster environment. You'll set up the necessary infrastructure components including networking, storage, and compute resources to create a high-performance computing cluster optimized for machine learning workloads. The deployment process is streamlined using CloudFormation templates that handle the complex infrastructure provisioning automatically.
 
-- `distributed-training-gpu.yaml`: base template, uses the default AMI with no software installed.
-- `distributed-training-p4de_custom_ami.yaml`: base cluster with a custom AMI to install custom software.
-- `distributed-training-p4de_postinstall_scripts.yaml`: same as above but uses post-install scripts to install Docker, Pyxis and Enroot.
+### Step1: Deploy parallelcluster-prerequisites
 
-Alternatively you can refer to these architectures for more specific use cases:
+In this section, you deploy a custom [_Amazon Virtual Private Cloud_](https://aws.amazon.com/vpc/) (Amazon VPC) network and security groups, as well as supporting services such as FSx for Lustre using the CloudFormation template called `parallelcluster-prerequisites.yaml`. This template is region agnostic and enables you to create a VPC with the required network architecture to run your workloads.
 
-- `distributed-training-p4de_batch-inference-g5_custom_ami.yaml`: multi-queue template with p4de for training and g5 for inference. It assumes a custom AMI.
-- `distributed-training-trn1_custom_ami.yaml`: uses Trainium instances for distributed training. Assumes a custom AMI.
+Please follow the steps below to deploy your resources:
 
-### 3.2. What to replace in the templates
+1. Click on this link to deploy to CloudFormation:
 
-The `.yaml` templates contain placeholder variables that you need to replace before use.
+[<kbd> <br> 1-Click Deploy 🚀 <br> </kbd>](https://console.aws.amazon.com/cloudformation/home#/stacks/quickcreate?templateUrl=https://awsome-distributed-training.s3.amazonaws.com/templates/parallelcluster-prerequisites.yaml&stackName=parallelcluster-prerequisites)
 
-- `CUSTOM_AMI_ID`: if using a custom AMI then replace with the custom AMI ID (`ami-12356790abcd`).
-- `PUBLIC_SUBNET_ID`: change to the id of a public subnet to host the head-node (`subnet-12356790abcd`).
-- `PRIVATE_SUBNET_ID`: change to the id of a public subnet to host the compute nodes (`subnet-12356790abcd`).
-- `PLACEHOLDER_SSH_KEY`: ID of the SSH key you'd like to use to connect to the head-node, use the name of the key. You can also use AWS Systems Manager Session Manager (SSM).
-- `CAPACITY_RESERVATION_ID`: if using a capacity reservation put the ID here (`cr-12356790abcd`).
+> [!IMPORTANT]
+> When opening the link, you must specify the region and availability zone where your compute resources are located. Be sure to select the correct region and fill out the "Availability Zone configuration for the subnets" field, when you create the stack.
 
-In some of the templates you may need to update these placeholders:
 
-- `PLACEHOLDER_MIN_INSTANCES`: the minimum number of instances you want in your cluster at any point in time.
-- `PLACEHOLDER_MAX_INSTANCES`: the maximum number of instances you anticipate to scale to.
+> [!NOTE]
+> The above CloudFormation stack uses FSx for Lustre `PERSISTENT_2` deployment type by default. If your selected availability zone doesn't support `PERSISTENT_2` or you specifically need to use `PERSISTENT_1` deployment type, please use the link below instead:
+> [<kbd> <br> 1-Click Deploy 🚀 <br> </kbd>](https://console.aws.amazon.com/cloudformation/home#/stacks/quickcreate?templateUrl=https://awsome-distributed-training.s3.amazonaws.com/templates/parallelcluster-prerequisites-p1.yaml&stackName=parallelcluster-prerequisites)
 
-If `MIN` = `MAX` then you keep a fixed amount of instances at any point in time. If `MIN` < `MAX` then the cluster will keep a `MIN` number of instances and scale up to `MAX` if capacity beyond `MIN` is required to run jobs. Update this values by updating your cluster ([documentation](https://docs.aws.amazon.com/parallelcluster/latest/ug/using-pcluster-update-cluster-v3.html))
+![parallelcluster-prerequisites-cfn](../../0.docs/parallelcluster-prerequisites-cfn.png)
 
-## 4. Anatomy of AWS Parallel Cluster
+2. Once the CloudFormation stack deployment is complete, you'll need to export the stack name as an environment variable for future steps:
 
-![AWS ParallelCluster diagram](../../0.docs/parallelcluster-arch-diagram.png)
+```bash
+export STACK_ID_VPC=parallelcluster-prerequisites # Change here if you uses non-default stack name
+yq -i ".STACK_ID_VPC = \"$STACK_ID_VPC\"" ${CONFIG_DIR}/config.yaml
+```
 
-### 4.1. Compute
 
-Compute is represented through the following:
+#### (Optional) Associate Lustre storage with S3 bucket with data-repository-association (DRA)
 
-- **Head-node**: login and controller node that users will use to submit jobs. It is set to an [m5.8xlarge](https://aws.amazon.com/ec2/instance-types/m5/)..
-- **Compute-gpu**: is the queue (or partition) to run your ML training jobs. The instances are either [p4de.24xlarge](https://aws.amazon.com/ec2/instance-types/p4/) or [trn1.32xlarge](https://aws.amazon.com/ec2/instance-types/trn1/) which are recommended for training, especially for LLMs or large models. The default number of instances in the queue has been set to *4* and can be changed as necessary.
-- **Inference-gpu**: is an optional queue that can be used to run inference workloads and uses [g5.12xlarge](https://aws.amazon.com/ec2/instance-types/m5/).
+If you have deployed your S3 data repository in the previous step In this step, you will create a [Data Repository Association (DRA)](https://docs.aws.amazon.com/fsx/latest/LustreGuide/create-dra-linked-data-repo.html) between the S3 bucket and FSx Lustre Filesystem.
 
-### 4.2. On-Demand Capacity Reservation (ODCR)
+```bash
+export FSX_ID=`aws cloudformation describe-stacks \
+    --stack-name ${STACK_ID_VPC} \
+    --query 'Stacks[0].Outputs[?OutputKey==\`FSxLustreFilesystemId\`].OutputValue' \
+    --region ${AWS_REGION} \
+    --output text`
+```
 
-On-Demand Capacity Reservation (ODCR) is a tool for reserving capacity without having to launch and run the EC2 instances. ODCR is practically **the only way** to launch capacity-constrained instances like `p4d.24xlarge`, `p4de.24xlarge`, or `p5.48xlarge`. In addition, the CRs for these instance types are typically *created by AWS*, not by users, which affects how to correctly configure the cluster networking (section [4.3](#43-network-efa-elastic-fabric-adapter)).
+Note: `DATA_BUCKET_NAME`  is the bucket created in [Step0: Check resource info](https://quip-amazon.com/wDrEAxaBEI3A#temp:C:fdV996b34e8ad4e4dc3ac2ef128b). 
+Create DRA as follows:
 
-AWS ParallelCluster supports specifying the [CapacityReservationId](https://docs.aws.amazon.com/parallelcluster/latest/ug/Scheduling-v3.html#yaml-Scheduling-SlurmQueues-CapacityReservationTarget) in the cluster's config file. If using a capacity reservation put the ID i.e. `cr-12356790abcd` in your config file by substituting the variable `PLACEHOLDER_CAPACITY_RESERVATION_ID`. It should look like the following:
+```bash
+aws fsx create-data-repository-association \
+    --file-system-id ${FSX_ID} \
+    --file-system-path "/data" \
+    --data-repository-path s3://${DATA_BUCKET_NAME} \
+    --s3 AutoImportPolicy='{Events=[NEW,CHANGED,DELETED]},AutoExportPolicy={Events=[NEW,CHANGED,DELETED]}' \
+    --batch-import-meta-data-on-create \
+    --region ${AWS_REGION}
+```
 
-  ```yaml
-  CapacityReservationTarget:
-      CapacityReservationId: cr-12356790abcd
-  ```
+You shall see output like below:
 
-If you have multiple ODCR's you can group them together into a [*Capacity Reservation Group*](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/create-cr-group.html), this allows you to launch instances from multiple ODCR's as part of the **same queue** of the cluster.
+```
+{
+    "Association": {
+        "AssociationId": "dra-0295ef8c2a0e78886",
+        "ResourceARN": "arn:aws:fsx:ap-northeast-1:483026362307:association/fs-0160ebe1881498442/dra-0295ef8c2a0e78886",
+        "FileSystemId": "fs-0160ebe1881498442",
+        "Lifecycle": "CREATING",
+        "FileSystemPath": "/data",
+        "DataRepositoryPath": "s3://genica-cluster-data-483026362307",
+        "BatchImportMetaDataOnCreate": true,
+        "ImportedFileChunkSize": 1024,
+        "S3": {
+            "AutoImportPolicy": {
+                "Events": [
+                    "NEW",
+                    "CHANGED",
+                    "DELETED"
+                ]
+            },
+            "AutoExportPolicy": {
+                "Events": [
+                    "NEW",
+                    "CHANGED",
+                    "DELETED"
+                ]
+            }
+        },
+        "Tags": [],
+        "CreationTime": "2024-10-22T09:06:57.151000+09:00"
+    }
+}
+```
 
-1. First create a group, this will return a group arn like: `arn:aws:resource-groups:us-east-2:123456789012:group/MyCRGroup`. Save that for later.
+[!TIPS]
+> You can query the status of the DRA creation as below:
+> ```bash
+> aws fsx describe-data-repository-associations \
+>     --filters "Name=file-system-id,Values=${FSX_ID}" --query "Associations[0].Lifecycle" --output text
+>     --region ${AWS_REGION}
+> ```
+> Wait until the output becomes `AVAILABLE`. You also can check the status of DRA on [AWS console](https://console.aws.amazon.com/fsx/home#file-systems).
 
-    ```bash
-    aws resource-groups create-group --name MyCRGroup --configuration '{"Type":"AWS::EC2::CapacityReservationPool"}' '{"Type":"AWS::ResourceGroups::Generic", "Parameters": [{"Name": "allowed-resource-types", "Values": ["AWS::EC2::CapacityReservation"]}]}'
-    ```
+## Step2: Deploy ParallelCluster
 
-2. Next add your capacity reservations to that group:
+This section guides you through deploying your distributed training cluster. Before proceeding, ensure you have completed all the [prerequisites](#prerequisites) steps.
 
-    ```bash
-    aws resource-groups group-resources --group MyCRGroup --resource-arns arn:aws:ec2:sa-east-1:123456789012:capacity-reservation/cr-1234567890abcdef1 arn:aws:ec2:sa-east-1:123456789012:capacity-reservation/cr-54321abcdef567890
-    ```
+### 1. Set Up Environment Variables
 
-3. Then add the group to your cluster's config like so:
+First, make sure that you are in virtual environment if you have `pcluster` installed:
 
-    ```yaml
-        CapacityReservationTarget:
-            CapacityReservationResourceGroupArn: arn:aws:resource-groups:us-east-2:123456789012:group/MyCRGroup
-    ```
+```bash
+source ${VIRTUAL_ENV_PATH}/bin/activate # activate the environment for pcluster CLI
+```
 
-### 4.3. Network: EFA (Elastic Fabric Adapter)
+You should have the following values set:
 
-Applications will make use of [Elastic Fabric Adapter (EFA)](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa.html) for enhanced networking during distributed training. To achieve optimal network latency instances should be placed in a placement groups using either the `PlacementGroup` flag or by specifying a targeted [On-Demand Capacity reservation (ODCR)](#42-on-demand-capacity-reservation-odcr).
-
-It is important to note the targeted ODCR for `p4` or `p5` are typically not created by users. Instead, AWS will create the CR with placement group assigned, then deliver (i.e., share) the CR to users. Users must accept the CR (e.g., via their AWS console) before they can use it to launch the `p4` or `p5` instances.
-
-When using the AWS-assisted targeted ODCR, you're strongly recommended to disable the `PlacementGroup` setting for AWS Parallel Cluster, otherwise this placement group option creates a specific placement group that may conflict with the placement group assigned in your ODCR, causing instance launch failures *Insufficient Capacity Error* (*ICE*).
-
-Placement groups are only relevant for distributed training, not inference.
-
-In both cases, for `p4` or `p5` with AWS-assisted CR, the rule-of-thumb is to set the following parameter to `false`:
+```bash
+cat  ${CONFIG_DIR}/config.yaml
+```
 
 ```yaml
-PlacementGroup:
-  Enabled: false
+# Example values - these will vary by environment
+CLUSTER_NAME: ml-cluster
+AWS_REGION: eu-west-2
+PCLUSTER_VERSION: 3.13.1
+CAPACITY_RESERVATION_ID: cr-XXXXXXXXXXXXXXXXX
+AZ: eu-west-2c
+NUM_INSTANCES: "16"
+INSTANCE: p5.48xlarge
+KEYPAIR_NAME: eu-west-2
+DATA_BUCKET_NAME: "cluster-data-bucket-us-west-2-XXXXXXXXXXXX"
+STACK_ID_VPC: parallelcluster-prerequisites
 ```
 
-### 4.4. Storage
+## 2. Generate Cluster Configuration
 
-Storage comes in 3 flavors:
-
-- **Local**: head and compute nodes have 200GiB of EBS volume mounted on `/`. In addition, the headnode has an EBS volume of `200GiB` mounted on `/apps` The compute nodes have NVMe drives striped in RAID0 and mounted as `/local_scratch`.
-- **File network storage**: The head-node shares `/home` and `/apps` to the whole cluster through NFS. These directories are automatically mounted on every instance in the cluster and accessible through the same path. `/home` is a regular home directory, `/apps` is a shared directory where applications or shared files can be stored. Please note that none should be used for data intensive tasks.
-- **High performance filesystem**: An [FSx for Lustre](https://docs.aws.amazon.com/fsx/latest/LustreGuide/what-is.html) filesystem can be accessed from every cluster node on `/fsx`. This is where users would store their datasets. This file system has been sized to 4.8TiB and provides 1.2GB/s of aggregated throughput. You can modify its size and the throughput per TB provisioned in the config file following the service [documentation](https://docs.aws.amazon.com/fsx/latest/LustreGuide/performance.html).
-
-### 4.5. Installing applications & libraries
-
-You can chose to use a custom image or post-install scripts to install your application stack.
-
-- **Custom images**: the image needs to be pre-built before creating a cluster. They are preferred for drivers, kernel modules or libraries regularly used and seeing little to no updates. This option is preferred to ensure repeatability. You can use custom images as follows:
-
-    ```yaml
-    Image:
-      Os: alinux2 #system type
-      CustomAmi: PLACEHOLDER_CUSTOM_AMI_ID #replace by custom imageAMI ID
-    ```
-
-    If not using a custom image, remove the `CustomAmi` field.
-
-- **Post-install scripts**: these scripts will be executed at instance boot (head+compute). This option is recommended for quick testing and will increase instance boot time. You can run post-install scripts through `CustomActions` for the head node and the compute nodes. The `distributed-training-p4de_postinstall_scripts.yaml` uses the post-install scripts from this [repo](https://github.com/aws-samples/aws-parallelcluster-post-install-scripts) to enable the container support.
-
-### 4.6. Troubleshooting
-
-A common issue we see customer face is a problem with the post install scripts or issue to access capacity due to a mis-configuration. This can manifest itself through a `HeadNodeWaitCondition` that'll cause the ParallelCluster to fail a cluster deployment.
-
-To solve that, you can look at the cluster logs in CloudWatch in the cluster log group, otherwise use the option `--rollback-on-failure false` to keep resources up upon failure for further troubleshooting.
-
-## 5. Appendix
-
-Parallel Cluster, as of this writing (v3.8.0), does not automatically set the correct number of sockets and cores-per-socket in Slurm partitions. For ML training on multiple GPUs, this should not have adverse impact on performance since NCCL does the topology detection. However, it might have impact on the training performance for single-GPU training or inference, or in the rare case to support Slurm affinity/binding feature.
-
-Using the example from [here](https://github.com/aws/aws-parallelcluster/issues/5797), a `p5.48xlarge` should have just two sockets, but Slurm shows the partition to have more than that.
+Retrieve additional environment variables from the `parallelcluster-prerequisites` stack and generate the cluster configuration using our template:
 
 ```bash
-$ ssh p5-st-p5-1 /opt/slurm/sbin/slurmd -C
-NodeName=p5-st-p5-1 CPUs=192 Boards=1 SocketsPerBoard=2 CoresPerSocket=48 ThreadsPerCore=2 RealMemory=2047961 UpTime=2-00:08:02
+# Grab all the outputs from the CloudFormation stack in a single command and append to config.yaml
+# First create a temporary file with the stack outputs
+aws cloudformation describe-stacks \
+    --stack-name $STACK_ID_VPC \
+    --query 'Stacks[0].Outputs[?contains(@.OutputKey, ``)].{OutputKey:OutputKey, OutputValue:OutputValue}' \
+    --region ${AWS_REGION} \
+    --output json | yq e '.[] | .OutputKey + ": " + .OutputValue' - > ${CONFIG_DIR}/stack_outputs.yaml
+# Merge the stack outputs with config.yaml without duplicating entries
+yq eval-all 'select(fileIndex == 0) * select(fileIndex == 1)' ${CONFIG_DIR}/config.yaml ${CONFIG_DIR}/stack_outputs.yaml > ${CONFIG_DIR}/config_updated.yaml
+mv ${CONFIG_DIR}/config_updated.yaml ${CONFIG_DIR}/config.yaml
+rm ${CONFIG_DIR}/stack_outputs.yaml
+# Now let's use the following snippet to read them as environment variables
+eval $(yq e 'to_entries | .[] | "export " + .key + "=\"" + .value + "\""' ${CONFIG_DIR}/config.yaml) 
 
-$ sinfo -o '%9P %4c %8z %8X %8Y %8Z'
-PARTITION CPUS S:C:T    SOCKETS  CORES    THREADS
-p5*       192  192:1:1  192      1        1
+# You can also view the updated config file
+cat ${CONFIG_DIR}/config.yaml
+
+# Read all the environment variables we have in config.yaml
+eval $(yq e 'to_entries | .[] | "export " + .key + "=\"" + .value + "\""' ${CONFIG_DIR}/config.yaml) 
+# Generate the configuration file
+cat cluster-templates/cluster-vanilla.yaml | envsubst > ${CONFIG_DIR}/cluster.yaml
 ```
 
-Should you want to correct the partition configuration, edit your cluster configuration file (e.g., the `distributed-training-*.yaml` file) and a new entry `Scheduling` / `SlurmQueues` / `ComputeResources` / `CustomSlurmSettings` similar to below.
+> [!IMPORTANT]  
+> The default configuration has `PlacementGroup` set to `False`. This is recommended when using AWS-provided ODCR or Capacity Blocks, as enabling placement groups may conflict with the placement group assigned to your ODCR/CB and cause *Insufficient Capacity Error* (ICE). 
+>
+> However, when using user-procured Capacity Reservations (CR) for distributed training workloads, you should set `PlacementGroup` to `True` and specify a cluster placement group name. This ensures optimal network performance between instances. Configure it like this:
+>
+> ```yaml
+> PlacementGroup:
+>   Enabled: True
+>   Name: <Your Placement Group Name>
+> ```
+>
+> It's recommended to create a cluster placement group first and use its name when reserving capacity for distributed training workloads. 
 
-```yaml
-Scheduling:
-  SlurmQueues:
-    - Name: compute-gpu
-      ...
-      ComputeResources:
-        - Name: distributed-ml
-          InstanceType: p5.48xlarge
-          ...
-          CustomSlurmSettings:
-            Sockets: 2
-            CoresPerSocket: 48
+> [!TIP]  
+> If using AWS CloudShell and `envsubst` is not available, install it with:
+> ```bash
+> sudo yum install gettext
+> ```
+
+### 3. Create the Cluster
+
+Deploy your cluster using the generated configuration:
+
+```bash
+pcluster create-cluster \
+    --cluster-name ${CLUSTER_NAME} \
+    --cluster-configuration ${CONFIG_DIR}/cluster.yaml \
+    --region ${AWS_REGION} \
+    --rollback-on-failure false
 ```
 
-Each instance type has its own `Sockets` and `CoresPerSocket` values. Below are for instance types commonly used for distributed training.
+You should see output similar to:
+```json
+{
+  "cluster": {
+    "clusterName": "ml-cluster",
+    "cloudformationStackStatus": "CREATE_IN_PROGRESS",
+    "cloudformationStackArn": "arn:aws:cloudformation:ap-northeast-1:123456789012:stack/ml-cluster/abcd1234-...",
+    "region": "ap-northeast-1",
+    "version": "3.13.0",
+    "clusterStatus": "CREATE_IN_PROGRESS",
+    "scheduler": {
+      "type": "slurm"
+    }
+  }
+}
+```
 
-| Instance type | `Sockets` | `CoresPerSocket` |
-| ------------- | --------- | ---------------- |
-| p5.48xlarge   | 2         | 48               |
-| p4de.24xlarge | 2         | 24               |
-| p4d.24xlarge  | 2         | 24               |
+### 4. Monitor Cluster Creation
 
-For other instance types, you'd need to run an instance to check the values.
+You can monitor the cluster creation progress in several ways:
+
+1. Using the AWS ParallelCluster CLI:
+```bash
+pcluster list-clusters --region ${AWS_REGION}
+```
+
+2. Through the CloudFormation console:
+   - Navigate to the [CloudFormation console](https://console.aws.amazon.com/cloudformation)
+   - Select your cluster's stack
+   - Monitor the "Events" tab for real-time updates
+
+The cluster creation typically takes 15-20 minutes. Wait for the status to show "CREATE_COMPLETE" before proceeding to connect to your cluster.
+
+### Next Steps
+
+Once your cluster is ready:
+- [Connect to your cluster](#connect-to-the-cluster) using SSH or AWS Systems Manager
+- Set up your development environment
+- Start submitting training jobs
+
+For advanced configurations and customizations, refer to our [deployment guides](./deployment-guides).
+
+## Connect to the Cluster
+
+Once the cluster goes into **CREATE COMPLETE**, we can connect to the head node in one of two ways, either through the SSM or SSH.
+
+**SSM Session Manager** is ideal for quick terminal access to the head node, it doesn't require any ports to be open on the head node, however it does require you to authenticate with the AWS account the instance it running in.
+
+**SSH** can be used to connect to the cluster from a standard SSH client. This can be configured to use your own key via adding the public key or a new key can be provisioned.
+
+### SSM Connect 
+![ssm connect](../../../0.docs/ssm-connect.png)
+You'll need to be authenticated to the AWS account that instance is running in and have permission to launch a SSM session . Once you're connected you'll have access to a terminal on the head node:
+
+Now change to `ubuntu` user:
+
+```bash
+sudo su - ubuntu
+```
+
+![ssm user connect](../../../0.docs/ssm-connect-user.png)
+
+### SSH access
+
+Also, You can access to the headnode via SSH (if you set up keypair). You can retrieve IP address of the head node with the following command:
+
+```bash
+pcluster ssh --region ap-northeast-1 --cluster-name ml-cluster --identity_file ~/.ssh/ap-northeast-1.pem  --dryrun true 
+```
+
+It will show output like follows:
+
+```bash
+{
+  "command": "ssh ubuntu@18.183.235.248 --identity_file /Users/mlkeita/.ssh/ap-northeast-1.pem"
+}
+```
+
+
+## 8. References
+
+* [AWS ParallelCluster wiki](https://github.com/aws/aws-parallelcluster/wiki)
+
