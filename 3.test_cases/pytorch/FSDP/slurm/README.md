@@ -17,7 +17,7 @@ cd awsome-distributed-training/3.test_cases/pytorch/FSDP/slurm
 
 3. You can launch the training through:
    - Option 1: Creating a Python Virtual Environment to install the necessary packages.
-   - Option 2: Building a container image by converting it a squash file via Enroot.
+   - Option 2: Create a container image to install the packages and run.
 
 ### Option 1: Creating a Python Virtual Environment to install the necessary packages.
 Run the `create_venv.sh` script:
