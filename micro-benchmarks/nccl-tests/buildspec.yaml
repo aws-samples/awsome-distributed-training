@@ -27,7 +27,7 @@ phases:
       - export REPO_URI="$(aws ecr describe-repositories | grep repositoryUri | grep /${ECR_REPOSITORY_NAME}\" | cut -d '"' -f 4)"
       - echo "REPO_URI=$REPO_URI"
       - echo "Building ${REPO_URI}:${TAG} ..."
-      - cd micro-benchmarks/nccl-tests && docker buildx build --platform linux/amd64,linux/arm64 --build-arg CUDA_VERSION=${CUDA_VERSION} --build-arg GDRCOPY_VERSION=$GDRCOPY_VERSION --build-arg EFA_INSTALLER_VERSION=$EFA_INSTALLER_VERSION --build-arg AWS_OFI_NCCL_VERSION=$AWS_OFI_NCCL_VERSION --build-arg NCCL_VERSION=$NCCL_VERSION --build-arg NCCL_TESTS_VERSION=$NCCL_TESTS_VERSION -t ${REPO_URI}:${TAG} -f ./nccl-tests.Dockerfile .
+      - cd micro-benchmarks/nccl-tests && docker build --build-arg CUDA_VERSION=${CUDA_VERSION} --build-arg GDRCOPY_VERSION=$GDRCOPY_VERSION --build-arg EFA_INSTALLER_VERSION=$EFA_INSTALLER_VERSION --build-arg AWS_OFI_NCCL_VERSION=$AWS_OFI_NCCL_VERSION --build-arg NCCL_VERSION=$NCCL_VERSION --build-arg NCCL_TESTS_VERSION=$NCCL_TESTS_VERSION -t ${REPO_URI}:${TAG} -f ./nccl-tests.Dockerfile .
   post_build:
     commands:
       - export ECR_URI=${REPO_URI%"/${ECR_REPOSITORY_NAME}"}
