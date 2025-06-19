@@ -14,7 +14,7 @@ jobs:
       max-parallel: 1
       matrix:
         cluster: [p5-eks]
-        model_config: [llama2_7b]
+        model_config: [llama2_7b, llama2_13b, llama2_70b, llama3_1_8b, llama3_1_70b]
     runs-on: [self-hosted, "${{ matrix.cluster }}"]
     timeout-minutes: 360  # 6 hours for the full Llama 2 test
     steps:
