@@ -41,7 +41,7 @@ spec:
             - "http://0.0.0.0:2379"
             - "--initial-cluster-state"
             - "new"
-          image: quay.io/coreos/etcd:latest
+          image: registry.k8s.io/etcd:3.4.13-0
           ports:
             - containerPort: 2379
               name: client
@@ -88,12 +88,12 @@ spec:
                 path: /mnt/k8s-disks/0
             - name: fsx-pv
               persistentVolumeClaim:
-                claimName: fsx-pvc
+                claimName: fsx-claim
           #nodeSelector:
           #  node.kubernetes.io/instance-type: "${INSTANCE_TYPE}"
           containers:
             - name: pytorch
-              image: ${IMAGE_URI}
+              image: ${REPO_URI}
               imagePullPolicy: Always
               resources:
                 requests:
@@ -103,19 +103,18 @@ spec:
                   nvidia.com/gpu: ${GPU_PER_NODE}
                   vpc.amazonaws.com/efa: ${EFA_PER_NODE}
               env:
-              # for P5 FI_* should be commented out
               - name: LOGLEVEL
                 value: "DEBUG"
-              #- name: FI_PROVIDER
-              #  value: ${FI_PROVIDER}
-              #- name: FI_EFA_USE_DEVICE_RDMA
-              #  value: "1"
-              #- name: FI_EFA_FORK_SAFE
-              #  value: "1"
-              #- name: FI_LOG_LEVEL
-              #  value: "1"
-              #- name: FI_EFA_ENABLE_SHM_TRANSFER
-              #  value: "1"
+              - name: FI_PROVIDER
+                value: ${FI_PROVIDER}
+              - name: FI_EFA_USE_DEVICE_RDMA
+                value: "1"
+              - name: FI_EFA_FORK_SAFE
+                value: "1"
+              - name: FI_LOG_LEVEL
+                value: "1"
+              - name: FI_EFA_ENABLE_SHM_TRANSFER
+                value: "1"
               - name: TORCH_DISTRIBUTED_DEBUG
                 value: "DETAIL"
               - name: TORCH_NCCL_ENABLE_MONITORING

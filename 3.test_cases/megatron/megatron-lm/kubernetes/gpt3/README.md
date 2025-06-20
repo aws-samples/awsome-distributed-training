@@ -168,7 +168,7 @@ export SEQ_LENGTH=2048
 export MAX_POSITION_EMBEDDINGS=2048
 export MICRO_BATCH_SIZE=1
 export GLOBAL_BATCH_SIZE=288
-cat manifests/pytorchjob.yaml-template | envsubst > /manifests/pytorchjob.yaml
+cat manifests/pytorchjob.yaml-template | envsubst > manifests/pytorchjob.yaml
 kubectl apply -f ./manifests/pytorchjob.yaml
 ```
 
