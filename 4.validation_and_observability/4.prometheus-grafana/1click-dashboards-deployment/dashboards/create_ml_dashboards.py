@@ -15,9 +15,11 @@ import os
 import cfnresponse
 
 PROM_DASHBOARDS_URL = [
-    'https://grafana.com/api/dashboards/12239/revisions/latest/download',
-    'https://grafana.com/api/dashboards/1860/revisions/latest/download',
-    'https://grafana.com/api/dashboards/20579/revisions/latest/download'
+    'https://grafana.com/api/dashboards/12239/revisions/latest/download',  # DCGM Exporter
+    'https://grafana.com/api/dashboards/1860/revisions/latest/download',  # Node Exporter
+    'https://grafana.com/api/dashboards/20579/revisions/latest/download',  # EFA Metrics
+    'https://grafana.com/api/dashboards/4323/revisions/latest/download',  # Slurm Exporter
+    'https://grafana.com/api/dashboards/21645/revisions/latest/download'  # GPU Health
 ]
 
 

@@ -4,74 +4,161 @@ This directory contains Kubernetes-specific instructions and templates for setti
 
 ## 1. Preparation
 
-Ensure you have the following prerequisites:
+Before proceeding with GPT3 training setup, please follow the steps described in [../README.md](../README.md) to prepare your environment
+The following example assumes that you have a PVC named `fsx-claim` and the `REPO_URI` environment variable is exported.
 
-- A functional EKS cluster on AWS.
-- An FSx for Lustre filesystem mounted on `/fsx` in all nodes or a persistent volume claim that can be mounted on `/fsx` in pods running on EKS. An example of setting up FSx on EKS is available [here](https://github.com/aws-samples/awsome-distributed-training/tree/main/Container-Root/eks/deployment/csi/fsx).
+### 1.1 Determine Compute Resources
 
-Set up the following environment variables in your terminal:
+Before running the training, you need to determine the compute resources available on your EKS cluster nodes. This will help you set the correct resource limits for GPUs and EFA (Elastic Fabric Adapter) network interfaces.
+
+Export the following environment variables based on your instance type:
 
 ```bash
-export DATA_PATH=/fsx # FSx for Lustre shared file-system
+# Example for p5.48xlarge
+export INSTANCE_TYPE=p5.48xlarge
+export GPU_PER_NODE=8
+export EFA_PER_NODE=32
+export NUM_NODES=2
 ```
+
+You can refer to the following table to find the correct values for your instance type:
+
+| Instance Type | GPUs | EFA Interfaces 
+|---------------|------|----------------
+| p5.48xlarge   | 8    | 32             
+| p5e.48xlarge  | 8    | 32             
+| p5en.48xlarge | 8    | 16             
+| p6-b200.48xlarge | 8 | 8             
+
+
 
 ### 2. Data Preprocessing
 
-1. Run the following snippet to crete a job container that mounts the fsx volume and downloads the input datasets and vocabulary on it:
+1. Run the followinVjjjjjjg snippet to crete a job container that mounts the fsx volume and downloads the input datasets and vocabulary on it:
+
+    #### Step 1: Create and Apply the Data Download Job
+
+    Generate the `getdata-job.yaml` manifest from the template and apply it:
 
     ```bash
-    cat getdata-job.yaml-template | envsubst > getdata-job.yaml
-    kubectl apply -f ./getdata-job.yaml
+    envsubst < manifests/getdata-job.yaml-template > manifests/getdata-job.yaml
+    kubectl apply -f manifests/getdata-job.yaml
     ```
 
-    Monitor the job progress:
+    #### Step 2: Verify Job Creation
+
+    List jobs to confirm creation:
 
     ```bash
-    kubectl logs -f $(kubectl get pods | grep getdata | cut -d ' ' -f 1)
+    kubectl get jobs
     ```
 
-    When status is `Completed`, delete the job pod:
+    You should see an entry for `getdata-job` with information about its status, completions, and age. To get more details about the pods created by the job, run:
 
     ```bash
-    kubectl delete -f ./getdata-job.yaml
+    kubectl get pods -l job-name=getdata-job
+    ```
+
+    This will show the pod(s) managed by the job. If you want to describe the job and see events or issues, use:
+
+    ```bash
+    kubectl describe job getdata-job
+    ```
+
+    #### Step 3: Monitor Job Progress
+
+    Stream the logs to monitor download progress:
+
+    ```bash
+    kubectl logs -f job/getdata-job
+    ```
+
+    **Note:** You should be able to see output similar to the following once the downloads have completed successfully:
+
+    ```text
+    ...
+    Saving to: 'gpt2-merges.txt'
+
+         0K .......... .......... .......... .......... .......... 11% 19.2M 0s
+        50K .......... .......... .......... .......... .......... 22% 55.9M 0s
+       100K .......... .......... .......... .......... .......... 33% 57.3M 0s
+       150K .......... .......... .......... .......... .......... 44% 66.1M 0s
+       200K .......... .......... .......... .......... .......... 56%  106M 0s
+       250K .......... .......... .......... .......... .......... 67%  132M 0s
+       300K .......... .......... .......... .......... .......... 78%  139M 0s
+       350K .......... .......... .......... .......... .......... 89%  133M 0s
+       400K .......... .......... .......... .......... .....     100%  122M=0.007s
+
+    2025-06-20 08:59:58 (62.9 MB/s) - 'gpt2-merges.txt' saved [456318/456318]
+
+    total 940M
+    drwxr-xr-x 2 root root   33K Jun 20 09:00 .
+    drwxr-xr-x 5 root root   33K Jun 20 08:59 ..
+    -rw-r--r-- 1 root root  446K Feb 18  2019 gpt2-merges.txt
+    -rw-r--r-- 1 root root 1018K Feb 18  2019 gpt2-vocab.json
+    -rw-r--r-- 1 root root  1.1G Jul 24  2021 oscar-1GB.jsonl
+    Download completed.
+    ```
+
+    #### Step 5: Cleanup
+
+    Once the job status is `Completed`, delete the job and its pod:
+
+    ```bash
+    kubectl delete -f manifests/getdata-job.yaml
     ```
 
 
 2. Preprocess the data
 
-    Launch a job pod that preprocesses the data.
+    Launch the preprocessing job to convert the downloaded data for training.
 
     ```bash
-    export DATA_PATH=/fsx/gpt2
-    cat prepdata-job.yaml-template | envsubst > prepdata-job.yaml
-    kubectl apply -f ./prepdata-job.yaml
+    cat manifests/prepdata-job.yaml-template | envsubst > manifests/prepdata-job.yaml
+    kubectl apply -f ./manifests/prepdata-job.yaml
     ```
 
-    Monitor the job progress.
+    Check pods for `prepdata-job`:
 
     ```bash
-    kubectl logs -f $(kubectl get pods | grep prepdata | cut -d ' ' -f 1)
+    kubectl get pods -l job-name=prepdata-job
     ```
 
-    When the job status is `Completed`, cleanup the job pod.
+    Monitor the job's progress by streaming its logs:
 
     ```bash
-    kubectl delete -f ./prepdata-job.yaml
+    kubectl logs -f job/prepdata-job
     ```
 
-    Voilà! You have executed the preprocessing job. Next, you will go through the steps to run your training job.
+    The expected log output from the above command should look similar to the following when preprocessing completes successfully:
+
+    ```text
+    ...
+    -rw-r--r--  1 root root 3.4K Jun 14 02:55 pretrain_vision_classify.py
+    -rw-r--r--  1 root root 3.5K Jun 14 02:55 pretrain_vision_dino.py
+    -rw-r--r--  1 root root 4.8K Jun 14 02:55 pretrain_vision_inpaint.py
+    -rw-r--r--  1 root root 8.2K Jun 14 02:55 pretrain_vlm.py
+    -rw-r--r--  1 root root  824 Jun 14 02:55 pyproject.toml
+    -rw-r--r--  1 root root 4.0K Jun 14 02:55 setup.py
+    drwxr-xr-x  8 root root  200 Jun 14 02:55 tasks
+    drwxr-xr-x  4 root root   67 Jun 14 02:55 tests
+    drwxr-xr-x  6 root root 4.0K Jun 14 02:55 tools
+    Data preprocessing completed.
+    ```
+
+    After the job status is `Completed`, clean up the job and its pod:
+
+    ```bash
+    kubectl delete -f prepdata-job.yaml
+    ```
+
+    Voilà! The preprocessing job has finished. You are now ready to proceed to the training step.
 
 ### 3. Distributed training
 
 Now that the data is preprocessed, we will pretrain a GPT3 model MegatronLM.  Launch a PyTorchJob with the environment variables:
 
 ```bash
-export DATA_PATH=/fsx
-export NUM_NODES=1
-export INSTANCE_TYPE=p5.48xlarge
-export IMAGE_URI=${REGISTRY}megatron-training:latest
-export GPU_PER_NODE=8
-export EFA_PER_NODE=32
 export TENSOR_PARALLEL=8
 export PIPELINE_PARALLEL=1
 export NUM_LAYERS=36
@@ -81,8 +168,8 @@ export SEQ_LENGTH=2048
 export MAX_POSITION_EMBEDDINGS=2048
 export MICRO_BATCH_SIZE=1
 export GLOBAL_BATCH_SIZE=288
-cat pytorchjob.yaml-template | envsubst > pytorchjob.yaml
-kubectl apply -f ./pytorchjob.yaml
+cat manifests/pytorchjob.yaml-template | envsubst > /manifests/pytorchjob.yaml
+kubectl apply -f ./manifests/pytorchjob.yaml
 ```
 
 The training starts running:

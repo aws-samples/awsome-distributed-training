@@ -31,7 +31,6 @@ resource "aws_iam_role_policy_attachment" "eks_cni_policy_attachment" {
     policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
 }
 
-
 # Custom IAM Policy
 resource "aws_iam_policy" "sagemaker_execution_policy" {
   name = "${var.resource_name_prefix}-ExecutionRolePolicy-${data.aws_region.current.name}"

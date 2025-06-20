@@ -84,7 +84,7 @@ Resources:
   PrometheusAgentInstancePolicy:
     Type: AWS::IAM::Policy
     Properties:
-      PolicyName: "PrometheusAgentInstancePolicy"
+      PolicyName: !Sub ${AWS::StackName}-PromAgentPolicy
       PolicyDocument:
         Version: 2012-10-17
         Statement:
@@ -111,6 +111,7 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
         - arn:aws:iam::aws:policy/AmazonPrometheusRemoteWriteAccess
+        - arn:aws:iam::aws:policy/AmazonSSMReadOnlyAccess
 
   PrometheusAgentInstanceProfile:
     Type: AWS::IAM::InstanceProfile
@@ -124,7 +125,7 @@ Resources:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: 'Allow communication to Internet'
-      GroupName: 'prometheus-agent-outbound'
+      GroupName: !Sub '${AWS::StackName}-prom-outbound'
       SecurityGroupEgress:
         - CidrIp: 0.0.0.0/0
           Description: 'Communication to the internet'
@@ -140,7 +141,7 @@ Resources:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: 'Allow communication to/from Cluster'
-      GroupName: 'prometheus-agent-to-cluster'
+      GroupName: !Sub '${AWS::StackName}-prom-to-cluster'
       Tags:
         - Key: 'Name'
           Value: 'prometheus-agent-to-cluster'
@@ -155,6 +156,119 @@ Resources:
       ToPort: -1
       GroupId: !Ref PrometheusAgentSecurityGroup
       SourceSecurityGroupId: !Ref PrometheusAgentSecurityGroup
+
+################
+# Prometheus configuration
+  PrometheusAgentConfiguration:
+    Type: AWS::SSM::Parameter
+    Properties:
+      DataType: 'text'
+      Description: 'Prometheus Agent Configuration'
+      Tier: 'Standard'
+      Type: 'String'
+      Value: !Sub
+          - |
+            global:
+              scrape_interval: 1m
+              evaluation_interval: 2m
+              scrape_timeout: 5m
+
+            scrape_configs:
+              - job_name: slurm_exporter
+                scrape_interval: 60s
+                ec2_sd_configs:
+                  - port: 8080
+                    region:  ${AWS::Region}
+                    refresh_interval: 300s
+                    filters:
+                      - name: instance-state-name
+                        values:
+                          - running
+                      - name: tag:Name
+                        values:
+                          - HeadNode
+                      - name: tag:parallelcluster:cluster-name
+                        values: 
+                          - ${PARALLELCLUSTER_NAME}
+
+              - job_name: efa_node_exporter
+                scrape_interval: 60s
+                ec2_sd_configs:
+                  - port: 9100
+                    region:  ${AWS::Region}
+                    refresh_interval: 300s
+                    filters:
+                      - name: instance-state-name
+                        values:
+                          - running
+                      - name: tag:Name
+                        values:
+                          - Compute
+                      - name: tag:parallelcluster:cluster-name
+                        values:
+                          - ${PARALLELCLUSTER_NAME}
+                      - name: instance-type
+                        values:
+                          - p4d.24xlarge
+                          - p4de.24xlarge
+                          - p5.48xlarge
+                          - p5e.48xlarge
+                          - p5en.48xlarge
+                          - p6-b200.48xlarge
+
+              - job_name: dcgm_exporter
+                scrape_interval: 60s
+                ec2_sd_configs:
+                  - port: 9400
+                    region:  ${AWS::Region}
+                    refresh_interval: 300s
+                    filters:
+                      - name: instance-state-name
+                        values:
+                          - running
+                      - name: tag:Name
+                        values:
+                          - Compute
+                      - name: tag:parallelcluster:cluster-name
+                        values: 
+                          - ${PARALLELCLUSTER_NAME}
+                      - name: instance-type
+                        values:
+                          - p4d.24xlarge
+                          - p4de.24xlarge
+                          - p5.48xlarge
+                          - p5e.48xlarge
+                          - p5en.48xlarge
+                          - p6-b200.48xlarge
+
+                relabel_configs:
+                  - source_labels: [__meta_ec2_tag_Name]
+                    target_label: instance_name
+                  - source_labels: [__meta_ec2_tag_Application]
+                    target_label: instance_grafana
+                  - source_labels: [__meta_ec2_instance_id]
+                    target_label: instance_id
+                  - source_labels: [__meta_ec2_availability_zone]
+                    target_label: instance_az
+                  - source_labels: [__meta_ec2_instance_state]
+                    target_label: instance_state
+                  - source_labels: [__meta_ec2_instance_type]
+                    target_label: instance_type
+                  - source_labels: [__meta_ec2_vpc_id]
+                    target_label: instance_vpc
+
+            remote_write:
+              - url: ${ManagedPrometheusUrl}
+                queue_config:
+                  max_samples_per_send: 1000
+                  max_shards: 200
+                  capacity: 2500
+                sigv4:
+                  region: ${AWS::Region}
+          - {
+              PARALLELCLUSTER_NAME: !Ref PCClusterNAME
+            }
+
 
 ################
 # Prometheus Agent Instance
@@ -232,6 +346,12 @@ Resources:
 
             export DEBIAN_FRONTEND='non-interactive'
 
+            # Install AWS CLI v2
+            sudo apt install -y unzip
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip awscliv2.zip
+            sudo ./aws/install
+
           
             echo "Using pinned Prometheus version"
             LATEST_VERSION=3.2.1
@@ -268,103 +388,7 @@ Resources:
 
             # Replace placeholders in the configuration template
             echo "Replacing placeholders in the Prometheus configuration template"
-            sudo tee /etc/prometheus/prometheus.yml > /dev/null <<EOF
-            global:
-              scrape_interval: 15s
-              evaluation_interval: 15s
-              scrape_timeout: 15s
-
-            scrape_configs:
-              - job_name: 'slurm_exporter'
-                scrape_interval: 5s
-                ec2_sd_configs:
-                  - port: 8080
-                    region: ${AWS_REGION}
-                    refresh_interval: 10s
-                    filters:
-                      - name: instance-state-name
-                        values:
-                          - running
-                      - name: tag:Name
-                        values:
-                          - HeadNode
-                      - name: tag:parallelcluster:cluster-name
-                        values: 
-                          - ${PARALLELCLUSTER_NAME}
-
-              - job_name: 'efa_node_exporter'
-                scrape_interval: 5s
-                ec2_sd_configs:
-                  - port: 9100
-                    region: ${AWS_REGION}
-                    refresh_interval: 10s
-                    filters:
-                      - name: instance-state-name
-                        values:
-                          - running
-                      - name: tag:Name
-                        values:
-                          - Compute
-                      - name: tag:parallelcluster:cluster-name
-                        values:
-                          - ${PARALLELCLUSTER_NAME}
-                      - name: instance-type
-                        values:
-                          - p4d.24xlarge
-                          - p4de.24xlarge
-                          - p5.48xlarge
-                          - p5e.48xlarge
-                          - p5en.48xlarge
-
-              - job_name: 'dcgm_exporter'
-                scrape_interval: 5s
-                ec2_sd_configs:
-                  - port: 9400
-                    region: ${AWS_REGION}
-                    refresh_interval: 10s
-                    filters:
-                      - name: instance-state-name
-                        values:
-                          - running
-                      - name: tag:Name
-                        values:
-                          - Compute
-                      - name: tag:parallelcluster:cluster-name
-                        values: 
-                          - ${PARALLELCLUSTER_NAME}
-                      - name: instance-type
-                        values:
-                          - p4d.24xlarge
-                          - p4de.24xlarge
-                          - p5.48xlarge
-                          - p5e.48xlarge
-                          - p5en.48xlarge
-
-                relabel_configs:
-                  - source_labels: [__meta_ec2_tag_Name]
-                    target_label: instance_name
-                  - source_labels: [__meta_ec2_tag_Application]
-                    target_label: instance_grafana
-                  - source_labels: [__meta_ec2_instance_id]
-                    target_label: instance_id
-                  - source_labels: [__meta_ec2_availability_zone]
-                    target_label: instance_az
-                  - source_labels: [__meta_ec2_instance_state]
-                    target_label: instance_state
-                  - source_labels: [__meta_ec2_instance_type]
-                    target_label: instance_type
-                  - source_labels: [__meta_ec2_vpc_id]
-                    target_label: instance_vpc
-
-            remote_write:
-              - url: ${ManagedPrometheusUrl}
-                queue_config:
-                  max_samples_per_send: 1000
-                  max_shards: 200
-                  capacity: 2500
-                sigv4:
-                  region: ${AWS::Region}
-            EOF
+            sudo aws ssm get-parameter --name ${PROMETHEUS_CONF_NAME} --region ${AWS::Region} --query Parameter.Value --output text > /etc/prometheus/prometheus.yml
 
             # Create Prometheus systemd service file
             echo "Creating Prometheus systemd service file"
@@ -405,8 +429,7 @@ Resources:
 
             --==MYBOUNDARY==--
           - {
-              AWS_REGION: !Ref "AWS::Region",
-              PARALLELCLUSTER_NAME: !Ref PCClusterNAME
+              PROMETHEUS_CONF_NAME: !Ref PrometheusAgentConfiguration
             }
 
     # CreationPolicy:
@@ -418,4 +441,8 @@ Resources:
 #############
 Outputs:
   PrometheusAgentInstanceId:
+    Description: 'Instance Id of Prometheus Agent'
     Value: !GetAtt PrometheusAgentInstance.InstanceId
+  PrometheusClusterSecurityGroup:
+    Description: 'Prometheus Agent Security Group for Cluster'
+    Value: !GetAtt PrometheusAgentSecurityGroup.GroupId

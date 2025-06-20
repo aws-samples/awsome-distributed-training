@@ -4,9 +4,9 @@ variable "resource_name_prefix" {
   default     = "sagemaker-hyperpod-eks"
 }
 
-# VPC Stack Variables
-variable "create_vpc" {
-  description = "Whether to create VPC stack"
+# VPC Module Variables
+variable "create_vpc_module" {
+  description = "Whether to create VPC module"
   type        = bool
   default     = true
 }
@@ -35,9 +35,9 @@ variable "existing_vpc_id" {
   default     = ""
 }
 
-# Private Subnet Stack Variables
-variable "create_private_subnet" {
-  description = "Whether to create private subnet stack"
+# Private Subnet Module Variables
+variable "create_private_subnet_module" {
+  description = "Whether to create private subnet module"
   type        = bool
   default     = true
 }
@@ -66,9 +66,9 @@ variable "existing_private_subnet_id" {
   default     = ""
 }
 
-# Security Group Stack Variables
-variable "create_security_group" {
-  description = "Whether to create security group stack"
+# Security Group Module Variables
+variable "create_security_group_module" {
+  description = "Whether to create security group module"
   type        = bool
   default     = true
 }
@@ -79,9 +79,9 @@ variable "existing_security_group_id" {
   default     = ""
 }
 
-# EKS Cluster Stack Variables
-variable "create_eks" {
-  description = "Whether to create EKS cluster stack"
+# EKS Cluster Module Variables
+variable "create_eks_module" {
+  description = "Whether to create EKS cluster module"
   type        = bool
   default     = true
 }
@@ -122,9 +122,9 @@ variable "eks_private_node_subnet_cidr" {
   default     = "10.192.9.0/24"
 }
 
-# S3 Bucket Stack Variables
-variable "create_s3_bucket" {
-  description = "Whether to create S3 bucket stack"
+# S3 Bucket Module Variables
+variable "create_s3_bucket_module" {
+  description = "Whether to create S3 bucket module"
   type        = bool
   default     = true
 }
@@ -135,9 +135,9 @@ variable "existing_s3_bucket_name" {
   default     = ""
 }
 
-# S3 Endpoint Stack Variables
-variable "create_s3_endpoint" {
-  description = "Whether to create S3 endpoint stack"
+# S3 Endpoint Module Variables
+variable "create_s3_endpoint_module" {
+  description = "Whether to create S3 endpoint module"
   type        = bool
   default     = true
 }
@@ -148,16 +148,16 @@ variable "existing_private_route_table_id" {
   default     = ""
 }
 
-# Lifecycle Script Stack Variables
-variable "create_lifecycle_script" {
-  description = "Whether to create lifecycle script stack"
+# Lifecycle Script Module Variables
+variable "create_lifecycle_script_module" {
+  description = "Whether to create lifecycle script module"
   type        = bool
   default     = true
 }
 
-# SageMaker IAM Role Stack Variables
-variable "create_sagemaker_iam_role" {
-  description = "Whether to create SageMaker IAM role stack"
+# SageMaker IAM Role Module Variables
+variable "create_sagemaker_iam_role_module" {
+  description = "Whether to create SageMaker IAM role module"
   type        = bool
   default     = true
 }
@@ -168,9 +168,9 @@ variable "existing_sagemaker_iam_role_name" {
   default     = ""
 }
 
-# Helm Chart Stack Variables
-variable "create_helm_chart" {
-  description = "Whether to create Helm chart stack"
+# Helm Chart Module Variables
+variable "create_helm_chart_module" {
+  description = "Whether to create Helm chart module"
   type        = bool
   default     = true
 }
@@ -199,9 +199,9 @@ variable "helm_release_name" {
   default     = "hyperpod-dependencies"
 }
 
-# HyperPod Cluster Stack Variables
-variable "create_hyperpod" {
-  description = "Whether to create HyperPod cluster stack"
+# HyperPod Cluster Module Variables
+variable "create_hyperpod_module" {
+  description = "Whether to create HyperPod cluster module"
   type        = bool
   default     = true
 }
