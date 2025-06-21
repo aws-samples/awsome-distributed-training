@@ -2,7 +2,7 @@
 
 These scripts provide an easy way to get started with multinode [FSDP](https://pytorch.org/tutorials/intermediate/FSDP_tutorial.html) training on EKS. It is designed to be as simple as possible, requires no data preparation, and uses a container image. If you would like to run FSDP with SLURM, please refer to [README.md](../slurm/README.md).
 
-This document will run you through how to run Llama 3.1 8B model training with FSDP. You will also find in this folder manifests to run Llama 2(7B, 13B, 70B), Llama 3.1(8B, 70B), Llama 3.2(1B, 3B),  Mistral 8x7b and Mistral Mathstral
+This document will run you through how to run Llama 3.1 8B model training with FSDP. You will also find in this folder manifests to run Llama 2(7B, 13B, 70B), Llama 3.1(8B, 70B), Llama 3.2(1B, 3B),  Mistral 8x7b and Mistral Mathstral.
 
 ## 0. Prerequisites
 
