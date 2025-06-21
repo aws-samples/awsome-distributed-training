@@ -8,7 +8,7 @@ spec:
       restartPolicy: Never
       containers:
       - name: getdata-job
-        image: ${REGISTRY}megatron-training:latest
+        image: ${REPO_URI}
         command: ["/bin/bash", "-c"]
         args: 
           - mkdir -p /fsx/gpt2;
@@ -22,10 +22,7 @@ spec:
         volumeMounts:
         - name: fsx-pv
           mountPath: /fsx
-        resources:
-          limits:
-            nvidia.com/gpu: 1
       volumes:
       - name: fsx-pv
         persistentVolumeClaim:
-          claimName: fsx-pvc
+          claimName: fsx-claim

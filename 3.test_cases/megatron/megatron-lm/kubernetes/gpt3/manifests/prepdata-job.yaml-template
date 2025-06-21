@@ -8,10 +8,10 @@ spec:
       restartPolicy: Never
       containers:
       - name: prepdata-job
-        image: ${REGISTRY}megatron-training:latest
+        image: ${REPO_URI}
         command: ["/bin/bash", "-c"]
         args: 
-          - cd ${DATA_PATH};
+          - cd /fsx/gpt2
             pwd;
             ls -alh .;
             python3 /workspace/Megatron-LM/tools/preprocess_data.py  
@@ -33,4 +33,4 @@ spec:
       volumes:
       - name: fsx-pv
         persistentVolumeClaim:
-          claimName: fsx-pvc
+          claimName: fsx-claim
