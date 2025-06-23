@@ -132,6 +132,7 @@ chmod +x terraform_outputs.sh
 ./terraform_outputs.sh
 cat env_vars.sh 
 source env_vars.sh
+cd ..
 ```
 ---
 Verify that the required environment variables are set: 
@@ -1003,7 +1004,13 @@ eksctl delete iamserviceaccount \
 aws iam delete-policy --policy-arn arn:aws:iam::$AWS_ACCOUNT_ID:policy/AWSLoadBalancerControllerIAMPolicy-v2.12.0
 ```
 
-Delete the HyperPod EKS CloudFormation stack: 
+Delete the HyperPod EKS CloudFormation stacks: 
 ```
 aws cloudformation delete-stack --stack-name $STACK_ID --region $AWS_REGION
+```
+Delete the HyperPod EKS Terraform modules: 
+```
+cd terraform-modules/hyperpod-eks-tf
+terraform plan -destroy -var-file=custom.tfvars
+terraform destroy -var-file=$PARAMS
 ```
