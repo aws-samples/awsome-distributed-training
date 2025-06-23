@@ -2,14 +2,14 @@
 
 ### What is the Slinky Project? 
 
-The [Slinky Project](https://github.com/SlinkyProject/slurm-operator/tree/main) is an open-source solution maintained by SchedMD (the main developer of Slurm) that deploys Slurm on Kubernetes. When paired with HyperPod EKS, the Slinky Project unlocks the ability for enterprises who have standardized infrastructure management on Kubernetes to deliver a Slurm-based experience to their ML scientists. It also enables training, experimentation, and inference to happen on the same cluster of accelerated nodes with the build-in resiliency provided by HyperPod. 
+The [Slinky Project](https://github.com/SlinkyProject/slurm-operator/tree/main) is an open-source solution maintained by SchedMD (the main developers of Slurm) that deploys Slurm on Kubernetes. When paired with HyperPod EKS, the Slinky Project unlocks the ability for enterprises who have standardized infrastructure management on Kubernetes to deliver a Slurm-based experience to their ML scientists. It also enables training, experimentation, and inference to happen on the same cluster of accelerated nodes with the build-in resiliency provided by HyperPod. 
 
 ---
 
 ### Slinky on HypePod EKS Architecture
 ![Image Description](./slinky-slurm-hp-eks.png)
 
-The diagram above depicts the resulting proof-of-concept deployment outlined in this guide. An Amazon EKS cluster acts as an orchestration layer, while a HyperPod cluster deliver a resilient instance group of GPU accelerated compute nodes. The Slinky Slurm operator is installed to extend Kubernetes with custom resources and actions, and a containerized Slurm cluster is deployed using Kubernetes pods via Helm chart. This Slurm cluster includes the following components:
+The diagram above depicts the resulting proof-of-concept deployment outlined in this guide. An Amazon EKS cluster acts as an orchestration layer, while a HyperPod cluster delivers a resilient instance group of GPU accelerated compute nodes. The Slinky Slurm operator is installed to extend Kubernetes with custom resources and actions, and a containerized Slurm cluster is deployed using Kubernetes pods via Helm chart. This Slurm cluster includes the following components:
 | Component | Description |
 |-----------|-------------|
 | Controller (slurmctld) | The central management daemon that monitors resources, accepts jobs, and assigns work to compute nodes. |
@@ -30,14 +30,12 @@ The login and compute node pods also have FSx for Lustre and FSx for OpenZFS sha
 ### Release Notes 
 
 The following was tested in two infrastructure scenarios for hosting the compute NodeSet pods: 
-1. On 4 `g5.8xlarge` instances (1 A10G Tensor Core GPU each) 
-2. On 2 `p5.48xlarge` instances (8 H100 Tensor Core GPUs each) with EFAv2
+1. On 4 `ml.g5.8xlarge` instances (1 A10G Tensor Core GPU each) 
+2. On 2 `ml.p5.48xlarge` instances (8 H100 Tensor Core GPUs each) with EFAv2
 
-For simplicity, 2 `m5.2xlarge` instances were also allocated for separately hosting other components like the Controller and Login pods. You can adjust the number and type of instances associated with your HyperPod cluster, as well as the component affinity rules in the respective [g5-values.yaml](./g5/g5-values.yaml) or [p5-values.yaml](./p5/p5-values.yaml) files to modify how they are spread across your nodes. 
+For simplicity, 2 `ml.m5.2xlarge` instances were also allocated for separately hosting other components like the Controller and Login pods. You can adjust the number and type of instances associated with your HyperPod cluster, as well as the component affinity rules in the respective [g5-values.yaml](./g5/g5-values.yaml) or [p5-values.yaml](./p5/p5-values.yaml) files to modify how they are spread across your nodes. 
 
-Testing used [Slurm Operator v0.2.1](https://github.com/slinkyproject/slurm-operator/pkgs/container/slurm-operator) (pulled as OCI artifacts from the Slinky container registry) and [Slurm Cluster v0.3.0](https://github.com/SlinkyProject/slurm-operator/tree/main/helm/slurm) (packaged and deployed locally using the main branch of the Slinky git repository) in order to include the NoteSet volume mount and Login Pod features. These features are expected to be included in the official Slurm Cluster v0.3.0 release when it becomes available, along with a new version of the Slurm Operator with corresponding validating webhooks.
-
-Note that the [Slinky Project](https://github.com/SlinkyProject) is under active development and could introduce breaking changes that may require modified deployment and configuration steps. 
+Testing used [Slurm Operator v0.3.0](https://github.com/orgs/slinkyproject/packages/container/package/charts/slurm-operator) and [Slurm Cluster v0.3.0](https://github.com/orgs/slinkyproject/packages/container/package/charts/slurm) Helm charts pulled as OCI artifacts from the Slinky container registry. Slinky v0.3.0 includes the NoteSet volume mount and Login Pod features.
 
 Worker pods were built with Python 3.12.8 + PyTorch 2.6.0 + CUDA 12.6 + NCCL 2.23.4 + EFA Installer 1.38.0 (bundled with OFI NCCL plugin) pre-installed in the container image. See the [Docker Build for the Slurmd Deep Learning Container](./Docker-Build-README.md) for details. 
  
@@ -45,23 +43,45 @@ Worker pods were built with Python 3.12.8 + PyTorch 2.6.0 + CUDA 12.6 + NCCL 2.2
 
 ### Set Up the HyperPod Cluster: 
 
-Deploy the [HyperPod EKS CloudFormation Stack](https://catalog.workshops.aws/sagemaker-hyperpod-eks/en-US/00-setup/own-account/workshop-infra/02-workshop-infra-cfn). Be sure to modify the Accelerated and General Purpose instance groups as needed to deploy the desired instance type and number of nodes. 
+Deploy the [HyperPod EKS CloudFormation Stack](https://catalog.workshops.aws/sagemaker-hyperpod-eks/en-US/00-setup/00-workshop-infra-cfn) or the [HyperPod EKS Terraform Modules](https://catalog.workshops.aws/sagemaker-hyperpod-eks/en-US/00-setup/01-workshop-infra-tf) using the provided configurations below. 
 
-To test on g5 capacity using the [g5-values.yaml](./g5/g5-values.yaml) file: 
-- Set `AcceleratedInstanceType` to `ml.g5.8xlarge` (the default)
-- Set`AcceleratedInstanceCount` to `4`
+#### <u>Clone the AWSome Distributed Training Repo</u> 
+```
+git clone https://github.com/aws-samples/awsome-distributed-training.git
+cp -r awsome-distributed-training/1.architectures/7.sagemaker-hyperpod-eks/slinky-slurm .
+cd slinky-slurm 
+```
 
-To test on p5 capacity using the [p5-values.yaml](./p5/p5-values.yaml) file: 
-- Set `AcceleratedInstanceType` to `ml.p5.48xlarge`
-- Set`AcceleratedInstanceCount` to `2`
+#### <u>Deploy Using CloudFormation</u> 
 
-In both cases, set the `GeneralPurposeInstanceCount` to 2
+Use one of the provided `*-params.json` files to set the CloudFormation stack parameters. 
 
+For using 4 `ml.g5.8xlarge` instances:
+```
+export PARAMS="g5/g5-params.json"
+```
+For using 2 `ml.p5.48xlarge` instances: 
+```
+export PARAMS="p5/p5-params.json"
+```
+Curl the `main-stack.yaml` template and issue an `aws cloudformation create-stack` command to deploy the specified HyperPod cluster infrastructure: 
+```
+export AWS_REGION=<your-region-here> # e.g. us-west-2
+
+curl -O https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/main/1.architectures/7.sagemaker-hyperpod-eks/cfn-templates/nested-stacks/main-stack.yaml 
+
+aws cloudformation create-stack \
+--stack-name  hp-eks-slinky-stack \
+--template-body  file://main-stack.yaml \
+--region $AWS_REGION \
+ --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+--parameters file://$PARAMS
+```
 Run the `create_config.sh` script to set your environment variables using the output of the deployed CloudFormation stack: 
 ```
 export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 
-export STACK_ID=hyperpod-eks-full-stack
+export STACK_ID=hp-eks-slinky-stack
 
 curl -O https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/main/1.architectures/7.sagemaker-hyperpod-eks/create_config.sh 
 
@@ -71,6 +91,49 @@ chmod +x create_config.sh
 
 source env_vars
 ```
+---
+
+#### <u>Deploy Using Terraform</u>
+
+Copy the Terraform modules: 
+```
+cd ..
+cp -r awsome-distributed-training/1.architectures/7.sagemaker-hyperpod-eks/terraform-modules .
+cd terraform-modules/hyperpod-eks-tf
+```
+Use one of the provided `*-custom.tfvars` files to set the Terraform Module parameters. 
+
+For using 4 `ml.g5.8xlarge` instances:
+```
+cp ../../slinky-slurm/g5/g5-custom.tfvars .
+export PARAMS="g5-custom.tfvars"
+```
+For using 2 `ml.p5.48xlarge` instances: 
+```
+cp ../../slinky-slurm/p5/p5-custom.tfvars .
+export PARAMS="p5-custom.tfvars"
+```
+Initialize the Terraform modules: 
+```
+terraform init
+```
+Generate an execution plan to validate the configuration of the Terraform modules: 
+```
+terraform plan -var-file=$PARAMS
+```
+Apply the Terraform modules to deploy the specified HyperPod cluster infrastructure: 
+```
+terraform apply  -var-file=$PARAMS
+```
+Run the `terraform_outputs.sh` script, which populates the `env_vars.sh` script with your environment variables: 
+```
+cd ..
+chmod +x terraform_outputs.sh
+./terraform_outputs.sh
+cat env_vars.sh 
+source env_vars.sh
+```
+---
 Verify that the required environment variables are set: 
 ```
 echo $AWS_ACCOUNT_ID $AWS_REGION $EKS_CLUSTER_NAME $VPC_ID $PRIVATE_SUBNET_ID $SECURITY_GROUP_ID
@@ -281,20 +344,18 @@ Verify pre-requisite instillation:
 
 ### Install the Slurm Operator: 
 
-For [Slurm Operator](https://github.com/SlinkyProject/slurm-operator/blob/main/docs/quickstart.md#pre-requisites) Installation,  we'll install release v0.2.1, which is the latest release available at the time of testing.
-
- Note: We will locally build and deploy a pre-release v0.3.0 of the [Slurm Cluster](https://github.com/SlinkyProject/slurm-operator/tree/main/helm/slurm) from the main branch of the Slinky Project repository. The project is being actively developed, so there is a risk of pulling down breaking changes, but it includes the features to [add additional volume mounts to compute NodeSets](https://github.com/SlinkyProject/slurm-operator/commit/b0e111b0a8434e38b5fb37a2051e7525d5679319) and [deploy Login Pods](https://github.com/SlinkyProject/slurm-operator/commit/37f020f041556164b9c935f799b51df65d22aefe). 
+Install the [Slurm Operator](https://github.com/SlinkyProject/slurm-operator/tree/main/helm/slurm-operator#slurm-operator) release v0.3.0, the latest release available at the time of testing, along with the default `values-operator.yaml` file provided by SchedMD: 
 
 ```
-curl -L https://raw.githubusercontent.com/SlinkyProject/slurm-operator/refs/tags/v0.2.1/helm/slurm-operator/values.yaml \
-  -o values-operator-0.2.1.yaml
+curl -L https://raw.githubusercontent.com/SlinkyProject/slurm-operator/refs/tags/v0.3.0/helm/slurm-operator/values.yaml \
+  -o values-operator.yaml
   
 # Delete any stale crds (if you deployed an older version)
 kubectl delete crd clusters.slinky.slurm.net
 kubectl delete crd nodesets.slinky.slurm.net
   
 helm install slurm-operator oci://ghcr.io/slinkyproject/charts/slurm-operator \
-  --values=values-operator-0.2.1.yaml --version=0.2.1 --namespace=slinky --create-namespace
+  --values=values-operator.yaml --version=0.3.0 --namespace=slinky --create-namespace
 ```
 
 Verify Slurm Operator Instillation:
@@ -307,42 +368,22 @@ kubectl get all -n slinky
 
 ### Install the Slurm Cluster:
 
-To deploy the slurm cluster, we first need to make some modifications to the [values.yaml](https://github.com/SlinkyProject/slurm-operator/blob/dd65faba359702a8eda6cce9484b702f2fd2ae2e/helm/slurm/values.yaml)` file.  After that, in order to test the latest changes in release v0.3.0, we’ll locally package and deploy the helm chart from the main branch of the cloned repo. 
+To deploy the slurm cluster, we first need to make some modifications to the default [values.yaml](https://github.com/SlinkyProject/slurm-operator/blob/release-0.3/helm/slurm/values.yaml)` file. 
 
 For your convenience, we've provided [g5-values.yaml](./g5/g5-values.yaml) and [p5-values.yaml](./p5/p5-values.yaml) files with most of the configuration changes mentioned below already implemented, so you'll only need to make additional changes as needed to further customize your deployment. 
 
 The following was tested in two infrastructure scenarios for hosting the compute NodeSet pods:
-1. On 4 `g5.8xlarge` instances (1 A10G Tensor Core GPU each) using the [g5-values.yaml](./g5/g5-values.yaml) file
-2. On 2 `p5.48xlarge` instances (8 H100 Tensor Core GPUs each) with EFAv2 using the [p5-values.yaml](./p5/p5-values.yaml) file
+1. On 4 `ml.g5.8xlarge` instances (1 A10G Tensor Core GPU each) using the [g5-values.yaml](./g5/g5-values.yaml) file
+2. On 2 `ml.p5.48xlarge` instances (8 H100 Tensor Core GPUs each) with EFAv2 using the [p5-values.yaml](./p5/p5-values.yaml) file
 
-For simplicity, 2 `m5.2xlarge` instances were also allocated for separately hosting other components like the Controller and Login pods. You can adjust the number and type of instances associated with your HyperPod cluster, as well as the component affinity rules in the respective [g5-values.yaml](./g5/g5-values.yaml) or [p5-values.yaml](./p5/p5-values.yaml) files to modify how they are spread across your nodes. 
+For simplicity, 2 `ml.m5.2xlarge` instances were also allocated for separately hosting other components like the Controller and Login pods. You can adjust the number and type of instances associated with your HyperPod cluster, as well as the component affinity rules in the respective [g5-values.yaml](./g5/g5-values.yaml) or [p5-values.yaml](./p5/p5-values.yaml) files to modify how they are spread across your nodes. 
 
 The two things you must minimally modify are:
 - The container image that the slurm compute nodes use ([instructions here](#build-and-set-the-compute-node-container-image))
 - The root ssh key used for accessing the login node ([instructions here](#login-access)) 
-
 ---
 
-#### Clone the Repos 
-Clone the Slurm Operator repository, which also contains the Helm chart artifacts for the Slurm Cluster: 
-```
-git clone https://github.com/SlinkyProject/slurm-operator.git
-```
-
-Clone the AWSome Distributed Training repo to use the [g5-values.yaml](./g5/g5-values.yaml) or [p5-values.yaml](./p5/p5-values.yaml) file we've provided:
-```
-git clone https://github.com/aws-samples/awsome-distributed-training.git
-
-cd awsome-distributed-training/1.architectures/7.sagemaker-hyperpod-eks/slinky-slurm
-```
-
-(Optional) If you wish to start from scratch, open the [values.yaml](https://github.com/SlinkyProject/slurm-operator/blob/dd65faba359702a8eda6cce9484b702f2fd2ae2e/helm/slurm/values.yaml) file associated with the Slurm Cluster Helm Chart: 
-```
-code slurm-operator/helm/slurm/values.yaml
-```
----
-
-#### Component Affinity:
+#### Review Component Affinity:
 
 Verify the existence of the instance type label for non-compute component affinity: 
 
@@ -379,7 +420,7 @@ You can modify this common affinity setting, or apply unique affinity settings f
 
 ---
 
-#### Compute Node Selector:
+#### Review Compute Node Selector:
 
 Verify the existence of the instance type label for compute node selector:
 
@@ -432,7 +473,7 @@ Create the slurm namespace:
 kubectl create ns slurm
 ```
 
-This is needed to reference for node volume mounts later. 
+Create a PVC named `fsx-claim` in the slurm namespace: 
 
 ```
 kubectl apply -f lustre-pvc-slurm.yaml
@@ -454,8 +495,9 @@ kubectl get pv $(kubectl get pvc fsx-claim  -n slurm -ojson \
 ```
 ---
 
-#### Create an FSx for OpenZFS PVC in the slurm namespace:
+#### (Optional) Create an FSx for OpenZFS PVC in the slurm namespace:
 
+Create a PVC named `openzfs-claim` in the slurm namespace: 
 ```
 kubectl apply -f openzfs-pvc-slurm.yaml
 ```
@@ -472,7 +514,8 @@ kubectl get pv $(kubectl get pvc openzfs-claim -n slurm -ojson \
  | jq -r .spec.volumeName) -ojson \
  | jq -r .spec.csi.volumeHandle
 ```
-
+---
+#### Review Volume Mounts:
 FSx for Lustre and OpenZFS PVCs are added to the list of `extraVolumeMounts` and `extraVolumes` for both the login service and compute nodes in [g5-values.yaml](./g5/g5-values.yaml) and [p5-values.yaml](./p5/p5-values.yaml): 
 
 ```
@@ -520,7 +563,7 @@ Note that for the compute nodes we've also added `/dev/shm` to provide access to
 
 ---
 
-#### Configure Compute Node Resources:
+#### Review Compute Node Configuration:
 
  You'll find the compute nodes pre-configured with the following resources: 
 
@@ -561,7 +604,7 @@ Note that for p5 capacity, we are allocating half the available GPUs (4 of 8) an
 
 Use the provided [dlc-slurmd.Dockerfile](./dlc-slurmd.Dockerfile) to build a [Slurmd Deep Learning Container](./Docker-Build-README.md) (Slurmd DLC), following [the instructions here](./Docker-Build-README.md).
 
-then modify the compute node container image to use your Slurmd DLC build:
+then modify the compute node container image to use your Slurmd DLC build in either [g5-values.yaml](./g5/g5-values.yaml) or [p5-values.yaml](./p5/p5-values.yaml): 
 
 ```
 compute: 
@@ -577,7 +620,7 @@ compute:
             #
             # -- (string)
             # Set the image tag to use.
-            tag: "24.11.4-ubuntu24.04"
+            tag: "25.05.0-ubuntu24.04"
         ...
 ```
 The Slurm DLC has Python 3.12.8 + PyTorch 2.6.0 + CUDA 12.6 + NCCL 2.23.4 + EFA Installer 1.38.0 (bundled with OFI NCCL plugin) pre-installed in the container image, but you can modify the [dlc-slurmd.Dockerfile](./dlc-slurmd.Dockerfile) for further customization.
@@ -615,41 +658,25 @@ login:
 
 #### Deploy the Slurm Cluster: 
 
-Locally package and deploy the slurm cluster using either [g5-values.yaml](./g5/g5-values.yaml) or [p5-values.yaml](./p5/p5-values.yaml): 
+Install the [Slurm Cluster](https://github.com/SlinkyProject/slurm-operator/tree/main/helm/slurm#slurm) release v0.3.0, the latest release available at the time of testing, along with one of the custom [g5-values.yaml](./g5/g5-values.yaml) or [p5-values.yaml](./p5/p5-values.yaml) files privided: 
 
-Assuming you are still sitting in the `slinky-slurm` directory of the AWSome Distributed Training repo that we cloned and navigated into earlier, and assuming you cloned the Slinky repo into your home directory (adjust the path as needed), copy the Helm chart artifacts in for packaging: 
-```
-cp -r ~/slurm-operator/helm/slurm .
-```
-
-Locally package the Slurm cluster Helm chart v0.3.0: 
-
-```
-helm dependency update slurm
-
-helm package slurm
-```
 **Option 1**: Deploy the Slurm cluster on `ml.g5.8xlarge` instances:
 ```
 # Dry run 
-helm install --dry-run slurm slurm-0.3.0.tgz \
--f g5/g5-values.yaml \
--n slurm 
+helm install --dry-run slurm oci://ghcr.io/slinkyproject/charts/slurm \
+  --values=g5/g5-values.yaml --version=0.3.0 --namespace=slurm
 
-helm install slurm slurm-0.3.0.tgz \
--f g5/g5-values.yaml \
--n slurm
+helm install slurm oci://ghcr.io/slinkyproject/charts/slurm \
+  --values=g5/g5-values.yaml --version=0.3.0 --namespace=slurm
 ```
 **Option 2**: Deploy the Slurm cluster on `ml.p5.48xlarge` instances:
 ```
 # Dry run 
-helm install --dry-run slurm slurm-0.3.0.tgz \
--f p5/p5-values.yaml \
--n slurm 
+helm install --dry-run slurm oci://ghcr.io/slinkyproject/charts/slurm \
+  --values=p5/p5-values.yaml --version=0.3.0 --namespace=slurm
 
-helm install slurm slurm-0.3.0.tgz \
--f p5/p5-values.yaml \
--n slurm
+helm install slurm oci://ghcr.io/slinkyproject/charts/slurm \
+  --values=p5/p5-values.yaml --version=0.3.0 --namespace=slurm
 ```
 
 Watch the deployment status of the Slurm cluster:
@@ -666,14 +693,21 @@ kubectl get all -n slurm
 
 ---
 
-#### Configure Login Network Load Balancer provisioning using the AWS Load Balancer Controller:
+#### Configure a Login Network Load Balancer using the AWS Load Balancer Controller:
 
-Manually add annotation to the `slurm-login` service:
+Identify two public subnets in your VPC to reference. An Elastic Network Interface (ENI) will be provisioned in each of these subnets to act as entry points for traffic into your `slurm-login` service. 
+
+If you used the [default VPC configuration](https://catalog.workshops.aws/sagemaker-hyperpod-eks/en-US/00-setup/02-additional-info#default-vpc-networking-architecture) provided in the [HyperPod EKS CloudFormation Stack](https://catalog.workshops.aws/sagemaker-hyperpod-eks/en-US/00-setup/00-workshop-infra-cfn) or the [HyperPod EKS Terraform Modules](https://catalog.workshops.aws/sagemaker-hyperpod-eks/en-US/00-setup/01-workshop-infra-tf), two public subnets were provisioned for you, and you can use the following commands to set environment variables to reference them: 
+```
+export PUBLIC_SUBNET_ID_1=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=${VPC_ID}" "Name=map-public-ip-on-launch,Values=true" --query "Subnets[0].SubnetId" --output text)
+
+export PUBLIC_SUBNET_ID_2=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=${VPC_ID}" "Name=map-public-ip-on-launch,Values=true" --query "Subnets[1].SubnetId" --output text)
+
+echo $PUBLIC_SUBNET_ID_1 $PUBLIC_SUBNET_ID_2
+```
+Add annotations to the `slurm-login` service to make it internet facing using the public subnets: 
 
 ```
-export PUBLIC_SUBNET_ID_1=<your-public-subnet-1-here>
-export PUBLIC_SUBNET_ID_2=<your-public-subnet-2-here>
-
 kubectl annotate service slurm-login -n slurm \
   service.beta.kubernetes.io/aws-load-balancer-type="nlb" \
   service.beta.kubernetes.io/aws-load-balancer-scheme="internet-facing" \
@@ -685,7 +719,7 @@ kubectl annotate service slurm-login -n slurm \
 kubectl describe service slurm-login -n slurm
 ```
 
-Any annotations added to the slurm cluster `values.yaml` file for the slurm-login service are currently ignored, but AWS Load Balancer Controller actively watches for and implements annotation changes.  It Automatically adds inbound rules to the node security group to allow traffic from the NLB security group on the target port (22 in this case). 
+The AWS Load Balancer Controller actively watches for and implements annotation changes.  It Automatically adds inbound rules to the node security group to allow traffic from the NLB security group on the target port (22 in this case). 
 
 ---
 
@@ -695,6 +729,7 @@ SSH into the login node as root from the NLB endpoint:
 
 ```
 SLURM_LOGIN_HOSTNAME="$(kubectl get services -n slurm -l app.kubernetes.io/instance=slurm,app.kubernetes.io/name=login -o jsonpath="{.items[0].status.loadBalancer.ingress[0].hostname}")"
+
 ssh -i ~/.ssh/id_ed25519_slurm -p 22 root@$SLURM_LOGIN_HOSTNAME
 ```
 ---
@@ -788,7 +823,7 @@ find /usr/local/lib/ -name "nccl.h" 2>/dev/null
 ```
 ---
 
-For p5 capacity, check EFA availability:
+Check EFA availability:
 ```
 ls /sys/class/infiniband/
 fi_info -p efa 
@@ -806,7 +841,7 @@ Verify intra-node GPU topology:
 ```
 nvidia-smi topo -m
 ```
-The GPU topology should show all GPUs are connected via NVLink (NV18 indicates 18 NVLink connections).
+For `ml.p5.48xlarge` instances, the GPU topology should show all GPUs are connected via NVLink (NV18 indicates 18 NVLink connections). 
 The GPUs are split across two NUMA nodes (0-3 on NUMA 0, 4-7 on NUMA 1).
 
 ---
@@ -817,6 +852,7 @@ SSH into the login pod as root, clone the repo, and create a checkpoints directo
 
 ```
 SLURM_LOGIN_HOSTNAME="$(kubectl get services -n slurm -l app.kubernetes.io/instance=slurm,app.kubernetes.io/name=login -o jsonpath="{.items[0].status.loadBalancer.ingress[0].hostname}")"
+
 ssh -i ~/.ssh/id_ed25519_slurm -p 22 root@$SLURM_LOGIN_HOSTNAME
 
 # install git 

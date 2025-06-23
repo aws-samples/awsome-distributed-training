@@ -112,8 +112,7 @@ slurm:
   # Extra slurm configuration lines to append to `slurm.conf`, represetned as a string or a map.
   # WARNING: Values can override existing ones.
   # Ref: https://slurm.schedmd.com/slurm.conf.html
-  extraSlurmConf:
-    SlurmctldHost: slurm-controller
+  extraSlurmConf: {}
     # MinJobAge: 2
     # MaxNodeCount: 1024
     ### LOGGING ###
@@ -134,6 +133,16 @@ slurm:
     #   # Ref: https://slurm.schedmd.com/acct_gather.conf.html
     # burst_buffer.conf: |
     #   # Ref: https://slurm.schedmd.com/burst_buffer.conf.html
+    #
+    # Ref: https://slurm.schedmd.com/cgroup.conf.html
+    cgroup.conf: |
+      CgroupPlugin=autodetect
+      IgnoreSystemd=yes
+      EnableControllers=yes
+      ConstrainCores=yes
+      ConstrainRAMSpace=yes
+      ConstrainDevices=yes
+      ConstrainSwapSpace=yes
     # gres.conf: |
     #   # Ref: https://slurm.schedmd.com/gres.conf.html
     # helpers.conf: |
@@ -191,7 +200,7 @@ authcred:
     #
     # -- (string)
     # Set the image tag to use.
-    tag: 24.11-ubuntu24.04
+    tag: 25.05-ubuntu24.04
   #
   # -- (object)
   # Set container resource requests and limits for Kubernetes Pod scheduling.
@@ -221,7 +230,7 @@ controller:
     #
     # -- (string)
     # Set the image tag to use.
-    tag: 24.11-ubuntu24.04
+    tag: 25.05-ubuntu24.04
   #
   # -- (object)
   # The controller service configuration.
@@ -337,7 +346,7 @@ login:
     #
     # -- (string)
     # Set the image tag to use.
-    tag: 24.11-ubuntu24.04
+    tag: 25.05-ubuntu24.04
   #
   # -- (object)
   # The login service configuration.
@@ -427,6 +436,15 @@ login:
     pam: {}
       # debug_level: 9
   #
+  # -- (object)
+  # The security context given to the container.
+  # Ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-container
+  securityContext:
+    privileged: false
+    # capabilities:
+    #   add:
+    #     - SYS_CHROOT
+  #
   # --(list)
   # List of volume mounts.
   # Ref: https://kubernetes.io/docs/concepts/storage/volumes/
@@ -513,7 +531,7 @@ compute:
     #
     # -- (string)
     # Set the image tag to use.
-    tag: 24.11-ubuntu24.04
+    tag: 25.05-ubuntu24.04
   #
   # -- (list)
   # Slurm NodeSets by object list.
@@ -544,12 +562,44 @@ compute:
         #
         # -- (string)
         # Set the image tag to use.
-        tag: "24.11.4-ubuntu24.04"
+        tag: "25.05.0-ubuntu24.04"
       #
       # -- (string)
       # Set the priority class to use.
       # Ref: https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#priorityclass
       priorityClassName: ""
+      #
+      # -- (map)
+      # Selector which must match a node's labels for the pod to be scheduled on that node.
+      # Ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector
+      nodeSelector:
+        kubernetes.io/os: linux
+        node.kubernetes.io/instance-type: ml.p5.48xlarge
+      #
+      # -- (object)
+      # Set affinity for Kubernetes Pod scheduling.
+      # Ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity
+      affinity: {}
+
+        # podAntiAffinity:
+        #   preferredDuringSchedulingIgnoredDuringExecution:
+        #     - weight: 100
+        #       podAffinityTerm:
+        #         topologyKey: kubernetes.io/hostname
+        #         labelSelector:
+        #           matchExpressions:
+        #             - key: app.kubernetes.io/name
+        #               operator: In
+        #               values:
+        #                 - slurmctld
+        #                 - slurmdbd
+        #                 - slurmrestd
+        #                 - mariadb
+      #
+      # -- (list)
+      # Configure pod tolerations.
+      # Ref: https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
+      tolerations: []
       #
       # -- (object)
       # Set container resource requests and limits for Kubernetes Pod scheduling.
@@ -561,41 +611,10 @@ compute:
         requests:
             nvidia.com/gpu: 4
             vpc.amazonaws.com/efa: 16
-      #
-      # -- (map)
-      # Selector which must match a node's labels for the pod to be scheduled on that node.
-      nodeSelector:
-        kubernetes.io/os: linux
-        node.kubernetes.io/instance-type: ml.p5.48xlarge
-      #
-      # -- (object)
-      # Set affinity for Kubernetes Pod scheduling.
-      # Ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity
-      affinity: {}
-        # nodeAffinity:
-        #   requiredDuringSchedulingIgnoredDuringExecution:
-        #     nodeSelectorTerms:
-        #       - matchExpressions:
-        #           - key: "kubernetes.io/os"
-        #             operator: In
-        #             values:
-        #               - linux
-        # podAntiAffinity:
-        #   requiredDuringSchedulingIgnoredDuringExecution:
-        #     - topologyKey: "kubernetes.io/hostname"
-        #       labelSelector:
-        #         matchExpressions:
-        #           - key: "app.kubernetes.io/name"
-        #             operator: In
-        #             values:
-        #               - slurmctld
-        #               - slurmdbd
-        #               - slurmrestd
-      #
-      # -- (list)
-      # Configure pod tolerations.
-      # Ref: https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
-      tolerations: []
+            #
+      # -- (bool)
+      # Enable to propagate the pod `resources.limits` into slurmd.
+      useResourceLimits: true
       #
       # -- (object)
       # Set the update strategy configuration.
@@ -760,7 +779,7 @@ accounting:
     #
     # -- (string)
     # Set the image tag to use.
-    tag: 24.11-ubuntu24.04
+    tag: 25.05-ubuntu24.04
   #
   # Configuration for an external database (e.g. mariadb, mysql).
   external:
@@ -937,7 +956,7 @@ restapi:
     #
     # -- (string)
     # Set the image tag to use.
-    tag: 24.11-ubuntu24.04
+    tag: 25.05-ubuntu24.04
   #
   # -- (object)
   # The restapi service configuration.
@@ -992,7 +1011,7 @@ restapi:
 # `slurm-exporter` subchart configurations.
 # Ref: https://github.com/SlinkyProject/slurm-exporter/-/blob/main/helm/slurm-exporter/values.yaml
 slurm-exporter:
-  enabled: false
+  enabled: true
   exporter:
     enabled: true
     secretName: "slurm-token-exporter"

@@ -4,7 +4,7 @@ This build includes Python 3.12.8 + PyTorch 2.6.0 + CUDA 12.6 + NCCL 2.23.4 + EF
 
 Clone the AWSome Distributed Training repo:
 ```
-https://github.com/aws-samples/awsome-distributed-training.git
+git clone https://github.com/aws-samples/awsome-distributed-training.git
 cd awsome-distributed-training/1.architectures/7.sagemaker-hyperpod-eks/slinky-slurm/
 
 ```
@@ -19,10 +19,10 @@ aws ecr get-login-password --region us-east-1 \
 --password-stdin 763104351884.dkr.ecr.us-east-1.amazonaws.com
 
 # on a Mac
-docker buildx build --platform linux/amd64 -t dlc-slurmd:24.11.4-ubuntu24.04 -f dlc-slurmd.Dockerfile .
+docker buildx build --platform linux/amd64 -t dlc-slurmd:25.05.0-ubuntu24.04 -f dlc-slurmd.Dockerfile .
 
 # on Linux
-# docker build -t dlc-slurmd:24.11.4-ubuntu24.04 -f dlc-slurmd.Dockerfile .
+# docker build -t dlc-slurmd:25.05.0-ubuntu24.04 -f dlc-slurmd.Dockerfile .
 
 ```
 
@@ -32,7 +32,7 @@ Verify Python 3.12.8 + PyTorch 2.6.0 + CUDA 12.6 + NCCL 2.23.4
 
 ```
 
-docker run  --platform linux/amd64 -it --entrypoint=/bin/bash dlc-slurmd:24.11.4-ubuntu24.04
+docker run  --platform linux/amd64 -it --entrypoint=/bin/bash dlc-slurmd:25.05.0-ubuntu24.04
 
 python3 --version
 # Python 3.12.8
@@ -63,6 +63,7 @@ cat /etc/nccl.conf
 # NCCL_DEBUG=INFO
 # NCCL_SOCKET_IFNAME=^docker0
 
+exit
 ```
 
 Create a private ECR repo:
@@ -76,7 +77,7 @@ aws ecr create-repository --repository-name dlc-slurmd
 Authenticate to the repo:
 
 ```
-export AWS_ACCOUNT_ID=<your-account-id-here>
+export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 export AWS_REGION=<your-region-here>
 
 aws ecr get-login-password --region $AWS_REGION \
@@ -89,8 +90,8 @@ Tag the image:
 
 ```
 
-docker tag dlc-slurmd:24.11.4-ubuntu24.04 \
- ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/dlc-slurmd:24.11.4-ubuntu24.04
+docker tag dlc-slurmd:25.05.0-ubuntu24.04 \
+ ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/dlc-slurmd:25.05.0-ubuntu24.04
  
 ```
 
@@ -98,7 +99,7 @@ Push the image to an ECR repo:
 
 ```
 
-docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/dlc-slurmd:24.11.4-ubuntu24.04
+docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/dlc-slurmd:25.05.0-ubuntu24.04
 
 ```
 
@@ -107,7 +108,7 @@ Test ECR access:
 ```
 
 kubectl run test-pod \
- --image=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/dlc-slurmd:24.11.4-ubuntu24.04 \
+ --image=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/dlc-slurmd:25.05.0-ubuntu24.04 \
  --restart=Never \
  --image-pull-policy=Always
 
@@ -135,7 +136,7 @@ kubectl -n slurm patch nodeset.slinky.slurm.net \
   $NODESET_NAME \
   --type='json' \
   -p="[
-    {\"op\": \"replace\", \"path\": \"/spec/template/spec/containers/0/image\", \"value\":\"${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/dlc-slurmd:24.11.4-ubuntu24.04\"},
+    {\"op\": \"replace\", \"path\": \"/spec/template/spec/containers/0/image\", \"value\":\"${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/dlc-slurmd:25.05.0-ubuntu24.04\"},
     {\"op\": \"replace\", \"path\": \"/spec/template/spec/containers/0/imagePullPolicy\", \"value\":\"Always\"}
   ]"
   
