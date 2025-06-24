@@ -277,7 +277,7 @@ Resources:
         - SageMakerImageArn
         - Ref: AWS::Region
         - CPU
-      SageMakerImageVersionAlias: 2.0.0
+      SageMakerImageVersionAlias: 2.0.1
       ServiceToken:
         Fn::GetAtt: SageMakerStudioCodeEditorFunction.Arn
       UserProfileName: DefaultUser
