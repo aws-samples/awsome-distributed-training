@@ -1,68 +1,66 @@
-# Setup slack alerts for Amazon Managed Grafana Workspace
+# Setting Up Slack Alerts for Amazon Managed Grafana Workspace
 
-1. [Configure your Slack Workspace for Grafana Alerting](https://grafana.com/docs/grafana/latest/alerting/configure-notifications/manage-contact-points/integrations/configure-slack/#configure-slack-for-alerting)
+This guide walks you through configuring Slack notifications for your Amazon Managed Grafana (AMG) workspace alerts.
 
-Go to [slack API Quickstart](https://api.slack.com/quickstart).
+## Prerequisites
+- Access to a Slack workspace with administrative privileges
+- An Amazon Managed Grafana workspace
+- Appropriate AWS permissions to modify AMG workspace settings
 
-1. On the Your Apps page, select Create New App.
-2. Select From scratch.
-3. Enter your App Name. For this example, enter "GPU Cluster Alerts".
-4. Select the Workspace where you'll be developing your app. You'll be able to distribute your app to other workspaces later if you choose.
-5. Select Create App.
+## Step 1: Configure Slack Workspace
+
+1. Visit [Slack API Quickstart](https://api.slack.com/quickstart)
+2. Click "Create New App" and select "From scratch"
+3. Configure the app:
+   - Name your app (e.g., "GPU Cluster Alerts")
+   - Select your target workspace
+   - Click "Create App"
 
 ![Create slack app](assets/create-slack-app.png)
 
+## Step 2: Configure App Permissions
 
-2. Requesting scopes 
+1. Navigate to "OAuth & Permissions" in your Slack app settings
+2. Under "Bot Token Scopes", add the following scopes:
+   - `chat:write` - Enables message posting
+   - `channels:read` - Enables public channel access
+   
+> **Note**: For posting in public channels without joining, request the `chat:write.public` scope instead.
 
-Next, you'll need to request scopes for your app. Scopes give your app permission to perform actions, such as posting messages in your workspace.
+![Slack scopes configuration](assets/slack-scopes.png)
 
-Slack apps can't post to any public channel by default; they gain that ability by asking for permission explicitly with the use of scopes. Request the chat:write.public scope to gain the ability to post in all public channels without joining. Otherwise, you'll need to use the conversations.join scope, or have your app invited into a channel by a user before it can post.
+## Step 3: Install App to Workspace
 
-Within OAuth & Permissions, scroll down to Scopes.
+1. Return to "Basic Information"
+2. Click "Install to Workspace"
+3. Authorize the app through the OAuth flow
+4. Copy the provided Bot User OAuth Token (starts with "xoxb-")
 
-1. Under Bot Token Scopes, select Add an OAuth Scope.
-2. To allow your app to post messages, add the `chat:write` scope.
-3. To allow your app to access public Slack channels, add the channels:read scope.
+![Slack app in workspace](assets/slack-app-workspace.png)
 
-![](assets/slack-scopes.png)
+Add the app to your desired Slack channel:
+1. Open the target channel
+2. Tag the app
+3. Select "Add to channel"
 
-3. Add your slack app to your workspace
+![Add to channel](assets/add-to-channel.png)
 
-Return to the Basic Information section of the app management page.
-Install your app by selecting the Install to Workspace button.
-You'll now be sent through the Slack OAuth flow. Select Allow on the following screen.
+## Step 4: Enable Grafana Alerting
 
-Slack will provide you with an oauth token starting with "xoxb". Copy this token to your clipboard, we will use it later to configure with grafana.
-
-Once authorized and added to your workspace, you should see the slack applicaiton in your slack workspace. Contact your slack adminstrator if you encounter issues with creating the slack applicaiton.
-
-![slack app in workspace](assets/slack-app-workspace.png)
-
-In your desired slack channel, such as a team slack channel, add this slack app by tagging it and selecting "add to channel".
-
-![add to channel](assets/add-to-channel.png)
-
-
-4. Enable Grafana Alerting on your [Amazon Managed Grafana (AMG) Workspace](console.aws.amazon.com/grafana/home). 
-
-Select your workspace in the AMG Console > Workspace Configuration Options > Edit Grafana Alerting > Turn on Grafana Alerting 
+1. Navigate to [Amazon Managed Grafana Console](console.aws.amazon.com/grafana/home)
+2. Select your workspace
+3. Go to "Workspace Configuration Options"
+4. Enable "Grafana Alerting"
 
 ![Enable Grafana alerting](assets/enable_grafana_alerting.png)
 
-5. Create a new alert rule using Grafana alerting.
+## Step 5: Create Alert Rule
 
-Select the datasource and dashboard for the rule you would like to create an alert for
-
-![Configure Grafana Alerting](assets/configure_grafana_alerting.png)
-
-6. Configure your new alert rule 
-
-Name your alert rule, we will call this rule "GPU health", and configure a query for your alert. In this example, we will configure a rule to alert when Nvidia DCGM reports a GPU as unhealthy due to XID errors. 
-
-Paste the following promql code into the metrics query box:
-
-```
+1. Select your data source and dashboard
+2. Create a new alert rule:
+   - Name: "GPU Health"
+   - Query (for GPU health monitoring):
+```promql
 100 * count(
   DCGM_FI_DEV_GPU_UTIL unless 
   (DCGM_FI_DEV_XID_ERRORS > 0 or DCGM_FI_DEV_ECC_DBE_VOL_TOTAL > 0)
@@ -82,37 +80,40 @@ Create a new folder, lets call it "slack alerts", and add a new evaluation perio
 
 ![eval threshold](assets/eval-threshold.png)
 
-6. Create a contact point in grafana
+## Step 6: Configure Contact Point in Grafana
 
-To create your Slack integration in Grafana Alerting, complete the following steps.
+1. Navigate to **Alerts** -> **Alerting** -> **Contact points**
+2. Click **+ Add contact point**
+3. Configure the following settings:
+   - Enter a contact point name (e.g., "Slack-GPU-Alerts")
+   - From the Integration list, select **Slack**
+   - For Slack API token configuration:
+     - In **Recipient** field: Enter your channel ID
+     - In **Token** field: Enter the Bot User OAuth Token (starts with "xoxb-")
+   - For Webhook configuration:
+     - In **Webhook** field: Enter your Slack app Webhook URL
 
-Navigate to Alerts -> Alerting -> Contact points.
+![Configure contact point](assets/configure-contact-point.png)
 
-Click + Add contact point.
+## Step 7: Test Alert Configuration
 
-Enter a contact point name.
-
-From the Integration list, select Slack.
-
-If you are using a Slack API token:
-
-In the Recipient field, copy in the channel ID.
-In the Token field, copy in the Bot User OAuth Token that starts with “xoxb-”.
-If you are using a Webhook URL, in the Webhook field, copy in your Slack app Webhook URL.
-
-![](assets/configure-contact-point.png)
-
-
-8. Test alert rule
-Click Test to check that your integration works. 
+1. Click **Test** to verify your integration
+2. You should see a test message appear in your configured Slack channel
 
 ![Alert Test](assets/alert-test.png)
 
-
-Optionally, you can modify the alert threshold to below 100 to trigger the alert to Fire. 
+3. To trigger a real alert, you can temporarily modify the alert threshold to below 100%
 
 ![Alert Firing](assets/alert-firing.png)
 
-9. Next Steps
+## Next Steps
 
-Congratulations, you have successfully configured a slack alert to alert when GPU Health is not at 100%. You can optionally configure additional alert rules to alert on key metrics such as File System Utilization above 100%, GPU Thermal Throttling Errors, or CPU % at 100% for extended periods of time.  
+Congratulations! You have successfully configured Slack alerts for GPU health monitoring. Consider setting up additional alert rules for:
+
+- File System Utilization (>100%)
+- GPU Thermal Throttling Errors
+- CPU Usage (100% for extended periods)
+- Memory Usage thresholds
+- Network performance metrics
+
+These alerts will help you maintain optimal performance of your GPU cluster and prevent potential issues before they impact your workloads.
