@@ -8,7 +8,7 @@ This guide walks you through how to configure Slack notifications for alerts gen
 
 ## Prerequisites
 
-- A Slack workspace with admin privileges
+- A Slack workspace with permissions to create a slack app
 - An Amazon Managed Grafana workspace
 - Administrator access to your AMG workspace to configure alerting and contact points
 
