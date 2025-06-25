@@ -85,6 +85,8 @@ Then:
 count(DCGM_FI_DEV_GPU_UTIL)
 ```
 
+![gpu-health alert rule](assets/gpu-health-alert.png)
+
 Set a threshold below 100% to detect unhealthy GPUs.
 
 Create a folder (e.g., `slack alerts`)
