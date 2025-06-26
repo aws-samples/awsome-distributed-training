@@ -18,7 +18,7 @@ echo "Region: ${REGION}"
 
 # Check if ECR repository exists, create if it doesn't exist
 echo "Checking if ECR repository exists..."
-if aws ecr describe-repositories --repository-names "${IMAGE_NAME}" --region "${REGION}" >/dev/null 2>&1; then
+if aws ecr describe-repositories --repository-names \"${IMAGE_NAME}\" --region "${REGION}" >/dev/null 2>&1; then
     echo "ECR repository '${IMAGE_NAME}' already exists"
 else
     echo "Creating ECR repository '${IMAGE_NAME}'..."
@@ -37,7 +37,9 @@ docker tag "${IMAGE_NAME}:${TAG}" "${ECR_IMAGE}"
 
 # Push the image
 echo "Pushing image to ECR..."
-docker push "${ECR_IMAGE}"
+CMD="docker push "${ECR_IMAGE}"
+if [ ! "$verbose" == "false" ]; then echo -e "\n${CMD}\n"; fi
+eval "$CMD"
 
 echo "Push completed successfully!"
 echo "ECR Image URI: ${ECR_IMAGE}" 

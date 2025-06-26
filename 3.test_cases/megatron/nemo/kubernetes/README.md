@@ -14,7 +14,7 @@
    - [Required Tools](#required-tools)
    - [Storage](#storage)
 5. [Testing Configuration and GPU Requirements](#testing-configuration-and-gpu-requirements)
-6. [Building the AWS-Optimized NeMo Container for P4 and P5 Instances](#building-the-aws-optimized-nemo-container-for-p4-and-p5-instances)
+6. [Building the AWS-Optimized NeMo Container for EFA Enabled Instances](#building-the-aws-optimized-nemo-container-for-efa-enabled-instances)
    - [Build the Docker Image](#build-the-docker-image)
    - [Push to Amazon ECR](#push-to-amazon-ecr)
 7. [Setting up Development Environment](#setting-up-development-environment)
@@ -58,7 +58,7 @@ This implementation leverages Kubernetes on AWS infrastructure to orchestrate di
 
 - **Amazon EKS/SageMaker HyperPod**: Container orchestration platform
 - **FSx for Lustre**: High-performance file system for training data and checkpoints
-- **AWS-optimized Container**: Custom Docker image with EFA support for P4/P5 instances
+- **AWS-optimized Container**: Custom Docker image with EFA support for EFA enabled instances
 - **NeMo-Run**: Python-based workflow management for NeMo training jobs
 - **SkyPilot**: Job orchestration backend for Kubernetes
 - **Automated Data Processing**: Custom scripts for dataset preparation and preprocessing
@@ -84,10 +84,12 @@ Before you begin, ensure you have the following:
     # Install the GPU Operator in a namespace (e.g. gpu-operator)
     helm install gpu-operator nvidia/gpu-operator \
       --namespace gpu-operator --create-namespace \
+      --set driver.enabled=false \
+      --set toolkit.enabled=false \
       --wait
     ```
     
-    2. **AWS EFA Kubernetes Device Plugin** (for P4/P5 instances with EFA support):
+    2. **AWS EFA Kubernetes Device Plugin** (for instances with EFA support):
     ```bash
     helm repo add eks https://aws.github.io/eks-charts
     helm install efa eks/aws-efa-k8s-device-plugin -n kube-system
@@ -120,9 +122,9 @@ Before you begin, ensure you have the following:
 >
 > **Memory Considerations**: Using lower memory GPU instances like A10G (g5 instance types) might result in **CUDA out of memory errors** for the finetuning examples.
 
-## 1. Building the AWS-Optimized NeMo Container for P4 and P5 Instances
+## 1. Building the AWS-Optimized NeMo Container for EFA Enabled Instances
 
-**If you're not using a P4 or P5 instance type, you can skip this step**. Here the base NeMo image (`nvcr.io/nvidia/nemo:25.04.01`) is enhanced with AWS-specific optimizations for EFA support on P4 and P5 instances.
+**If you're not using an EFA enabled instance type, you can skip this step**. Here the base NeMo image (`nvcr.io/nvidia/nemo:25.04.01`) is enhanced with AWS-specific optimizations for EFA support.
 
 ### Build the Docker Image
 
@@ -357,7 +359,7 @@ cd data-processing/
 
 ## 5. Launching NeMo Training Jobs
 
-> **Note**: The AWS-optimized container with EFA support is only needed for P4 and P5 instances. For other instance types (G4, G5, etc.), the default NeMo container (`nvcr.io/nvidia/nemo:25.04.01`) will work fine and you can omit the `--container_image` parameter.
+> **Note**: The AWS-optimized container with EFA support can only be used for EFA enabled instances. For non-EFA usage, the default NeMo container (`nvcr.io/nvidia/nemo:25.04.01`) will work fine and you can omit the `--container_image` parameter.
 
 ### Overview
 
@@ -391,7 +393,7 @@ The repository provides multiple training scenarios to meet different needs:
 | `--pvc_name` | Name of the Persistent Volume Claim to use | fsx-claim |
 | `--pvc_mount_path` | Path where the PVC should be mounted in the container | /mnt/nemo |
 
-> **Note on EFA Devices**: The `--efa-devices` parameter is only needed when using instances that have EFA (Elastic Fabric Adapter) support for high-performance networking. For P4 instances, use `--efa-devices 4`. For P5.48xlarge instances, use `--efa-devices 32`.
+> **Note on EFA Devices**: The `--efa-devices` parameter is only needed when using instances that have EFA (Elastic Fabric Adapter) support for high-performance networking. Specify the number of EFA devices an instance supports. For example, for P4 instances, use `--efa-devices 4`, for P5.48xlarge instances, use `--efa-devices 32`.
 
 #### Additional Parameters for Pretraining (pretrain_custom_dataset.py):
 
@@ -471,7 +473,7 @@ python pretrain_mock_dataset.py \
     --pvc_mount_path /mnt/nemo
 ```
 
-> **Note**: If you're using EFA-compatible instances (such as G5, P4, P5, or other EFA-enabled instance types), add the `--efa-devices` parameter to the command above.
+> **Note**: If you're using EFA-compatible instances with the EFA optimized image, add the `--efa-devices` parameter to the command above.
 
 ### Finetuning Jobs
 
@@ -528,7 +530,7 @@ python finetune_default_dataset.py \
     --disable_lora
 ```
 
-> **Note**: If you're using EFA-compatible instances (such as G5, P4, P5, or other EFA-enabled instance types), add the `--efa-devices` parameter to any of the commands above.
+> **Note**: If you're using EFA-compatible instances with the EFA optimized image, add the `--efa-devices` parameter to the command above.
 
 #### Option 4: Finetuning with Custom Dataset (finetune_custom_dataset.py)
 
@@ -578,7 +580,7 @@ python finetune_custom_dataset.py \
     --hf_token your_huggingface_token_here
 ```
 
-> **Note**: If you're using EFA-compatible instances (such as G5, P4, P5, or other EFA-enabled instance types), add the `--efa-devices` parameter to any of the commands above.
+> **Note**: If you're using EFA-compatible instances with the EFA optimized image, add the `--efa-devices` parameter to the command above.
 
 #### Customizing Datasets
 

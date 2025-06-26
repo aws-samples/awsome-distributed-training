@@ -11,7 +11,9 @@ TAG="25.04.01"
 echo "Building Docker image: ${IMAGE_NAME}:${TAG}"
 echo "This may take several minutes..."
 
-docker build --progress=plain -t "${IMAGE_NAME}:${TAG}" -f Dockerfile .
+CMD="docker build --progress=plain -t "${IMAGE_NAME}:${TAG}" -f Dockerfile ."
+if [ ! "$verbose" == "false" ]; then echo -e "\n${CMD}\n"; fi
+eval "${CMD}"
 
 echo "Build completed successfully!"
 echo "Image built: ${IMAGE_NAME}:${TAG}" 
