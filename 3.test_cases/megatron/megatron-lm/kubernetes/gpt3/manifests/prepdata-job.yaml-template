@@ -16,7 +16,7 @@ spec:
             ls -alh .;
             python3 /workspace/Megatron-LM/tools/preprocess_data.py  
             --input /fsx/gpt2/oscar-1GB.jsonl 
-            --output-prefix /fsx/my-gpt2 
+            --output-prefix /fsx/gpt2 
             --vocab-file /fsx/gpt2/gpt2-vocab.json 
             --tokenizer-type GPT2BPETokenizer 
             --merge-file /fsx/gpt2/gpt2-merges.txt 
