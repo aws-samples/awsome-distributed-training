@@ -222,7 +222,7 @@ For more information on node labeling, see the [SkyPilot Kubernetes documentatio
 
 ### Initialize Git Repository
 
-Because we are using GitArchivePackager, our directory must be a Git repository. Add and commit any relevant file that should be copied over to your job execution environment, below I am commiting the training script `run.py`
+Because we are using GitArchivePackager, our directory must be a Git repository. Add and commit any relevant file that should be copied over to your job execution environment, below I am commiting the entire directory
 
 ```bash
 # Initialize Git repository if not already done
