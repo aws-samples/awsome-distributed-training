@@ -37,7 +37,7 @@ docker tag "${IMAGE_NAME}:${TAG}" "${ECR_IMAGE}"
 
 # Push the image
 echo "Pushing image to ECR..."
-CMD="docker push "${ECR_IMAGE}"
+CMD="docker push ${ECR_IMAGE}"
 if [ ! "$verbose" == "false" ]; then echo -e "\n${CMD}\n"; fi
 eval "$CMD"
 
