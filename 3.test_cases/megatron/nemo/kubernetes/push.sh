@@ -18,7 +18,7 @@ echo "Region: ${REGION}"
 
 # Check if ECR repository exists, create if it doesn't exist
 echo "Checking if ECR repository exists..."
-if aws ecr describe-repositories --repository-names \"${IMAGE_NAME}\" --region "${REGION}" >/dev/null 2>&1; then
+if aws ecr describe-repositories --repository-names "${IMAGE_NAME}" --region "${REGION}" >/dev/null 2>&1; then
     echo "ECR repository '${IMAGE_NAME}' already exists"
 else
     echo "Creating ECR repository '${IMAGE_NAME}'..."
