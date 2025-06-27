@@ -1,0 +1,99 @@
+apiVersion: "kubeflow.org/v1"
+kind: PyTorchJob
+metadata:
+  name: distill
+spec:
+  elasticPolicy:
+    rdzvBackend: c10d
+    minReplicas: 4
+    maxReplicas: 4
+    maxRestarts: 100
+    metrics:
+      - type: Resource
+        resource:
+          name: cpu
+          target:
+            type: Utilization
+            averageUtilization: 90
+  pytorchReplicaSpecs:
+    Worker:
+      replicas: 4
+      restartPolicy: OnFailure
+      template:
+        metadata:
+          labels:
+            app: distillkit
+        spec:
+          volumes:
+            - name: shmem
+              hostPath: 
+                path: /dev/shm
+            - name: local
+              hostPath:
+                path: /mnt/k8s-disks/0
+            # - name: model-storage
+            #   persistentVolumeClaim:
+            #     claimName: models-pvc
+            # - name: results
+            #   persistentVolumeClaim:
+            #     claimName: results-pvc
+          containers:
+            - name: pytorch
+              image: 166463094725.dkr.ecr.us-west-2.amazonaws.com/fsdp:pytorch2.5.1
+              imagePullPolicy: Always
+              resources:
+                requests:
+                  nvidia.com/gpu: 8
+                  vpc.amazonaws.com/efa: 1
+                limits:
+                  nvidia.com/gpu: 8
+                  vpc.amazonaws.com/efa: 1
+              env:
+              - name: HF_TOKEN
+                value: "hf_xxxxxxxxxxxxxxxxxxxx"
+              - name: LOGLEVEL
+                value: "DEBUG"
+              - name: TORCH_DISTRIBUTED_DEBUG
+                value: "DETAIL"
+              - name: TORCH_NCCL_ENABLE_MONITORING
+                value: "1"
+              - name: TORCH_NCCL_TRACE_BUFFER_SIZE
+                value: "20000"
+              - name: TORCH_NCCL_DUMP_ON_TIMEOUT
+                value: "1"
+              - name: TORCH_NCCL_DEBUG_INFO_TEMP_FILE
+                value: "/local/nccl_trace_rank_"
+              - name: PYTORCH_CUDA_ALLOC_CONF
+                value: "expandable_segments:True"
+              - name: NCCL_DEBUG
+                value: "INFO"
+              - name: NCCL_SOCKET_IFNAME
+                value: "^lo"
+              - name: TORCH_NCCL_ASYNC_ERROR_HANDLING
+                value: "1"
+              - name: NCCL_TIMEOUT
+                value: "1800"
+              # - name: HF_TOKEN
+              #   valueFrom:
+              #     secretKeyRef:
+              #       name: hf-secret
+              #       key: token
+              # - name: WANDB_PROJECT
+              #   value: "distil-logits"
+              command: 
+                - /bin/bash
+                - -c
+                - |
+                  pip install -U "huggingface_hub[cli]"
+                  pip install https://github.com/Dao-AILab/flash-attention/releases/download/v2.7.3/flash_attn-2.7.3+cu12torch2.6cxx11abiTRUE-cp310-cp310-linux_x86_64.whl --no-build-isolation
+                  huggingface-cli login --token $HF_TOKEN
+                  accelerate launch --num_processes=32 --num_machines=4 --machine_rank=0 --main_process_ip=distill-worker-0 --main_process_port=23456 --mixed_precision=bf16 --rdzv_backend=c10d --use_deepspeed distil_logits_cli.py --teacher_model=Qwen/Qwen2.5-3B
+              volumeMounts:
+                - name: shmem
+                  mountPath: /dev/shm
+                - name: local
+                  mountPath: /local
+                # - name: model-storage
+                #   mountPath: /models
+                # - name: results
+                #   mountPath: /workspace/results

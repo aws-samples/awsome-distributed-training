@@ -1,0 +1,6 @@
+accelerate==1.6.0
+datasets
+safetensors
+transformers==4.51.3
+trl
+hf_transfer
