@@ -14,7 +14,7 @@
    - [Required Tools](#required-tools)
    - [Storage](#storage)
 5. [Testing Configuration and GPU Requirements](#testing-configuration-and-gpu-requirements)
-6. [Building the AWS-Optimized NeMo Container for P4 and P5 Instances](#building-the-aws-optimized-nemo-container-for-p4-and-p5-instances)
+6. [Building the AWS-Optimized NeMo Container for EFA Enabled Instances](#building-the-aws-optimized-nemo-container-for-efa-enabled-instances)
    - [Build the Docker Image](#build-the-docker-image)
    - [Push to Amazon ECR](#push-to-amazon-ecr)
 7. [Setting up Development Environment](#setting-up-development-environment)
@@ -58,7 +58,7 @@ This implementation leverages Kubernetes on AWS infrastructure to orchestrate di
 
 - **Amazon EKS/SageMaker HyperPod**: Container orchestration platform
 - **FSx for Lustre**: High-performance file system for training data and checkpoints
-- **AWS-optimized Container**: Custom Docker image with EFA support for P4/P5 instances
+- **AWS-optimized Container**: Custom Docker image with EFA support for EFA enabled instances
 - **NeMo-Run**: Python-based workflow management for NeMo training jobs
 - **SkyPilot**: Job orchestration backend for Kubernetes
 - **Automated Data Processing**: Custom scripts for dataset preparation and preprocessing
@@ -76,20 +76,32 @@ Before you begin, ensure you have the following:
     
     If you're using a standard EKS cluster (not SageMaker HyperPod), you'll need to install the following device plugins:
     
-    1. **NVIDIA Device Plugin** (if not already installed):
+    1. **The NVIDIA GPU Operator** (if not already installed):
     ```bash
-    kubectl apply -f https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/v0.14.3/nvidia-device-plugin.yml
+    # Add NVIDIA Helm repo
+    helm repo add nvidia https://helm.ngc.nvidia.com/nvidia
+    helm repo update
+    # Install the GPU Operator in a namespace (e.g. gpu-operator)
+    helm install gpu-operator nvidia/gpu-operator \
+      --namespace gpu-operator --create-namespace \
+      --set driver.enabled=false \
+      --set toolkit.enabled=false \
+      --wait
     ```
     
-    2. **AWS EFA Kubernetes Device Plugin** (for P4/P5 instances with EFA support):
+    2. **AWS EFA Kubernetes Device Plugin** (for instances with EFA support):
     ```bash
     helm repo add eks https://aws.github.io/eks-charts
     helm install efa eks/aws-efa-k8s-device-plugin -n kube-system
     ```
     
-    After installation, verify the plugins are running:
+    After installation, verify the GPU Operator and EFA plugin are running:
     ```bash
-    kubectl get pods -n kube-system | grep -E "(nvidia-device-plugin|aws-efa-k8s-device-plugin)"
+    # Check GPU Operator pods
+    kubectl get pods -n gpu-operator
+    
+    # Check EFA device plugin
+    kubectl get pods -n kube-system | grep aws-efa-k8s-device-plugin
     ```
     
     For P4 instances, you should see `vpc.amazonaws.com/efa: 4` in the node's allocatable resources. For P5.48xlarge instances, you should see `vpc.amazonaws.com/efa: 32` if you check the node details `kubectl describe node <node name>`
@@ -110,38 +122,33 @@ Before you begin, ensure you have the following:
 >
 > **Memory Considerations**: Using lower memory GPU instances like A10G (g5 instance types) might result in **CUDA out of memory errors** for the finetuning examples.
 
-## 1. Building the AWS-Optimized NeMo Container for P4 and P5 Instances
+## 1. Building the AWS-Optimized NeMo Container for EFA Enabled Instances
 
-**If you're not using a P4 or P5 instance type, you can skip this step**. Here the base NeMo image (`nvcr.io/nvidia/nemo:24.12`) is enhanced with AWS-specific optimizations for EFA support on P4 and P5 instances.
+**If you're not using an EFA enabled instance type, you can skip this step**. Here the base NeMo image (`nvcr.io/nvidia/nemo:25.04.01`) is enhanced with AWS-specific optimizations for EFA support.
 
 ### Build the Docker Image
 
 ```bash
-# Clone this repository if you haven't already
-cd kubernetes/
-
-# Build the Docker image
-docker build --progress=plain -t aws-nemo:24.12 -f Dockerfile .
+# Build the Docker image using the build script
+./build.sh
 ```
 
 ### Push to Amazon ECR
 
 ```bash
-# Set environment variables
-ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-REPO=aws-nemo
-TAG=24.12
-REGION=us-east-1  # Change to your desired region
+# Push the image to ECR using the push script
+./push.sh
+```
 
-# Create ECR repository
-aws ecr create-repository --repository-name "$REPO" --region $REGION
+The script will automatically:
+- Create the ECR repository if it doesn't exist
+- Login to ECR
+- Tag the image with the ECR URI
+- Push the image to ECR
 
-# Login to ECR
-aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin "$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com"
-
-# Tag and push the image
-docker tag "$REPO:$TAG" "$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/$REPO:$TAG"
-docker push "$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/$REPO:$TAG"
+You can customize the AWS region by setting the `AWS_REGION` environment variable:
+```bash
+AWS_REGION=us-west-2 ./push.sh
 ```
 
 ## 2. Setting up Development Environment
@@ -192,18 +199,20 @@ NeMo-Run uses [SkyPilot](https://docs.skypilot.co/en/latest/getting-started/inst
 kubectl get nodes
 ```
 
-#### Label your GPU nodes for SkyPilot (adjust the node name and GPU type as needed):
+#### Label your GPU nodes for SkyPilot using the native GPU labeler:
 
-> **Important**: Accelerator names must be **lowercase** (e.g., `l40s`, `h100`, `a100`) or SkyPilot will not recognize them.
+SkyPilot provides a built-in GPU labeler that automatically detects and labels all GPU nodes in your cluster with the correct accelerator types.
 
 ```bash
-# For L40S GPUs (g6e.x instances)
-kubectl label nodes hyperprod-i-0cebcc9ce37bb2fbf skypilot.co/accelerator=l40s --overwrite
-
-# For other GPU types (examples)
-# kubectl label nodes <node-name> skypilot.co/accelerator=h100 --overwrite
-# kubectl label nodes <node-name> skypilot.co/accelerator=a100 --overwrite
+# Use SkyPilot's native GPU labeler to automatically detect and label all GPU nodes
+python -m sky.utils.kubernetes.gpu_labeler
 ```
+
+This command will automatically:
+- Detect all GPU nodes in your cluster
+- Identify the GPU types (L40S, H100, A100, etc.)
+- Apply the correct `skypilot.co/accelerator` labels with lowercase names
+- Handle multiple node types if your cluster has mixed GPU types
 
 #### ensure skypilot is connected to your cluster
 
@@ -215,7 +224,7 @@ For more information on node labeling, see the [SkyPilot Kubernetes documentatio
 
 ### Initialize Git Repository
 
-Because we are using GitArchivePackager, our directory must be a Git repository. Add and commit any relevant file that should be copied over to your job execution environment, below I am commiting the training script `run.py`
+Because we are using GitArchivePackager, our directory must be a Git repository. Add and commit any relevant file that should be copied over to your job execution environment, below I am commiting the entire directory
 
 ```bash
 # Initialize Git repository if not already done
@@ -259,7 +268,6 @@ The `data-processing/data-processing.sh` script provides a complete automation s
 
 ```bash
 cd data-processing/
-chmod +x data-processing.sh
 ```
 
 ### Running the Data Processing
@@ -351,7 +359,7 @@ chmod +x data-processing.sh
 
 ## 5. Launching NeMo Training Jobs
 
-> **Note**: The AWS-optimized container with EFA support is only needed for P4 and P5 instances. For other instance types (G4, G5, etc.), the default NeMo container (`nvcr.io/nvidia/nemo:24.12`) will work fine and you can omit the `--container_image` parameter.
+> **Note**: The AWS-optimized container with EFA support can only be used for EFA enabled instances. For non-EFA usage, the default NeMo container (`nvcr.io/nvidia/nemo:25.04.01`) will work fine and you can omit the `--container_image` parameter.
 
 ### Overview
 
@@ -380,12 +388,12 @@ The repository provides multiple training scenarios to meet different needs:
 | `--gpus` | GPU type (e.g., L40S, H100, A10G) | L40S |
 | `--gpu-devices` | Number of GPUs per node | 4 |
 | `--efa-devices` | Number of EFA devices per node | None |
-| `--container_image` | Container image for training (required for using EFA) | nvcr.io/nvidia/nemo:24.12 |
+| `--container_image` | Container image for training (required for using EFA) | nvcr.io/nvidia/nemo:25.04.01 |
 | `--env_vars_file` | JSON file with environment variables | env_vars.json |
 | `--pvc_name` | Name of the Persistent Volume Claim to use | fsx-claim |
 | `--pvc_mount_path` | Path where the PVC should be mounted in the container | /mnt/nemo |
 
-> **Note on EFA Devices**: The `--efa-devices` parameter is only needed when using instances that have EFA (Elastic Fabric Adapter) support for high-performance networking. For P4 instances, use `--efa-devices 4`. For P5.48xlarge instances, use `--efa-devices 32`.
+> **Note on EFA Devices**: The `--efa-devices` parameter is only needed when using instances that have EFA (Elastic Fabric Adapter) support for high-performance networking. Specify the number of EFA devices an instance supports. For example, for P4 instances, use `--efa-devices 4`, for P5.48xlarge instances, use `--efa-devices 32`.
 
 #### Additional Parameters for Pretraining (pretrain_custom_dataset.py):
 
@@ -459,13 +467,13 @@ python pretrain_mock_dataset.py \
     --nodes 1 \
     --gpus L40S \
     --gpu-devices 4 \
-    --container_image nvcr.io/nvidia/nemo:24.12 \
+    --container_image nvcr.io/nvidia/nemo:25.04.01 \
     --env_vars_file env_vars.json \
     --pvc_name fsx-claim \
     --pvc_mount_path /mnt/nemo
 ```
 
-> **Note**: If you're using EFA-compatible instances (such as G5, P4, P5, or other EFA-enabled instance types), add the `--efa-devices` parameter to the command above.
+> **Note**: If you're using EFA-compatible instances with the EFA optimized image, add the `--efa-devices` parameter to the command above.
 
 ### Finetuning Jobs
 
@@ -488,7 +496,7 @@ python finetune_default_dataset.py \
     --nodes 1 \
     --gpus L40S \
     --gpu-devices 4 \
-    --container_image nvcr.io/nvidia/nemo:24.12 \
+    --container_image nvcr.io/nvidia/nemo:25.04.01 \
     --env_vars_file env_vars.json \
     --pvc_name fsx-claim \
     --pvc_mount_path /mnt/nemo
@@ -501,7 +509,7 @@ python finetune_default_dataset.py \
     --nodes 1 \
     --gpus L40S \
     --gpu-devices 4 \
-    --container_image nvcr.io/nvidia/nemo:24.12 \
+    --container_image nvcr.io/nvidia/nemo:25.04.01 \
     --env_vars_file env_vars.json \
     --pvc_name fsx-claim \
     --pvc_mount_path /mnt/nemo \
@@ -515,14 +523,14 @@ python finetune_default_dataset.py \
     --nodes 1 \
     --gpus L40S \
     --gpu-devices 4 \
-    --container_image nvcr.io/nvidia/nemo:24.12 \
+    --container_image nvcr.io/nvidia/nemo:25.04.01 \
     --env_vars_file env_vars.json \
     --pvc_name fsx-claim \
     --pvc_mount_path /mnt/nemo \
     --disable_lora
 ```
 
-> **Note**: If you're using EFA-compatible instances (such as G5, P4, P5, or other EFA-enabled instance types), add the `--efa-devices` parameter to any of the commands above.
+> **Note**: If you're using EFA-compatible instances with the EFA optimized image, add the `--efa-devices` parameter to the command above.
 
 #### Option 4: Finetuning with Custom Dataset (finetune_custom_dataset.py)
 
@@ -546,7 +554,7 @@ python finetune_custom_dataset.py \
     --nodes 1 \
     --gpus L40S \
     --gpu-devices 4 \
-    --container_image nvcr.io/nvidia/nemo:24.12 \
+    --container_image nvcr.io/nvidia/nemo:25.04.01 \
     --env_vars_file env_vars.json \
     --pvc_name fsx-claim \
     --pvc_mount_path /mnt/nemo \
@@ -562,7 +570,7 @@ python finetune_custom_dataset.py \
     --nodes 2 \
     --gpus L40S \
     --gpu-devices 4 \
-    --container_image nvcr.io/nvidia/nemo:24.12 \
+    --container_image nvcr.io/nvidia/nemo:25.04.01 \
     --env_vars_file env_vars.json \
     --pvc_name fsx-claim \
     --pvc_mount_path /mnt/nemo \
@@ -572,7 +580,7 @@ python finetune_custom_dataset.py \
     --hf_token your_huggingface_token_here
 ```
 
-> **Note**: If you're using EFA-compatible instances (such as G5, P4, P5, or other EFA-enabled instance types), add the `--efa-devices` parameter to any of the commands above.
+> **Note**: If you're using EFA-compatible instances with the EFA optimized image, add the `--efa-devices` parameter to the command above.
 
 #### Customizing Datasets
 
