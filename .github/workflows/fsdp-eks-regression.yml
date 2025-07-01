@@ -119,6 +119,16 @@ jobs:
 
           # Wait for training to start before monitoring
           echo "Waiting for pods to become Ready using kubectl wait..."
+
+          # Fix job name (replace underscore with hyphen)
+          JOB_NAME="${{ matrix.model_config }}-fsdp"
+          ACTUAL_JOB_NAME=$(echo ${JOB_NAME} | tr '_' '-')
+          echo "JOB_NAME=$JOB_NAME" >> $GITHUB_ENV
+          echo "ACTUAL_JOB_NAME=$ACTUAL_JOB_NAME" >> $GITHUB_ENV
+
+          echo "Job name: $JOB_NAME"
+          echo "Actual job name: $ACTUAL_JOB_NAME"
+
           kubectl wait --for=condition=Ready pod -l app=${ACTUAL_JOB_NAME} --timeout=10m
           if [ $? -ne 0 ]; then
               echo "Timed out waiting for pods to become Ready"
