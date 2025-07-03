@@ -30,7 +30,7 @@ HeadNode:
           Args:
             - v2.26.6-1 # NCCL version
             - v1.14.2   # AWS OFI NCCL version
-        - Script: 'https://github.com/aws-samples/aws-parallelcluster-post-install-scripts/blob/main/pyxis/postinstall.sh'
+        - Script: 'https://raw.githubusercontent.com/aws-samples/aws-parallelcluster-post-install-scripts/main/pyxis/postinstall.sh'
   Imds:
     Secured: false
 Scheduling:
@@ -78,7 +78,7 @@ Scheduling:
                 - v1.14.2   # AWS OFI NCCL version
         OnNodeStart:
           Sequence:
-            - Script: 'https://github.com/aws-samples/aws-parallelcluster-post-install-scripts/blob/main/pyxis/postinstall.sh'
+            - Script: 'https://raw.githubusercontent.com/aws-samples/aws-parallelcluster-post-install-scripts/main/pyxis/postinstall.sh'
 SharedStorage:
   - Name: HomeDirs
     MountDir: /home
