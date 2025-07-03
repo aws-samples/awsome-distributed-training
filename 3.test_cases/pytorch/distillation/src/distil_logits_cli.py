@@ -124,7 +124,9 @@ def build_config(args):
         "lr_scheduler_type": args.lr_scheduler_type,
         "resume_from_checkpoint": args.resume_from_checkpoint,
         "fp16": args.fp16,
-        "bf16": args.bf16
+        "bf16": args.bf16,
+        "push_to_hub":True,
+        "hub_model_id":args.hub_location
     }
     
     # Distillation settings
@@ -292,7 +294,7 @@ def main():
     
     # Save the final model
     print(f"Training complete. Saving model to {config['training']['output_dir']}")
-    trainer.push_to_hub(config["hub_location"]["hub_location"])
+    #trainer.push_to_hub(config["hub_location"]["hub_location"])
     print("Model saved successfully!")
 
 if __name__ == "__main__":

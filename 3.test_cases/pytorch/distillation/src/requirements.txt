@@ -1,6 +1,13 @@
-accelerate==1.6.0
+wheel 
+packaging 
+ninja
+torch==2.7.1
+https://github.com/Dao-AILab/flash-attention/releases/download/v2.7.3/flash_attn-2.7.3+cu12torch2.6cxx11abiTRUE-cp310-cp310-linux_x86_64.whl
+deepspeed
+accelerate==1.8.1
 datasets
 safetensors
-transformers==4.51.3
+transformers==4.53.0
 trl
 hf_transfer
+huggingface_hub[cli]
