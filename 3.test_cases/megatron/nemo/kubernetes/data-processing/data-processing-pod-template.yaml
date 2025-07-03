@@ -1,0 +1,48 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nemo-data-processing
+  labels:
+    app: nemo-data-processing
+spec:
+  restartPolicy: Never
+  containers:
+  - name: nemo-processing
+    image: nvcr.io/nvidia/nemo:25.04.01
+    command: ["/bin/bash"]
+    args: ["-c", "sleep infinity"]
+    resources:
+      requests:
+        nvidia.com/gpu: 1
+        memory: "16Gi"
+        cpu: "4"
+      limits:
+        nvidia.com/gpu: 1
+        memory: "32Gi"
+        cpu: "8"
+    env:
+    - name: DATASET_NAME
+      value: "__DATASET_NAME__"
+    - name: DATASET_CONFIG
+      value: "__DATASET_CONFIG__"
+    volumeMounts:
+    - name: fsx-storage
+      mountPath: __MOUNT_PATH__
+    - name: dataset-scripts
+      mountPath: /scripts
+      readOnly: true
+    workingDir: /workspace
+    stdin: true
+    tty: true
+  volumes:
+  - name: fsx-storage
+    persistentVolumeClaim:
+      claimName: __PVC_NAME__
+  - name: dataset-scripts
+    configMap:
+      name: nemo-dataset-scripts
+      defaultMode: 0755
+  tolerations:
+  - key: "nvidia.com/gpu"
+    operator: "Exists"
+    effect: "NoSchedule"
