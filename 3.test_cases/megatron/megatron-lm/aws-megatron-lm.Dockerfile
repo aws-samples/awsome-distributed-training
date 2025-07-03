@@ -1,13 +1,13 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 
-FROM nvcr.io/nvidia/pytorch:25.03-py3
+FROM nvcr.io/nvidia/pytorch:25.06-py3
 
-ARG GDRCOPY_VERSION=v2.4.1
-ARG EFA_INSTALLER_VERSION=1.37.0
-ARG AWS_OFI_NCCL_VERSION=v1.13.2-aws
-ARG TRANSFORMERS_VERSION=4.44.2
-ARG MEGATRON_LM_VERSION=core_r0.8.0
+ARG GDRCOPY_VERSION=v2.4.4
+ARG EFA_INSTALLER_VERSION=1.42.0
+ARG AWS_OFI_NCCL_VERSION=v1.16.0
+ARG TRANSFORMERS_VERSION=4.52.4
+ARG MEGATRON_LM_VERSION=core_v0.12.1
 
 ARG OPEN_MPI_PATH=/opt/amazon/openmpi
 
@@ -41,6 +41,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt install -y --allow-unauthenticated \
     openssh-client \
     openssh-server \
     vim \
+    && apt remove -y python3-blinker \
     && apt autoremove -y
 
 RUN mkdir -p /var/run/sshd && \
@@ -131,11 +132,11 @@ RUN cd /workspace && git clone --depth 1 --branch ${MEGATRON_LM_VERSION} https:/
     && python3 -m pip install .
 
 ## Set Open MPI variables to exclude network interface and conduit.
-ENV OMPI_MCA_pml=^cm,ucx            \
+ENV OMPI_MCA_pml=^ucx            \
     OMPI_MCA_btl=tcp,self           \
     OMPI_MCA_btl_tcp_if_exclude=lo,docker0,veth_def_agent\
     OPAL_PREFIX=/opt/amazon/openmpi \
-    NCCL_SOCKET_IFNAME=^docker,lo,veth_def_agent,eth
+    NCCL_SOCKET_IFNAME=^docker,lo,veth_def_agent
 
 ## Turn off PMIx Error https://github.com/open-mpi/ompi/issues/7516
 ENV PMIX_MCA_gds=hash
