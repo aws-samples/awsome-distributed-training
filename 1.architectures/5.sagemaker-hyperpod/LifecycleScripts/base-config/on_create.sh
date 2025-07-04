@@ -13,6 +13,9 @@ logger() {
 
 PROVISIONING_PARAMETERS_PATH="provisioning_parameters.json"
 
+# Adding to give systemd-resolved (DNS service) enough time to get rebooted (by HostAgent) so that network is available during LCS execution
+sleep 30
+
 if [[ -z "$SAGEMAKER_RESOURCE_CONFIG_PATH" ]]; then
   logger "Env var SAGEMAKER_RESOURCE_CONFIG_PATH is unset, trying to read from default location path"
   SAGEMAKER_RESOURCE_CONFIG_PATH="/opt/ml/config/resource_config.json"
