@@ -13,9 +13,11 @@ This guide walks you through how to configure Slack notifications for alerts gen
 - Administrator access to your AMG workspace to configure alerting and contact points
 
 ---
+
 ## Architecture
 
 ![Architecture](assets/Observability-Architecture.png)
+
 ---
 
 ## Step 1: Create a Slack App
