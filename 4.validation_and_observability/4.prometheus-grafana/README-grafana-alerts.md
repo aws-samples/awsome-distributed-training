@@ -14,6 +14,12 @@ This guide walks you through how to configure Slack notifications for alerts gen
 
 ---
 
+## Architecture
+
+![Architecture](assets/Observability-Architecture.png)
+
+---
+
 ## Step 1: Create a Slack App
 
 1. Visit the [Slack API Quickstart](https://api.slack.com/quickstart)
