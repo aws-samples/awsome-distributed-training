@@ -96,15 +96,29 @@ class ProvisioningParameters:
         return slurm_configurations
 
 def get_ip_address():
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    try:
-        # doesn't even have to be reachable
-        s.connect(('10.254.254.254', 1))
-        IP = s.getsockname()[0]
-    except Exception:
-        IP = '127.0.0.1'
-    finally:
-        s.close()
+    max_retries = 7
+    retry_delay_seconds = 5
+    IP = '127.0.0.1'
+
+    retry_count = 0
+    while retry_count < max_retries:
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            # doesn't even have to be reachable
+            s.connect(('10.254.254.254', 1))
+            IP = s.getsockname()[0]
+            break
+        except Exception as e:
+            print(f"Failed to get IP address of the current host. Reason: {repr(e)}.")
+            retry_count += 1
+            if retry_count < max_retries:
+                print(f"Retrying in {retry_delay_seconds} seconds...")
+                time.sleep(retry_delay_seconds)
+                retry_delay_seconds = retry_delay_seconds * 2  # Exponential backoff
+            else:    
+                print(f"Exceeded maximum retries ({max_retries}) to get IP address. Returning default IP address {IP}.")
+        finally:
+            s.close()
     return IP
 
 
