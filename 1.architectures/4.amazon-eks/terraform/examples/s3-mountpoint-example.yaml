@@ -1,0 +1,181 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: s3-mountpoint-pvc
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: s3-mountpoint-sc
+  resources:
+    requests:
+      storage: 1000Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: s3-mountpoint-test
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: s3-mountpoint-test
+  template:
+    metadata:
+      labels:
+        app: s3-mountpoint-test
+    spec:
+      containers:
+      - name: test-container
+        image: amazonlinux:latest
+        command:
+        - /bin/bash
+        - -c
+        - |
+          echo "Testing S3 Mountpoint at /mnt/s3"
+          ls -la /mnt/s3/
+          echo "Writing test file..."
+          echo "$(date): Hello from $(hostname)" > /mnt/s3/test-$(hostname)-$(date +%s).txt
+          echo "Listing files in S3 mount:"
+          ls -la /mnt/s3/
+          echo "Reading back test files:"
+          cat /mnt/s3/test-*.txt || echo "No test files found yet"
+          echo "S3 Mountpoint test running. Sleeping..."
+          sleep 3600
+        volumeMounts:
+        - name: s3-volume
+          mountPath: /mnt/s3
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+      volumes:
+      - name: s3-volume
+        persistentVolumeClaim:
+          claimName: s3-mountpoint-pvc
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: s3-backup-job
+  namespace: default
+spec:
+  schedule: "0 */6 * * *" # Every 6 hours
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: backup-container
+            image: amazonlinux:latest
+            command:
+            - /bin/bash
+            - -c
+            - |
+              echo "Starting backup job at $(date)"
+              
+              # Create backup directory
+              mkdir -p /mnt/s3/backups/$(date +%Y-%m-%d)
+              
+              # Example: backup some application data
+              echo "Backup completed at $(date)" > /mnt/s3/backups/$(date +%Y-%m-%d)/backup-$(date +%H%M%S).log
+              
+              # List backup files
+              echo "Current backups:"
+              ls -la /mnt/s3/backups/
+              
+              echo "Backup job completed"
+            volumeMounts:
+            - name: s3-volume
+              mountPath: /mnt/s3
+            resources:
+              requests:
+                cpu: 100m
+                memory: 128Mi
+              limits:
+                cpu: 200m
+                memory: 256Mi
+          volumes:
+          - name: s3-volume
+            persistentVolumeClaim:
+              claimName: s3-mountpoint-pvc
+          restartPolicy: OnFailure
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: s3-app-config
+  namespace: default
+data:
+  app.conf: |
+    # Application configuration
+    data_path=/mnt/s3/data
+    log_path=/mnt/s3/logs
+    backup_path=/mnt/s3/backups
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: s3-data-processor
+  namespace: default
+spec:
+  serviceName: s3-data-processor
+  replicas: 1
+  selector:
+    matchLabels:
+      app: s3-data-processor
+  template:
+    metadata:
+      labels:
+        app: s3-data-processor
+    spec:
+      containers:
+      - name: data-processor
+        image: amazonlinux:latest
+        command:
+        - /bin/bash
+        - -c
+        - |
+          source /etc/app/app.conf
+          echo "Data processor starting..."
+          mkdir -p $data_path $log_path $backup_path
+          
+          while true; do
+            timestamp=$(date +%Y%m%d-%H%M%S)
+            echo "[$timestamp] Processing data..." | tee -a $log_path/processor-$timestamp.log
+            
+            # Simulate data processing
+            echo "Sample data: $(date)" > $data_path/data-$timestamp.dat
+            
+            # Archive old data every 10 iterations
+            if [ $(($(date +%S) % 10)) -eq 0 ]; then
+              echo "Archiving old data..."
+              tar -czf $backup_path/archive-$timestamp.tar.gz $data_path/*.dat
+              rm -f $data_path/*.dat
+            fi
+            
+            sleep 30
+          done
+        volumeMounts:
+        - name: s3-volume
+          mountPath: /mnt/s3
+        - name: config-volume
+          mountPath: /etc/app
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+      volumes:
+      - name: s3-volume
+        persistentVolumeClaim:
+          claimName: s3-mountpoint-pvc
+      - name: config-volume
+        configMap:
+          name: s3-app-config
