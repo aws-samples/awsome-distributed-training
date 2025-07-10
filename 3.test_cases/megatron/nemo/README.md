@@ -17,3 +17,7 @@ NeMo 2.0 introduces a Python-based configuration system, providing enhanced flex
 ## Slurm-based Deployment
 
 The [slurm](./slurm/) directory provides implementation examples for running NeMo 2.0 using Slurm as the workload manager. This approach leverages AWS's purpose-built infrastructure for large-scale AI training. See the [README in the slurm directory](./slurm/README.md) for detailed setup and usage instructions.
+
+## Kubernetes based Deployment
+
+The [kubernetes](./kubernetes/) directory provides implementation examples for running NeMo 2.0 using Kubernetes as the orhestrator. This approach leverages AWS EKS for large-scale AI training. See the [README in the kubernetes directory](./kubernetes/README.md) for detailed setup and usage instructions.

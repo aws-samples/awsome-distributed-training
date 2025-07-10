@@ -14,10 +14,60 @@ on:
   workflow_dispatch:
 
 jobs:
-  regression:
+  build:
     strategy: 
       fail-fast: true
       max-parallel: 3
+      matrix:
+        cluster: [p5, p5-smhp]
+    runs-on: [self-hosted, "${{ matrix.cluster }}"]
+    concurrency:
+      group: ${{ github.workflow }}-${{ matrix.cluster }}
+      cancel-in-progress: false      
+    timeout-minutes: 60
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          path: ${{ github.run_id }}
+
+      - name: Set env vars
+        run: |
+          HOME_DIR="/home/github"
+          BUILD_ID="${{ github.run_id }}"
+          FSDP_DIR="$(pwd)/${BUILD_ID}/3.test_cases/pytorch/FSDP"
+          CONTAINER_DIR="${HOME_DIR}/regression-container-${BUILD_ID}-${{ matrix.cluster }}"
+
+          echo "HOME_DIR=$HOME_DIR" >> $GITHUB_ENV
+          echo "BUILD_ID=$BUILD_ID" >> $GITHUB_ENV
+          echo "FSDP_DIR=$FSDP_DIR" >> $GITHUB_ENV
+          echo "CONTAINER_DIR=$CONTAINER_DIR" >> $GITHUB_ENV
+          echo "Env vars set successfully!"
+ 
+      - name: Create directories
+        run: |
+          mkdir -p ${{ env.CONTAINER_DIR }}
+          chmod 755 ${{ env.CONTAINER_DIR }}
+
+      - name: Build container [on head node]
+        working-directory: ${{ env.FSDP_DIR }}
+        run: |
+          echo "Building FSDP image"
+          docker build -t fsdp:pytorch .
+          echo "FSDP Image built!"
+
+      - name: Convert built container to squash file [on head node]
+        working-directory: ${{ env.FSDP_DIR }}
+        run: |
+          echo "Converting container to squash file..."
+          enroot import -o ${{ env.CONTAINER_DIR }}/fsdp.sqsh dockerd://fsdp:pytorch
+          echo "Container converted to squash file successfully!"
+
+  run-tests:
+    needs: build
+    strategy: 
+      fail-fast: false
+      max-parallel: 6
       matrix:
         cluster: [p5, p5-smhp]
         model_config: [llama2_7b, llama2_13b, llama2_70b, llama3_1_8b, llama3_1_70b]
@@ -39,7 +89,7 @@ jobs:
           FSDP_DIR="$(pwd)/${BUILD_ID}/3.test_cases/pytorch/FSDP"
           LOG_DIR="${HOME_DIR}/regression-logs-${BUILD_ID}-${{ matrix.model_config }}-${{ matrix.cluster }}"
           CHECKPOINT_DIR="${HOME_DIR}/regression-checkpoints-${BUILD_ID}-${{ matrix.model_config }}-${{ matrix.cluster }}"
-          CONTAINER_DIR="${HOME_DIR}/regression-container-${BUILD_ID}-${{ matrix.model_config }}-${{ matrix.cluster }}"
+          CONTAINER_DIR="${HOME_DIR}/regression-container-${BUILD_ID}-${{ matrix.cluster }}"
 
           echo "HOME_DIR=$HOME_DIR" >> $GITHUB_ENV
           echo "BUILD_ID=$BUILD_ID" >> $GITHUB_ENV
@@ -51,22 +101,8 @@ jobs:
 
       - name: Create directories
         run: |
-          mkdir -p ${{ env.LOG_DIR }} ${{ env.CHECKPOINT_DIR }} ${{ env.CONTAINER_DIR }}
-          chmod 755 ${{ env.LOG_DIR }} ${{ env.CHECKPOINT_DIR }} ${{ env.CONTAINER_DIR }}
-      
-      - name: Build container [on head node]
-        working-directory: ${{ env.FSDP_DIR }}
-        run: |
-          echo "Building FSDP image"
-          docker build -t fsdp:pytorch .
-          echo "FSDP Image built!"
-
-      - name: Convert built container to squash file [on head node]
-        working-directory: ${{ env.FSDP_DIR }}
-        run: |
-          echo "Converting container to squash file..."
-          enroot import -o ${{ env.CONTAINER_DIR }}/fsdp.sqsh dockerd://fsdp:pytorch
-          echo "Container converted to squash file successfully!"
+          mkdir -p ${{ env.LOG_DIR }} ${{ env.CHECKPOINT_DIR }}
+          chmod 755 ${{ env.LOG_DIR }} ${{ env.CHECKPOINT_DIR }}
 
       - name: Run regression test
         id: run_test
@@ -112,7 +148,7 @@ jobs:
         if: always()
         run: |
           echo "Cleaning up..."
-          rm -rf ${{ env.LOG_DIR }} ${{ env.CHECKPOINT_DIR }} ${{ env.CONTAINER_DIR }}
+          rm -rf ${{ env.LOG_DIR }} ${{ env.CHECKPOINT_DIR }}
           echo "Container, logs and checkpoints cleaned up successfully!"
 
     

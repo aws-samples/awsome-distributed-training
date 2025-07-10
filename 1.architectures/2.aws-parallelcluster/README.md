@@ -29,7 +29,7 @@ The AWS ParallelCluster is an open-source cluster management tool that makes it 
 - **Head-node**: A login and controller node that users connect to for submitting jobs and managing the cluster. This node runs the scheduler (Slurm) and other management services.
 - **Compute-nodes**: Worker nodes that execute the actual computational workloads. These are dynamically provisioned based on job requirements and can scale up or down automatically.
 
-The architecture follows a traditional HPC design pattern where users interact with the head node to submit jobs, and the scheduler distributes those jobs to the compute nodes. For ML workloads, the compute nodes are typically equipped with GPUs (like P4d, P5, etc.) or AWS Trainium accelerators. 
+The architecture follows a traditional HPC design pattern where users interact with the head node to submit jobs, and the scheduler distributes those jobs to the compute nodes. For ML workloads, the compute nodes are typically equipped with GPUs (like P4d, P5, etc.) or AWS Trainium accelerators.
 
 
 ## Prerequisites
@@ -63,7 +63,7 @@ Then create a directory under home directory to store cluster config files:
 
 ```bash
 # For example
-export AWS_REGION=ap-northeast-1 
+export AWS_REGION=ap-northeast-1
 export CLUSTER_NAME=ml-cluster
 export PCLUSTER_VERSION=3.13.1
 export CONFIG_DIR="${HOME}/${CLUSTER_NAME}_${AWS_REGION}_${PCLUSTER_VERSION}"
@@ -71,7 +71,7 @@ export CONFIG_DIR="${HOME}/${CLUSTER_NAME}_${AWS_REGION}_${PCLUSTER_VERSION}"
 mkdir -p ${CONFIG_DIR}
 touch ${CONFIG_DIR}/config.yaml
 yq -i ".CLUSTER_NAME = \"$CLUSTER_NAME\"" ${CONFIG_DIR}/config.yaml
-yq -i ".AWS_REGION = \"$AWS_REGION\"" ${CONFIG_DIR}/config.yaml 
+yq -i ".AWS_REGION = \"$AWS_REGION\"" ${CONFIG_DIR}/config.yaml
 yq -i ".PCLUSTER_VERSION = \"$PCLUSTER_VERSION\"" ${CONFIG_DIR}/config.yaml
 ```
 
@@ -89,7 +89,7 @@ The rest of this section describes following required/optional components.
 To deploy AWS ParallelCluster, you need to be an Administrator user of the AWS account. See [this issue](https://github.com/aws/aws-parallelcluster/issues/2060) for the related discussion. You need to use the IAM user to create clusters using AWS ParallelCluster CLI from local console, for that you need to configure your AWS credentials by running `aws configure`.
 
 #### AWS ParallelCluster CLI for cluster deployment and management
-The AWS ParallelCluster CLI is a command-line tool that helps you deploy and manage HPC clusters on AWS. It provides commands for creating, updating, and deleting clusters, as well as managing cluster resources. The CLI is built on top of the AWS SDK and provides a simple interface for interacting with AWS ParallelCluster. For detailed information about the CLI and its commands, refer to the [AWS ParallelCluster Command Line Interface Reference](https://docs.aws.amazon.com/parallelcluster/latest/ug/commands-v3.html). The CLI requires Python 3.7 or later installed on your local environment.
+The AWS ParallelCluster CLI is a command-line tool that helps you deploy and manage HPC clusters on AWS. It provides commands for creating, updating, and deleting clusters, as well as managing cluster resources. The CLI is built on top of the AWS SDK and provides a simple interface for interacting with AWS ParallelCluster. For detailed information about the CLI and its commands, refer to the [AWS ParallelCluster Command Line Interface Reference](https://docs.aws.amazon.com/parallelcluster/latest/ug/commands-v3.html). The CLI requires Python 3.8 or later installed on your local environment.
 
 You can install the AWS ParallelCluster CLI using pip in a Python virtual environment:
 
@@ -111,7 +111,7 @@ Distributed training usually requires P or Trn instances, both of which are high
 
 On-Demand Capacity Reservation (ODCR) is a tool for reserving capacity without having to launch and run the EC2 instances. The CRs for P or Trn instances are typically *created by AWS*, not by users, which affects how to correctly configure the cluster networking.
 
-[Amazon EC2 Capacity Blocks for ML](https://aws.amazon.com/ec2/capacity-blocks/) is another way to reserve compute capacity for your ML workloads. Unlike ODCR, Capacity Blocks allows you to reserve capacity for a specific time window (from 1 to 14 days) with a specific start time. This is particularly useful for planned ML training jobs that require high-performance P/Trn instances. Pricing varies by region and instance type. You can find the complete pricing information and available instance types in each region on the [Amazon EC2 Capacity Blocks for ML pricing page](https://aws.amazon.com/ec2/capacityblocks/pricing/).
+[Amazon EC2 Capacity Blocks for ML](https://aws.amazon.com/ec2/capacityblocks/) is another way to reserve compute capacity for your ML workloads. Unlike ODCR, Capacity Blocks allows you to reserve capacity for a specific time window (from 1 to 14 days) with a specific start time. This is particularly useful for planned ML training jobs that require high-performance P/Trn instances. Pricing varies by region and instance type. You can find the complete pricing information and available instance types in each region on the [Amazon EC2 Capacity Blocks for ML pricing page](https://aws.amazon.com/ec2/capacityblocks/pricing/).
 
 __You need the following information before proceeding__:
 
@@ -145,7 +145,7 @@ You can list your existing key pairs in the [AWS Console](https://console.aws.am
 First, export the name of the key pair you have or will create:
 
 ```bash
-export KEYPAIR_NAME=<your-keypair-name> 
+export KEYPAIR_NAME=<your-keypair-name>
 yq -i ".KEYPAIR_NAME = \"$KEYPAIR_NAME\"" ${CONFIG_DIR}/config.yaml
 ```
 
@@ -254,7 +254,7 @@ export FSX_ID=`aws cloudformation describe-stacks \
     --output text`
 ```
 
-Note: `DATA_BUCKET_NAME`  is the bucket created in [Step0: Check resource info](https://quip-amazon.com/wDrEAxaBEI3A#temp:C:fdV996b34e8ad4e4dc3ac2ef128b). 
+Note: `DATA_BUCKET_NAME`  is the bucket created in [Step0: Check resource info](https://quip-amazon.com/wDrEAxaBEI3A#temp:C:fdV996b34e8ad4e4dc3ac2ef128b).
 Create DRA as follows:
 
 ```bash
@@ -360,21 +360,21 @@ yq eval-all 'select(fileIndex == 0) * select(fileIndex == 1)' ${CONFIG_DIR}/conf
 mv ${CONFIG_DIR}/config_updated.yaml ${CONFIG_DIR}/config.yaml
 rm ${CONFIG_DIR}/stack_outputs.yaml
 # Now let's use the following snippet to read them as environment variables
-eval $(yq e 'to_entries | .[] | "export " + .key + "=\"" + .value + "\""' ${CONFIG_DIR}/config.yaml) 
+eval $(yq e 'to_entries | .[] | "export " + .key + "=\"" + .value + "\""' ${CONFIG_DIR}/config.yaml)
 
 # You can also view the updated config file
 cat ${CONFIG_DIR}/config.yaml
 
 # Read all the environment variables we have in config.yaml
-eval $(yq e 'to_entries | .[] | "export " + .key + "=\"" + .value + "\""' ${CONFIG_DIR}/config.yaml) 
+eval $(yq e 'to_entries | .[] | "export " + .key + "=\"" + .value + "\""' ${CONFIG_DIR}/config.yaml)
 # Generate the configuration file
 cat cluster-templates/cluster-vanilla.yaml | envsubst > ${CONFIG_DIR}/cluster.yaml
 ```
 
-> [!IMPORTANT]  
-> The default configuration has `PlacementGroup` set to `False`. This is recommended when using AWS-provided ODCR or Capacity Blocks, as enabling placement groups may conflict with the placement group assigned to your ODCR/CB and cause *Insufficient Capacity Error* (ICE). 
+> [!IMPORTANT]
+> The default configuration has `PlacementGroup` set to `False`. This is recommended when using AWS-provided ODCR or Capacity Blocks, as enabling placement groups may conflict with the placement group assigned to your ODCR/CB and cause *Insufficient Capacity Error* (ICE).
 >
-> However, when using user-procured Capacity Reservations (CR) for distributed training workloads, you should set `PlacementGroup` to `True` and specify a cluster placement group name. This ensures optimal network performance between instances. Configure it like this:
+> However, when using user-procured On-demand Capacity Reservations (ODCR) for distributed training workloads, you should set `PlacementGroup` to `True` and specify a cluster placement group name. This ensures optimal network performance between instances. Configure it like this:
 >
 > ```yaml
 > PlacementGroup:
@@ -382,9 +382,9 @@ cat cluster-templates/cluster-vanilla.yaml | envsubst > ${CONFIG_DIR}/cluster.ya
 >   Name: <Your Placement Group Name>
 > ```
 >
-> It's recommended to create a cluster placement group first and use its name when reserving capacity for distributed training workloads. 
+> It's recommended to create a cluster placement group first and use its name when reserving capacity for distributed training workloads.
 
-> [!TIP]  
+> [!TIP]
 > If using AWS CloudShell and `envsubst` is not available, install it with:
 > ```bash
 > sudo yum install gettext
@@ -452,8 +452,8 @@ Once the cluster goes into **CREATE COMPLETE**, we can connect to the head node 
 
 **SSH** can be used to connect to the cluster from a standard SSH client. This can be configured to use your own key via adding the public key or a new key can be provisioned.
 
-### SSM Connect 
-![ssm connect](../../../0.docs/ssm-connect.png)
+### SSM Connect
+![ssm connect](../../0.docs/ssm-connect.png)
 You'll need to be authenticated to the AWS account that instance is running in and have permission to launch a SSM session . Once you're connected you'll have access to a terminal on the head node:
 
 Now change to `ubuntu` user:
@@ -462,14 +462,14 @@ Now change to `ubuntu` user:
 sudo su - ubuntu
 ```
 
-![ssm user connect](../../../0.docs/ssm-connect-user.png)
+![ssm user connect](../../0.docs/ssm-connect-user.png)
 
 ### SSH access
 
 Also, You can access to the headnode via SSH (if you set up keypair). You can retrieve IP address of the head node with the following command:
 
 ```bash
-pcluster ssh --region ap-northeast-1 --cluster-name ml-cluster --identity_file ~/.ssh/ap-northeast-1.pem  --dryrun true 
+pcluster ssh --region ap-northeast-1 --cluster-name ml-cluster --identity_file ~/.ssh/ap-northeast-1.pem  --dryrun true
 ```
 
 It will show output like follows:

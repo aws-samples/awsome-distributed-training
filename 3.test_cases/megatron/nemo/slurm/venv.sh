@@ -26,6 +26,6 @@ pip install nemo_toolkit['all']==2.1.0
 pip install opencc==1.1.6
 
 # Clone and install NVIDIA Resiliency Extension
-pip install git+https://github.com/NVIDIA/nvidia-resiliency-ext.git@292886dce09e24f320b733da1c366bcc4f48548d
+pip install nvidia-resiliency-ext="v0.2.1"
 
 echo "Environment setup complete."

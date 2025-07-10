@@ -32,7 +32,7 @@ Below are the steps you need to follow:
 2. Build the container image with the command below
 
    ```bash
-   docker build -t aws-megatron-lm -f 0.distributed-training.Dockerfile .
+   docker build -t aws-megatron-lm -f ../aws-megatron-lm.Dockerfile .
    ```
 
 3. Once the image is built, you can check if it is present with `docker images`. You should see an output similar to this one:

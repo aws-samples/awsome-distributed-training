@@ -37,19 +37,19 @@ The NCCL tests are packaged in a container.
 > |-----------------------|-------------|---------------------------------------------------------------------------------------------|
 > |`CUDA_VERSION`         | `12.8.1`    |                                                                                             |
 > |`GDRCOPY_VERSION`      | `v2.4.4`    | [link](https://github.com/NVIDIA/gdrcopy)                                                   |
-> |`EFA_INSTALLER_VERSION`| `1.41.0`    | [link](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa-start.html#efa-start-enable) |
-> |`AWS_OFI_NCCL_VERSION` | `v1.15.0`   | [link](https://github.com/aws/aws-ofi-nccl)                                                 |
-> |`NCCL_VERSION`         | `v2.26.6-1` | [link](https://github.com/NVIDIA/nccl)                                                      |
-> |`NCCL_TESTS_VERSION`   | `v2.15.2`   | [link](https://github.com/NVIDIA/nccl-tests)                                                |
+> |`EFA_INSTALLER_VERSION`| `1.42.0`    | [link](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa-start.html#efa-start-enable) |
+> |`AWS_OFI_NCCL_VERSION` | `v1.16.0`   | [link](https://github.com/aws/aws-ofi-nccl)                                                 |
+> |`NCCL_VERSION`         | `v2.27.5-1` | [link](https://github.com/NVIDIA/nccl)                                                      |
+> |`NCCL_TESTS_VERSION`   | `v2.16.4`   | [link](https://github.com/NVIDIA/nccl-tests)                                                |
 
 You must pick each version of the library and set them as variables before proceed:
 
 ```bash
 GDRCOPY_VERSION=v2.4.4
-EFA_INSTALLER_VERSION=1.41.0
-AWS_OFI_NCCL_VERSION=v1.15.0
-NCCL_VERSION=v2.26.6-1
-NCCL_TESTS_VERSION=v2.15.2
+EFA_INSTALLER_VERSION=1.42.0
+AWS_OFI_NCCL_VERSION=v1.16.0
+NCCL_VERSION=v2.27.5-1
+NCCL_TESTS_VERSION=v2.16.4
 TAG="efa${EFA_INSTALLER_VERSION}-ofi${AWS_OFI_NCCL_VERSION}-nccl${NCCL_VERSION}-tests${NCCL_TESTS_VERSION}"
 CONTAINER_IMAGE_NAME_TAG="nccl-tests:${TAG}"
 ```
