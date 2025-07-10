@@ -368,7 +368,7 @@ login:
   # -- (list)
   # The `/root/.ssh/authorized_keys` file to write, represented as a list.
   rootSshAuthorizedKeys:
-    - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOgiXVQ3l7+huQ2vC6gvpTqd94YljwjneCdH/irPNc1d natharno@amazon.com
+    - "<your-public-ssh-key-here>"
   #
   # -- (map)
   # The `/etc/ssh/sshd_config` file to use, represented as a map.
@@ -558,7 +558,7 @@ compute:
         #
         # -- (string)
         # Set the image repository to use.
-        repository: "659924747436.dkr.ecr.us-west-2.amazonaws.com/dlc-slurmd"
+        repository: "<your-account-id-here>.dkr.ecr.<your-region-here>.amazonaws.com/dlc-slurmd"
         #
         # -- (string)
         # Set the image tag to use.
