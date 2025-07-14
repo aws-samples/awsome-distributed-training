@@ -268,7 +268,7 @@ multi_headnode() {
 # Function to setup environment variables
 setup_env_vars() {
     echo -e "${BLUE}=== Setting Up Environment Variables ===${NC}"
-    echo -e "${GREEN}Cloning awsome-distributed-training${NC}"
+    #echo -e "${GREEN}Cloning awsome-distributed-training${NC}"
     #clone_adt
 
     echo -e "${BLUE}Enter the name of the SageMaker VPC CloudFormation stack that was deployed as a prerequisite (default: sagemaker-hyperpod):${NC}"
@@ -480,9 +480,10 @@ get_input() {
 
 # Function to write the cluster-config.json file
 create_config() {
-    echo -e "\n${BLUE}=== Lifecycle Scripts Setup Complete ===${NC}"
-    STACK_NAME=$(get_input "enter the name of the eks cluster" "slinky-eks-cluster")
+    #echo -e "\n${BLUE}=== Lifecycle Scripts Setup Complete ===${NC}"
+    #STACK_NAME=$(get_input "enter the name of the eks cluster" "slinky-eks-cluster")
     EKS_CLUSTER_NAME=$(get_input "enter the name of the eks cluster" "slinky-eks-cluster") #eks cluster name
+    STACK_NAME=EKS_CLUSTER_NAME
     # Get controller machine details
     CONTROLLER_NAME=$(get_input "Enter the name for the controller instance group" "controller-machine")
     CONTROLLER_TYPE=$(get_input "Enter the instance type for the controller" "ml.m5.12xlarge")
@@ -528,7 +529,7 @@ create_config() {
         fi
 
         echo -e "${YELLOW}Configuring Worker Group $WORKER_GROUP_COUNT${NC}"
-        INSTANCE_TYPE=$(get_input "Enter the instance type for worker group $WORKER_GROUP_COUNT" "ml.c5.4xlarge")
+        INSTANCE_TYPE=$(get_input "Enter the instance type for worker group $WORKER_GROUP_COUNT" "ml.g5.8xlarge")
         INSTANCE_COUNT=$(get_input "Enter the instance count for worker group $WORKER_GROUP_COUNT" "4")
 
         INSTANCE_GROUPS+=",
@@ -643,7 +644,7 @@ create_config() {
         "ParameterValue": "1"
     }
 ]
-EOF
+EOL
     echo -e "${GREEN}✅ cloudFormation.json created successfully${NC}"
 
     read -e -p "What would you like to name your cluster? (default: ml-cluster): " CLUSTER_NAME
@@ -1100,13 +1101,6 @@ main() {
     #creating the cloudformation stack
 
     echo "line 1102"
-    # Lifecycle Scripts Setup
-    echo -e "\n${BLUE}🔧 Setting Up Lifecycle Scripts${NC}"
-    echo -e "${BLUE}1b. Configuring environment variables and lifecycle scripts...${NC}"
-    setup_env_vars
-    setup_lifecycle_scripts
-    echo -e "${GREEN}✅ Lifecycle scripts setup completed${NC}"
-
     # Cluster Configuration
     echo -e "\n${BLUE}🚀 Creating the Cluster${NC}"
     echo -e "${BLUE}1c. Generating cluster configuration...${NC}"
@@ -1114,15 +1108,19 @@ main() {
     echo -e "${GREEN}✅ Cluster configuration created successfully${NC}"
     echo -e "${BLUE}ℹ️  Validating the generated configuration before proceeding${NC}"
 
-    # creating cloudFormatio stack 
+     # creating cloudFormatio stack 
     echo -e "\n${BLUE}🚀 Creating the the cloudformation stack${NC}"
-    echo -e "${BLUE}1c. Generating cluster configuration...${NC}"
-    create_config
-    echo -e "${GREEN}✅ Cluster configuration created successfully${NC}"
-    echo -e "${BLUE}ℹ️  Validating the generated configuration before proceeding${NC}"
-
-    # Deploy CloudFormation stack
     deploy_cloudformation
+    echo -e "${GREEN}✅ the cloudFormation stac was created successfully${NC}"
+
+
+    # Lifecycle Scripts Setup
+    echo -e "\n${BLUE}🔧 Setting Up Lifecycle Scripts${NC}"
+    echo -e "${BLUE}1b. Configuring environment variables and lifecycle scripts...${NC}"
+    setup_env_vars
+    setup_lifecycle_scripts
+    echo -e "${GREEN}✅ Lifecycle scripts setup completed${NC}"
+    
 }
 
 main

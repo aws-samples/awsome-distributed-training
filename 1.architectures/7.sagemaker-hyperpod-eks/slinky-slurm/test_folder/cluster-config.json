@@ -1,0 +1,43 @@
+    {
+        "ClusterName": "slinky-cluster",
+        "InstanceGroups": [{
+        "InstanceGroupName": "controller-machine",
+        "InstanceType": "ml.m5.12xlarge",
+        "InstanceStorageConfigs": [
+            {
+                "EbsVolumeConfig": {
+                    "VolumeSizeInGB": 500
+                }
+            }
+        ],
+        "InstanceCount": 1,
+        "LifeCycleConfig": {
+            "SourceS3Uri": "s3:///src",
+            "OnCreate": "on_create.sh"
+        },
+        "ExecutionRole": "",
+        "ThreadsPerCore": 1
+    },
+        {
+            "InstanceGroupName": "worker-group-1",
+            "InstanceType": "ml.g5.8xlarge",
+            "InstanceCount": 4,
+            "InstanceStorageConfigs": [
+                {
+                    "EbsVolumeConfig": {
+                        "VolumeSizeInGB": 500
+                    }
+                }
+            ],
+            "LifeCycleConfig": {
+                "SourceS3Uri": "s3:///src",
+                "OnCreate": "on_create.sh"
+            },
+            "ExecutionRole": "",
+            "ThreadsPerCore": 2
+        }],
+        "VpcConfig": {
+        "SecurityGroupIds": [""],
+        "Subnets":[""]
+        }
+    }
