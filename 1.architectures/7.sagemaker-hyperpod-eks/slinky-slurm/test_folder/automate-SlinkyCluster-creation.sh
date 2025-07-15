@@ -105,10 +105,6 @@ check_git() {
 }
 
 
-
-
-
-
 multi_headnode() {
     source env_vars
     echo -e "${BLUE}=== Multi-Headnode Feature ===${NC}"
@@ -267,19 +263,20 @@ multi_headnode() {
 
 # Function to setup environment variables
 setup_env_vars() {
-    echo -e "${BLUE}=== Setting Up Environment Variables ===${NC}"
-    #echo -e "${GREEN}Cloning awsome-distributed-training${NC}"
-    #clone_adt
+    # echo -e "${BLUE}=== Setting Up Environment Variables ===${NC}"
+    # #echo -e "${GREEN}Cloning awsome-distributed-training${NC}"
+    # #clone_adt
 
-    echo -e "${BLUE}Enter the name of the SageMaker VPC CloudFormation stack that was deployed as a prerequisite (default: sagemaker-hyperpod):${NC}"
-    read -e STACK_ID_VPC
-    export STACK_ID_VPC=${STACK_ID_VPC:-sagemaker-hyperpod}
+    # echo -e "${BLUE}Enter the name of the SageMaker VPC CloudFormation stack that was deployed as a prerequisite (default: sagemaker-hyperpod):${NC}"
+    # read -e STACK_ID_VPC
+    # export STACK_ID_VPC=${STACK_ID_VPC:-sagemaker-hyperpod}
 
-    if [ "$CF_STACK_NAME" != "sagemaker-hyperpod" ]; then
-        echo -e "${GREEN}✅ Configuration script updated with stack name: $STACK_ID_VPC${NC}"
-    else
-        echo -e "${GREEN}Using default stack name: sagemaker-hyperpod${NC}"
-    fi
+    # if [ "$CF_STACK_NAME" != "sagemaker-hyperpod" ]; then
+    #     echo -e "${GREEN}✅ Configuration script updated with stack name: $STACK_ID_VPC${NC}"
+    # else
+    #     echo -e "${GREEN}Using default stack name: sagemaker-hyperpod${NC}"
+    # fi
+
 
     # Clear env_vars from previous runs
     > env_vars
@@ -478,94 +475,64 @@ get_input() {
     echo "${input:-$default}"    
 }
 
-# Function to write the cluster-config.json file
-create_config() {
-    #echo -e "\n${BLUE}=== Lifecycle Scripts Setup Complete ===${NC}"
-    #STACK_NAME=$(get_input "enter the name of the eks cluster" "slinky-eks-cluster")
-    EKS_CLUSTER_NAME=$(get_input "enter the name of the eks cluster" "slinky-eks-cluster") #eks cluster name
-    STACK_NAME=EKS_CLUSTER_NAME
-    # Get controller machine details
-    CONTROLLER_NAME=$(get_input "Enter the name for the controller instance group" "controller-machine")
-    CONTROLLER_TYPE=$(get_input "Enter the instance type for the controller" "ml.m5.12xlarge")
+deploy_cloudformation()
+{
+    #1. downloand the main-stack.yaml file 
+    echo "downloading the CloudFormation templete file: https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/main/1.architectures/7.sagemaker-hyperpod-eks/cfn-templates/nested-stacks/main-stack.yaml "
+    curl -O https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/main/1.architectures/7.sagemaker-hyperpod-eks/cfn-templates/nested-stacks/main-stack.yaml
+    
+    # Optional: Add check to verify download was successful
+    if [ $? -eq 0 ]; then
+        echo "Successfully downloaded main-stack.yaml"
+    else
+        echo "Failed to download main-stack.yaml"
+        return 1
+    fi
 
-    # Initialize instance groups array
-    INSTANCE_GROUPS="["
+    #2.creating the stack
+    aws cloudformation create-stack \
+        --stack-name $STACK_ID \
+        --template-body file://main-stack.yaml \
+        --region $AWS_REGION \
+        --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
+        --parameters file://cloudFormation.json
 
-    CONTROLLER_COUNT=$([ "${MH:-false}" = true ] && echo "2" || echo "1")
-    EXECUTION_ROLE=$([ "${MH:-false}" = true ] && echo "${SLURM_EXECUTION_ROLE_ARN}" || echo "${ROLE}")
+    if [ $? -eq 0 ]; then
+        echo "Stack creation initiated successfully"
+    else
+        echo "Error creating stack"
+        return 1
+    fi
 
-    # Add controller group
-    INSTANCE_GROUPS+="{
-        \"InstanceGroupName\": \"$CONTROLLER_NAME\",
-        \"InstanceType\": \"$CONTROLLER_TYPE\",
-        \"InstanceStorageConfigs\": [
-            {
-                \"EbsVolumeConfig\": {
-                    \"VolumeSizeInGB\": 500
-                }
-            }
-        ],
-        \"InstanceCount\": ${CONTROLLER_COUNT},
-        \"LifeCycleConfig\": {
-            \"SourceS3Uri\": \"s3://${BUCKET}/src\",
-            \"OnCreate\": \"on_create.sh\"
-        },
-        \"ExecutionRole\": \"${EXECUTION_ROLE}\",
-        \"ThreadsPerCore\": 1
-    }"
+}
 
-    # Loop to add worker instance groups
-    WORKER_GROUP_COUNT=1
-    echo -e "\n${BLUE}=== Worker Group Configuration ===${NC}"
+wait_for_stack_completion() {
+    local stack_name=$1
+    echo "Waiting for stack creation to complete..."
+    
     while true; do
-        if [[ $WORKER_GROUP_COUNT -eq 1 ]]; then
-            ADD_WORKER=$(get_input "Do you want to add a worker instance group? (yes/no):" "yes")
-        else
-            ADD_WORKER=$(get_input "Do you want to add another worker instance group? (yes/no):" "no")
-        fi
-
-        if [[ $ADD_WORKER != "yes" ]]; then
-            break
-        fi
-
-        echo -e "${YELLOW}Configuring Worker Group $WORKER_GROUP_COUNT${NC}"
-        INSTANCE_TYPE=$(get_input "Enter the instance type for worker group $WORKER_GROUP_COUNT" "ml.g5.8xlarge")
-        INSTANCE_COUNT=$(get_input "Enter the instance count for worker group $WORKER_GROUP_COUNT" "4")
-
-        INSTANCE_GROUPS+=",
-        {
-            \"InstanceGroupName\": \"worker-group-$WORKER_GROUP_COUNT\",
-            \"InstanceType\": \"$INSTANCE_TYPE\",
-            \"InstanceCount\": $INSTANCE_COUNT,
-            \"InstanceStorageConfigs\": [
-                {
-                    \"EbsVolumeConfig\": {
-                        \"VolumeSizeInGB\": 500
-                    }
-                }
-            ],
-            \"LifeCycleConfig\": {
-                \"SourceS3Uri\": \"s3://${BUCKET}/src\",
-                \"OnCreate\": \"on_create.sh\"
-            },
-            \"ExecutionRole\": \"${ROLE}\",
-            \"ThreadsPerCore\": 2" 
-
-        INSTANCE_GROUPS+="
-        }"  
-
-        echo -e "${GREEN}✅ Worker Group $WORKER_GROUP_COUNT added${NC}"      
-        ((WORKER_GROUP_COUNT++))
-    done         
-
-
-    INSTANCE_GROUPS+="]"
-
-    #cloudformation parameter 
+        STATUS=$(aws cloudformation describe-stacks --stack-name "$stack_name" --query 'Stacks[0].StackStatus' --output text)
+        
+        case $STATUS in
+            CREATE_COMPLETE)
+                echo -e "${GREEN}✅ CloudFormation stack created successfully${NC}"
+                return 0
+                ;;
+            CREATE_IN_PROGRESS)
+                echo "Stack creation in progress..."
+                ;;
+            CREATE_FAILED|ROLLBACK_IN_PROGRESS|ROLLBACK_COMPLETE|ROLLBACK_FAILED)
+                echo -e "${RED}❌ Stack creation failed with status: $STATUS${NC}"
+                return 1
+                ;;
+        esac
+        
+        sleep 30
+    done
+}
+create_cloudformation_stack() {
     region_prefix=$(echo $AWS_REGION | sed 's/us-west-/usw/;s/us-east-/use/;s/eu-west-/euw/;s/ap-south-/aps/;s/ap-northeast-/apne/;s/ap-southeast-/apse/')
     availability_zone="${region_prefix}-az2"
-
-    # Add basic cluster parameters
     cat > cloudFormation.json << EOL
 [
     {
@@ -584,7 +551,6 @@ create_config() {
         "ParameterKey": "ResourceNamePrefix",
         "ParameterValue": "${EKS_CLUSTER_NAME}-hp"
     },
-
     {
         "ParameterKey": "AvailabilityZoneId",    
         "ParameterValue": "$availability_zone"
@@ -601,8 +567,6 @@ create_config() {
         "ParameterKey": "AcceleratedInstanceCount",
         "ParameterValue": "$INSTANCE_COUNT"
     },
-
-
     {
         "ParameterKey": "AcceleratedEBSVolumeSize",
         "ParameterValue": "500"
@@ -645,9 +609,118 @@ create_config() {
     }
 ]
 EOL
+#
     echo -e "${GREEN}✅ cloudFormation.json created successfully${NC}"
+    echo -e "${BLUE}=== Deploying CloudFormation stack ===${NC}"
+    if deploy_cloudformation; then
+        echo -e "${GREEN}✅ CloudFormation stack deployed successfully${NC}"
+    else
+        echo -e "${RED}❌ CloudFormation stack deployment failed${NC}"
+        exit 1
+    fi
 
-    read -e -p "What would you like to name your cluster? (default: ml-cluster): " CLUSTER_NAME
+    if wait_for_stack_completion "slinky-eks-cluster"; then
+        echo -e "${GREEN}✅ Stack creation completed successfully!${NC}"
+        #echo -e "${GREEN}✅ Proceeding with next steps...${NC}"
+        #sourcing the env vars
+    else
+        echo -e "${RED}❌ Stack creation failed. Exiting...${NC}"
+        exit 1
+    fi
+
+}
+
+# Function to write the cluster-config.json file
+create_config() {
+    #echo -e "\n${BLUE}=== Lifecycle Scripts Setup Complete ===${NC}"
+    #STACK_NAME=$(get_input "enter the name of the eks cluster" "slinky-eks-cluster")
+    EKS_CLUSTER_NAME=$(get_input "enter the name of the eks cluster" "slinky-eks-cluster") #eks cluster name
+    STACK_ID=$EKS_CLUSTER_NAME
+    # Get controller machine details
+    CONTROLLER_NAME=$(get_input "Enter the name for the controller instance group" "controller-machine")
+    CONTROLLER_TYPE=$(get_input "Enter the instance type for the controller" "ml.m5.8xlarge")
+
+   
+
+    CONTROLLER_COUNT=$([ "${MH:-false}" = true ] && echo "2" || echo "1")
+    EXECUTION_ROLE=$([ "${MH:-false}" = true ] && echo "${SLURM_EXECUTION_ROLE_ARN}" || echo "${ROLE}")
+
+    # Loop to add worker instance groups
+    WORKER_GROUP_COUNT=1
+    echo -e "\n${BLUE}=== Worker Group Configuration ===${NC}"
+    #while true; do
+
+    if [[ $WORKER_GROUP_COUNT -eq 1 ]]; then
+        ADD_WORKER=$(get_input "Do you want to add a worker instance group? (yes/no):" "yes")
+    #else
+        #ADD_WORKER=$(get_input "Do you want to add another worker instance group? (yes/no):" "no")
+    fi
+
+    if [[ $ADD_WORKER != "yes" ]]; then
+        break
+    fi
+
+    echo -e "${YELLOW}Configuring Worker Group $WORKER_GROUP_COUNT${NC}"
+    INSTANCE_TYPE=$(get_input "Enter the instance type for worker group $WORKER_GROUP_COUNT" "ml.g5.8xlarge")
+    INSTANCE_COUNT=$(get_input "Enter the instance count for worker group $WORKER_GROUP_COUNT" "4")
+     
+    #creating the cloud fomration stack
+    create_cloudformation_stack
+    #sourcing the env var
+    #setup_env_vars
+
+     # Initialize instance groups array
+    INSTANCE_GROUPS="["
+    # Add controller group
+    INSTANCE_GROUPS+="{
+        \"InstanceGroupName\": \"$CONTROLLER_NAME\",
+        \"InstanceType\": \"$CONTROLLER_TYPE\",
+        \"InstanceStorageConfigs\": [
+            {
+                \"EbsVolumeConfig\": {
+                    \"VolumeSizeInGB\": 500
+                }
+            }
+        ],
+        \"InstanceCount\": ${CONTROLLER_COUNT},
+        \"LifeCycleConfig\": {
+            \"SourceS3Uri\": \"s3://${BUCKET}/src\",
+            \"OnCreate\": \"on_create.sh\"
+        },
+        \"ExecutionRole\": \"${EXECUTION_ROLE}\",
+        \"ThreadsPerCore\": 1
+    }"
+    
+    # add worker group 
+    INSTANCE_GROUPS+=",
+    {
+        \"InstanceGroupName\": \"worker-group-$WORKER_GROUP_COUNT\",
+        \"InstanceType\": \"$INSTANCE_TYPE\",
+        \"InstanceCount\": $INSTANCE_COUNT,
+        \"InstanceStorageConfigs\": [
+            {
+                \"EbsVolumeConfig\": {
+                    \"VolumeSizeInGB\": 500
+                }
+            }
+        ],
+        \"LifeCycleConfig\": {
+            \"SourceS3Uri\": \"s3://${BUCKET}/src\",
+            \"OnCreate\": \"on_create.sh\"
+        },
+        \"ExecutionRole\": \"${ROLE}\",
+        \"ThreadsPerCore\": 2" 
+
+    INSTANCE_GROUPS+="
+    }"  
+
+    echo -e "${GREEN}✅ Worker Group $WORKER_GROUP_COUNT added${NC}"      
+    ((WORKER_GROUP_COUNT++))
+    #done         
+    INSTANCE_GROUPS+="]"
+    #done with the instance array 
+
+    read -e -p "What would you like to name your cluster? (default: slinky-cluster): " CLUSTER_NAME
     CLUSTER_NAME=${CLUSTER_NAME:-ml-cluster}
 
     # Create the cluster-config.json file
@@ -1044,36 +1117,7 @@ goodbye() {
     echo -e "\n${BLUE}Exiting script. Good luck with your SageMaker HyperPod journey! 👋${NC}\n"
 }  
 
-deploy_cloudformation()
-{
-    #1. downloand the main-stack.yaml file 
-    echo "downloading the CloudFormation templete file: https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/main/1.architectures/7.sagemaker-hyperpod-eks/cfn-templates/nested-stacks/main-stack.yaml "
-    curl -O https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/main/1.architectures/7.sagemaker-hyperpod-eks/cfn-templates/nested-stacks/main-stack.yaml
-    
-    # Optional: Add check to verify download was successful
-    if [ $? -eq 0 ]; then
-        echo "Successfully downloaded main-stack.yaml"
-    else
-        echo "Failed to download main-stack.yaml"
-        return 1
-    fi
 
-    #2.creating the stack
-    aws cloudformation create-stack \
-        --stack-name $STACK_NAME \
-        --template-body file://main-stack.yaml \
-        --region $AWS_REGION \
-        --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
-        --parameters file://cloudFormation.json
-
-    if [ $? -eq 0 ]; then
-        echo "Stack creation initiated successfully"
-    else
-        echo "Error creating stack"
-        return 1
-    fi
-
-}
 
 #===Main Script===
 main() {
@@ -1100,18 +1144,13 @@ main() {
     region_check
     #creating the cloudformation stack
 
-    echo "line 1102"
     # Cluster Configuration
-    echo -e "\n${BLUE}🚀 Creating the Cluster${NC}"
+    #echo -e "\n${BLUE}🚀 Creating the Cluster${NC}"
     echo -e "${BLUE}1c. Generating cluster configuration...${NC}"
     create_config
     echo -e "${GREEN}✅ Cluster configuration created successfully${NC}"
     echo -e "${BLUE}ℹ️  Validating the generated configuration before proceeding${NC}"
 
-     # creating cloudFormatio stack 
-    echo -e "\n${BLUE}🚀 Creating the the cloudformation stack${NC}"
-    deploy_cloudformation
-    echo -e "${GREEN}✅ the cloudFormation stac was created successfully${NC}"
 
 
     # Lifecycle Scripts Setup
