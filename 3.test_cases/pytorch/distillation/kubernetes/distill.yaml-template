@@ -92,6 +92,7 @@ spec:
                   --rdzv_backend=c10d \
                   --use_deepspeed \
                   distil_logits_cli.py
+                  --hub_location=$HUB_LOCATION
               volumeMounts:
                 - name: shmem
                   mountPath: /dev/shm

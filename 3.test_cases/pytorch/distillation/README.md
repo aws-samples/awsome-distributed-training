@@ -92,6 +92,7 @@ export EFA_PER_NODE=16
 export TOTAL_NODES=$((GPU_PER_NODE * NUM_NODES))
 export FI_PROVIDER=efa
 export HF_TOKEN=<Your HuggingFace Token>
+export HUB_LOCATION = <the hub location to drop the trained artifacts>
 
 # Generate manifest
 cat distill.yaml-template | envsubst > distill.yaml
