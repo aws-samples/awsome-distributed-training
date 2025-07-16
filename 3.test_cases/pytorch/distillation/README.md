@@ -16,6 +16,8 @@ This walkthrough demonstrates how to set up and run large language model (LLM) k
 
 ## Getting Started
 
+**Compatible Instance Types**: The architectures and test cases in this repository are designed to work with GPU instances including P4d, P5, and P5en instance types for optimal distributed training performance.
+
 ### Setting Up the Environment
 
 First, prepare your container image with all necessary dependencies:
