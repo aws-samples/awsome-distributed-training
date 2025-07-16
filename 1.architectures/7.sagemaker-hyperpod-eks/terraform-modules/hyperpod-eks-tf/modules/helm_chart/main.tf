@@ -54,6 +54,17 @@ resource "null_resource" "helm_dep_update" {
         exit 1
       fi
 
+      echo "Creating charts directory if it doesn't exist..."
+      mkdir -p "/tmp/helm-repo/${var.helm_repo_path}/charts"
+      
+      echo "Creating empty Chart.yaml in charts directory if needed..."
+      for dep in $(grep -o 'name: [a-zA-Z0-9_-]\+' "/tmp/helm-repo/${var.helm_repo_path}/Chart.yaml" | cut -d' ' -f2); do
+        if [ ! -d "/tmp/helm-repo/${var.helm_repo_path}/charts/$dep" ]; then
+          mkdir -p "/tmp/helm-repo/${var.helm_repo_path}/charts/$dep"
+          echo "apiVersion: v2\nname: $dep\nversion: 0.1.0" > "/tmp/helm-repo/${var.helm_repo_path}/charts/$dep/Chart.yaml"
+        fi
+      done
+
       echo "Running helm dependency update..."
       helm dependency update /tmp/helm-repo/${var.helm_repo_path}
       echo "Helm dependency update complete"
@@ -68,6 +79,8 @@ resource "helm_release" "hyperpod" {
   name       = var.helm_release_name
   chart      = "/tmp/helm-repo/${var.helm_repo_path}"
   namespace  = var.namespace
+  skip_crds  = true
+  dependency_update = true
 
   depends_on = [
     null_resource.git_clone,
