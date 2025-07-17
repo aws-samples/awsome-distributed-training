@@ -47,7 +47,7 @@ resource "awscc_sagemaker_cluster" "hyperpod_cluster" {
 
   orchestrator = {
     eks = {
-      cluster_arn = "arn:${data.aws_partition.current.partition}:eks:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:cluster/${var.eks_cluster_name}"
+      cluster_arn = "arn:${data.aws_partition.current.partition}:eks:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:cluster/${var.eks_cluster_name}"
     }
   }
 
