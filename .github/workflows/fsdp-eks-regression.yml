@@ -202,9 +202,17 @@ jobs:
               break
             fi
 
-            # Display current status
-            running_pods=$(kubectl get pods -l app=${ACTUAL_JOB_NAME} -o jsonpath='{.items[?(@.status.phase=="Running")].metadata.name}' | wc -w)
+            # Check if all pods are in Succeeded state
+            succeeded_pods=$(kubectl get pods -l app=${ACTUAL_JOB_NAME} -o jsonpath='{.items[?(@.status.phase=="Succeeded")].metadata.name}' | wc -w)
             total_pods=$(kubectl get pods -l app=${ACTUAL_JOB_NAME} | grep -v NAME | wc -l)
+            running_pods=$(kubectl get pods -l app=${ACTUAL_JOB_NAME} -o jsonpath='{.items[?(@.status.phase=="Running")].metadata.name}' | wc -w)
+
+            # If all pods have succeeded, then consider the job complete and end loop. 
+            if [ $total_pods -eq $expected_pods ] && [ $succeeded_pods -eq $total_pods ]; then
+              echo "All pods ($succeeded_pods/$total_pods) are in Succeeded state. Job completed successfully!"
+              exit_code=0
+              break
+            fi
 
             # Check if all expected pods are running
             if [ $total_pods -eq $expected_pods ] && [ $running_pods -eq $total_pods ]; then
