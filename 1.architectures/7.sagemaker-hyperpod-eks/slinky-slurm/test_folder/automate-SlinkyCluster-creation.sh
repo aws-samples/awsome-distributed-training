@@ -105,178 +105,8 @@ check_git() {
 }
 
 
-multi_headnode() {
-    source env_vars
-    echo -e "${BLUE}=== Multi-Headnode Feature ===${NC}"
-    MULTI_HEADNODE=$(get_input "Do you want to enable multi-headnode feature?" "no")
-    if [[ $MULTI_HEADNODE == "yes" ]]; then
-        export MH=true
-        local SHOULD_DEPLOY=true
-        # Query for BackupPrivateSubnet and FSxLustreFilesystemDNSname in create_config.sh
-        # DONE
-
-        export MULTI_HEAD_SLURM_STACK=$(get_input "Enter the name for the SageMaker HyperPod Multiheadnode stack to be deployed" "sagemaker-hyperpod-mh")
-
-        # Check if stack already exists and has required outputs
-        if aws cloudformation describe-stacks --stack-name ${MULTI_HEAD_SLURM_STACK} >/dev/null 2>&1; then
-            echo -e "${YELLOW}⚠️  A stack with name '${MULTI_HEAD_SLURM_STACK}' already exists${NC}"
-            echo -e "${YELLOW}Note: The new stack's AZs must match the existing stack's AZs for the multi-headnode feature to work properly (${SUBNET_ID}, ${BACKUP_SUBNET})${NC}"
-            echo -e "${BLUE}Would you like to deploy a stack with a different name? (yes/no)${NC}"
-            read -e DEPLOY_NEW_STACK
-
-            if [[ $DEPLOY_NEW_STACK != "yes" ]]; then
-                echo -e "${YELLOW}Using existing stack '${MULTI_HEAD_SLURM_STACK}'${NC}"
-                SHOULD_DEPLOY=false
-            else
-                export MULTI_HEAD_SLURM_STACK=$(get_input "Enter the NEW name for the SageMaker HyperPod Multiheadnode stack to be deployed)" "sagemaker-hyperpod-mh")
-            fi
-        fi
-
-        # Source env_vars
-        source env_vars
-
-        if [[ $SHOULD_DEPLOY == true ]]; then
-            # Ask user to input EMAIL and DB_USER_NAME
-            export EMAIL=$(get_input "Input your SNSSubEmailAddress here (this is the email address that will be used to send notifications about your head node status)" "johndoe@example.com")
-            export DB_USER_NAME=$(get_input "Input your DB_USER_NAME here (this is the username that will be used to access the SlurmDB)" "johndoe")
-            # export MULTI_HEAD_SLURM_STACK=$(get_input "Enter the name for the SageMaker HyperPod Multiheadnode stack to be deployed)" "sagemaker-hyperpod-mh")
-
-            echo -e "${YELLOW}The following CloudFormation command will be executed:${NC}"
-            echo -e "${GREEN}aws cloudformation deploy \\
-                --template-file awsome-distributed-training/1.architectures/5.sagemaker-hyperpod/sagemaker-hyperpod-slurm-multi-headnode.yaml \\
-                --stack-name ${MULTI_HEAD_SLURM_STACK} \\
-                --parameter-overrides \\
-                    SlurmDBSecurityGroupId=${SECURITY_GROUP} \\
-                    SlurmDBSubnetGroupId1=${SUBNET_ID} \\
-                    SlurmDBSubnetGroupId2=${BACKUP_SUBNET} \\
-                    SNSSubEmailAddress=${EMAIL} \\
-                    SlurmDBUsername=${DB_USER_NAME} \\
-                --capabilities CAPABILITY_NAMED_IAM${NC}"
-            echo -e "\n${YELLOW}This will create the following resources in your account:${NC}"
-            echo -e "- Amazon RDS instance for SLURM database"
-            echo -e "- Amazon SNS topic for head node failover notifications"
-            echo -e "- IAM roles and policies for multi-head node functionality"
-
-            echo -e "\n${BLUE}Would you like to proceed with the deployment? Please acnowledge that you allow CloudFormation to create resources in your account by hitting ENTER${NC}"
-            read
-
-            # Deploy the multi-head CF stack
-            aws cloudformation deploy \
-                --template-file awsome-distributed-training/1.architectures/5.sagemaker-hyperpod/sagemaker-hyperpod-slurm-multi-headnode.yaml \
-                --stack-name ${MULTI_HEAD_SLURM_STACK} \
-                --parameter-overrides \
-                    SlurmDBSecurityGroupId=${SECURITY_GROUP} \
-                    SlurmDBSubnetGroupId1=${SUBNET_ID} \
-                    SlurmDBSubnetGroupId2=${BACKUP_SUBNET} \
-                    SNSSubEmailAddress=${EMAIL} \
-                    SlurmDBUsername=${DB_USER_NAME} \
-                --capabilities CAPABILITY_NAMED_IAM
-
-            # Wait for stack to be created
-            echo -e "${BLUE}Waiting for multi-headnode stack creation to complete...${NC}"
-            aws cloudformation wait stack-create-complete \
-                --stack-name ${MULTI_HEAD_SLURM_STACK}
-        else
-            # Get the outputs for EMAIL and DB_USER_NAME (used in provisioning_parameters.json!!!)
-            echo "From Stack: ${MULTI_HEAD_SLURM_STACK}"
-            export EMAIL=$(aws cloudformation describe-stacks --stack-name ${MULTI_HEAD_SLURM_STACK} --query 'Stacks[0].Outputs[?OutputKey==`SNSSubEmailAddress`].OutputValue' --output text)
-            export DB_USER_NAME=$(aws cloudformation describe-stacks --stack-name ${MULTI_HEAD_SLURM_STACK} --query 'Stacks[0].Outputs[?OutputKey==`SlurmDBUsername`].OutputValue' --output text)        
-
-            echo -e "Set Email: ${EMAIL}, DB Username: ${DB_USER_NAME}"
-        fi        
-
-        # Query new stack for SlurmDBEndpointAddress SlurmDBSecretArn SlurmExecutionRoleArn SlurmFailOverSNSTopicArn and write these to env_vars
-        SLURM_DB_ENDPOINT_ADDRESS=$(aws cloudformation describe-stacks --stack-name $MULTI_HEAD_SLURM_STACK --query 'Stacks[0].Outputs[?OutputKey==`SlurmDBEndpointAddress`].OutputValue' --output text)
-        SLURM_DB_SECRET_ARN=$(aws cloudformation describe-stacks --stack-name $MULTI_HEAD_SLURM_STACK --query 'Stacks[0].Outputs[?OutputKey==`SlurmDBSecretArn`].OutputValue' --output text)
-        SLURM_EXECUTION_ROLE_ARN=$(aws cloudformation describe-stacks --stack-name $MULTI_HEAD_SLURM_STACK --query 'Stacks[0].Outputs[?OutputKey==`SlurmExecutionRoleArn`].OutputValue' --output text)
-        SLURM_SNS_FAILOVER_TOPIC_ARN=$(aws cloudformation describe-stacks --stack-name $MULTI_HEAD_SLURM_STACK --query 'Stacks[0].Outputs[?OutputKey==`SlurmFailOverSNSTopicArn`].OutputValue' --output text)
-
-        echo "export SLURM_DB_ENDPOINT_ADDRESS=${SLURM_DB_ENDPOINT_ADDRESS}" >> env_vars
-        echo "export SLURM_DB_SECRET_ARN=${SLURM_DB_SECRET_ARN}" >> env_vars
-        echo "export SLURM_EXECUTION_ROLE_ARN=${SLURM_EXECUTION_ROLE_ARN}" >> env_vars
-        echo "export SLURM_SNS_FAILOVER_TOPIC_ARN=${SLURM_SNS_FAILOVER_TOPIC_ARN}" >> env_vars
-        echo "export EMAIL=${EMAIL}" >> env_vars
-        echo "export DB_USER_NAME=${DB_USER_NAME}" >> env_vars
-
-        if [[ -z "$SLURM_DB_ENDPOINT_ADDRESS" ]] || [[ -z "$SLURM_DB_SECRET_ARN" ]] || [[ -z "$SLURM_EXECUTION_ROLE_ARN" ]] || [[ -z "$SLURM_SNS_FAILOVER_TOPIC_ARN" ]]; then
-            echo -e "${YELLOW}⚠️  Failed to retrieve all required values from the CloudFormation stack${NC}"
-            echo -e "${YELLOW}Please ensure the stack deployed correctly and all outputs are available${NC}"
-            return 1
-        fi
-
-        SLURM_EXECUTION_ROLE=$(echo $SLURM_EXECUTION_ROLE_ARN | awk -F'/' '{print $NF}')
-
-        echo -e "${GREEN}✅ Multi-headnode feature enabled${NC}"
-
-        # Create IAM policy for multi-headnode feature
-        echo -e "\n${BLUE}Creating IAM policy for SLURM execution role...${NC}"
-
-        create_and_attach_policy() {
-            aws iam create-policy \
-                --policy-name AmazonSageMakerExecutionPolicy \
-                --policy-document file://awsome-distributed-training/1.architectures/5.sagemaker-hyperpod/1.AmazonSageMakerClustersExecutionRolePolicy.json --output json && \
-            aws iam attach-role-policy \
-                --role-name $SLURM_EXECUTION_ROLE \
-                --policy-arn arn:aws:iam::${AWS_ACCOUNT_ID}:policy/AmazonSageMakerExecutionPolicy
-        }
-
-        if error_output=$(create_and_attach_policy 2>&1); then
-            echo -e "${GREEN}✅ IAM policy created and attached successfully${NC}"
-        else
-            echo -e "${YELLOW}⚠️  Error occurred while creating/attaching IAM policy:${NC}"
-            echo -e "${YELLOW}$error_output${NC}"
-            
-            if [[ $error_output == *"EntityAlreadyExists"* ]]; then
-                echo -e "\n${YELLOW}If the error you received is that the policy already exists, you can either:${NC}" 
-                echo -e "\n${GREEN}     1. Continue the script with the existing policy (make sure the permissions match the ones in https://github.com/aws-samples/awsome-distributed-training/blob/main/1.architectures/5.sagemaker-hyperpod/1.AmazonSageMakerClustersExecutionRolePolicy.json) and manually attach it to your role ${SLURM_EXECUTION_ROLE}, or${NC}" 
-                echo -e "\n${GREEN}     2. You can create a new policy with a name different than 'AmazonSageMakerExecutionPolicy' manually and attach it to your 'AmazonSageMakerExecutionRole' with the following command. Once you do that, you can continue with the rest of the script:${NC}"
-
-                echo -e "\n${YELLOW} Creating an IAM policy (required for option 2 above)${NC}"
-                echo -e "\n${BLUE}         aws iam create-policy \\
-                    --policy-name <NEW POLICY NAME> \\
-                    --policy-document file://awsome-distributed-training/1.architectures/5.sagemaker-hyperpod/1.AmazonSageMakerClustersExecutionRolePolicy.json${NC}"
-
-                echo -e "\n${YELLOW} Attach an IAM policy to an IAM role (required for options 1 & 2 above)${NC}"
-                echo -e "\n${BLUE}         aws iam attach-role-policy \\
-                    --role-name ${SLURM_EXECUTION_ROLE} \\
-                    --policy-arn arn:aws:iam::${AWS_ACCOUNT_ID}:policy/<POLICY NAME>${NC}"
-            fi
-            
-            echo -e "Options:"
-            echo -e "1. [RECOMMENDED, PLEASE READ ABOVE] Press Enter to continue with the rest of the script"
-            echo -e "2. Press Ctrl+C to exit the script."
-
-            read -e -p "Select an option (Enter/Ctrl+C): " choice
-
-            if [[ -z "$choice" ]]; then
-                echo -e "${BLUE}Continuing with the rest of the script...${NC}"
-            else
-                exit 1
-            fi
-        fi
-    else
-        echo -e "${YELLOW}Skipping multi-headnode configuration...${NC}"
-        export MH=false
-    fi
-    echo -e "\n${BLUE}=== Multi-Headnode Configuration Complete ===${NC}"
-}
-
 # Function to setup environment variables
 setup_env_vars() {
-    # echo -e "${BLUE}=== Setting Up Environment Variables ===${NC}"
-    # #echo -e "${GREEN}Cloning awsome-distributed-training${NC}"
-    # #clone_adt
-
-    # echo -e "${BLUE}Enter the name of the SageMaker VPC CloudFormation stack that was deployed as a prerequisite (default: sagemaker-hyperpod):${NC}"
-    # read -e STACK_ID_VPC
-    # export STACK_ID_VPC=${STACK_ID_VPC:-sagemaker-hyperpod}
-
-    # if [ "$CF_STACK_NAME" != "sagemaker-hyperpod" ]; then
-    #     echo -e "${GREEN}✅ Configuration script updated with stack name: $STACK_ID_VPC${NC}"
-    # else
-    #     echo -e "${GREEN}Using default stack name: sagemaker-hyperpod${NC}"
-    # fi
-
 
     # Clear env_vars from previous runs
     > env_vars
@@ -284,8 +114,18 @@ setup_env_vars() {
     echo -e "${YELLOW}Generating new environment variables...${NC}"
     
     generate_env_vars() {
-        bash awsome-distributed-training/1.architectures/5.sagemaker-hyperpod/create_config.sh
-        # bash create_config.sh
+        ACCEL_INSTANCE_TYPE=$INSTANCE_TYPE
+        ACCEL_INSTANCE_COUNT=$INSTANCE_COUNT
+        GEN_INSTANCE_TYPE=$CONTROLLER_TYPE
+        GEN_INSTANCE_COUNT=$CONTROLLER_COUNT
+
+        curl -O https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/main/1.architectures/7.sagemaker-hyperpod-eks/create_config.sh 
+        #bash awsome-distributed-training/1.architectures/5.sagemaker-hyperpod/create_config.sh
+        #curl -O https://github.com/aws-samples/awsome-distributed-training/blob/feature/slinkly-slurm-hyperpod-eks/1.architectures/5.sagemaker-hyperpod/create_config.sh
+        chmod +x create_config.sh
+        ./create_config.sh
+        #source env_vars
+        bash create_config.sh
     }
 
     # Capture stdout + stderr
@@ -307,164 +147,16 @@ setup_env_vars() {
 
     # FEAT: Add support for multiple headnodes
     #MH
-    multi_headnode
+    #multi_headnode
 
     source env_vars
 
     echo -e "\n${BLUE}=== Environment Variables Summary ===${NC}"
-    echo -e "${YELLOW}Note: You may ignore the INSTANCES parameter for now${NC}"
     echo -e "${GREEN}Current environment variables:${NC}"
     cat env_vars
-
     echo -e "\n${BLUE}=== Environment Setup Complete ===${NC}"
 }
 
-# Function to setup lifecycle scripts
-setup_lifecycle_scripts() {
-    echo -e "${BLUE}=== Setting Up Lifecycle Scripts ===${NC}"
-
-    cd awsome-distributed-training/1.architectures/5.sagemaker-hyperpod/LifecycleScripts/
-
-    echo -e "${YELLOW}Are you using Neuron-based instances (Trainium/Inferentia)? (yes/no)${NC}"
-    read -e USING_NEURON
-
-    if [ "$USING_NEURON" == "yes" ]; then
-        echo -e "${BLUE}Enabling Neuron in LCS...${NC}"
-        sed -i.bak 's/enable_update_neuron_sdk = False/enable_update_neuron_sdk = True/' base-config/config.py
-        rm base-config/config.py.bak
-        echo -e "${GREEN}✅ Lifecycle Scripts modified successfully! Neuron enabled in config.py${NC}"
-    else
-        echo -e "${BLUE}Continuing with Neuron disabled in LCS...${NC}"
-    fi
-
-    # Check if FSx OpenZFS was deployed in the stack
-    echo -e "${BLUE}Checking if FSx OpenZFS was deployed in the stack...${NC}"
-
-    export ENABLE_FSX_OPENZFS="false"
-
-    FSX_OPENZFS_DNS=$(aws cloudformation describe-stacks \
-        --stack-name "${STACK_ID_VPC}" \
-        --query 'Stacks[0].Outputs[?OutputKey==`FSxOpenZFSFileSystemDNSname`].OutputValue' \
-        --output text)
-    
-    if [ -n "$FSX_OPENZFS_DNS" ]; then
-        echo -e "${BLUE}FSx OpenZFS detected in stack. DNS: ${FSX_OPENZFS_DNS}${NC}"
-        echo -e "${BLUE}Enabling FSx OpenZFS in LCS...${NC}"
-
-        # Get the FSx OpenZFS File System ID as well
-        FSX_OPENZFS_ID=$(aws cloudformation describe-stacks \
-            --stack-name "${STACK_ID_VPC}" \
-            --query 'Stacks[0].Outputs[?OutputKey==`FSxOpenZFSFileSystemId`].OutputValue' \
-            --output text)
-        
-        ENABLE_FSX_OPENZFS="true"
-        echo "export FSX_OPENZFS_DNS=${FSX_OPENZFS_DNS}" >> env_vars
-        echo "export FSX_OPENZFS_ID=${FSX_OPENZFS_ID}" >> env_vars
-
-        # Update config.py
-        sed -i.bak 's/enable_fsx_openzfs = False/enable_fsx_openzfs = True/' base-config/config.py
-        rm base-config/config.py.bak
-    
-        echo -e "${GREEN}✅ Lifecycle Scripts modified successfully! FSx OpenZFS enabled in config.py${NC}"
-    else
-        echo -e "${BLUE}No FSx OpenZFS detected in stack. Continuing with FSx OpenZFS disabled in LCS...${NC}"
-    fi
-
-    echo -e "${YELLOW}Did you deploy the optional hyperpod-observability CloudFormation stack? (yes/no)${NC}"
-    read -e DEPLOYED_OBSERVABILITY
-
-    if [ "$DEPLOYED_OBSERVABILITY" == "yes" ]; then
-        echo -e "${BLUE}Enabling observability in LCS...${NC}"
-        sed -i.bak 's/enable_observability = False/enable_observability = True/' base-config/config.py
-        rm base-config/config.py.bak
-        echo -e "${GREEN}✅ Lifecycle Scripts modified successfully! Observability enabled in config.py${NC}"
-
-        echo -e "${BLUE}Attaching IAM policies for observability to $ROLENAME${NC}"
-
-        # Helper function for attaching IAM policies (specific to observability stack only!)
-        attach_policies() {
-            aws iam attach-role-policy --role-name $ROLENAME --policy-arn arn:aws:iam::aws:policy/AmazonPrometheusRemoteWriteAccess --output json
-            aws iam attach-role-policy --role-name $ROLENAME --policy-arn arn:aws:iam::aws:policy/AWSCloudFormationReadOnlyAccess --output json
-        }
-
-        # Capture stdout + stderr
-
-        if ! error_output=$(attach_policies 2>&1); then
-            echo -e "${YELLOW}⚠️  Failed to attach IAM policies. This operation requires admin permissions${NC}"
-            echo -e "${YELLOW}   This was the error received${NC}"
-            echo -e "${YELLOW}$error_output${NC}"
-            echo -e "Options:"
-            echo -e "1. Run 'aws configure' as an admin user as part of this script."
-            echo -e "2. Press Ctrl+C to exit and run 'aws configure' as an admin user outside this script."
-            echo -e "3. Press Enter to continue with the rest of the script without configuring this step."
-
-            read -e -p "Choose an option (1, 2, or 3): " choice   
-            
-            case $choice in
-                1)
-                    echo -e "${BLUE}Running 'aws configure'. Please enter your **admin** credentials..${NC}"
-                    aws configure
-                    echo -e "${GREEN}✅ AWS CLI configured successfully${NC}"
-                    echo -e "${BLUE}Retrying to attach IAM policies!${NC}"
-                    if ! attach_policies; then
-                        echo -e "${YELLOW}⚠️  Failed to attach IAM policies. Please attach the following policies manually:${NC}"
-                        echo -e "1. AmazonPrometheusRemoteWriteAccess"
-                        echo -e "2. AWSCloudFormationReadOnlyAccess"
-                        echo -e "Press Enter to continue with the rest of the script without configuring this step."
-                        read -e -p "Press Enter to continue: "
-                        echo -e "${BLUE}Continuing with the rest of the script without configuring this step.${NC}"
-                    else
-                        echo -e "${GREEN}✅ IAM policies attached successfully${NC}"
-                    fi
-                    ;;
-                2)
-                    echo -e "${BLUE}Please run 'aws configure' as an admin user outside this script.${NC}"
-                    exit 1
-                    ;;
-                3)
-                    echo -e "${BLUE}Continuing with the rest of the script without configuring this step.${NC}"
-                    ;;
-                *)
-                    echo -e "${BLUE}Invalid choice. Continuing with the rest of the script without configuring this step.${NC}"
-                    ;;
-            esac
-        else
-            echo -e "${GREEN}✅ IAM policies attached successfully${NC}"
-        fi    
-        echo -e "${GREEN}✅ Observability setup complete!${NC}"
-    else
-        echo -e "${YELLOW}Observability not enabled. Continuing with default configuration${NC}"
-    fi
-
-    echo -e "${BLUE}Uploading your lifecycle scripts to S3 bucket ${YELLOW}${BUCKET}${NC}"
-    # upload data
-    upload_to_s3() {
-        aws s3 cp --recursive base-config/ s3://${BUCKET}/src --output json
-    }
-
-    if error_output=$(upload_to_s3 2>&1); then
-        echo -e "${GREEN}✅ Lifecycle scripts uploaded successfully${NC}"
-    else
-        echo -e "${YELLOW}⚠️  Error occurred while uploading lifecycle scripts to S3 bucket:${NC}"
-        echo -e "${YELLOW}$error_output${NC}"
-        echo -e "Options:"
-        echo -e "1. Press Enter to continue with the rest of the script (Not Recommended, unless you know how to set the environment variables manually!)"
-        echo -e "2. Press Ctrl+C to exit the script."
-
-        read -e -p "Select an option (Enter/Ctrl+C): " choice
-
-        if [[ -z "$choice" ]]; then
-            echo -e "${BLUE}Continuing with the rest of the script...${NC}"
-        else
-            exit 1
-        fi
-    fi  
-
-    # move back to env_var directory
-    cd ../../../..
-
-    echo -e "\n${BLUE}=== Lifecycle Scripts Setup Complete ===${NC}"
-}
 
 # Helper function to get user inputs with default values specified
 get_input() {
@@ -506,30 +198,35 @@ deploy_cloudformation()
 
 }
 
+
 wait_for_stack_completion() {
     local stack_name=$1
-    echo "Waiting for stack creation to complete..."
-    
+    local -a spinner=('-' '\' '|' '/')
+    local i=0
+
+    echo "Waiting for stack creation to complete... "
+    echo "This can take about 20 mins."
     while true; do
         STATUS=$(aws cloudformation describe-stacks --stack-name "$stack_name" --query 'Stacks[0].StackStatus' --output text)
-        
         case $STATUS in
             CREATE_COMPLETE)
-                echo -e "${GREEN}✅ CloudFormation stack created successfully${NC}"
+                printf "\r\033[K✅ CloudFormation stack created successfully\n"
                 return 0
                 ;;
             CREATE_IN_PROGRESS)
-                echo "Stack creation in progress..."
+                printf "\r\033[KStack creation in progress... ${spinner[$i]}"
+                i=$(( (i+1) % 4 ))
                 ;;
             CREATE_FAILED|ROLLBACK_IN_PROGRESS|ROLLBACK_COMPLETE|ROLLBACK_FAILED)
-                echo -e "${RED}❌ Stack creation failed with status: $STATUS${NC}"
+                printf "\r\033[K❌ Stack creation failed with status: $STATUS\n"
                 return 1
                 ;;
         esac
-        
-        sleep 30
+        sleep 60
     done
 }
+
+
 create_cloudformation_stack() {
     region_prefix=$(echo $AWS_REGION | sed 's/us-west-/usw/;s/us-east-/use/;s/eu-west-/euw/;s/ap-south-/aps/;s/ap-northeast-/apne/;s/ap-southeast-/apse/')
     availability_zone="${region_prefix}-az2"
@@ -667,7 +364,7 @@ create_config() {
     #creating the cloud fomration stack
     create_cloudformation_stack
     #sourcing the env var
-    #setup_env_vars
+    setup_env_vars #sets and sources the env variables 
 
      # Initialize instance groups array
     INSTANCE_GROUPS="["
@@ -684,7 +381,7 @@ create_config() {
         ],
         \"InstanceCount\": ${CONTROLLER_COUNT},
         \"LifeCycleConfig\": {
-            \"SourceS3Uri\": \"s3://${BUCKET}/src\",
+            \"SourceS3Uri\": \"s3://${S3_BUCKET_NAME}/src\",
             \"OnCreate\": \"on_create.sh\"
         },
         \"ExecutionRole\": \"${EXECUTION_ROLE}\",
@@ -705,7 +402,7 @@ create_config() {
             }
         ],
         \"LifeCycleConfig\": {
-            \"SourceS3Uri\": \"s3://${BUCKET}/src\",
+            \"SourceS3Uri\": \"s3://${S3_BUCKET_NAME}/src\",
             \"OnCreate\": \"on_create.sh\"
         },
         \"ExecutionRole\": \"${ROLE}\",
@@ -721,7 +418,7 @@ create_config() {
     #done with the instance array 
 
     read -e -p "What would you like to name your cluster? (default: slinky-cluster): " CLUSTER_NAME
-    CLUSTER_NAME=${CLUSTER_NAME:-ml-cluster}
+    CLUSTER_NAME=${CLUSTER_NAME:-slinky-cluster}
 
     # Create the cluster-config.json file
     cat > cluster-config.json << EOL
@@ -729,150 +426,233 @@ create_config() {
         "ClusterName": "$CLUSTER_NAME",
         "InstanceGroups": $INSTANCE_GROUPS,
         "VpcConfig": {
-        "SecurityGroupIds": ["$SECURITY_GROUP"],
-        "Subnets":["$SUBNET_ID"]
+        "SecurityGroupIds": ["$SECURITY_GROUP_ID"],
+        "Subnets":["$PRIVATE_SUBNET_ID"]
         }
     }
 EOL
 
-    echo -e "${GREEN}✅ cluster-config.json created successfully${NC}"
-
-    source env_vars
-
-    echo -e "\n${YELLOW}Creating provisioning_parameters.json...${NC}"
-    WORKER_GROUPS="["
-
-    # Loop through worker groups
-    for ((i=1; i<=WORKER_GROUP_COUNT-1; i++)); do
-        if [ $i -gt 1 ]; then
-            WORKER_GROUPS+=","
-        fi
-
-        instance_type=$(jq -r ".InstanceGroups[] | select(.InstanceGroupName == \"worker-group-$i\").InstanceType" cluster-config.json)
-
-        WORKER_GROUPS+="
-            {
-                \"instance_group_name\": \"worker-group-$i\",
-                \"partition_name\": \"$instance_type\"
-            }"
-    done
-
-    WORKER_GROUPS+="
-        ]"
-
-    # OpenZFS
-    if [[ $ENABLE_FSX_OPENZFS == "true" ]]; then
-        FSX_OPENZFS_CONFIG=",
-                \"fsx_openzfs_dns_name\": \"${FSX_OPENZFS_ID}.fsx.${AWS_REGION}.amazonaws.com\""
-        else
-            FSX_OPENZFS_CONFIG=""
-    fi
-
-    #MH 
-    if [[ $MH == "true" ]]; then
-        SLURM_CONFIGURATIONS="
-            {
-                \"slurm_database_secret_arn\": \"$SLURM_DB_SECRET_ARN\",
-                \"slurm_database_endpoint\": \"$SLURM_DB_ENDPOINT_ADDRESS\",
-                \"slurm_shared_directory\": \"/fsx\",
-                \"slurm_database_user\": \"$DB_USER_NAME\",
-                \"slurm_sns_arn\": \"$SLURM_SNS_FAILOVER_TOPIC_ARN\"
-            }"
-    fi        
-
-    if [[ $ADD_LOGIN_GROUP == "yes" ]]; then    
-        if [[ $MH == "true" ]]; then
-            cat > provisioning_parameters.json << EOL
-            {
-                "version": "1.0.0",
-                "workload_manager": "slurm",
-                "controller_group": "$CONTROLLER_NAME",
-                "login_group": "login-group",
-                "worker_groups": $WORKER_GROUPS,
-                "fsx_dns_name": "${FSX_ID}.fsx.${AWS_REGION}.amazonaws.com",
-                "fsx_mountname": "${FSX_MOUNTNAME}"${FSX_OPENZFS_CONFIG},
-                "slurm_configurations": $SLURM_CONFIGURATIONS
-            }
-EOL
-        else
-            cat > provisioning_parameters.json << EOL
-            {
-                "version": "1.0.0",
-                "workload_manager": "slurm",
-                "controller_group": "$CONTROLLER_NAME",
-                "login_group": "login-group",
-                "worker_groups": $WORKER_GROUPS,
-                "fsx_dns_name": "${FSX_ID}.fsx.${AWS_REGION}.amazonaws.com",
-                "fsx_mountname": "${FSX_MOUNTNAME}"${FSX_OPENZFS_CONFIG}
-            }
-EOL
-        fi
-    else
-        if [[ $MH == "true" ]]; then
-            cat > provisioning_parameters.json << EOL
-            {
-                "version": "1.0.0",
-                "workload_manager": "slurm",
-                "controller_group": "$CONTROLLER_NAME",
-                "worker_groups": $WORKER_GROUPS,
-                "fsx_dns_name": "${FSX_ID}.fsx.${AWS_REGION}.amazonaws.com",
-                "fsx_mountname": "${FSX_MOUNTNAME}"${FSX_OPENZFS_CONFIG},
-                "slurm_configurations": $SLURM_CONFIGURATIONS
-            }
-EOL
-        else
-            cat > provisioning_parameters.json << EOL
-            {
-                "version": "1.0.0",
-                "workload_manager": "slurm",
-                "controller_group": "$CONTROLLER_NAME",
-                "worker_groups": $WORKER_GROUPS,
-                "fsx_dns_name": "${FSX_ID}.fsx.${AWS_REGION}.amazonaws.com",
-                "fsx_mountname": "${FSX_MOUNTNAME}"${FSX_OPENZFS_CONFIG}
-            }
-EOL
-        fi
-    fi
-    
-    echo -e "${GREEN}✅ provisioning_parameters.json created successfully${NC}"
-
-    # copy to the S3 Bucket
-    echo -e "\n${BLUE}Copying configuration to S3 bucket...${NC}"
-
-    # upload data
-    upload_to_s3() {
-        aws s3 cp provisioning_parameters.json s3://${BUCKET}/src/ --output json
-    }
-
-    if error_output=$(upload_to_s3 2>&1); then
-        echo -e "${GREEN}✅ Provisioning Parameters uploaded successfully${NC}"
-    else
-        echo -e "${YELLOW}⚠️  Error occurred while uploading lifecycle scripts to S3 bucket:${NC}"
-        echo -e "${YELLOW}$error_output${NC}"
-        echo -e "Options:"
-        echo -e "1. Press Enter to continue with the rest of the script (Not Recommended)"
-        echo -e "2. Press Ctrl+C to exit the script."
-
-        read -e -p "Select an option (Enter/Ctrl+C): " choice
-
-        if [[ -z "$choice" ]]; then
-            echo -e "${BLUE}Continuing with the rest of the script...${NC}"
-        else
-            exit 1
-        fi
-    fi    
-
-    echo -e "\n${BLUE}=== Cluster Configuration Complete ===${NC}"
 }
 
-validate_cluster_config() {
-    echo "Validating your cluster configuration..."
-    # TODO: MAKE SURE PACKAGES ARE INSTALLED HERE!!
+# Function to create FSx for Lustre Storage Class
+create_fsx_lustre_storage_class() 
+{
+    echo -e "${BLUE}=== Creating FSx for Lustre Storage Class ===${NC}"
+    
+    # Create an IAM OpenID Connect (OIDC) identity provider for the cluster
+    echo -e "${YELLOW}Creating IAM OIDC identity provider...${NC}"
+    eksctl utils associate-iam-oidc-provider --cluster $EKS_CLUSTER_NAME --approve
+    
+    # Create a service account with an IAM role for the FSx for Lustre CSI driver
+    echo -e "${YELLOW}Creating service account with IAM role for use with FSx for Lustre CSI driver...(fsx-csi-controller-sa)${NC}"
+    eksctl create iamserviceaccount \
+      --name fsx-csi-controller-sa \
+      --namespace kube-system \
+      --cluster $EKS_CLUSTER_NAME \
+      --attach-policy-arn arn:aws:iam::aws:policy/AmazonFSxFullAccess \
+      --approve \
+      --role-name FSXLCSI-${EKS_CLUSTER_NAME}-${AWS_REGION} \
+      --region $AWS_REGION
+    
+    # Verify service account annotation
+    echo -e "${YELLOW}Verifying service account annotation...${NC}"
+    kubectl get sa fsx-csi-controller-sa -n kube-system -oyaml #retirves information about the fsx-csi-controller-sa service account 
+    
+    echo -e "${YELLOW} Adding the FSx for Lustre CSI Driver to helm repos...${NC}"
+    # Check if repo already exists before adding it
+    if ! helm repo list | grep -q "aws-fsx-csi-driver"; then
+        helm repo add aws-fsx-csi-driver https://kubernetes-sigs.github.io/aws-fsx-csi-driver
+    else
+        echo -e "${YELLOW}Helm repository aws-fsx-csi-driver already exists, skipping add...${NC}"
+    fi
+    
+    echo "Isntalling the FSx for Lustre CSI driver:"
+    helm repo update.    
+    helm upgrade --install aws-fsx-csi-driver \
+      --namespace kube-system \
+      --set controller.serviceAccount.create=false \
+      aws-fsx-csi-driver/aws-fsx-csi-driver
+    
+    # Verify installation of the FSx for Lustre CSI driver
+    echo -e "${YELLOW}Verifying FSx for Lustre CSI driver installation...${NC}"
+    kubectl get pods -n kube-system -l app.kubernetes.io/name=aws-fsx-csi-driver
 
-    curl -O https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/main/1.architectures/5.sagemaker-hyperpod/validate-config.py
+    # Install the FSx for Lustre Storage Class using Helm
+    echo -e "${YELLOW}Installing FSx for Lustre Storage Class...${NC}"
+    cat > /tmp/lustre-storageclass.yaml << EOL
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: fsx-sc
+provisioner: fsx.csi.aws.com
+parameters:
+  subnetId: \${PRIVATE_SUBNET_ID}
+  securityGroupIds: \${SECURITY_GROUP_ID}
+  deploymentType: PERSISTENT_2
+  automaticBackupRetentionDays: "0"
+  copyTagsToBackups: "true"
+  perUnitStorageThroughput: "250"
+  dataCompressionType: "LZ4"
+  fileSystemTypeVersion: "2.15"
+mountOptions:
+  - flock
+EOL
+    
+    # Create an FSx for Lustre storage class
+    echo -e "Creating FSx for Lustre storage class..."
+    envsubst < /tmp/lustre-storageclass.yaml | kubectl apply -f -
+    
+    # Verify the storage class was created
+    echo -e "${YELLOW}Verifying storage class creation...${NC}"
+    kubectl get sc fsx-sc -oyaml
+    
+    # Clean up the temporary YAML file
+    rm -f /tmp/lustre-storageclass.yaml
+    
+    echo -e "${GREEN}✅ FSx for Lustre Storage Class setup completed${NC}"
+    echo "EOL"
+}
 
-    # check config for known issues
-    python3 validate-config.py --cluster-config cluster-config.json --provisioning-parameters provisioning_parameters.json --region $AWS_REGION
+
+install_aws_load_balancer_controller()
+{
+    echo -e "${BLUE}=== Installing AWS Load Balancer Controller ===${NC}"
+    
+    # Create the IAM policy
+    echo -e "${YELLOW}Creating IAM policy for AWS Load Balancer Controller...${NC}"
+    curl -O https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/refs/heads/release-2.13/docs/install/iam_policy.json
+    
+    # Check if policy already exists
+    if ! aws iam create-policy \
+        --policy-name AWSLoadBalancerControllerIAMPolicy-v2.12.0 \
+        --policy-document file://iam_policy.json 2>/dev/null; then
+        echo -e "${YELLOW}Policy AWSLoadBalancerControllerIAMPolicy-v2.12.0 already exists, continuing...${NC}"
+    fi
+    
+    # Create a service account with IAM role
+    echo -e "${YELLOW}Creating service account with IAM role...${NC}"
+    eksctl create iamserviceaccount \
+        --cluster=$EKS_CLUSTER_NAME \
+        --namespace=kube-system \
+        --name=aws-load-balancer-controller \
+        --attach-policy-arn=arn:aws:iam::$AWS_ACCOUNT_ID:policy/AWSLoadBalancerControllerIAMPolicy-v2.12.0 \
+        --override-existing-serviceaccounts \
+        --region $AWS_REGION \
+        --approve
+    
+    # Verify service account annotation
+    echo -e "${YELLOW}Verifying service account annotation...${NC}"
+    kubectl get sa aws-load-balancer-controller -n kube-system -oyaml
+    
+    # Install AWS Load Balancer Controller using Helm
+    echo -e "${YELLOW}Installing AWS Load Balancer Controller using Helm...${NC}"
+    
+    # Check if repo already exists before adding it
+    if ! helm repo list | grep -q "eks"; then
+        helm repo add eks https://aws.github.io/eks-charts
+    else
+        echo -e "${YELLOW}Helm repository eks already exists, skipping add...${NC}"
+    fi
+    
+    helm repo update
+    
+    # Check if the release already exists
+    if helm list -n kube-system | grep -q "aws-load-balancer-controller"; then
+        echo -e "${YELLOW}AWS Load Balancer Controller already exists, upgrading...${NC}"
+        helm upgrade aws-load-balancer-controller eks/aws-load-balancer-controller \
+          -n kube-system \
+          --set clusterName=$EKS_CLUSTER_NAME \
+          --set serviceAccount.create=false \
+          --set serviceAccount.name=aws-load-balancer-controller \
+          --set region=$AWS_REGION \
+          --set vpcId=$VPC_ID
+    else
+        echo -e "${YELLOW}Installing AWS Load Balancer Controller...${NC}"
+        helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
+          -n kube-system \
+          --set clusterName=$EKS_CLUSTER_NAME \
+          --set serviceAccount.create=false \
+          --set serviceAccount.name=aws-load-balancer-controller \
+          --set region=$AWS_REGION \
+          --set vpcId=$VPC_ID
+    fi
+    
+    # Verify installation
+    echo -e "${YELLOW}Verifying AWS Load Balancer Controller installation...${NC}"
+    kubectl get pods -n kube-system -l app.kubernetes.io/name=aws-load-balancer-controller
+    
+    # Clean up the policy file
+    rm -f iam_policy.json
+    
+    echo -e "${GREEN}✅ AWS Load Balancer Controller installation completed${NC}"
+    echo "EOL"
+}
+
+install_slinky_prerequisites() {
+    echo -e "${BLUE}=== Installing Slinky Prerequisites ===${NC}"
+    
+    # Add Helm repositories
+    echo -e "${YELLOW}Adding Helm repositories...${NC}"
+    helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+    helm repo add metrics-server https://kubernetes-sigs.github.io/metrics-server/
+    helm repo add bitnami https://charts.bitnami.com/bitnami
+    helm repo add jetstack https://charts.jetstack.io
+    
+    helm repo update
+    
+    # Install cert-manager
+    echo -e "${YELLOW}Installing cert-manager...${NC}"
+    if ! helm list -n cert-manager | grep -q "cert-manager"; then
+        helm install cert-manager jetstack/cert-manager \
+            --namespace cert-manager --create-namespace --set crds.enabled=true
+    else
+        echo -e "${YELLOW}cert-manager already exists, skipping installation...${NC}"
+    fi
+    
+    # Install Prometheus
+    echo -e "${YELLOW}Installing Prometheus...${NC}"
+    if ! helm list -n prometheus | grep -q "prometheus"; then
+        helm install prometheus prometheus-community/kube-prometheus-stack \
+            --namespace prometheus --create-namespace --set installCRDs=true
+    else
+        echo -e "${YELLOW}Prometheus already exists, skipping installation...${NC}"
+    fi
+    
+    # Verify installations
+    echo -e "${YELLOW}Verifying prerequisite installations...${NC}"
+    kubectl get all -n cert-manager
+    kubectl get all -n prometheus
+    
+    # Install Slurm Operator
+    echo -e "${BLUE}=== Installing Slurm Operator ===${NC}"
+    
+    # Download values file
+    echo -e "${YELLOW}Downloading Slurm Operator values file...${NC}"
+    curl -L https://raw.githubusercontent.com/SlinkyProject/slurm-operator/refs/tags/v0.3.0/helm/slurm-operator/values.yaml \
+        -o values-operator.yaml
+    
+    # Delete any stale CRDs
+    echo -e "${YELLOW}Cleaning up any stale CRDs...${NC}"
+    kubectl delete crd clusters.slinky.slurm.net 2>/dev/null || true
+    kubectl delete crd nodesets.slinky.slurm.net 2>/dev/null || true
+    
+    # Install Slurm Operator
+    echo -e "${YELLOW}Installing Slurm Operator...${NC}"
+    if ! helm list -n slinky | grep -q "slurm-operator"; then
+        helm install slurm-operator oci://ghcr.io/slinkyproject/charts/slurm-operator \
+            --values=values-operator.yaml --version=0.3.0 --namespace=slinky --create-namespace
+    else
+        echo -e "${YELLOW}Slurm Operator already exists, skipping installation...${NC}"
+    fi
+    
+    # Verify Slurm Operator installation
+    echo -e "${YELLOW}Verifying Slurm Operator installation...${NC}"
+    kubectl get all -n slinky
+    
+    # Clean up values file
+    rm -f values-operator.yaml
+    
+    echo -e "${GREEN}✅ Slinky prerequisites installation completed${NC}"
 }
 
 # Function to display the prerequisites before starting this workshop
@@ -883,22 +663,9 @@ display_important_prereqs() {
     echo "   You have Administrator Access Credentials in IAM."
     echo "   This is crucial as we'll be using CloudFormation to create IAM roles and policies."
     echo "   Run 'aws configure' to set up your credentials."
-
-    echo -e "\n${GREEN}2. 🌐 VPC Stack:${NC}"
-    echo "   Deploy the sagemaker-hyperpod VPC stack using:"
-    echo "   https://catalog.workshops.aws/sagemaker-hyperpod/en-US/00-setup/02-own-account"
-    echo "   This creates essential resources: VPC, subnets, FSx Lustre volumes,"
-    echo "   S3 bucket, and IAM role for your SageMaker HyperPod cluster."
-    echo "   ⚠️⚠️ IMPORTANT: If you choose a multi-head node configuration (i.e., multiple head nodes), then make sure that"
-    echo "   the VPC stack has the \"(Optional) Availability zone id to deploy the backup private subnet\"".
-
     echo -e "\n${GREEN}3. 📊 Observability Stack:${NC}"
     echo "   It's highly recommended to deploy the observability stack as well."
     echo "   Navigate to https://catalog.workshops.aws/sagemaker-hyperpod/en-US/00-setup/02-own-account#2.-deploy-cluster-observability-stack-(recommended) to deploy the stack"
-
-    echo -e "\n${GREEN}4. 💻 Development Environment:${NC}"
-    echo "   Ensure you have a Linux-based development environment (macOS works great too)."
-
     echo -e "\n${GREEN}5. 🔧 Packages required for this script to run:${NC}"
     echo "   Ensure you install the following: pip, jq, boto3, and jsonschema"
 
@@ -907,10 +674,12 @@ display_important_prereqs() {
 }
 
 region_check() {
-    echo -e "${BLUE}Please confirm that your AWS region is ${GREEN}$AWS_REGION${BLUE} (default).${NC}"
-    echo -e "${BLUE}If not, enter the AWS region where you want to set up your cluster (e.g., us-west-2):${NC}"
-    
-    read -p "> " NEW_REGION
+
+    NEW_REGION=$(get_input "Please, enter the AWS region where you want to set up your cluster" "us-west-2") #eks cluster name
+
+    # echo -e "${BLUE}Please confirm that your AWS region is ${GREEN}$AWS_REGION${BLUE} (default).${NC}"
+
+    # read -p "> " NEW_REGION
 
     if [[ -z "$NEW_REGION" ]]; then
         echo -e "${GREEN}✅ Using default region: ${YELLOW}$AWS_REGION${NC}"
@@ -927,177 +696,16 @@ region_check() {
 }
 
 # Function to create users in cluster
-configure_cluster_users() {
-    echo -e "\n${BLUE}=== User Configuration ===${NC}"
-    
-    CONFIGURE_USERS=$(get_input "Would you like to configure users? If not, you can still use the ubuntu user (yes/no)" "no")
 
-    FIRST_SSM_INTEGRATION=true
-    
-    if [[ "${CONFIGURE_USERS}" == "yes" ]]; then
-        echo -e "${BLUE}Creating shared_users.txt file...${NC}"
-        
-        # Initialize or clear the shared_users.txt file
-        > shared_users.txt
-        
-        # Initialize the user ID counter
-        next_user_id=2001
-        
-        echo -e "${YELLOW}Enter user details (Press Ctrl+D when finished)${NC}"
-        echo -e "${BLUE}========================================${NC}"
-        
-        while IFS= read -p "Enter username: " username; do
-            # If username is empty, skip this iteration
-            if [[ -z "$username" ]]; then
-                continue
-            fi
-            
-            # Get user ID with default value
-            user_id=$(get_input "Enter user ID" "$next_user_id")
-            
-            # Write to shared_users.txt
-            echo "${username},${user_id},/fsx/${username}" >> shared_users.txt
+validate_cluster_config() {
+    echo "Validating your cluster configuration..."
+    # TODO: MAKE SURE PACKAGES ARE INSTALLED HERE!!
 
-            # SSM Integration
-            ASSOCIATE_IAM=$(get_input "[REQUIRES ADMIN] Would you like to associate this POSIX user with an IAM user? (yes/no)" "no")
+    curl -O https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/main/1.architectures/5.sagemaker-hyperpod/validate-config.py
 
-            while [[ "${ASSOCIATE_IAM}" == "yes" ]]; do
-                if [[ "$FIRST_SSM_INTEGRATION" == true ]]; then
-                    echo -e "\n${BLUE}=== SSM Run As Configuration ===${NC}"
-                    echo -e "Now that we've created a new POSIX user, how do we ensure that users only connect as their user and not ssm-user when connecting via SSM? To do this, we use SSM run as tags, which allows us to tag an IAM user with the POSIX user (aka cluster user) they should connect to via SSM."
-                    read -p "Hit ENTER if you understand, or type "no" to skip this: " CONTINUE
-                    
-                    if [[ -z "$CONTINUE" ]]; then
-                        echo -e "\n${YELLOW}Please complete the following steps:${NC}"
-                        
-                        echo -e "1. Navigate to the Session Manager Preferences Console"
-                        echo -e "   (https://console.aws.amazon.com/systems-manager/session-manager/preferences)"
-                        read -p "Hit ENTER once you are there: "
-                        
-                        echo -e "\n2. Under 'Specify Operating System user for sessions',"
-                        echo -e "   ✅ check the 'Enable Run As Support for Linux Instances'"
-                        read -p "Hit ENTER once step is complete: "
-                        
-                        echo -e "\n3. Change the Linux shell profile."
-                        echo -e "   It should have '/bin/bash -c 'export HOME=/fsx/\$(whoami) && cd \${HOME} && exec /bin/bash' in its first and only line"
-                        read -p "Hit ENTER once you've added this line in: "
-                        
-                        echo -e "\n${GREEN}✅ SSM Run As support configured successfully${NC}"
-                    else
-                        echo -e "${YELLOW}Skipping SSM Run As configuration instructions...${NC}"
-                        break
-                    fi
-                    FIRST_SSM_INTEGRATION=false
-                fi
-
-                IAM_USERNAME=$(get_input "Enter the IAM username to associate with POSIX user ${username}" "$username")
-
-                if ! aws iam get-user --user-name "${IAM_USERNAME}" --output json >/dev/null 2>&1; then
-                    echo -e "${YELLOW}⚠️  IAM user ${IAM_USERNAME} does not exist${NC}"
-                    CREATE_IAM=$(get_input "Would you like to create this IAM user? (Note: You'll need to add permissions later) (yes/no)" "no")
-
-                    if [[ "${CREATE_IAM}" == "yes" ]]; then
-                        if ! output=$(aws iam create-user --user-name "$IAM_USERNAME" --output json 2>&1); then
-                            echo -e "${YELLOW}⚠️  Error creating IAM user ${IAM_USERNAME}:${NC}"
-                            echo -e "${YELLOW}$output${NC}"
-                            ASSOCIATE_IAM=$(get_input "Would you like to try associating with a different IAM user? (yes/no)" "yes")
-                            continue
-                        else
-                            echo -e "${GREEN}✅ IAM user ${IAM_USERNAME} created successfully. Reminder to add permissions to this user as required!${NC}"
-                        fi
-                    else
-                        ASSOCIATE_IAM=$(get_input "Would you like to try associating with a different IAM user? (yes/no)" "yes")
-                        continue
-                    fi
-                fi
-            
-                if ! output=$(aws iam tag-user \
-                    --user-name "$IAM_USERNAME" \
-                    --tags "[{\"Key\": \"SSMSessionRunAs\",\"Value\": \"$username\"}]" --output json 2>&1); then
-                    echo -e "${YELLOW}⚠️  Error adding SSM Run As tag for ${IAM_USERNAME}:${NC}"
-                    echo -e "${YELLOW}$output${NC}"
-                    ASSOCIATE_IAM=$(get_input "Would you like to try associating with a different IAM user? (yes/no)" "yes")
-                    continue
-                else
-                    echo -e "${GREEN}✅ SSM Run As tag added for ${IAM_USERNAME} (will run as ${username})${NC}"
-                    break
-                fi
-            done
-            
-            # Increment the next_user_id
-            if [[ "$user_id" == "$next_user_id" ]]; then
-                ((next_user_id++))
-            fi
-            
-            echo -e "${BLUE}========================================${NC}"
-        done
-        
-        echo -e "${GREEN}✅ User configuration completed. Users have been written to shared_users.txt${NC}"
-        echo -e "\n${BLUE}Please review the user configuration below. Press Enter to confirm and upload to S3, or Ctrl+C to exit${NC}"
-        echo -e "${YELLOW}Contents of shared_users.txt:${NC}"
-        cat shared_users.txt
-
-        read
-
-        echo -e "${BLUE}Uploading shared_users.txt to S3 bucket: $BUCKET...${NC}"
-
-        if ! output=$(aws s3 cp shared_users.txt s3://${BUCKET}/src/ --output json 2>&1); then
-            echo -e "${YELLOW}⚠️  Error occurred while uploading shared_users.txt to S3 bucket:${NC}"
-            echo -e "${YELLOW}$output${NC}"
-            echo -e "Options:"
-            echo -e "1. Press Enter to continue with the rest of the script (If you do this, please make sure you upload the file manually before creating the cluster)"
-            echo -e "2. Press Ctrl+C to exit the script."
-            
-            read -e -p "Select an option (Enter/Ctrl+C): " choice
-            
-            if [[ -z "$choice" ]]; then
-                echo -e "${BLUE}Continuing with the rest of the script...${NC}"
-            else
-                exit 1
-            fi
-        else
-            echo -e "${GREEN}✅ User configuration file uploaded successfully to s3://${BUCKET}/src/shared_users.txt${NC}"
-        fi
-    else
-        echo -e "${YELLOW}Skipping user configuration...${NC}"
-    fi
-    echo -e "\n${BLUE}=== User Configuration Complete ===${NC}"
+    # check config for known issues
+    python3 validate-config.py --cluster-config cluster-config.json --provisioning-parameters provisioning_parameters.json --region $AWS_REGION
 }
-
-# Function to create the cluster
-create_cluster() {
-    echo -e "${GREEN}✅ Creating cluster for you!${NC}"
-
-    if ! output=$(aws sagemaker create-cluster \
-        --cli-input-json file://cluster-config.json \
-        --region $AWS_REGION \
-        --output json 2>&1); then
-
-        echo -e "${YELLOW}⚠️  Error occurred while creating the cluster:${NC}"
-        echo -e "${YELLOW}$output${NC}"
-
-        echo -e "Options:"
-        echo -e "1. Press Enter to continue with the rest of the script (you will run the command below yourself!)"
-        echo -e "2. Press Ctrl+C to exit the script."
-
-        # Command to create the cluster
-        echo -e "${GREEN} aws sagemaker create-cluster \\"
-        echo -e "${GREEN}    --cli-input-json file://cluster-config.json \\"
-        echo -e "${GREEN}    --region $AWS_REGION --output json${NC}\n"
-
-        read -e -p "Select an option (Enter/Ctrl+C): " choice
-
-        if [[ -z "$choice" ]]; then
-            echo -e "${BLUE}Continuing with the rest of the script...${NC}"
-        else
-            exit 1
-        fi
-    else
-        echo -e "${GREEN}✅ Cluster creation request submitted successfully. To monitor the progress of cluster creation, you can either check the SageMaker console, or you can run:.${NC}"    
-        echo -e "${YELLOW}watch -n 1 aws sagemaker list-clusters --output table${NC}"
-    fi
-}
-
 # Warning message function
 warning() {
     echo -e "${BLUE}⚠️  Please note:${NC}"
@@ -1146,20 +754,14 @@ main() {
 
     # Cluster Configuration
     #echo -e "\n${BLUE}🚀 Creating the Cluster${NC}"
-    echo -e "${BLUE}1c. Generating cluster configuration...${NC}"
-    create_config
+    echo -e "${BLUE} Generating cluster configuration...${NC}"
+    create_config #also calls the cloufromation stack and is created at this step 
+    create_fsx_lustre_storage_class 
+    install_aws_load_balancer_controller
+    install_slinky_prerequisites
+
     echo -e "${GREEN}✅ Cluster configuration created successfully${NC}"
     echo -e "${BLUE}ℹ️  Validating the generated configuration before proceeding${NC}"
 
-
-
-    # Lifecycle Scripts Setup
-    echo -e "\n${BLUE}🔧 Setting Up Lifecycle Scripts${NC}"
-    echo -e "${BLUE}1b. Configuring environment variables and lifecycle scripts...${NC}"
-    setup_env_vars
-    setup_lifecycle_scripts
-    echo -e "${GREEN}✅ Lifecycle scripts setup completed${NC}"
-    
-}
 
 main
