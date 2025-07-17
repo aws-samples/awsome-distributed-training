@@ -16,6 +16,7 @@ CURRENT_STEP=0
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 YELLOW='\033[1;33m'
+RED='\033[0;31m'
 NC='\033[0m' # No Color
 
 # Function to print a yellow header
@@ -335,7 +336,7 @@ create_config() {
     STACK_ID=$EKS_CLUSTER_NAME
     # Get controller machine details
     CONTROLLER_NAME=$(get_input "Enter the name for the controller instance group" "controller-machine")
-    CONTROLLER_TYPE=$(get_input "Enter the instance type for the controller" "ml.m5.8xlarge")
+    CONTROLLER_TYPE=$(get_input "Enter the instance type for the controller" "ml.m5.2xlarge")
 
    
 
@@ -663,12 +664,12 @@ display_important_prereqs() {
     echo "   You have Administrator Access Credentials in IAM."
     echo "   This is crucial as we'll be using CloudFormation to create IAM roles and policies."
     echo "   Run 'aws configure' to set up your credentials."
-    echo -e "\n${GREEN}3. 📊 Observability Stack:${NC}"
-    echo "   It's highly recommended to deploy the observability stack as well."
-    echo "   Navigate to https://catalog.workshops.aws/sagemaker-hyperpod/en-US/00-setup/02-own-account#2.-deploy-cluster-observability-stack-(recommended) to deploy the stack"
-    echo -e "\n${GREEN}5. 🔧 Packages required for this script to run:${NC}"
-    echo "   Ensure you install the following: pip, jq, boto3, and jsonschema"
+    echo -e "\n${GREEN}2. Build a Slurmd Deep Learning Container:${NC}"
+    echo "   Build a Slurm DLC using this dockerfile: https://github.com/aws-samples/awsome-distributed-training/blob/feature/slinkly-slurm-hyperpod-eks/1.architectures/7.sagemaker-hyperpod-eks/slinky-slurm/dlc-slurmd.Dockerfile "
+    echo "   following this direction: https://github.com/aws-samples/awsome-distributed-training/blob/feature/slinkly-slurm-hyperpod-eks/1.architectures/7.sagemaker-hyperpod-eks/slinky-slurm/Docker-Build-README.md"
 
+    echo -e "\n${GREEN}3. 🔧 Packages required for this script to run:${NC}"
+    echo "   Ensure you install the following: pip, jq, boto3, and jsonschema"
     echo -e "\n${YELLOW}Ready to proceed? Press Enter to continue or Ctrl+C to exit...${NC}"
     read
 }
@@ -695,17 +696,335 @@ region_check() {
     read
 }
 
-# Function to create users in cluster
-
-validate_cluster_config() {
-    echo "Validating your cluster configuration..."
-    # TODO: MAKE SURE PACKAGES ARE INSTALLED HERE!!
-
-    curl -O https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/main/1.architectures/5.sagemaker-hyperpod/validate-config.py
-
-    # check config for known issues
-    python3 validate-config.py --cluster-config cluster-config.json --provisioning-parameters provisioning_parameters.json --region $AWS_REGION
+# Function to create cluster
+install_slurm_cluster() {
+    echo -e "${BLUE}=== Installing Slurm Cluster ===${NC}"
+    
+    # Use the environment variables
+    echo -e "${YELLOW}Using environment variables:${NC}"
+    echo -e "Accelerated instance type: ${GREEN}$ACCEL_INSTANCE_TYPE${NC}"
+    echo -e "Accelerated instance count: ${GREEN}$ACCEL_INSTANCE_COUNT${NC}"
+    echo -e "General purpose instance type: ${GREEN}$GEN_INSTANCE_TYPE${NC}"
+    
+    # Download base values file (using g5 as a template)
+    echo -e "${YELLOW}Downloading base values file...${NC}"
+    VALUES_FILE="custom-values.yaml"
+    curl -L https://github.com/aws-samples/awsome-distributed-training/raw/refs/heads/feature/slinkly-slurm-hyperpod-eks/1.architectures/7.sagemaker-hyperpod-eks/slinky-slurm/g5/g5-values.yaml -o $VALUES_FILE
+    if [[ $? -ne 0 ]]; then
+        echo -e "${BLUE}Failed to download base values file.${NC}"
+        exit 1
+    fi
+    
+    # Verify general purpose nodes
+    echo -e "${YELLOW}Verifying general purpose nodes with instance type: $GEN_INSTANCE_TYPE${NC}"
+    kubectl get nodes -l node.kubernetes.io/instance-type=$GEN_INSTANCE_TYPE
+    
+    # Verify compute nodes
+    echo -e "${YELLOW}Verifying compute nodes with instance type: $ACCEL_INSTANCE_TYPE${NC}"
+    kubectl get nodes -l node.kubernetes.io/instance-type=$ACCEL_INSTANCE_TYPE
+    
+    # Set container image using AWS account ID
+    CONTAINER_IMAGE="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/dlc-slurmd:25.05.0-ubuntu24.04"
+    echo -e "${YELLOW}Using container image: ${GREEN}$CONTAINER_IMAGE${NC}"
+    
+    # Generate SSH key if needed
+    echo -e "${YELLOW}Checking for SSH key...${NC}"
+    if [[ ! -f ~/.ssh/id_rsa.pub ]]; then
+        echo -e "${YELLOW}No SSH key found. Generating new SSH key...${NC}"
+        ssh-keygen -t rsa -N "" -f ~/.ssh/id_rsa
+    fi
+    
+    # Get SSH public key
+    SSH_PUBLIC_KEY=$(cat ~/.ssh/id_rsa.pub)
+    
+    # Update values file with user's configuration
+    echo -e "${YELLOW}Customizing values file with your configuration...${NC}"
+    
+    # Update common affinity for non-compute components to use general purpose instance type
+    sed -i '/commonAffinity:/,/values:/s/"ml.m5.2xlarge"/"'$GEN_INSTANCE_TYPE'"/g' $VALUES_FILE
+    
+    # Update compute node configuration
+    echo -e "${YELLOW}Updating compute node configuration...${NC}"
+    
+    # Update container image - repository
+    sed -i '/nodesets:/,/repository:/{
+      /repository: "<your-account-id-here>.dkr.ecr.<your-region-here>.amazonaws.com\/dlc-slurmd"/{
+        s|repository: "<your-account-id-here>.dkr.ecr.<your-region-here>.amazonaws.com/dlc-slurmd"|repository: "'"${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/dlc-slurmd"'"|g
+      }
+    }' $VALUES_FILE
+    
+    # Update SSH public key
+    sed -i '/rootSshAuthorizedKeys:/,/- "/{
+      /- "<your-public-ssh-key-here>"/{
+        s|- "<your-public-ssh-key-here>"|- "'"$SSH_PUBLIC_KEY"'"|g
+      }
+    }' $VALUES_FILE
+            
+    # Update node count to match the accelerated instance count
+    sed -i '/nodesets:/,/replicas:/{
+      /replicas: [0-9]\+/{
+        s|replicas: [0-9]\+|replicas: '"$ACCEL_INSTANCE_COUNT"'|g
+      }
+    }' $VALUES_FILE
+    
+    # Update node selector to match the accelerated instance type (only for g5.8xlarge)
+    sed -i '/nodesets:/,/nodeSelector:/{
+      /node.kubernetes.io\/instance-type: ml.g5.8xlarge/{
+        s|node.kubernetes.io/instance-type: ml.g5.8xlarge|node.kubernetes.io/instance-type: '"$ACCEL_INSTANCE_TYPE"'|g
+      }
+    }' $VALUES_FILE
+    
+    # Install Slurm cluster
+    echo -e "${YELLOW}Installing Slurm cluster...${NC}"
+    if helm list -n slinky | grep -q "slurm-cluster"; then
+        echo -e "${YELLOW}Slurm cluster already exists, upgrading...${NC}"
+        helm upgrade slurm-cluster oci://ghcr.io/slinkyproject/charts/slurm-cluster \
+            --values=$VALUES_FILE --version=0.3.0 --namespace=slinky
+    else
+        echo -e "${YELLOW}Installing new Slurm cluster...${NC}"
+        helm install slurm-cluster oci://ghcr.io/slinkyproject/charts/slurm-cluster \
+            --values=$VALUES_FILE --version=0.3.0 --namespace=slinky
+    fi
+    
+    # Verify installation
+    echo -e "${YELLOW}Verifying Slurm cluster installation...${NC}"
+    kubectl get all -n slinky
+    
+    # Save values file for reference
+    echo -e "${YELLOW}Saving values file as ${VALUES_FILE}.used for reference${NC}"
+    cp $VALUES_FILE ${VALUES_FILE}.used
+    
+    # Configure Login NLB
+    echo -e "${YELLOW}Configuring Login Network Load Balancer...${NC}"
+    # Get public subnets
+    export PUBLIC_SUBNET_ID_1=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=${VPC_ID}" "Name=map-public-ip-on-launch,Values=true" --query "Subnets[0].SubnetId" --output text)
+    export PUBLIC_SUBNET_ID_2=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=${VPC_ID}" "Name=map-public-ip-on-launch,Values=true" --query "Subnets[1].SubnetId" --output text)
+    
+    echo -e "${YELLOW}Found public subnets: $PUBLIC_SUBNET_ID_1, $PUBLIC_SUBNET_ID_2${NC}"
+    
+    # Configure NLB for slurm-login service
+    kubectl annotate service slurm-login -n slurm \
+      service.beta.kubernetes.io/aws-load-balancer-type="nlb" \
+      service.beta.kubernetes.io/aws-load-balancer-scheme="internet-facing" \
+      service.beta.kubernetes.io/aws-load-balancer-nlb-target-type="ip" \
+      service.beta.kubernetes.io/aws-load-balancer-subnets="$PUBLIC_SUBNET_ID_1,$PUBLIC_SUBNET_ID_2" \
+      service.beta.kubernetes.io/aws-load-balancer-healthcheck-port="22" \
+      --overwrite
+      
+    kubectl describe service slurm-login -n slurm
+    
+    echo -e "${GREEN}✅ Slurm cluster installation completed${NC}"
+    echo -e "${GREEN}✅ You can access the Slurm cluster using:${NC}"
+    echo -e "${YELLOW}kubectl exec -it -n slinky deployment/slurm-cluster-login -- /bin/bash${NC}"
+    echo -e "${YELLOW}Note: It may take a few minutes for all components to start up${NC}"
 }
+
+# Function to deploy Slurm cluster
+deploy_slurm_cluster() {
+    local namespace="${1:-slurm}"
+    local values_file="${2:-custom-values.yaml}"
+    local version="${3:-0.3.0}"
+    local dry_run="${4:-false}"
+    local configure_nlb="${5:-false}"
+    
+    echo -e "${BLUE}=== Deploying Slurm Cluster ===${NC}"
+    
+    # Verify the values file exists
+    if [[ ! -f "$values_file" ]]; then
+        echo -e "${RED}Error: Values file $values_file not found${NC}"
+        return 1
+    fi
+    
+    # Perform dry run if requested
+    if [[ "$dry_run" == "true" ]]; then
+        echo -e "${YELLOW}Performing dry run installation...${NC}"
+        helm install --dry-run slurm oci://ghcr.io/slinkyproject/charts/slurm \
+            --values="$values_file" --version="$version" --namespace="$namespace"
+        
+        # Check if dry run was successful
+        if [[ $? -ne 0 ]]; then
+            echo -e "${RED}Dry run failed. Please check the values file and try again.${NC}"
+            return 1
+        fi
+        echo -e "${GREEN}Dry run completed successfully.${NC}"
+        
+        # Don't proceed further if this is just a dry run
+        if [[ "$dry_run" == "true" ]]; then
+            return 0
+        fi
+    fi
+    
+    # Create namespace if it doesn't exist
+    if ! kubectl get namespace "$namespace" &>/dev/null; then
+        echo -e "${YELLOW}Creating namespace $namespace...${NC}"
+        kubectl create namespace "$namespace"
+    fi
+    
+    # Perform actual installation
+    echo -e "${YELLOW}Installing Slurm cluster...${NC}"
+    helm install slurm oci://ghcr.io/slinkyproject/charts/slurm \
+        --values="$values_file" --version="$version" --namespace="$namespace"
+    
+    # Check if installation was successful
+    if [[ $? -ne 0 ]]; then
+        echo -e "${RED}Installation failed. Please check the error messages above.${NC}"
+        return 1
+    fi
+    
+    echo -e "${GREEN}✅ Slurm cluster installation initiated${NC}"
+    
+    # Watch the deployment status
+    echo -e "${YELLOW}Watching deployment status...${NC}"
+    kubectl -n "$namespace" get pods -l app.kubernetes.io/instance=slurm --watch &
+    watch_pid=$!
+    
+    # Allow user to stop watching after a while
+    sleep 10
+    echo -e "\n${YELLOW}Press Enter to stop watching and continue...${NC}"
+    read -t 60  # Wait for user input or timeout after 60 seconds
+    kill $watch_pid 2>/dev/null
+    
+    # Verify the deployment status of all components
+    echo -e "${YELLOW}Verifying deployment status of all components...${NC}"
+    kubectl get all -n "$namespace"
+    
+    echo -e "${GREEN}✅ Slurm cluster deployment completed${NC}"
+    echo -e "${YELLOW}Note: It may take a few minutes for all components to start up${NC}"
+    
+    # Configure NLB if requested
+    if [[ "$configure_nlb" == "true" ]]; then
+        echo -e "${YELLOW}Configuring Network Load Balancer for login access...${NC}"
+        # Wait a bit for the service to be created
+        sleep 10
+        configure_login_nlb "$namespace" "slurm-login"
+    fi
+    
+    return 0
+}
+
+# Function to configure a Login Network Load Balancer
+configure_login_nlb() {
+    local namespace="${1:-slurm}"
+    local service_name="${2:-slurm-login}"
+    
+    echo -e "${BLUE}=== Configuring Login Network Load Balancer ===${NC}"
+    
+    # Identify public subnets in the VPC
+    echo -e "${YELLOW}Identifying public subnets in VPC...${NC}"
+    export PUBLIC_SUBNET_ID_1=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=${VPC_ID}" "Name=map-public-ip-on-launch,Values=true" --query "Subnets[0].SubnetId" --output text)
+    export PUBLIC_SUBNET_ID_2=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=${VPC_ID}" "Name=map-public-ip-on-launch,Values=true" --query "Subnets[1].SubnetId" --output text)
+    
+    # Verify subnets were found
+    if [[ -z "$PUBLIC_SUBNET_ID_1" || "$PUBLIC_SUBNET_ID_1" == "None" || -z "$PUBLIC_SUBNET_ID_2" || "$PUBLIC_SUBNET_ID_2" == "None" ]]; then
+        echo -e "${RED}Error: Could not find two public subnets in VPC ${VPC_ID}${NC}"
+        return 1
+    fi
+    
+    echo -e "${GREEN}Found public subnets: ${PUBLIC_SUBNET_ID_1}, ${PUBLIC_SUBNET_ID_2}${NC}"
+    
+    # Add annotations to the service to make it internet facing
+    echo -e "${YELLOW}Adding annotations to ${service_name} service...${NC}"
+    kubectl annotate service ${service_name} -n ${namespace} \
+      service.beta.kubernetes.io/aws-load-balancer-type="nlb" \
+      service.beta.kubernetes.io/aws-load-balancer-scheme="internet-facing" \
+      service.beta.kubernetes.io/aws-load-balancer-nlb-target-type="ip" \
+      service.beta.kubernetes.io/aws-load-balancer-subnets="${PUBLIC_SUBNET_ID_1},${PUBLIC_SUBNET_ID_2}" \
+      service.beta.kubernetes.io/aws-load-balancer-healthcheck-port="22" \
+      --overwrite
+    
+    # Verify the service configuration
+    echo -e "${YELLOW}Verifying service configuration...${NC}"
+    kubectl describe service ${service_name} -n ${namespace}
+    
+    # Get the NLB DNS name
+    NLB_DNS=$(kubectl get service ${service_name} -n ${namespace} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+    
+    if [[ -n "$NLB_DNS" ]]; then
+        echo -e "${GREEN}✅ Login NLB configured successfully${NC}"
+        echo -e "${GREEN}✅ You can access the Slurm login node using:${NC}"
+        echo -e "${YELLOW}ssh -i ~/.ssh/id_rsa <username>@${NLB_DNS}${NC}"
+    else
+        echo -e "${YELLOW}NLB DNS name not yet available. It may take a few minutes to provision.${NC}"
+        echo -e "${YELLOW}Run the following command later to get the DNS name:${NC}"
+        echo -e "${YELLOW}kubectl get service ${service_name} -n ${namespace} -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'${NC}"
+    fi
+    
+    return 0
+}
+
+create_and_verify_fsx_pvc() {
+    local namespace="slurm"
+    local pvc_name="fsx-claim"
+    local max_retries=30
+    local retry_interval=10
+
+    echo "Creating FSx for Lustre PVC in ${namespace} namespace..."
+
+    # Create namespace if it doesn't exist
+    if ! kubectl get namespace ${namespace} >/dev/null 2>&1; then
+        echo "Creating namespace: ${namespace}"
+        kubectl create ns ${namespace}
+        if [ $? -ne 0 ]; then
+            echo "Failed to create namespace ${namespace}"
+            return 1
+        fi
+    fi
+
+    local yaml_file="lustre-pvc-slurm.yaml"
+    local yaml_url="https://github.com/aws-samples/awsome-distributed-training/raw/refs/heads/feature/slinkly-slurm-hyperpod-eks/1.architectures/7.sagemaker-hyperpod-eks/slinky-slurm/lustre-pvc-slurm.yaml"
+
+    if [ ! -f "${yaml_file}" ]; then
+        echo "PVC YAML file not found. Downloading from repository..."
+        if ! curl -s -L -o "${yaml_file}" "${yaml_url}"; then
+            echo "Failed to download ${yaml_file}"
+            return 1
+        fi
+        echo "Successfully downloaded ${yaml_file}"
+    else
+        echo "Using existing ${yaml_file}"
+    fi
+
+    # Apply the PVC configuration
+    echo "Creating PVC ${pvc_name}..."
+    kubectl apply -f "${yaml_file}"
+    if [ $? -ne 0 ]; then
+        echo "Failed to apply PVC configuration"
+        return 1
+    fi
+
+    # Wait for PVC to be bound
+    echo "Waiting for PVC to be bound..."
+    for ((i=1; i<=max_retries; i++)); do
+        status=$(kubectl get pvc ${pvc_name} -n ${namespace} -ojson | jq -r .status.phase)
+        if [ "$status" == "Bound" ]; then
+            echo "PVC successfully bound!"
+            break
+        fi
+        if [ $i -eq $max_retries ]; then
+            echo "Timeout waiting for PVC to be bound. Current status: ${status}"
+            return 1
+        fi
+        echo "Current status: ${status}, waiting ${retry_interval} seconds... (Attempt ${i}/${max_retries})"
+        sleep ${retry_interval}
+    done
+
+    # Get and display PVC details
+    echo "PVC Details:"
+    kubectl get pvc -n ${namespace}
+
+    # Get volume ID
+    volume_name=$(kubectl get pvc ${pvc_name} -n ${namespace} -ojson | jq -r .spec.volumeName)
+    if [ -n "$volume_name" ]; then
+        volume_id=$(kubectl get pv ${volume_name} -ojson | jq -r .spec.csi.volumeHandle)
+        echo "Volume ID: ${volume_id}"
+    else
+        echo "Failed to get volume name"
+        return 1
+    fi
+
+    return 0
+}
+
 # Warning message function
 warning() {
     echo -e "${BLUE}⚠️  Please note:${NC}"
@@ -759,9 +1078,19 @@ main() {
     create_fsx_lustre_storage_class 
     install_aws_load_balancer_controller
     install_slinky_prerequisites
-
+    # Option 1: Use the existing install_slurm_cluster function
+    # install_slurm_cluster
+    
+    # Option 2: Use the encapsulated deploy_slurm_cluster function
+    deploy_slurm_cluster "slurm" "custom-values.yaml" "0.3.0" "false" "true"
+    create_and_verify_fsx_pvc
+    
     echo -e "${GREEN}✅ Cluster configuration created successfully${NC}"
     echo -e "${BLUE}ℹ️  Validating the generated configuration before proceeding${NC}"
+    
+    # Display goodbye message
+    goodbye
+}
 
-
+# Execute the main function
 main
