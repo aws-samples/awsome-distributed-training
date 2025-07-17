@@ -1,10 +1,10 @@
-FROM mosaicml/llm-foundry:2.2.0_cu121_flash2_aws-latest
+FROM mosaicml/llm-foundry:2.7.0_cu128_aws-latest
 
-ARG EFA_INSTALLER_VERSION=1.30.0
-ARG AWS_OFI_NCCL_VERSION=1.8.1-aws
+ARG EFA_INSTALLER_VERSION=1.42.0
+ARG AWS_OFI_NCCL_VERSION=v1.16.0
 ARG NCCL_TESTS_VERSION=master
-ARG NCCL_VERSION=v2.18.6-1
-ARG LLM_FOUNDRY_VERSION=v0.4.0
+ARG NCCL_VERSION=v2.27.5-1
+ARG LLM_FOUNDRY_VERSION=v0.21.0
 ARG OPEN_MPI_PATH=/opt/amazon/openmpi
 
 RUN apt-get update -y
@@ -95,6 +95,4 @@ RUN echo "hwloc_base_binding_policy = none" >> /opt/amazon/openmpi/etc/openmpi-m
 RUN git clone https://github.com/mosaicml/llm-foundry.git llm-foundry \
     && cd llm-foundry \
     && git checkout $LLM_FOUNDRY_VERSION \
-    && pip install -e ".[gpu-flash2]" \
-    && pip install flash-attn==1.0.7 --no-build-isolation \
-    && pip install git+https://github.com/NVIDIA/TransformerEngine.git@v0.10
+    && pip install -e ".[gpu]" 
