@@ -34,7 +34,7 @@ You can refer to the following table to find the correct values for your instanc
 
 ### 2. Data Preprocessing
 
-1. Run the followinVjjjjjjg snippet to crete a job container that mounts the fsx volume and downloads the input datasets and vocabulary on it:
+1. Run the following snippet to crete a job container that mounts the fsx volume and downloads the input datasets and vocabulary on it:
 
     #### Step 1: Create and Apply the Data Download Job
 
