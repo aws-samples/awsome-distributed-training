@@ -117,10 +117,14 @@ setup_env_vars() {
     # --------------------------
     # Write instance mappings
     # --------------------------
+    echo "export EKS_CLUSTER_NAME=${EKS_CLUSTER_NAME}" >> env_vars
+    echo "[INFO] EKS_CLUSTER_NAME = ${EKS_CLUSTER_NAME}"
     echo "export ACCEL_INSTANCE_TYPE=${INSTANCE_TYPE}" >> env_vars
     echo "export ACCEL_INSTANCE_COUNT=${INSTANCE_COUNT}" >> env_vars
     echo "export GEN_INSTANCE_TYPE=${CONTROLLER_TYPE}" >> env_vars
     echo "export GEN_INSTANCE_COUNT=${CONTROLLER_COUNT}" >> env_vars
+
+    EKS_CLUSTER_INFO=$(aws eks describe-cluster --name "$STACK_ID" --region "$AWS_REGION") #Eks cluster information
 
     # --------------------------
     # Get EKS_CLUSTER_ARN from CloudFormation
@@ -159,11 +163,20 @@ setup_env_vars() {
     # --------------------------
     # Get EXECUTION_ROLE
     # --------------------------
+
+    #eks roleARN
+    # export EKS_ROLE_ARN=$(echo "$EKS_CLUSTER_INFO" | jq -r '.cluster.roleArn')
+    # echo "export EKS_ROLE_ARN=${EKS_ROLE_ARN}" >> env_vars
+    # echo "[INFO] EKS_ROLE_ARN = ${EKS_ROLE_ARN}"
+
+
+    #SageMakerIAMRoleArn
     EXECUTION_ROLE=$(aws cloudformation describe-stacks \
         --stack-name "$STACK_ID" \
         --region "$AWS_REGION" \
         --query 'Stacks[0].Outputs[?OutputKey==`SageMakerIAMRoleArn`].OutputValue' \
         --output text)
+    
 
     if [[ -n "$EXECUTION_ROLE" && "$EXECUTION_ROLE" != "None" ]]; then
         echo "export EXECUTION_ROLE=${EXECUTION_ROLE}" >> env_vars
@@ -190,20 +203,22 @@ setup_env_vars() {
         return 1
     fi
 
-    # --------------------------
-    # Get PRIVATE_SUBNET_ID
-    # --------------------------
-    PRIVATE_SUBNET_ID=$(aws cloudformation describe-stacks \
-        --stack-name "$STACK_ID" \
-        --region "$AWS_REGION" \
-        --query 'Stacks[0].Outputs[?OutputKey==`PrivateSubnetId`].OutputValue' \
-        --output text)
+    #EKS Cluster subnet 
 
-    if [[ -n "$PRIVATE_SUBNET_ID" && "$PRIVATE_SUBNET_ID" != "None" ]]; then
+    # --------------------------
+    # Get PRIVATE_SUBNET_ID directly from EKS cluster
+    # --------------------------
+    echo "[INFO] Retrieving subnet information from EKS cluster ${EKS_CLUSTER_NAME}..."
+    
+    # Get cluster VPC configuration
+    # Extract the first private subnet ID
+    export PRIVATE_SUBNET_ID=$(echo "$EKS_CLUSTER_INFO" | jq -r '.cluster.resourcesVpcConfig.subnetIds[0]')
+    
+    if [[ -n "$PRIVATE_SUBNET_ID" && "$PRIVATE_SUBNET_ID" != "null" ]]; then
         echo "export PRIVATE_SUBNET_ID=${PRIVATE_SUBNET_ID}" >> env_vars
         echo "[INFO] PRIVATE_SUBNET_ID = ${PRIVATE_SUBNET_ID}"
     else
-        echo "[ERROR] Failed to retrieve PRIVATE_SUBNET_ID from CloudFormation."
+        echo "[ERROR] Failed to retrieve PRIVATE_SUBNET_ID from EKS cluster."
         return 1
     fi
 
@@ -228,6 +243,10 @@ setup_env_vars() {
     # Source the generated variables
     # --------------------------
     source env_vars
+    
+    # Update kubectl config to point to the correct cluster
+    echo -e "${YELLOW}Updating kubectl configuration to use cluster: ${EKS_CLUSTER_NAME}${NC}"
+    aws eks update-kubeconfig --name $EKS_CLUSTER_NAME --region $AWS_REGION
 
     # --------------------------
     # Summary
@@ -422,9 +441,9 @@ create_config() {
    
 
     CONTROLLER_COUNT=$([ "${MH:-false}" = true ] && echo "2" || echo "1")
-    EXECUTION_ROLE=$([ "${MH:-false}" = true ] && echo "${SLURM_EXECUTION_ROLE_ARN}" || echo "${ROLE}")
+    #EXECUTION_ROLE=$([ "${MH:-false}" = true ] && echo "${SLURM_EXECUTION_ROLE_ARN}" || echo "${ROLE}")
 
-    # Loop to add worker instance groups
+    # Add worker instance groups
     WORKER_GROUP_COUNT=1
     echo -e "\n${BLUE}=== Worker Group Configuration ===${NC}"
     #while true; do
@@ -487,7 +506,7 @@ create_config() {
             \"SourceS3Uri\": \"s3://${S3_BUCKET_NAME}/src\",
             \"OnCreate\": \"on_create.sh\"
         },
-        \"ExecutionRole\": \"${ROLE}\",
+        \"ExecutionRole\": \"${EXECUTION_ROLE}\",
         \"ThreadsPerCore\": 2" 
 
     INSTANCE_GROUPS+="
@@ -519,6 +538,7 @@ EOL
 # Function to create FSx for Lustre Storage Class
 create_fsx_lustre_storage_class() 
 {
+    echo
     echo -e "${BLUE}=== Creating FSx for Lustre Storage Class ===${NC}"
     
     # Create an IAM OpenID Connect (OIDC) identity provider for the cluster
@@ -527,6 +547,7 @@ create_fsx_lustre_storage_class()
     
     # Create a service account with an IAM role for the FSx for Lustre CSI driver
     echo -e "${YELLOW}Creating service account with IAM role for use with FSx for Lustre CSI driver...(fsx-csi-controller-sa)${NC}"
+    #this creates a new stack there shoud not be an 
     eksctl create iamserviceaccount \
       --name fsx-csi-controller-sa \
       --namespace kube-system \
@@ -549,7 +570,7 @@ create_fsx_lustre_storage_class()
     fi
     
     echo "Isntalling the FSx for Lustre CSI driver:"
-    helm repo update.    
+    helm repo update  
     helm upgrade --install aws-fsx-csi-driver \
       --namespace kube-system \
       --set controller.serviceAccount.create=false \
@@ -592,7 +613,7 @@ EOL
     rm -f /tmp/lustre-storageclass.yaml
     
     echo -e "${GREEN}✅ FSx for Lustre Storage Class setup completed${NC}"
-    echo "EOL"
+    echo
 }
 
 
@@ -623,7 +644,7 @@ install_aws_load_balancer_controller()
         --approve
     
     # Verify service account annotation
-    echo -e "${YELLOW}Verifying service account annotation...${NC}"
+    echo -e "${YELLOW}Verifying Load balance contoller service account annotation (aws-load-balancer-controller) ${NC}"
     kubectl get sa aws-load-balancer-controller -n kube-system -oyaml
     
     # Install AWS Load Balancer Controller using Helm
@@ -667,7 +688,7 @@ install_aws_load_balancer_controller()
     rm -f iam_policy.json
     
     echo -e "${GREEN}✅ AWS Load Balancer Controller installation completed${NC}"
-    echo "EOL"
+    echo
 }
 
 install_slinky_prerequisites() {
@@ -682,14 +703,40 @@ install_slinky_prerequisites() {
     
     helm repo update
     
-    # Install cert-manager
+    # # Install cert-manager
+    # echo -e "${YELLOW}Installing cert-manager...${NC}"
+    # if ! helm list -n cert-manager | grep -q "cert-manager"; then
+    #     helm install cert-manager jetstack/cert-manager \
+    #         --namespace cert-manager --create-namespace --set crds.enabled=true
+    # else
+    #     echo -e "${YELLOW}cert-manager already exists, skipping installation...${NC}"
+    # fi
+
     echo -e "${YELLOW}Installing cert-manager...${NC}"
     if ! helm list -n cert-manager | grep -q "cert-manager"; then
+        # Temporarily disable the AWS Load Balancer webhook
+        echo -e "${YELLOW}Temporarily disabling AWS Load Balancer webhook...${NC}"
+        kubectl delete -A ValidatingWebhookConfiguration aws-load-balancer-webhook --ignore-not-found=true
+        
+        # Create namespace
+        kubectl create namespace cert-manager --dry-run=client -o yaml | kubectl apply -f -
+        
+        # Apply CRDs
+        kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.12.0/cert-manager.crds.yaml
+        
+        # Install cert-manager
         helm install cert-manager jetstack/cert-manager \
-            --namespace cert-manager --create-namespace --set crds.enabled=true
+            --namespace cert-manager \
+            --set installCRDs=false \
+            --timeout 5m
+        
+        # Restart the AWS Load Balancer Controller
+        kubectl rollout restart deployment aws-load-balancer-controller -n kube-system
     else
         echo -e "${YELLOW}cert-manager already exists, skipping installation...${NC}"
     fi
+
+
     
     # Install Prometheus
     echo -e "${YELLOW}Installing Prometheus...${NC}"
@@ -1157,7 +1204,9 @@ main() {
     echo -e "${BLUE} Generating cluster configuration...${NC}"
     create_config #also calls the cloufromation stack and is created at this step 
     create_fsx_lustre_storage_class 
+
     install_aws_load_balancer_controller
+
     install_slinky_prerequisites
     # Option 1: Use the existing install_slurm_cluster function
     # install_slurm_cluster
