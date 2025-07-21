@@ -703,14 +703,14 @@ install_slinky_prerequisites() {
     
     helm repo update
     
-    # # Install cert-manager
-    # echo -e "${YELLOW}Installing cert-manager...${NC}"
-    # if ! helm list -n cert-manager | grep -q "cert-manager"; then
-    #     helm install cert-manager jetstack/cert-manager \
-    #         --namespace cert-manager --create-namespace --set crds.enabled=true
-    # else
-    #     echo -e "${YELLOW}cert-manager already exists, skipping installation...${NC}"
-    # fi
+    # Install cert-manager
+    echo -e "${YELLOW}Installing cert-manager...${NC}"
+    if ! helm list -n cert-manager | grep -q "cert-manager"; then
+        helm install cert-manager jetstack/cert-manager \
+            --namespace cert-manager --create-namespace --set crds.enabled=true
+    else
+        echo -e "${YELLOW}cert-manager already exists, skipping installation...${NC}"
+    fi
 
     echo -e "${YELLOW}Installing cert-manager...${NC}"
     if ! helm list -n cert-manager | grep -q "cert-manager"; then
