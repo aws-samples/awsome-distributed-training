@@ -113,50 +113,131 @@ setup_env_vars() {
     > env_vars
 
     echo -e "${YELLOW}Generating new environment variables...${NC}"
-    
-    generate_env_vars() {
-        ACCEL_INSTANCE_TYPE=$INSTANCE_TYPE
-        ACCEL_INSTANCE_COUNT=$INSTANCE_COUNT
-        GEN_INSTANCE_TYPE=$CONTROLLER_TYPE
-        GEN_INSTANCE_COUNT=$CONTROLLER_COUNT
 
-        curl -O https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/main/1.architectures/7.sagemaker-hyperpod-eks/create_config.sh 
-        #bash awsome-distributed-training/1.architectures/5.sagemaker-hyperpod/create_config.sh
-        #curl -O https://github.com/aws-samples/awsome-distributed-training/blob/feature/slinkly-slurm-hyperpod-eks/1.architectures/5.sagemaker-hyperpod/create_config.sh
-        chmod +x create_config.sh
-        ./create_config.sh
-        #source env_vars
-        bash create_config.sh
-    }
+    # --------------------------
+    # Write instance mappings
+    # --------------------------
+    echo "export ACCEL_INSTANCE_TYPE=${INSTANCE_TYPE}" >> env_vars
+    echo "export ACCEL_INSTANCE_COUNT=${INSTANCE_COUNT}" >> env_vars
+    echo "export GEN_INSTANCE_TYPE=${CONTROLLER_TYPE}" >> env_vars
+    echo "export GEN_INSTANCE_COUNT=${CONTROLLER_COUNT}" >> env_vars
 
-    # Capture stdout + stderr
-    if error_output=$(generate_env_vars 2>&1); then
-        echo -e "${GREEN}✅ New environment variables generated and sourced${NC}"
+    # --------------------------
+    # Get EKS_CLUSTER_ARN from CloudFormation
+    # --------------------------
+    EKS_CLUSTER_ARN=$(aws cloudformation describe-stacks \
+        --stack-name "$STACK_ID" \
+        --region "$AWS_REGION" \
+        --query 'Stacks[0].Outputs[?OutputKey==`EKSClusterArn`].OutputValue' \
+        --output text)
+
+    if [[ -n "$EKS_CLUSTER_ARN" && "$EKS_CLUSTER_ARN" != "None" ]]; then
+        echo "export EKS_CLUSTER_ARN=${EKS_CLUSTER_ARN}" >> env_vars
+        echo "[INFO] EKS_CLUSTER_ARN = ${EKS_CLUSTER_ARN}"
     else
-        echo -e "${YELLOW}⚠️  Error occurred while generating environment variables:${NC}"
-        echo -e "${YELLOW}$error_output${NC}"
-        echo -e "Options:"
-        echo -e "1. Press Enter to continue with the rest of the script (Not Recommended, unless you know how to set the environment variables manually!)"
-        echo -e "2. Press Ctrl+C to exit the script."
+        echo "[ERROR] Failed to retrieve EKS_CLUSTER_ARN from CloudFormation."
+        return 1
+    fi
 
-        read -e -p "Select an option (Enter/Ctrl+C): " choice
+    # --------------------------
+    # Get S3_BUCKET_NAME
+    # --------------------------
+    S3_BUCKET_NAME=$(aws cloudformation describe-stacks \
+        --stack-name "$STACK_ID" \
+        --region "$AWS_REGION" \
+        --query 'Stacks[0].Outputs[?OutputKey==`S3BucketName`].OutputValue' \
+        --output text)
 
-        if [[ -z "$choice" ]]; then
-            echo -e "${BLUE}Continuing with the rest of the script...${NC}"
-        fi
-    fi    
+    if [[ -n "$S3_BUCKET_NAME" && "$S3_BUCKET_NAME" != "None" ]]; then
+        echo "export S3_BUCKET_NAME=${S3_BUCKET_NAME}" >> env_vars
+        echo "[INFO] S3_BUCKET_NAME = ${S3_BUCKET_NAME}"
+    else
+        echo "[ERROR] Failed to retrieve S3_BUCKET_NAME from CloudFormation."
+        return 1
+    fi
 
-    # FEAT: Add support for multiple headnodes
-    #MH
-    #multi_headnode
+    # --------------------------
+    # Get EXECUTION_ROLE
+    # --------------------------
+    EXECUTION_ROLE=$(aws cloudformation describe-stacks \
+        --stack-name "$STACK_ID" \
+        --region "$AWS_REGION" \
+        --query 'Stacks[0].Outputs[?OutputKey==`SageMakerIAMRoleArn`].OutputValue' \
+        --output text)
 
+    if [[ -n "$EXECUTION_ROLE" && "$EXECUTION_ROLE" != "None" ]]; then
+        echo "export EXECUTION_ROLE=${EXECUTION_ROLE}" >> env_vars
+        echo "[INFO] EXECUTION_ROLE = ${EXECUTION_ROLE}"
+    else
+        echo "[ERROR] Failed to retrieve EXECUTION_ROLE from CloudFormation."
+        return 1
+    fi
+
+    # --------------------------
+    # Get VPC_ID
+    # --------------------------
+    VPC_ID=$(aws cloudformation describe-stacks \
+        --stack-name "$STACK_ID" \
+        --region "$AWS_REGION" \
+        --query 'Stacks[0].Outputs[?OutputKey==`VpcId`].OutputValue' \
+        --output text)
+
+    if [[ -n "$VPC_ID" && "$VPC_ID" != "None" ]]; then
+        echo "export VPC_ID=${VPC_ID}" >> env_vars
+        echo "[INFO] VPC_ID = ${VPC_ID}"
+    else
+        echo "[ERROR] Failed to retrieve VPC_ID from CloudFormation."
+        return 1
+    fi
+
+    # --------------------------
+    # Get PRIVATE_SUBNET_ID
+    # --------------------------
+    PRIVATE_SUBNET_ID=$(aws cloudformation describe-stacks \
+        --stack-name "$STACK_ID" \
+        --region "$AWS_REGION" \
+        --query 'Stacks[0].Outputs[?OutputKey==`PrivateSubnetId`].OutputValue' \
+        --output text)
+
+    if [[ -n "$PRIVATE_SUBNET_ID" && "$PRIVATE_SUBNET_ID" != "None" ]]; then
+        echo "export PRIVATE_SUBNET_ID=${PRIVATE_SUBNET_ID}" >> env_vars
+        echo "[INFO] PRIVATE_SUBNET_ID = ${PRIVATE_SUBNET_ID}"
+    else
+        echo "[ERROR] Failed to retrieve PRIVATE_SUBNET_ID from CloudFormation."
+        return 1
+    fi
+
+    # --------------------------
+    # Get SECURITY_GROUP_ID
+    # --------------------------
+    SECURITY_GROUP_ID=$(aws cloudformation describe-stacks \
+        --stack-name "$STACK_ID" \
+        --region "$AWS_REGION" \
+        --query 'Stacks[0].Outputs[?OutputKey==`SecurityGroupId`].OutputValue' \
+        --output text)
+
+    if [[ -n "$SECURITY_GROUP_ID" && "$SECURITY_GROUP_ID" != "None" ]]; then
+        echo "export SECURITY_GROUP_ID=${SECURITY_GROUP_ID}" >> env_vars
+        echo "[INFO] SECURITY_GROUP_ID = ${SECURITY_GROUP_ID}"
+    else
+        echo "[ERROR] Failed to retrieve SECURITY_GROUP_ID from CloudFormation."
+        return 1
+    fi
+
+    # --------------------------
+    # Source the generated variables
+    # --------------------------
     source env_vars
 
+    # --------------------------
+    # Summary
+    # --------------------------
     echo -e "\n${BLUE}=== Environment Variables Summary ===${NC}"
     echo -e "${GREEN}Current environment variables:${NC}"
     cat env_vars
     echo -e "\n${BLUE}=== Environment Setup Complete ===${NC}"
 }
+
 
 
 # Helper function to get user inputs with default values specified
@@ -418,13 +499,13 @@ create_config() {
     INSTANCE_GROUPS+="]"
     #done with the instance array 
 
-    read -e -p "What would you like to name your cluster? (default: slinky-cluster): " CLUSTER_NAME
-    CLUSTER_NAME=${CLUSTER_NAME:-slinky-cluster}
+    # read -e -p "What would you like to name your cluster? (default: slinky-cluster): " CLUSTER_NAME
+    # CLUSTER_NAME=${CLUSTER_NAME:-slinky-cluster}
 
     # Create the cluster-config.json file
     cat > cluster-config.json << EOL
     {
-        "ClusterName": "$CLUSTER_NAME",
+        "ClusterName": "$EKS_CLUSTER_NAME",
         "InstanceGroups": $INSTANCE_GROUPS,
         "VpcConfig": {
         "SecurityGroupIds": ["$SECURITY_GROUP_ID"],
