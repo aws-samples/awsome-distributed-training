@@ -22,23 +22,11 @@ phases:
       - echo "TAG=$TAG"
       - export REPO_COUNT="$(aws ecr describe-repositories | grep repositoryName | grep \"${ECR_REPOSITORY_NAME}\" | wc -l)"
       - if [ "$REPO_COUNT" == 0 ]; then aws ecr create-repository --repository-name ${ECR_REPOSITORY_NAME}; else echo "Repository ${ECR_REPOSITORY_NAME} already exists"; fi
+      - aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws
   build:
     commands:
       - export REPO_URI="$(aws ecr describe-repositories | grep repositoryUri | grep /${ECR_REPOSITORY_NAME}\" | cut -d '"' -f 4)"
       - echo "REPO_URI=$REPO_URI"
       - echo "Building ${REPO_URI}:${TAG} ..."
-      - cd micro-benchmarks/nccl-tests && docker buildx build  --platform linux/amd64,linux/arm64 --build-arg CUDA_VERSION=${CUDA_VERSION} --build-arg GDRCOPY_VERSION=$GDRCOPY_VERSION --build-arg EFA_INSTALLER_VERSION=$EFA_INSTALLER_VERSION --build-arg AWS_OFI_NCCL_VERSION=$AWS_OFI_NCCL_VERSION --build-arg NCCL_VERSION=$NCCL_VERSION --build-arg NCCL_TESTS_VERSION=$NCCL_TESTS_VERSION -t ${REPO_URI}:${TAG} -f ./nccl-tests.Dockerfile .
-  post_build:
-    commands:
-      - export ECR_URI=${REPO_URI%"/${ECR_REPOSITORY_NAME}"}
-      - echo "Logging in to ECR_URI $ECR_URI"
-      - aws ecr get-login-password | docker login --username AWS --password-stdin ${ECR_URI}
-      - docker image push ${REPO_URI}:${TAG}
-      - docker image tag ${REPO_URI}:${TAG} ${REPO_URI}:latest
-      - docker image push ${REPO_URI}:latest
-      - aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws
-      - docker image tag ${REPO_URI}:${TAG} public.ecr.aws/hpc-cloud/${ECR_REPOSITORY_NAME}:${TAG}
-      - docker image tag ${REPO_URI}:${TAG} public.ecr.aws/hpc-cloud/${ECR_REPOSITORY_NAME}:latest
-      - docker push public.ecr.aws/hpc-cloud/${ECR_REPOSITORY_NAME}:${TAG}
-      - docker push public.ecr.aws/hpc-cloud/${ECR_REPOSITORY_NAME}:latest
-
+      - docker buildx create --use --name multiarch
+      - cd micro-benchmarks/nccl-tests && docker buildx build --push --platform=linux/amd64,linux/arm64 --build-arg CUDA_VERSION=${CUDA_VERSION} --build-arg GDRCOPY_VERSION=$GDRCOPY_VERSION --build-arg EFA_INSTALLER_VERSION=$EFA_INSTALLER_VERSION --build-arg AWS_OFI_NCCL_VERSION=$AWS_OFI_NCCL_VERSION --build-arg NCCL_VERSION=$NCCL_VERSION --build-arg NCCL_TESTS_VERSION=$NCCL_TESTS_VERSION -t public.ecr.aws/hpc-cloud/${ECR_REPOSITORY_NAME}:${TAG} -t public.ecr.aws/hpc-cloud/${ECR_REPOSITORY_NAME}:latest -f ./nccl-tests.Dockerfile .
