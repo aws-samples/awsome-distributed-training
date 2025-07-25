@@ -338,18 +338,33 @@ create_fsx_lustre_storage_class()
     # Create an IAM OpenID Connect (OIDC) identity provider for the cluster
     echo -e "${YELLOW}Creating IAM OIDC identity provider...${NC}"
     eksctl utils associate-iam-oidc-provider --cluster $EKS_CLUSTER_NAME --approve
-    
     # Create a service account with an IAM role for the FSx for Lustre CSI driver
+
+    # Wait a moment for cleanup
+
     echo -e "${YELLOW}Creating service account with IAM role for use with FSx for Lustre CSI driver...(fsx-csi-controller-sa)${NC}"
-    #this creates a new stack there shoud not be an 
     eksctl create iamserviceaccount \
-      --name fsx-csi-controller-sa \
-      --namespace kube-system \
-      --cluster $EKS_CLUSTER_NAME \
-      --attach-policy-arn arn:aws:iam::aws:policy/AmazonFSxFullAccess \
-      --approve \
-      --role-name FSXLCSI-${EKS_CLUSTER_NAME}-${AWS_REGION} \
-      --region $AWS_REGION
+        --name fsx-csi-controller-sa \
+        --namespace kube-system \
+        --cluster $EKS_CLUSTER_NAME \
+        --attach-policy-arn arn:aws:iam::aws:policy/AmazonFSxFullAccess \
+        --approve \
+        --role-name FSXLCSI-${EKS_CLUSTER_NAME}-${AWS_REGION} \
+        --region $AWS_REGION
+
+
+    
+    
+    # eksctl create iamserviceaccount \
+    #     --name fsx-csi-controller-sa \
+    #     --namespace kube-system \
+    #     --cluster $EKS_CLUSTER_NAME \
+    #     --attach-policy-arn arn:aws:iam::aws:policy/AmazonFSxFullAccess \
+    #     --approve \
+    #     --role-name FSXLCSI-${EKS_CLUSTER_NAME}-${AWS_REGION} \
+    #     --region $AWS_REGION \
+    #     --override-existing-serviceaccounts
+
     
     # Verify service account annotation
     echo -e "${YELLOW}Verifying service account annotation...${NC}"
@@ -363,12 +378,38 @@ create_fsx_lustre_storage_class()
         echo -e "${YELLOW}Helm repository aws-fsx-csi-driver already exists, skipping add...${NC}"
     fi
     
-    echo "Isntalling the FSx for Lustre CSI driver:"
+    # Check if FSx CSI driver pods exist
+    if kubectl get pods -n kube-system -l app.kubernetes.io/name=aws-fsx-csi-driver 2>/dev/null | grep -q .; then
+        echo -e "${YELLOW}Existing FSx CSI driver pods found. Cleaning up...${NC}"
+        
+        # Show existing pods before cleanup
+        echo -e "${YELLOW}Current FSx CSI driver pods:${NC}"
+        kubectl get pods -n kube-system -l app.kubernetes.io/name=aws-fsx-csi-driver
+        
+        # Delete the helm release
+        echo -e "${YELLOW}Uninstalling existing FSx CSI driver...${NC}"
+        helm uninstall aws-fsx-csi-driver -n kube-system
+        
+        # Delete any remaining pods (backup cleanup)
+        kubectl delete pods -n kube-system -l app.kubernetes.io/name=aws-fsx-csi-driver 2>/dev/null || true
+        
+        # Wait a moment for cleanup
+        echo -e "${YELLOW}Waiting for pods to be cleaned up...${NC}"
+        sleep 10
+    else
+        echo -e "${YELLOW}No existing FSx CSI driver pods found. Proceeding with installation...${NC}"
+    fi
+    
+    echo -e "${YELLOW}Installing the FSx for Lustre CSI driver...${NC}"
     helm repo update  
     helm upgrade --install aws-fsx-csi-driver \
       --namespace kube-system \
       --set controller.serviceAccount.create=false \
       aws-fsx-csi-driver/aws-fsx-csi-driver
+    
+    # Verify installation of the FSx for Lustre CSI driver
+    echo -e "${YELLOW}Verifying FSx for Lustre CSI driver installation...${NC}"
+    kubectl get pods -n kube-system -l app.kubernetes.io/name=aws-fsx-csi-driver
     
     # Verify installation of the FSx for Lustre CSI driver
     echo -e "${YELLOW}Verifying FSx for Lustre CSI driver installation...${NC}"
@@ -497,15 +538,6 @@ install_slinky_prerequisites() {
     
     helm repo update
 
-    # # Install cert-manager
-    # echo -e "${YELLOW}Installing cert-manager...${NC}"
-    # if ! helm list -n cert-manager | grep -q "cert-manager"; then
-    #     helm install cert-manager jetstack/cert-manager \
-    #         --namespace cert-manager --create-namespace --set crds.enabled=true
-    # else
-    #     echo -e "${YELLOW}cert-manager already exists, skipping installation...${NC}"
-    # fi
-
     MAX_RETRIES=30
     RETRY_INTERVAL=5
     READY=false
@@ -529,53 +561,6 @@ install_slinky_prerequisites() {
         echo -e "${YELLOW}⚠️ AWS Load Balancer Controller not ready after waiting. Temporarily disabling webhook...${NC}"
         kubectl delete -A ValidatingWebhookConfiguration aws-load-balancer-webhook --ignore-not-found=true
     fi
-    #V2
-    # if [[ "$READY" == "true" ]]; then
-    #     echo -e "${YELLOW}Installing cert-manager...${NC}"
-    #     if ! helm list -n cert-manager | grep -q "cert-manager"; then
-    #         helm install cert-manager jetstack/cert-manager \
-    #             --namespace cert-manager \
-    #             --create-namespace \
-    #             --set crds.enabled=true \
-    #             --timeout 10m
-    #     else
-    #         echo -e "${YELLOW}cert-manager already exists, skipping installation...${NC}"
-    #     fi
-    # else
-    #     echo -e "${RED}Cannot install cert-manager as Load Balancer Controller is not ready${NC}"
-    # fi
-
-
-    #V3
-    # if [[ "$READY" == "true" ]]; then
-    #     echo -e "${YELLOW}Installing cert-manager...${NC}"
-    #     if ! helm list -n cert-manager | grep -q "cert-manager"; then
-    #         echo -e "${YELLOW}Starting cert-manager installation with debug logs...${NC}"
-            
-    #         # Increase timeout and add debug flags
-    #         helm install cert-manager jetstack/cert-manager \
-    #             --namespace cert-manager \
-    #             --create-namespace \
-    #             --set crds.enabled=true \
-    #             --timeout 20m \
-    #             --debug \
-    #             || {
-    #                 echo -e "${RED}Cert-manager installation failed. Checking status...${NC}"
-    #                 kubectl get pods -n cert-manager
-    #                 kubectl describe pods -n cert-manager
-    #                 echo -e "${RED}Continuing despite cert-manager installation failure${NC}"
-    #             }
-            
-    #         # Check if installation succeeded despite timeout
-    #         if helm list -n cert-manager | grep -q "cert-manager"; then
-    #             echo -e "${GREEN}✅ Cert-manager appears to be installed despite potential timeout${NC}"
-    #         fi
-    #     else
-    #         echo -e "${YELLOW}cert-manager already exists, skipping installation...${NC}"
-    #     fi
-    # else
-    #     echo -e "${RED}Cannot install cert-manager as Load Balancer Controller is not ready${NC}"
-    # fi
 
     #V4 
     if [[ "$READY" == "true" ]]; then
@@ -639,13 +624,22 @@ install_slinky_prerequisites() {
     
     # Install Slurm Operator
     echo -e "${YELLOW}Installing Slurm Operator...${NC}"
-    if ! helm list -n slinky | grep -q "slurm-operator"; then
-        helm install slurm-operator oci://ghcr.io/slinkyproject/charts/slurm-operator \
-            --values=values-operator.yaml --version=0.3.0 --namespace=slinky --create-namespace
-    else
-        echo -e "${YELLOW}Slurm Operator already exists, skipping installation...${NC}"
+    if helm list -n slinky | grep -q "slurm-operator"; then
+        echo -e "${YELLOW}Existing Slurm Operator found. Uninstalling...${NC}"
+        helm uninstall slurm-operator -n slinky
+        # Wait for the resources to be cleaned up
+        sleep 10
     fi
-    
+
+    echo -e "${YELLOW}Installing Slurm Operator...${NC}"
+    helm install slurm-operator oci://ghcr.io/slinkyproject/charts/slurm-operator \
+        --values=values-operator.yaml \
+        --version=0.3.0 \
+        --namespace=slinky \
+        --create-namespace \
+        --set installCRDs=true \
+        --set webhook.installCRDs=true
+        
     # Verify Slurm Operator installation
     echo -e "${YELLOW}Verifying Slurm Operator installation...${NC}"
     kubectl get all -n slinky
@@ -798,6 +792,7 @@ set_slurm_values() {
     echo -e "${GREEN}✓ Slurm values have been successfully configured!${NC}"
 }
 
+
 create_and_verify_fsx_pvc() {
     local namespace="slurm"
     local pvc_name="fsx-claim"
@@ -871,55 +866,6 @@ create_and_verify_fsx_pvc() {
     return 0
 }
 
-
-install_slurm() {
-    echo -e "${BLUE}=== Installing Slurm Cluster ===${NC}"
-    
-    
-    # # Install Slurm cluster
-    # echo -e "${YELLOW}Installing Slurm cluster...${NC}"
-    # if helm list -n slinky | grep -q "slurm-cluster"; then
-    #     echo -e "${YELLOW}Slurm cluster already exists, upgrading...${NC}"
-    #     helm upgrade slurm-cluster oci://ghcr.io/slinkyproject/charts/slurm-cluster \
-    #         --values=$VALUES_FILE --version=0.3.0 --namespace=slinky
-    # else
-    #     echo -e "${YELLOW}Installing new Slurm cluster...${NC}"
-    #     helm install slurm-cluster oci://ghcr.io/slinkyproject/charts/slurm-cluster \
-    #         --values=$VALUES_FILE --version=0.3.0 --namespace=slinky
-    # fi
-    
-    # # Verify installation
-    # echo -e "${YELLOW}Verifying Slurm cluster installation...${NC}"
-    # kubectl get all -n slinky
-    
-    # # Save values file for reference
-    # echo -e "${YELLOW}Saving values file as ${VALUES_FILE}.used for reference${NC}"
-    # cp $VALUES_FILE ${VALUES_FILE}.used
-    
-    # # Configure Login NLB
-    # echo -e "${YELLOW}Configuring Login Network Load Balancer...${NC}"
-    # # Get public subnets
-    # export PUBLIC_SUBNET_ID_1=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=${VPC_ID}" "Name=map-public-ip-on-launch,Values=true" --query "Subnets[0].SubnetId" --output text)
-    # export PUBLIC_SUBNET_ID_2=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=${VPC_ID}" "Name=map-public-ip-on-launch,Values=true" --query "Subnets[1].SubnetId" --output text)
-    
-    # echo -e "${YELLOW}Found public subnets: $PUBLIC_SUBNET_ID_1, $PUBLIC_SUBNET_ID_2${NC}"
-    
-    # # Configure NLB for slurm-login service
-    # kubectl annotate service slurm-login -n slurm \
-    #   service.beta.kubernetes.io/aws-load-balancer-type="nlb" \
-    #   service.beta.kubernetes.io/aws-load-balancer-scheme="internet-facing" \
-    #   service.beta.kubernetes.io/aws-load-balancer-nlb-target-type="ip" \
-    #   service.beta.kubernetes.io/aws-load-balancer-subnets="$PUBLIC_SUBNET_ID_1,$PUBLIC_SUBNET_ID_2" \
-    #   service.beta.kubernetes.io/aws-load-balancer-healthcheck-port="22" \
-    #   --overwrite
-      
-    # kubectl describe service slurm-login -n slurm
-    
-    # echo -e "${GREEN}✅ Slurm cluster installation completed${NC}"
-    # echo -e "${GREEN}✅ You can access the Slurm cluster using:${NC}"
-    # echo -e "${YELLOW}kubectl exec -it -n slinky deployment/slurm-cluster-login -- /bin/bash${NC}"
-    # echo -e "${YELLOW}Note: It may take a few minutes for all components to start up${NC}"
-}
 
 # Function to deploy Slurm cluster
 deploy_slurm_cluster() {
@@ -1104,23 +1050,18 @@ main() {
     # Cluster Configuration
     #echo -e "\n${BLUE}🚀 Creating the Cluster${NC}"
     echo -e "${BLUE} Generating cluster configuration...${NC}"
-    create_config #also calls the cloufromation stack and is created at this step 
+    create_config 
     create_fsx_lustre_storage_class 
 
     install_aws_load_balancer_controller
 
     install_slinky_prerequisites
-    # Option 1: Use the existing install_slurm_cluster function
     set_slurm_values
     create_and_verify_fsx_pvc
     deploy_slurm_cluster "slurm" "custom-values.yaml" "0.3.0" "false" "true"
     
-    # Option 2: Use the encapsulated deploy_slurm_cluster function
-    #deploy_slurm_cluster "slurm" "custom-values.yaml" "0.3.0" "false" "true"
-    #create_and_verify_fsx_pvc
     
     #echo -e "${GREEN}✅ Cluster configuration created successfully${NC}"
-    #echo -e "${BLUE}ℹ️  Validating the generated configuration before proceeding${NC}"
     
     # Display goodbye message
     goodbye
