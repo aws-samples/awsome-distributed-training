@@ -105,6 +105,88 @@ check_git() {
     fi
 }
 
+# Function to display the prerequisites before starting this workshop
+display_important_prereqs() {
+    echo -e "${BLUE}Before running this script, please ensure the following prerequisites:${NC}\n"
+
+    echo -e "${GREEN}1. 🔑 IAM Credentials:${NC}"
+    echo "   You have Administrator Access Credentials in IAM."
+    echo "   This is crucial as we'll be using CloudFormation to create IAM roles and policies."
+    echo "   Run 'aws configure' to set up your credentials."
+
+    echo -e "\n${GREEN}2. Deploy Sagemaker Hyperpod on EKS stack using this link https://catalog.workshops.aws/sagemaker-hyperpod-eks/en-US/00-setup/00-workshop-infra-cfn${NC}"
+    echo "  Make sure the cloufromation stack creation is successful, the eks and hyperpod clusters are \"Inservice\" status and the nodes are \"Running\" "
+    echo " (It may take up to an hour for DeepHealthChecks on the node to be finished and for the node to be in the \"running\" state)."
+
+    echo -e "\n${GREEN}3. Build a Slurmd Deep Learning Container:${NC}"
+    echo "   Build a Slurm DLC using this dockerfile: https://github.com/aws-samples/awsome-distributed-training/blob/feature/slinkly-slurm-hyperpod-eks/1.architectures/7.sagemaker-hyperpod-eks/slinky-slurm/dlc-slurmd.Dockerfile "
+    echo "   following this direction: https://github.com/aws-samples/awsome-distributed-training/blob/feature/slinkly-slurm-hyperpod-eks/1.architectures/7.sagemaker-hyperpod-eks/slinky-slurm/Docker-Build-README.md"
+
+    echo -e "\n${GREEN}4. 🔧 Packages required for this script to run:${NC}"
+    echo "   Ensure you install the following:  jq, yq (install:sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq && sudo chmod +x /usr/bin/yq ) "
+    echo -e "\n${YELLOW}Ready to proceed? Press Enter to continue or Ctrl+C to exit...${NC}"
+    read
+}
+
+region_check() {
+
+    NEW_REGION=$(get_prompt "Please, enter the AWS region where you want to set up your cluster") #eks cluster name
+
+    # echo -e "${BLUE}Please confirm that your AWS region is ${GREEN}$AWS_REGION${BLUE} (default).${NC}"
+
+    # read -p "> " NEW_REGION
+
+    if [[ -z "$NEW_REGION" ]]; then
+        echo -e "${GREEN}✅ Using default region: ${YELLOW}$AWS_REGION${NC}"
+    else
+        export AWS_REGION="$NEW_REGION"
+        echo -e "${GREEN}✅ Region updated to: ${YELLOW}$AWS_REGION${NC}"
+    fi    
+
+    echo -e "\n${BLUE}Your region is set to: ${YELLOW}$AWS_REGION${NC}"
+    echo -e "${BLUE}Ensure your chosen region supports SageMaker HyperPod.${NC}"
+    echo -e "${GREEN}You can check out https://docs.aws.amazon.com/sagemaker/latest/dg/sagemaker-hyperpod.html#sagemaker-hyperpod-available-regions to learn about supported regions.${NC}"
+    echo -e "${BLUE}Press Enter to continue...${NC}"
+    read
+}
+
+
+# Helper function to get user inputs with default values specified
+get_input() {
+    local prompt="$1"
+    local default="$2"
+    local input
+    read -e -p "$prompt [$default]: " input
+    echo "${input:-$default}"    
+}
+
+get_prompt() {
+    local prompt="$1"
+    local input
+    read -e -p "$prompt: " input
+    echo "$input"
+}
+
+
+# Warning message function
+warning() {
+    echo -e "${BLUE}⚠️  Please note:${NC}"
+    echo -e "   - Cluster creation may take some time (~15-20 min)"
+    echo -e "   - This operation may incur costs on your AWS account"
+    echo -e "   - Ensure you understand the implications before proceeding\n"
+}
+
+# Function to display goodbye message
+goodbye() {
+    # Final goodbye message
+    echo -e "${GREEN}Thank you for using the SageMaker HyperPod Cluster Creation Script!${NC}"
+    echo -e "${GREEN}For any issues or questions, please refer to the AWS documentation.${NC}"
+    echo "https://docs.aws.amazon.com/sagemaker/latest/dg/smcluster-getting-started.html"
+
+    # Exit message
+    echo -e "\n${BLUE}Exiting script. Good luck with your SageMaker HyperPod journey! 👋${NC}\n"
+}  
+
 
 # Function to setup environment variables
 setup_env_vars() {
@@ -258,23 +340,6 @@ setup_env_vars() {
     echo -e "\n${BLUE}=== Environment Setup Complete ===${NC}"
 }
 
-
-
-# Helper function to get user inputs with default values specified
-get_input() {
-    local prompt="$1"
-    local default="$2"
-    local input
-    read -e -p "$prompt [$default]: " input
-    echo "${input:-$default}"    
-}
-
-get_prompt() {
-    local prompt="$1"
-    local input
-    read -e -p "$prompt: " input
-    echo "$input"
-}
 
 # Function to write the cluster-config.json file
 create_config() {
@@ -650,50 +715,7 @@ install_slinky_prerequisites() {
     echo -e "${GREEN}✅ Slinky prerequisites installation completed${NC}"
 }
 
-# Function to display the prerequisites before starting this workshop
-display_important_prereqs() {
-    echo -e "${BLUE}Before running this script, please ensure the following prerequisites:${NC}\n"
 
-    echo -e "${GREEN}1. 🔑 IAM Credentials:${NC}"
-    echo "   You have Administrator Access Credentials in IAM."
-    echo "   This is crucial as we'll be using CloudFormation to create IAM roles and policies."
-    echo "   Run 'aws configure' to set up your credentials."
-
-    echo -e "\n${GREEN}2. Deploy Sagemaker Hyperpod on EKS stack using this link https://catalog.workshops.aws/sagemaker-hyperpod-eks/en-US/00-setup/00-workshop-infra-cfn${NC}"
-    echo "  Make sure the cloufromation stack creation is successful, the eks and hyperpod clusters are \"Inservice\" status and the nodes are \"Running\" "
-    echo " (It may take up to an hour for DeepHealthChecks on the node to be finished and for the node to be in the \"running\" state)."
-
-    echo -e "\n${GREEN}3. Build a Slurmd Deep Learning Container:${NC}"
-    echo "   Build a Slurm DLC using this dockerfile: https://github.com/aws-samples/awsome-distributed-training/blob/feature/slinkly-slurm-hyperpod-eks/1.architectures/7.sagemaker-hyperpod-eks/slinky-slurm/dlc-slurmd.Dockerfile "
-    echo "   following this direction: https://github.com/aws-samples/awsome-distributed-training/blob/feature/slinkly-slurm-hyperpod-eks/1.architectures/7.sagemaker-hyperpod-eks/slinky-slurm/Docker-Build-README.md"
-
-    echo -e "\n${GREEN}4. 🔧 Packages required for this script to run:${NC}"
-    echo "   Ensure you install the following: pip, jq, boto3, and jsonschema"
-    echo -e "\n${YELLOW}Ready to proceed? Press Enter to continue or Ctrl+C to exit...${NC}"
-    read
-}
-
-region_check() {
-
-    NEW_REGION=$(get_prompt "Please, enter the AWS region where you want to set up your cluster") #eks cluster name
-
-    # echo -e "${BLUE}Please confirm that your AWS region is ${GREEN}$AWS_REGION${BLUE} (default).${NC}"
-
-    # read -p "> " NEW_REGION
-
-    if [[ -z "$NEW_REGION" ]]; then
-        echo -e "${GREEN}✅ Using default region: ${YELLOW}$AWS_REGION${NC}"
-    else
-        export AWS_REGION="$NEW_REGION"
-        echo -e "${GREEN}✅ Region updated to: ${YELLOW}$AWS_REGION${NC}"
-    fi    
-
-    echo -e "\n${BLUE}Your region is set to: ${YELLOW}$AWS_REGION${NC}"
-    echo -e "${BLUE}Ensure your chosen region supports SageMaker HyperPod.${NC}"
-    echo -e "${GREEN}You can check out https://docs.aws.amazon.com/sagemaker/latest/dg/sagemaker-hyperpod.html#sagemaker-hyperpod-available-regions to learn about supported regions.${NC}"
-    echo -e "${BLUE}Press Enter to continue...${NC}"
-    read
-}
 
 # Function to create cluster
 set_slurm_values() {
@@ -741,51 +763,78 @@ set_slurm_values() {
     
     # Update values file with user's configuration
     echo -e "${YELLOW}Customizing values file with your configuration...${NC}"
-    
-    # Update common affinity for non-compute components to use general purpose instance type
-    sed -i '/commonAffinity:/,/values:/s/"ml.m5.2xlarge"/"'$GEN_INSTANCE_TYPE'"/g' $VALUES_FILE
-    
+
+        # Update common affinity for non-compute components to use general purpose instance type
+    yq eval ".commonAffinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].values[0] = \"$GEN_INSTANCE_TYPE\"" -i $VALUES_FILE
+
     # Update compute node configuration
     echo -e "${YELLOW}Updating compute node configuration...${NC}"
-    
+
     # Update container image - repository
-    sed -i '/nodesets:/,/repository:/{
-      /repository: "<your-account-id-here>.dkr.ecr.<your-region-here>.amazonaws.com\/dlc-slurmd"/{
-        s|repository: "<your-account-id-here>.dkr.ecr.<your-region-here>.amazonaws.com/dlc-slurmd"|repository: "'"${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/dlc-slurmd"'"|g
-      }
-    }' $VALUES_FILE
-    
+    yq eval ".compute.nodesets[0].image.repository = \"${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/dlc-slurmd\"" -i $VALUES_FILE
+
     # Update SSH public key
-    sed -i '/rootSshAuthorizedKeys:/,/- "/{
-      /- "<your-public-ssh-key-here>"/{
-        s|- "<your-public-ssh-key-here>"|- "'"$SSH_PUBLIC_KEY"'"|g
-      }
-    }' $VALUES_FILE
-            
+    yq eval ".login.rootSshAuthorizedKeys[0] = \"$SSH_PUBLIC_KEY\"" -i $VALUES_FILE
+
     # Update node count to match the accelerated instance count
-    sed -i '/nodesets:/,/replicas:/{
-      /replicas: [0-9]\+/{
-        s|replicas: [0-9]\+|replicas: '"$ACCEL_INSTANCE_COUNT"'|g
-      }
-    }' $VALUES_FILE
+    yq eval ".compute.nodesets[0].replicas = $ACCEL_INSTANCE_COUNT" -i $VALUES_FILE
+
+    # Update node selector to match the accelerated instance type
+    yq eval ".compute.nodesets[0].nodeSelector.\"node.kubernetes.io/instance-type\" = \"$ACCEL_INSTANCE_TYPE\"" -i $VALUES_FILE
+
+    # Remove OpenZFS configurations
+    yq eval 'del(.login.extraVolumeMounts[] | select(.name == "fsx-openzfs"))' -i $VALUES_FILE
+    yq eval 'del(.login.extraVolumes[] | select(.name == "fsx-openzfs"))' -i $VALUES_FILE
+    yq eval 'del(.compute.nodesets[].extraVolumeMounts[] | select(.name == "fsx-openzfs"))' -i $VALUES_FILE
+    yq eval 'del(.compute.nodesets[].extraVolumes[] | select(.name == "fsx-openzfs"))' -i $VALUES_FILE
+        
+    # # Update common affinity for non-compute components to use general purpose instance type
+    # sed -i '/commonAffinity:/,/values:/s/"ml.m5.2xlarge"/"'$GEN_INSTANCE_TYPE'"/g' $VALUES_FILE
     
-    # Update node selector to match the accelerated instance type (only for g5.8xlarge)
-    sed -i '/nodesets:/,/nodeSelector:/{
-      /node.kubernetes.io\/instance-type: ml.g5.8xlarge/{
-        s|node.kubernetes.io/instance-type: ml.g5.8xlarge|node.kubernetes.io/instance-type: '"$ACCEL_INSTANCE_TYPE"'|g
-      }
-    }' $VALUES_FILE
-    # After all the sed commands, add:
+    # # Update compute node configuration
+    # echo -e "${YELLOW}Updating compute node configuration...${NC}"
+    
+    # # Update container image - repository
+    # sed -i '/nodesets:/,/repository:/{
+    #   /repository: "<your-account-id-here>.dkr.ecr.<your-region-here>.amazonaws.com\/dlc-slurmd"/{
+    #     s|repository: "<your-account-id-here>.dkr.ecr.<your-region-here>.amazonaws.com/dlc-slurmd"|repository: "'"${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/dlc-slurmd"'"|g
+    #   }
+    # }' $VALUES_FILE
+    
+    # # Update SSH public key
+    # sed -i '/rootSshAuthorizedKeys:/,/- "/{
+    #   /- "<your-public-ssh-key-here>"/{
+    #     s|- "<your-public-ssh-key-here>"|- "'"$SSH_PUBLIC_KEY"'"|g
+    #   }
+    # }' $VALUES_FILE
+            
+    # # Update node count to match the accelerated instance count
+    # sed -i '/nodesets:/,/replicas:/{
+    #   /replicas: [0-9]\+/{
+    #     s|replicas: [0-9]\+|replicas: '"$ACCEL_INSTANCE_COUNT"'|g
+    #   }
+    # }' $VALUES_FILE
+    
+    # # Update node selector to match the accelerated instance type (only for g5.8xlarge)
+    # sed -i '/nodesets:/,/nodeSelector:/{
+    #   /node.kubernetes.io\/instance-type: ml.g5.8xlarge/{
+    #     s|node.kubernetes.io/instance-type: ml.g5.8xlarge|node.kubernetes.io/instance-type: '"$ACCEL_INSTANCE_TYPE"'|g
+    #   }
+    # }' $VALUES_FILE
+    # # After all the sed commands, add:
     echo -e "\n${BLUE}=== Final Configuration Parameters ===${NC}"
     echo -e "${YELLOW}Please review the following configuration:${NC}"
+    echo "----------------------------------------"
+    yq eval '... comments=""' custom-values.yaml
+    echo "----------------------------------------"
     
-    echo -e "\n${GREEN}Key Parameters from $VALUES_FILE:${NC}"
-    echo "----------------------------------------"
-    echo -e "Container Image: $(grep -A 1 'repository:' $VALUES_FILE | tail -n 1 | tr -d ' ')"
-    echo -e "Instance Type: $(grep 'instance-type:' $VALUES_FILE | tail -n 1 | tr -d ' ')"
-    echo -e "Number of Replicas: $(grep 'replicas:' $VALUES_FILE | tail -n 1 | tr -d ' ')"
-    echo -e "SSH Key: $(grep -A 1 'rootSshAuthorizedKeys:' $VALUES_FILE | tail -n 1 | tr -d ' ')"
-    echo "----------------------------------------"
+    # echo -e "\n${GREEN}Key Parameters from $VALUES_FILE:${NC}"
+    # echo "----------------------------------------"
+    # echo -e "Container Image: $(grep -A 1 'repository:' $VALUES_FILE | tail -n 1 | tr -d ' ')"
+    # echo -e "Instance Type: $(grep 'instance-type:' $VALUES_FILE | tail -n 1 | tr -d ' ')"
+    # echo -e "Number of Replicas: $(grep 'replicas:' $VALUES_FILE | tail -n 1 | tr -d ' ')"
+    # echo -e "SSH Key: $(grep -A 1 'rootSshAuthorizedKeys:' $VALUES_FILE | tail -n 1 | tr -d ' ')"
+    # echo "----------------------------------------"
 
     echo -e "\n${YELLOW}Please verify if these values look correct.${NC}"
     read 
@@ -835,19 +884,42 @@ create_and_verify_fsx_pvc() {
 
     # Wait for PVC to be bound
     echo "Waiting for PVC to be bound..."
-    for ((i=1; i<=max_retries; i++)); do
+    # for ((i=1; i<=max_retries; i++)); do
+    #     status=$(kubectl get pvc ${pvc_name} -n ${namespace} -ojson | jq -r .status.phase)
+    #     if [ "$status" == "Bound" ]; then
+    #         echo "PVC successfully bound!"
+    #         break
+    #     fi
+    #     if [ $i -eq $max_retries ]; then
+    #         echo "Timeout waiting for PVC to be bound. Current status: ${status}"
+    #         return 1
+    #     fi
+    #     echo "Current status: ${status}, waiting ${retry_interval} seconds... (Attempt ${i}/${max_retries})"
+    #     sleep ${retry_interval}
+    # done
+
+    seconds=0
+    timeout=600  # 10 minutes
+    retry_interval=60  # 1 minute
+
+    while [ $seconds -lt $timeout ]; do
         status=$(kubectl get pvc ${pvc_name} -n ${namespace} -ojson | jq -r .status.phase)
+        
         if [ "$status" == "Bound" ]; then
             echo "PVC successfully bound!"
             break
         fi
-        if [ $i -eq $max_retries ]; then
-            echo "Timeout waiting for PVC to be bound. Current status: ${status}"
-            return 1
-        fi
-        echo "Current status: ${status}, waiting ${retry_interval} seconds... (Attempt ${i}/${max_retries})"
+        
+        remaining=$((timeout - seconds))
+        echo "Current status: ${status}, waiting 1 minute... (${remaining} seconds remaining)"
         sleep ${retry_interval}
+        seconds=$((seconds + retry_interval))
     done
+
+    if [ $seconds -ge $timeout ]; then
+        echo "Timeout of ${timeout} seconds reached waiting for PVC to be bound."
+        return 1
+    fi
 
     # Get and display PVC details
     echo "PVC Details:"
@@ -1000,25 +1072,6 @@ configure_login_nlb() {
     return 0
 }
 
-
-# Warning message function
-warning() {
-    echo -e "${BLUE}⚠️  Please note:${NC}"
-    echo -e "   - Cluster creation may take some time (~15-20 min)"
-    echo -e "   - This operation may incur costs on your AWS account"
-    echo -e "   - Ensure you understand the implications before proceeding\n"
-}
-
-# Function to display goodbye message
-goodbye() {
-    # Final goodbye message
-    echo -e "${GREEN}Thank you for using the SageMaker HyperPod Cluster Creation Script!${NC}"
-    echo -e "${GREEN}For any issues or questions, please refer to the AWS documentation.${NC}"
-    echo "https://docs.aws.amazon.com/sagemaker/latest/dg/smcluster-getting-started.html"
-
-    # Exit message
-    echo -e "\n${BLUE}Exiting script. Good luck with your SageMaker HyperPod journey! 👋${NC}\n"
-}  
 
 
 
