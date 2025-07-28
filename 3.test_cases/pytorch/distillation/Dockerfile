@@ -7,10 +7,8 @@ RUN mkdir -p /distillation /checkpoints
 RUN ln -s /usr/bin/python3 /usr/bin/python
 
 COPY src/ /distillation/
-RUN chmod +x /distillation/setup.sh
 RUN pip install -r /distillation/requirements.txt
 WORKDIR /distillation
-RUN /distillation/setup.sh
 
 WORKDIR /distillation
 
