@@ -114,7 +114,8 @@ display_important_prereqs() {
     echo "   This is crucial as we'll be using CloudFormation to create IAM roles and policies."
     echo "   Run 'aws configure' to set up your credentials."
 
-    echo -e "\n${GREEN}2. Deploy Sagemaker Hyperpod on EKS stack using this link https://catalog.workshops.aws/sagemaker-hyperpod-eks/en-US/00-setup/00-workshop-infra-cfn${NC}"
+    echo -e "\n${GREEN}2. Deploy Sagemaker Hyperpod on EKS stack using this link https://catalog.workshops.aws/sagemaker-hyperpod-eks/en-US/00-setup/00-workshop-infra-cfn ${NC}"
+    echo " Set the number of the GeneralPurposeInstanceCount at least to 2"
     echo "  Make sure the cloufromation stack creation is successful, the eks and hyperpod clusters are \"Inservice\" status and the nodes are \"Running\" "
     echo " (It may take up to an hour for DeepHealthChecks on the node to be finished and for the node to be in the \"running\" state)."
 
@@ -125,28 +126,6 @@ display_important_prereqs() {
     echo -e "\n${GREEN}4. 🔧 Packages required for this script to run:${NC}"
     echo "   Ensure you install the following:  jq, yq (install:sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq && sudo chmod +x /usr/bin/yq ) "
     echo -e "\n${YELLOW}Ready to proceed? Press Enter to continue or Ctrl+C to exit...${NC}"
-    read
-}
-
-region_check() {
-
-    NEW_REGION=$(get_prompt "Please, enter the AWS region where you want to set up your cluster") #eks cluster name
-
-    # echo -e "${BLUE}Please confirm that your AWS region is ${GREEN}$AWS_REGION${BLUE} (default).${NC}"
-
-    # read -p "> " NEW_REGION
-
-    if [[ -z "$NEW_REGION" ]]; then
-        echo -e "${GREEN}✅ Using default region: ${YELLOW}$AWS_REGION${NC}"
-    else
-        export AWS_REGION="$NEW_REGION"
-        echo -e "${GREEN}✅ Region updated to: ${YELLOW}$AWS_REGION${NC}"
-    fi    
-
-    echo -e "\n${BLUE}Your region is set to: ${YELLOW}$AWS_REGION${NC}"
-    echo -e "${BLUE}Ensure your chosen region supports SageMaker HyperPod.${NC}"
-    echo -e "${GREEN}You can check out https://docs.aws.amazon.com/sagemaker/latest/dg/sagemaker-hyperpod.html#sagemaker-hyperpod-available-regions to learn about supported regions.${NC}"
-    echo -e "${BLUE}Press Enter to continue...${NC}"
     read
 }
 
@@ -166,6 +145,28 @@ get_prompt() {
     read -e -p "$prompt: " input
     echo "$input"
 }
+region_check() {
+
+    NEW_REGION=$(get_input "Please, enter the AWS region where you want to set up your cluster" "$AWS_REGION") #eks cluster name
+
+    # echo -e "${BLUE}Please confirm that your AWS region is ${GREEN}$AWS_REGION${BLUE} (default).${NC}"
+
+    # read -p "> " NEW_REGION
+
+    if [[ -z "$NEW_REGION" ]]; then
+        echo -e "${GREEN}✅ Using default region: ${YELLOW}$AWS_REGION${NC}"
+    else
+        export AWS_REGION="$NEW_REGION"
+        echo -e "${GREEN}✅ Region updated to: ${YELLOW}$AWS_REGION${NC}"
+    fi    
+
+    echo -e "\n${BLUE}Your region is set to: ${YELLOW}$AWS_REGION${NC}"
+    echo -e "${BLUE}Ensure your chosen region supports SageMaker HyperPod.${NC}"
+    echo -e "${GREEN}You can check out https://docs.aws.amazon.com/sagemaker/latest/dg/sagemaker-hyperpod.html#sagemaker-hyperpod-available-regions to learn about supported regions.${NC}"
+    echo -e "${BLUE}Press Enter to continue...${NC}"
+    read
+}
+
 
 
 # Warning message function
@@ -242,16 +243,6 @@ setup_env_vars() {
         echo "[ERROR] Failed to retrieve S3_BUCKET_NAME from CloudFormation."
         return 1
     fi
-
-    # --------------------------
-    # Get EXECUTION_ROLE
-    # --------------------------
-
-    #eks roleARN
-    # export EKS_ROLE_ARN=$(echo "$EKS_CLUSTER_INFO" | jq -r '.cluster.roleArn')
-    # echo "export EKS_ROLE_ARN=${EKS_ROLE_ARN}" >> env_vars
-    # echo "[INFO] EKS_ROLE_ARN = ${EKS_ROLE_ARN}"
-
 
     #SageMakerIAMRoleArn
     EXECUTION_ROLE=$(aws cloudformation describe-stacks \
@@ -399,6 +390,9 @@ create_fsx_lustre_storage_class()
 {
     echo
     echo -e "${BLUE}=== Creating FSx for Lustre Storage Class ===${NC}"
+
+    FSX_SERVICE_ACCOUNT_NAME="fsx-csi-controller-sa-${EKS_CLUSTER_NAME}"
+    FSX_ROLE_NAME="FSXLCSI-${EKS_CLUSTER_NAME}-${AWS_REGION}"
     
     # Create an IAM OpenID Connect (OIDC) identity provider for the cluster
     echo -e "${YELLOW}Creating IAM OIDC identity provider...${NC}"
@@ -407,33 +401,20 @@ create_fsx_lustre_storage_class()
 
     # Wait a moment for cleanup
 
-    echo -e "${YELLOW}Creating service account with IAM role for use with FSx for Lustre CSI driver...(fsx-csi-controller-sa)${NC}"
+    echo -e "${YELLOW}Creating service account with IAM role for use with FSx for Lustre CSI driver...(${FSX_SERVICE_ACCOUNT_NAME})${NC}"
+
     eksctl create iamserviceaccount \
-        --name fsx-csi-controller-sa \
+        --name ${FSX_SERVICE_ACCOUNT_NAME} \
         --namespace kube-system \
         --cluster $EKS_CLUSTER_NAME \
         --attach-policy-arn arn:aws:iam::aws:policy/AmazonFSxFullAccess \
         --approve \
-        --role-name FSXLCSI-${EKS_CLUSTER_NAME}-${AWS_REGION} \
+        --role-name ${FSX_ROLE_NAME} \
         --region $AWS_REGION
-
-
-    
-    
-    # eksctl create iamserviceaccount \
-    #     --name fsx-csi-controller-sa \
-    #     --namespace kube-system \
-    #     --cluster $EKS_CLUSTER_NAME \
-    #     --attach-policy-arn arn:aws:iam::aws:policy/AmazonFSxFullAccess \
-    #     --approve \
-    #     --role-name FSXLCSI-${EKS_CLUSTER_NAME}-${AWS_REGION} \
-    #     --region $AWS_REGION \
-    #     --override-existing-serviceaccounts
-
     
     # Verify service account annotation
     echo -e "${YELLOW}Verifying service account annotation...${NC}"
-    kubectl get sa fsx-csi-controller-sa -n kube-system -oyaml #retirves information about the fsx-csi-controller-sa service account 
+    kubectl get sa ${FSX_SERVICE_ACCOUNT_NAME} -n kube-system -oyaml #retirves information about the fsx-csi-controller-sa service account 
     
     echo -e "${YELLOW} Adding the FSx for Lustre CSI Driver to helm repos...${NC}"
     # Check if repo already exists before adding it
@@ -464,17 +445,14 @@ create_fsx_lustre_storage_class()
     else
         echo -e "${YELLOW}No existing FSx CSI driver pods found. Proceeding with installation...${NC}"
     fi
-    
+
     echo -e "${YELLOW}Installing the FSx for Lustre CSI driver...${NC}"
     helm repo update  
     helm upgrade --install aws-fsx-csi-driver \
       --namespace kube-system \
       --set controller.serviceAccount.create=false \
+      --set controller.serviceAccount.name=${FSX_SERVICE_ACCOUNT_NAME} \
       aws-fsx-csi-driver/aws-fsx-csi-driver
-    
-    # Verify installation of the FSx for Lustre CSI driver
-    echo -e "${YELLOW}Verifying FSx for Lustre CSI driver installation...${NC}"
-    kubectl get pods -n kube-system -l app.kubernetes.io/name=aws-fsx-csi-driver
     
     # Verify installation of the FSx for Lustre CSI driver
     echo -e "${YELLOW}Verifying FSx for Lustre CSI driver installation...${NC}"
@@ -745,8 +723,23 @@ set_slurm_values() {
     echo -e "${YELLOW}Verifying compute nodes with instance type: $ACCEL_INSTANCE_TYPE${NC}"
     kubectl get nodes -l node.kubernetes.io/instance-type=$ACCEL_INSTANCE_TYPE
     
-    # Set container image using AWS account ID
-    CONTAINER_IMAGE="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/dlc-slurmd:25.05.0-ubuntu24.04"
+    # Automatically detect available dlc-slurmd image from ECR
+    echo -e "${YELLOW}Detecting available dlc-slurmd image from ECR...${NC}"
+    
+    # Get the latest image tag from ECR repository
+    AVAILABLE_TAG=$(aws ecr list-images --repository-name dlc-slurmd --region $AWS_REGION --query 'imageIds[0].imageTag' --output text 2>/dev/null)
+    
+    if [[ "$AVAILABLE_TAG" == "None" ]] || [[ -z "$AVAILABLE_TAG" ]]; then
+        echo -e "${RED}No dlc-slurmd images found in ECR repository${NC}"
+        echo -e "${YELLOW}Falling back to public image: ghcr.io/slinkyproject/slurmd:25.05-ubuntu24.04${NC}"
+        CONTAINER_IMAGE="ghcr.io/slinkyproject/slurmd:25.05-ubuntu24.04"
+        CONTAINER_REPO="ghcr.io/slinkyproject/slurmd"
+    else
+        echo -e "${GREEN}Found image tag: $AVAILABLE_TAG${NC}"
+        CONTAINER_IMAGE="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/dlc-slurmd:$AVAILABLE_TAG"
+        CONTAINER_REPO="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/dlc-slurmd"
+    fi
+    
     echo -e "${YELLOW}Using container image: ${GREEN}$CONTAINER_IMAGE${NC}"
     
     # Generate SSH key if needed
@@ -771,7 +764,12 @@ set_slurm_values() {
     echo -e "${YELLOW}Updating compute node configuration...${NC}"
 
     # Update container image - repository
-    yq eval ".compute.nodesets[0].image.repository = \"${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/dlc-slurmd\"" -i $VALUES_FILE
+    yq eval ".compute.nodesets[0].image.repository = \"$CONTAINER_REPO\"" -i $VALUES_FILE
+    
+    # Update image tag if using ECR
+    if [[ "$CONTAINER_REPO" == *"ecr"* ]]; then
+        yq eval ".compute.nodesets[0].image.tag = \"$AVAILABLE_TAG\"" -i $VALUES_FILE
+    fi
 
     # Update SSH public key
     yq eval ".login.rootSshAuthorizedKeys[0] = \"$SSH_PUBLIC_KEY\"" -i $VALUES_FILE
@@ -787,54 +785,22 @@ set_slurm_values() {
     yq eval 'del(.login.extraVolumes[] | select(.name == "fsx-openzfs"))' -i $VALUES_FILE
     yq eval 'del(.compute.nodesets[].extraVolumeMounts[] | select(.name == "fsx-openzfs"))' -i $VALUES_FILE
     yq eval 'del(.compute.nodesets[].extraVolumes[] | select(.name == "fsx-openzfs"))' -i $VALUES_FILE
-        
-    # # Update common affinity for non-compute components to use general purpose instance type
-    # sed -i '/commonAffinity:/,/values:/s/"ml.m5.2xlarge"/"'$GEN_INSTANCE_TYPE'"/g' $VALUES_FILE
     
-    # # Update compute node configuration
-    # echo -e "${YELLOW}Updating compute node configuration...${NC}"
+    # Check if general purpose node has capacity, if not remove restrictive affinity
+    GEN_NODE_CAPACITY=$(kubectl get nodes -l node.kubernetes.io/instance-type=$GEN_INSTANCE_TYPE -o jsonpath='{.items[0].status.allocatable.pods}' 2>/dev/null || echo "0")
+    GEN_NODE_USED=$(kubectl get pods --all-namespaces --field-selector spec.nodeName=$(kubectl get nodes -l node.kubernetes.io/instance-type=$GEN_INSTANCE_TYPE -o jsonpath='{.items[0].metadata.name}' 2>/dev/null) 2>/dev/null | wc -l || echo "0")
     
-    # # Update container image - repository
-    # sed -i '/nodesets:/,/repository:/{
-    #   /repository: "<your-account-id-here>.dkr.ecr.<your-region-here>.amazonaws.com\/dlc-slurmd"/{
-    #     s|repository: "<your-account-id-here>.dkr.ecr.<your-region-here>.amazonaws.com/dlc-slurmd"|repository: "'"${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/dlc-slurmd"'"|g
-    #   }
-    # }' $VALUES_FILE
-    
-    # # Update SSH public key
-    # sed -i '/rootSshAuthorizedKeys:/,/- "/{
-    #   /- "<your-public-ssh-key-here>"/{
-    #     s|- "<your-public-ssh-key-here>"|- "'"$SSH_PUBLIC_KEY"'"|g
-    #   }
-    # }' $VALUES_FILE
-            
-    # # Update node count to match the accelerated instance count
-    # sed -i '/nodesets:/,/replicas:/{
-    #   /replicas: [0-9]\+/{
-    #     s|replicas: [0-9]\+|replicas: '"$ACCEL_INSTANCE_COUNT"'|g
-    #   }
-    # }' $VALUES_FILE
-    
-    # # Update node selector to match the accelerated instance type (only for g5.8xlarge)
-    # sed -i '/nodesets:/,/nodeSelector:/{
-    #   /node.kubernetes.io\/instance-type: ml.g5.8xlarge/{
-    #     s|node.kubernetes.io/instance-type: ml.g5.8xlarge|node.kubernetes.io/instance-type: '"$ACCEL_INSTANCE_TYPE"'|g
-    #   }
-    # }' $VALUES_FILE
-    # # After all the sed commands, add:
+    if [[ $GEN_NODE_USED -ge $GEN_NODE_CAPACITY ]] && [[ $GEN_NODE_CAPACITY -gt 0 ]]; then
+        echo -e "${YELLOW}General purpose node is at capacity ($GEN_NODE_USED/$GEN_NODE_CAPACITY), removing restrictive affinity...${NC}"
+        yq eval 'del(.commonAffinity)' -i $VALUES_FILE
+    else
+        echo -e "${GREEN}General purpose node has capacity, keeping affinity rules${NC}"
+    fi
     echo -e "\n${BLUE}=== Final Configuration Parameters ===${NC}"
     echo -e "${YELLOW}Please review the following configuration:${NC}"
     echo "----------------------------------------"
     yq eval '... comments=""' custom-values.yaml
     echo "----------------------------------------"
-    
-    # echo -e "\n${GREEN}Key Parameters from $VALUES_FILE:${NC}"
-    # echo "----------------------------------------"
-    # echo -e "Container Image: $(grep -A 1 'repository:' $VALUES_FILE | tail -n 1 | tr -d ' ')"
-    # echo -e "Instance Type: $(grep 'instance-type:' $VALUES_FILE | tail -n 1 | tr -d ' ')"
-    # echo -e "Number of Replicas: $(grep 'replicas:' $VALUES_FILE | tail -n 1 | tr -d ' ')"
-    # echo -e "SSH Key: $(grep -A 1 'rootSshAuthorizedKeys:' $VALUES_FILE | tail -n 1 | tr -d ' ')"
-    # echo "----------------------------------------"
 
     echo -e "\n${YELLOW}Please verify if these values look correct.${NC}"
     read 
@@ -884,19 +850,6 @@ create_and_verify_fsx_pvc() {
 
     # Wait for PVC to be bound
     echo "Waiting for PVC to be bound..."
-    # for ((i=1; i<=max_retries; i++)); do
-    #     status=$(kubectl get pvc ${pvc_name} -n ${namespace} -ojson | jq -r .status.phase)
-    #     if [ "$status" == "Bound" ]; then
-    #         echo "PVC successfully bound!"
-    #         break
-    #     fi
-    #     if [ $i -eq $max_retries ]; then
-    #         echo "Timeout waiting for PVC to be bound. Current status: ${status}"
-    #         return 1
-    #     fi
-    #     echo "Current status: ${status}, waiting ${retry_interval} seconds... (Attempt ${i}/${max_retries})"
-    #     sleep ${retry_interval}
-    # done
 
     seconds=0
     timeout=600  # 10 minutes
@@ -1011,15 +964,15 @@ deploy_slurm_cluster() {
     echo -e "${GREEN}✅ Slurm cluster deployment completed${NC}"
     echo -e "${YELLOW}Note: It may take a few minutes for all components to start up${NC}"
     
-    # # Configure NLB if requested
-    # if [[ "$configure_nlb" == "true" ]]; then
-    #     echo -e "${YELLOW}Configuring Network Load Balancer for login access...${NC}"
-    #     # Wait a bit for the service to be created
-    #     sleep 10
-    #     configure_login_nlb "$namespace" "slurm-login"
-    # fi
+    # Configure NLB if requested
+    if [[ "$configure_nlb" == "true" ]]; then
+        echo -e "${YELLOW}Configuring Network Load Balancer for login access...${NC}"
+        # Wait a bit for the service to be created
+        sleep 10
+        configure_login_nlb "$namespace" "slurm-login"
+    fi
     
-    # return 0
+    return 0
 }
 
 # Function to configure a Login Network Load Balancer
@@ -1112,11 +1065,6 @@ main() {
     set_slurm_values
     create_and_verify_fsx_pvc
     deploy_slurm_cluster "slurm" "custom-values.yaml" "0.3.0" "false" "true"
-    
-    
-    #echo -e "${GREEN}✅ Cluster configuration created successfully${NC}"
-    
-    # Display goodbye message
     goodbye
 }
 
