@@ -77,6 +77,20 @@ To access these datasets:
 2. Generate an access token with read permissions
 3. Keep this token for use in our Kubernetes manifest
 
+### Setting up Hugging Face Hub Location
+
+To store your distilled model artifacts, you'll need to configure a Hugging Face Hub location:
+
+1. **Create a [model repository on Hugging Face Hub](https://github.com/huggingface/hub-docs/blob/main/docs/hub/models-adding-libraries.md):**
+   - Go to https://huggingface.co/new
+   - Create a new model repository (e.g., "your-username/distilled-llama-7b")
+   - Make note of the full repository name
+
+2. **Set the hub location environment variable:**
+   ```bash
+   export HUB_LOCATION="your-username/your-model-name"
+   ```
+
 ### Preparing the Kubernetes Manifest
 
 First, install envsubst if you don't have it already. Then generate your Kubernetes manifest from the template:
@@ -94,8 +108,12 @@ export EFA_PER_NODE=16
 export TOTAL_NODES=$((GPU_PER_NODE * NUM_NODES))
 export FI_PROVIDER=efa
 export HF_TOKEN=<Your HuggingFace Token>
-export HUB_LOCATION = <the hub location to drop the trained artifacts>
+export HUB_LOCATION=<the hub location to drop the trained artifacts>
+```
+envsubst is part of the [GNU gettext utilities](https://www.gnu.org/software/gettext/manual/html_node/envsubst-Invocation.html) and is used for environment variable substitution in text files.
+You can use Q developer to get the setup instructions
 
+```bash
 # Generate manifest
 cat distill.yaml-template | envsubst > distill.yaml
 ```
