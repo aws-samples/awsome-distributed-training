@@ -1,132 +1,127 @@
 #!/bin/bash
 
-# must be run a sudo
+# must be run as sudo
 
-set -x
-set -e
+set -eux 
 
 # FSx Lustre Endpoints
 FSX_DNS_NAME="$1"
 FSX_MOUNTNAME="$2"
 MOUNT_POINT="$3"
 
-is_mounted() {
-  mountpoint -q "$1"
-  return $?
+# Function for error handling
+handle_error()
+{
+    local exit_code=$?
+    echo "Error occurred in command: $BASH_COMMAND"
+    echo "Exit code: $exit_code"
+    echo "Exit logs:"
+    sudo dmesg | tail -n 20
+    echo "Mount status:"
+    mount | grep lustre || true
+    echo "LNet status:"
+    sudo lctl list_nids || true
+    exit $exit_code
 }
 
-check_already_mounted() {
-  # Check if FSx is already mounted to $MOUNT_POINT
-  if is_mounted $MOUNT_POINT; then
-    if grep -qs "$FSX_MOUNTNAME $MOUNT_POINT lustre" /proc/mounts; then
-      echo "FSx Lustre already mounted to $MOUNT_POINT. Exiting."
-      exit 0
-    else
-      echo "$MOUNT_POINT is mounted, but not to mountname: $FSX_MOUNTNAME from provisioning_parameters.json. Exiting."
-      exit 1
+trap handle_error ERR
+
+# DEBUG: Verify parameters are set
+verify_parameters()
+{
+    if [ -z "$FSX_DNS_NAME" ] || [ -z "$FSX_MOUNTNAME" ] || [ -z "$MOUNT_POINT" ]; then
+        echo "Usage: $0 <fsx_dns_name> <fsx_mountname> <mount_point>"
+        exit 1
     fi
-  fi
 }
 
-is_fsx_reachable() {
-  if lctl ping "$FSX_DNS_NAME"; then
-    echo "FSx is reachable"
-  else
-    echo "FSx is not reachable, Trying to mount system anyway"
-  fi
+# Print Lustre client version
+print_lustre_version()
+{
+    echo "Lustre client version:"
+    modinfo lustre | grep 'version:' | head -n 1 | awk '{print $2}'
 }
 
-add_to_fstab() {
-  # Add FSx to /etc/fstab
-  echo "$FSX_DNS_NAME@tcp:/$FSX_MOUNTNAME $MOUNT_POINT lustre defaults,noatime,flock,_netdev 0 0" | tee -a /etc/fstab  
+# Load lnet modules
+load_lnet_modules()
+{
+  ansible localhost -b -m ansible.builtin.modprobe -a "name=lnet state=present"
+  ansible localhost -b -m ansible.builtin.modprobe -a "name=lustre state=present"
+  lctl network up || { echo "Error: Failed to bring up LNet network"; exit 1; }     # Simplifying: Instead of using ansible.builtin.shell
 }
 
+# Mount the FSx Lustre file system using Ansible
 mount_fs() {
-  if [[ ! -d $MOUNT_POINT ]]; then
-    mkdir -p $MOUNT_POINT
-    chmod 644 $MOUNT_POINT
-  fi
+    local max_attempts=5
+    local attempt=1
+    local delay=5
 
-  if mount -t lustre -o noatime,flock "$FSX_DNS_NAME"@tcp:/"$FSX_MOUNTNAME" "$MOUNT_POINT"; then
-    if ! is_mounted $MOUNT_POINT ;then
-      echo "Mounting FSx to $MOUNT_POINT directory successful, but mountpoint was not detected. Exiting."
-      exit 1
-    fi
-  else
-    echo "FAILED to mount, FSX to $MOUNT_POINT directory. Exiting."
-    exit 1
-  fi
+    echo "[INFO] Ensuring $MOUNT_POINT directory exists..."
+    ansible localhost -b -m ansible.builtin.file -a "path=$MOUNT_POINT state=directory" || true
+
+    echo "[INFO] Mounting FSx Lustre on $MOUNT_POINT..."
+
+    while (( attempt <= max_attempts )); do
+        echo "============================"
+        echo "[INFO] Attempt $attempt of $max_attempts"
+        echo "============================"
+
+        echo "[STEP] Mounting FSx..."
+        if ! ansible localhost -b -m ansible.posix.mount -a \
+            "path=$MOUNT_POINT src=$FSX_DNS_NAME@tcp:/$FSX_MOUNTNAME fstype=lustre opts=noatime,flock,_netdev,x-systemd.automount,x-systemd.requires=network-online.target dump=0 passno=0 state=mounted"; then
+            echo "[WARN] Mount command failed — retrying in $delay seconds"
+            sleep "$delay"; ((attempt++)); continue
+        fi
+
+        echo "[STEP] Verifying mountpoint..."
+        if ! ansible localhost -b -m ansible.builtin.command -a "mountpoint $MOUNT_POINT"; then            
+            echo "[WARN] Mountpoint verification failed — retrying in $delay seconds"
+            sleep "$delay"; ((attempt++)); continue
+        fi
+        echo "[STEP] Triggering automount..."
+        ls -la "$MOUNT_POINT" >/dev/null 2>&1 || true
+
+        echo "[STEP] Testing file access (touch)..."
+        if ! ansible localhost -b -m ansible.builtin.file -a "path=$MOUNT_POINT/test_file state=touch"; then
+            echo "[WARN] Touch failed — retrying in $delay seconds"
+            sleep "$delay"; ((attempt++)); continue
+        fi
+
+        echo "[STEP] Testing file access (delete)..."
+        if ! ansible localhost -b -m ansible.builtin.file -a "path=$MOUNT_POINT/test_file state=absent"; then
+            echo "[WARN] Delete failed — retrying in $delay seconds"
+            sleep "$delay"; ((attempt++)); continue
+        fi
+
+        echo "[SUCCESS] FSx mount succeeded on attempt $attempt"
+        return 0
+    done
+
+    echo "[ERROR] FSx mount failed after $max_attempts attempts"
+    return 1
 }
 
 
-load_lnet_modules() {
-  modprobe -v lnet
+
+restart_daemon()
+{
+  ansible localhost -b -m ansible.builtin.systemd -a "daemon_reload=yes"
+  ansible localhost -b -m ansible.builtin.systemd -a "name=remote-fs.target state=restarted"
+  # Readable status check
+  echo "Check status of fsx automount service..."
+  systemctl status fsx.automount
 }
 
-# create a systemd service to check mount periodically and remount FSx if necessary
-# To stop the service, run: 
-# `systemctl stop check_mount.service`
-# To disable the service, run:
-# `systemctl disable check_mount.service`
-install_remount_service() {
-  
-  if [[ ! -d /opt/ml/scripts ]]; then
-    mkdir -p /opt/ml/scripts
-    chmod 644 /opt/ml/scripts
-    echo "Created dir /opt/ml/scripts"
-  fi
-
-  CHECK_MOUNT_FILE=/opt/ml/scripts/check_mount_$FSX_MOUNTNAME.sh
-
-  cat > $CHECK_MOUNT_FILE << EOF
-#!/bin/bash
-MOUNT_POINT=$MOUNT_POINT
-if ! grep -qs "$MOUNT_POINT" /proc/mounts; then
-  mount -t lustre -o noatime,flock "$FSX_DNS_NAME"@tcp:/"$FSX_MOUNTNAME" "$MOUNT_POINT"
-  echo "Mounted FSx to $MOUNT_POINT"
-else
-  echo "FSx Lustre already mounted to $MOUNT_POINT. Stopping services check_fsx_mount_$FSX_MOUNTNAME.timer and check_fsx_mount_$FSX_MOUNTNAME.service"
-  systemctl stop check_fsx_mount_$FSX_MOUNTNAME.timer
-fi
-EOF
-
-  chmod +x $CHECK_MOUNT_FILE
-
-  cat > /etc/systemd/system/check_fsx_mount_$FSX_MOUNTNAME.service << EOF
-[Unit]
-Description=Check and remount FSx Lustre filesystems if necessary
-
-[Service]
-ExecStart=$CHECK_MOUNT_FILE
-EOF
-
-  cat > /etc/systemd/system/check_fsx_mount_$FSX_MOUNTNAME.timer << EOF
-[Unit]
-Description=Run check_fsx_mount_$FSX_MOUNTNAME.service every minute
-
-[Timer]
-OnBootSec=1min
-OnUnitActiveSec=1min
-
-[Install]
-WantedBy=timers.target
-EOF
-
-  systemctl daemon-reload
-  systemctl enable --now check_fsx_mount_$FSX_MOUNTNAME.timer
-}
-
-main() {
-  echo "Mount_fsx called fsx_dns_name: $FSX_DNS_NAME, fsx_mountname: $FSX_MOUNTNAME"
-  echo "Using mount_point: $MOUNT_POINT"
-  load_lnet_modules
-  check_already_mounted
-  is_fsx_reachable
-  add_to_fstab
-  mount_fs
-  install_remount_service
-  echo "FSx Lustre mounted successfully to $MOUNT_POINT"
+main() 
+{
+    verify_parameters
+    echo "Mount_fsx called with fsx_dns_name: $FSX_DNS_NAME, fsx_mountname: $FSX_MOUNTNAME"
+    echo "Using mount_point: $MOUNT_POINT"
+    echo "LUSTRE CLIENT CONFIGURATION $(print_lustre_version)"
+    load_lnet_modules
+    mount_fs || exit 1
+    restart_daemon
+    echo "FSx Lustre mounted successfully to $MOUNT_POINT"
 }
 
 main "$@"
-

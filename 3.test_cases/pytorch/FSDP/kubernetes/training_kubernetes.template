@@ -1,0 +1,99 @@
+apiVersion: "kubeflow.org/v1"
+kind: PyTorchJob
+metadata:
+  name: {{ MODEL_NAME}}-fsdp
+spec:
+  elasticPolicy:
+    rdzvBackend: c10d
+    minReplicas: 1
+    maxReplicas: 64
+    maxRestarts: 100
+    metrics:
+      - type: Resource
+        resource:
+          name: cpu
+          target:
+            type: Utilization
+            averageUtilization: 90
+  pytorchReplicaSpecs:
+    Worker:
+      replicas: $NUM_NODES
+      restartPolicy: OnFailure
+      template:
+        metadata:
+          labels:
+            app: {{ MODEL_NAME}}-fsdp
+        spec:
+          volumes:
+            - name: shmem
+              hostPath: 
+                path: /dev/shm
+            - name: local
+              hostPath:
+                path: /mnt/k8s-disks/0
+          #nodeSelector:
+          #  node.kubernetes.io/instance-type: "${INSTANCE_TYPE}"
+          containers:
+            - name: pytorch
+              image: ${IMAGE_URI}
+              imagePullPolicy: Always
+              resources:
+                requests:
+                  nvidia.com/gpu: $GPU_PER_NODE
+                  vpc.amazonaws.com/efa: $EFA_PER_NODE
+                limits:
+                  nvidia.com/gpu: $GPU_PER_NODE
+                  vpc.amazonaws.com/efa: $EFA_PER_NODE
+              env:
+              # for P5 FI_* should be commented out
+              - name: LOGLEVEL
+                value: "DEBUG"
+              #- name: FI_PROVIDER
+              #  value: $FI_PROVIDER
+              #- name: FI_EFA_USE_DEVICE_RDMA
+              #  value: "1"
+              #- name: FI_EFA_FORK_SAFE
+              #  value: "1"
+              #- name: FI_LOG_LEVEL
+              #  value: "1"
+              #- name: FI_EFA_ENABLE_SHM_TRANSFER
+              #  value: "1"
+              - name: TORCH_DISTRIBUTED_DEBUG
+                value: "DETAIL"
+              - name: TORCH_NCCL_ENABLE_MONITORING
+                value: "1"
+              - name: TORCH_NCCL_TRACE_BUFFER_SIZE
+                value: "20000"
+              - name: TORCH_NCCL_DUMP_ON_TIMEOUT
+                value: "1"
+              - name: TORCH_NCCL_DEBUG_INFO_TEMP_FILE
+                value: "/local/nccl_trace_rank_"
+              - name: PYTORCH_CUDA_ALLOC_CONF
+                value: "expandable_segments:True"
+              - name: NCCL_DEBUG
+                value: "INFO"
+              - name: NCCL_SOCKET_IFNAME
+                value: "^lo"
+              - name: TORCH_NCCL_ASYNC_ERROR_HANDLING
+                value: "1"
+              - name: HF_TOKEN
+                value: "${HF_TOKEN}"
+              #- name: TORCH_DIST_INIT_BARRIER
+              #  value: "1"
+              #- name: NCCL_IGNORE_DISABLED_P2P
+              #  value: "1"
+              #- name: NCCL_NVLS_ENABLE
+              #  value: "0"
+              command: 
+                - /usr/local/bin/torchrun
+                - --nproc_per_node=$GPU_PER_NODE
+                - --nnodes=$NUM_NODES
+                - /fsdp/train.py
+              {%- for i in MODEL_PARAMETERS %}
+                - {{ i|indent(18) -}}
+              {% endfor %}
+              volumeMounts:
+                - name: shmem
+                  mountPath: /dev/shm
+                - name: local
+                  mountPath: /local

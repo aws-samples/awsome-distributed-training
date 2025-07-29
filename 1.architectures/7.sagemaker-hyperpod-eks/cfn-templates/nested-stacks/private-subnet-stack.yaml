@@ -1,0 +1,87 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Private Subnet Stack
+
+Parameters:
+
+  ResourceNamePrefix:
+    Description: Prefix to be used for all resources created by this template.
+    Type: String
+    Default: sagemaker-hyperpod-eks
+
+  PrivateSubnet1CIDR:
+    Description: The IP range (CIDR notation) for the private subnet to be created in the target Availability Zone. 
+    Type: String
+    Default: 10.1.0.0/16
+
+  AvailabilityZoneId: 
+    Description: >
+      The Availability Zone Id you wish to create a private subnet in.
+      This private subnet will be used by HyperPod to deploy cross-account ENIs. 
+      The Availability Zone Id you specify should correspond to the location of your accelerated compute capacity.
+    Type: String
+    Default: usw2-az2
+    AllowedPattern: ^[a-z]{3,4}[0-9]-az[0-9]$
+    ConstraintDescription: The Availability Zone Id must match the expression ^[a-z]{3,4}[0-9]-az[0-9]$. For example, use1-az4, usw2-az2, or apse1-az2. 
+
+  VpcId: 
+    Description: The ID of the VPC you wish to use if you do not want to create a new VPC. 
+    Type: String
+    Default: vpc-1234567890abcdef0
+
+  NatGatewayId:
+    Description: The Id of a NAT Gateway to route internet bound traffic to from the newly create private subnet. 
+    Type: String
+    Default: nat-1234567890abcdef0
+  
+Resources: 
+
+  AdditionalCidrBlock1:
+    Type: AWS::EC2::VPCCidrBlock
+    Properties:
+      VpcId: !Ref VpcId
+      CidrBlock: !Ref PrivateSubnet1CIDR
+      AmazonProvidedIpv6CidrBlock: false
+
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VpcId
+      AvailabilityZoneId: !Ref AvailabilityZoneId # select a specific AZ for capacity
+      CidrBlock: !Ref PrivateSubnet1CIDR
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${ResourceNamePrefix}-SMHP-Private1
+    DependsOn: 
+        - AdditionalCidrBlock1
+  
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VpcId
+      Tags:
+        - Key: Name
+          Value: !Sub ${ResourceNamePrefix}-SMHP-Private-Routes
+  
+  PrivateSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref PrivateSubnet1
+
+  DefaultPrivateRoute1:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGatewayId
+
+Outputs:
+
+  PrivateSubnetId:
+    Description: Private Subnet Id
+    Value: !Ref PrivateSubnet1
+  
+  PrivateRouteTableId:
+    Description: Private Route Table Id
+    Value: !Ref PrivateRouteTable

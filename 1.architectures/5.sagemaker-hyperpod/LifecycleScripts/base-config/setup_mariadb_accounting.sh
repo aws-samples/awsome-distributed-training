@@ -2,6 +2,10 @@
 
 set -euo pipefail
 
+# Required with Ubuntu 22.04 AMI release
+apt-get -y -o DPkg::Lock::Timeout=120 update && apt-get -y -o DPkg::Lock::Timeout=120 install apg
+
+
 # https://askubuntu.com/a/1472412
 # Exclude special characters that break create_slurm_database().
 EXCLUDED_CHAR="'\"\`\\[]{}()*#"
