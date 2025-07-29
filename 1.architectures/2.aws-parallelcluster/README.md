@@ -13,7 +13,7 @@ This README provides a "vanilla" reference architectures and deployment guide fo
 
 The infrastructure consists of the two layers:
 
-### `parallelcluster-rerequisites`
+### `parallelcluster-prerequisites`
 
 The core infrastructure for your training cluster that has 3 components.
 
