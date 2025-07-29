@@ -38,7 +38,15 @@ from model_utils.train_utils import (get_model_config,
 from model_utils.checkpoint import save_checkpoint, load_checkpoint
 from model_utils.arguments import parse_args
 
-logger = get_logger()
+
+import logging
+import sys
+
+logging.basicConfig(format="%(asctime)s [%(levelname)s] %(name)s: %(message)s", level=logging.INFO, stream=sys.stdout)
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
 
 def eval_model(model, dataloader, num_batches):
     """Eval step."""
