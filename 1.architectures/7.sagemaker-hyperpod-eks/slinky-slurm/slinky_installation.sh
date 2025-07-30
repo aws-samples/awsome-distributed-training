@@ -115,16 +115,16 @@ display_important_prereqs() {
     echo "   Run 'aws configure' to set up your credentials."
 
     echo -e "\n${GREEN}2. Deploy Sagemaker Hyperpod on EKS stack using this link https://catalog.workshops.aws/sagemaker-hyperpod-eks/en-US/00-setup/00-workshop-infra-cfn ${NC}"
-    echo " Set the number of the GeneralPurposeInstanceCount at least to 2"
-    echo "  Make sure the cloufromation stack creation is successful, the eks and hyperpod clusters are \"Inservice\" status and the nodes are \"Running\" "
-    echo " (It may take up to an hour for DeepHealthChecks on the node to be finished and for the node to be in the \"running\" state)."
+    echo "   Set the number of the GeneralPurposeInstanceCount at least to 2. "
+    echo "   Make sure the cloufromation stack creation is successful, the eks and hyperpod clusters are \"Inservice\" status and the nodes are \"Running\" "
+    echo "   (It may take up to an hour for DeepHealthChecks on the node to be finished and for the node to be in the \"running\" state)."
 
     echo -e "\n${GREEN}3. Build a Slurmd Deep Learning Container:${NC}"
     echo "   Build a Slurm DLC using this dockerfile: https://github.com/aws-samples/awsome-distributed-training/blob/feature/slinkly-slurm-hyperpod-eks/1.architectures/7.sagemaker-hyperpod-eks/slinky-slurm/dlc-slurmd.Dockerfile "
     echo "   following this direction: https://github.com/aws-samples/awsome-distributed-training/blob/feature/slinkly-slurm-hyperpod-eks/1.architectures/7.sagemaker-hyperpod-eks/slinky-slurm/Docker-Build-README.md"
 
     echo -e "\n${GREEN}4. 🔧 Packages required for this script to run:${NC}"
-    echo "   Ensure you install the following:  jq, yq (install:sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq && sudo chmod +x /usr/bin/yq ) "
+    echo "   Ensure you install the following: eksctl, kubectl, helm,  jq, and yq (install:sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq && sudo chmod +x /usr/bin/yq ) "
     echo -e "\n${YELLOW}Ready to proceed? Press Enter to continue or Ctrl+C to exit...${NC}"
     read
 }
@@ -148,10 +148,6 @@ get_prompt() {
 region_check() {
 
     NEW_REGION=$(get_input "Please, enter the AWS region where you want to set up your cluster" "$AWS_REGION") #eks cluster name
-
-    # echo -e "${BLUE}Please confirm that your AWS region is ${GREEN}$AWS_REGION${BLUE} (default).${NC}"
-
-    # read -p "> " NEW_REGION
 
     if [[ -z "$NEW_REGION" ]]; then
         echo -e "${GREEN}✅ Using default region: ${YELLOW}$AWS_REGION${NC}"
@@ -334,8 +330,7 @@ setup_env_vars() {
 
 # Function to write the cluster-config.json file
 create_config() {
-    #echo -e "\n${BLUE}=== Lifecycle Scripts Setup Complete ===${NC}"
-    #STACK_NAME=$(get_input "enter the name of the eks cluster" "slinky-eks-cluster")
+
     STACK_ID=$(get_input "Enter the name of the cloud formaiton stack created in step 2 of the prerequisite" "hyperpod-eks-full-stack") 
     #get the eks cluster name
     EKS_CLUSTER_NAME=$(aws cloudformation describe-stacks \
@@ -414,7 +409,7 @@ create_fsx_lustre_storage_class()
     
     # Verify service account annotation
     echo -e "${YELLOW}Verifying service account annotation...${NC}"
-    kubectl get sa ${FSX_SERVICE_ACCOUNT_NAME} -n kube-system -oyaml #retirves information about the fsx-csi-controller-sa service account 
+    kubectl get sa ${FSX_SERVICE_ACCOUNT_NAME} -n kube-system -oyaml #retrives information about theFSXLCSI-${EKS_CLUSTER_NAME}-${AWS_REGION}" service account 
     
     echo -e "${YELLOW} Adding the FSx for Lustre CSI Driver to helm repos...${NC}"
     # Check if repo already exists before adding it
@@ -501,13 +496,13 @@ install_aws_load_balancer_controller()
     
     # Create the IAM policy
     echo -e "${YELLOW}Creating IAM policy for AWS Load Balancer Controller...${NC}"
-    curl -O https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/refs/heads/release-2.13/docs/install/iam_policy.json
+    curl -O https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.13.0/docs/install/iam_policy.json
     
     # Check if policy already exists
     if ! aws iam create-policy \
-        --policy-name AWSLoadBalancerControllerIAMPolicy-v2.12.0 \
+        --policy-name AWSLoadBalancerControllerIAMPolicy-v2.13.0 \
         --policy-document file://iam_policy.json 2>/dev/null; then
-        echo -e "${YELLOW}Policy AWSLoadBalancerControllerIAMPolicy-v2.12.0 already exists, continuing...${NC}"
+        echo -e "${YELLOW}Policy AWSLoadBalancerControllerIAMPolicy-v2.13.0 already exists, continuing...${NC}"
     fi
     
     # Create a service account with IAM role
@@ -516,7 +511,7 @@ install_aws_load_balancer_controller()
         --cluster=$EKS_CLUSTER_NAME \
         --namespace=kube-system \
         --name=aws-load-balancer-controller \
-        --attach-policy-arn=arn:aws:iam::$AWS_ACCOUNT_ID:policy/AWSLoadBalancerControllerIAMPolicy-v2.12.0 \
+        --attach-policy-arn=arn:aws:iam::$AWS_ACCOUNT_ID:policy/AWSLoadBalancerControllerIAMPolicy-v2.13.0 \
         --override-existing-serviceaccounts \
         --region $AWS_REGION \
         --approve
@@ -707,9 +702,8 @@ set_slurm_values() {
     
     # Download base values file (using g5 as a template)
     echo -e "${YELLOW}Downloading base values file...${NC}"
-    VALUES_FILE="custom-values.yaml"
+    export VALUES_FILE="custom-values.yaml"
     curl -L https://github.com/aws-samples/awsome-distributed-training/raw/refs/heads/feature/slinkly-slurm-hyperpod-eks/1.architectures/7.sagemaker-hyperpod-eks/slinky-slurm/g5/g5-values.yaml -o $VALUES_FILE
-    #curl -L https://raw.githubusercontent.com/SlinkyProject/slurm-operator/refs/heads/release-0.3/helm/slurm/values.yaml -o $VALUES_FILE
     if [[ $? -ne 0 ]]; then
         echo -e "${BLUE}Failed to download base values file.${NC}"
         exit 1
@@ -757,7 +751,7 @@ set_slurm_values() {
     # Update values file with user's configuration
     echo -e "${YELLOW}Customizing values file with your configuration...${NC}"
 
-        # Update common affinity for non-compute components to use general purpose instance type
+    # Update common affinity for non-compute components to use general purpose instance type
     yq eval ".commonAffinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[0].matchExpressions[0].values[0] = \"$GEN_INSTANCE_TYPE\"" -i $VALUES_FILE
 
     # Update compute node configuration
@@ -864,7 +858,7 @@ create_and_verify_fsx_pvc() {
         fi
         
         remaining=$((timeout - seconds))
-        echo "Current status: ${status}, waiting 1 minute... (${remaining} seconds remaining)"
+        echo "Current status: ${status}, waiting ${retry_interval} seconds... (${remaining} seconds remaining)"
         sleep ${retry_interval}
         seconds=$((seconds + retry_interval))
     done
@@ -1023,8 +1017,6 @@ configure_login_nlb() {
 }
 
 
-
-
 #===Main Script===
 main() {
     print_header "🚀 Welcome to the SageMaker HyperPod Slurm Cluster Creation Script! 🚀"
@@ -1048,22 +1040,16 @@ main() {
     # Checking Region
     echo -e "\n${BLUE}🌎 AWS Region Configuration${NC}"
     region_check
-    #creating the cloudformation stack
-
     # Cluster Configuration
-    #echo -e "\n${BLUE}🚀 Creating the Cluster${NC}"
     echo -e "${BLUE} Generating cluster configuration...${NC}"
     create_config 
     create_fsx_lustre_storage_class 
-
     install_aws_load_balancer_controller
-
     install_slinky_prerequisites
     set_slurm_values
     create_and_verify_fsx_pvc
     deploy_slurm_cluster "slurm" "custom-values.yaml" "0.3.0" "false" "true"
     goodbye
 }
-
 # Execute the main function
 main
