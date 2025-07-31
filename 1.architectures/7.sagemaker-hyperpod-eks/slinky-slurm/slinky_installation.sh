@@ -790,7 +790,10 @@ set_slurm_values() {
     else
         echo -e "${GREEN}General purpose node has capacity, keeping affinity rules${NC}"
     fi
-    echo -e "\n${BLUE}=== Final Configuration Parameters ===${NC}"
+    
+    dynamic_pods_allocation #this function is not tested
+    
+    echo -e "\n${BLUE}=== Configuration Parameters ===${NC}"
     echo -e "${YELLOW}Please review the following configuration:${NC}"
     echo "----------------------------------------"
     yq eval '... comments=""' custom-values.yaml
@@ -801,6 +804,74 @@ set_slurm_values() {
     echo -e "${GREEN}✓ Slurm values have been successfully configured!${NC}"
 }
 
+get_gpu_info() {
+    local ec2_type=${ACCEL_INSTANCE_TYPE#ml.}
+    local gpu_count=$(aws ec2 describe-instance-types --instance-types "${ec2_type}" \
+        --query 'InstanceTypes[0].GpuInfo.Gpus[0].Count' --output text)
+    echo "${gpu_count}"
+}
+
+has_efa_support() {
+    local ec2_type=${ACCEL_INSTANCE_TYPE#ml.}
+    local efa_supported=$(aws ec2 describe-instance-types --instance-types "${ec2_type}" \
+        --query 'InstanceTypes[0].NetworkInfo.EfaSupported' --output text)
+    echo "${efa_supported}"
+}
+
+calculate_pods_per_node() {
+    local gpu_count=$1
+    if [ ${gpu_count} -le 4 ]; then
+        echo 1  # One pod for nodes with less than 4 GPUs
+    elif [ ${gpu_count} -ge 8 ]; then
+        echo 2  # Two pods for nodes with 8 or more GPUs
+    else 
+        echo 1
+    fi
+}
+
+calculate_gpus_per_pod() {
+    local gpu_count=$1
+    local pods_per_node=$2
+    echo $(( gpu_count / pods_per_node ))
+}
+
+dynamic_pods_allocation(){
+    #dynamic allocation of pods per node based on the instance type 
+    local gpu_count=get_gpu_info
+
+    local efa_info=$(get_efa_info)
+    local efa_supported=$(echo "${efa_info}" | jq -r '.EfaSupported')
+    local max_efa=$(echo "${efa_info}" | jq -r '.MaxEfa')
+
+    local pods_per_node=$(calculate_pods_per_node ${gpu_count}) #returns 1 or 2 based on the gpu count
+    local gpus_per_pod=$(calculate_gpus_per_pod ${gpu_count} ${pods_per_node}) # diveds the total number of gpus in in an instance by the number of pods
+
+    local total_rep = $(( ACCEL_INSTANCE_COUNT * pods_per_node ))
+    local resources_path=".compute.nodesets[0]"
+
+    #number of replicas = the total number of pods 
+    # Update replicas to match pods per node
+    yq eval "${resources_path}.replicas = ${total_rep}" -i "${values_file}"
+
+    # Clear existing resources configuration
+    yq eval "${resources_path}.resources = {}" -i "${values_file}"
+
+    # Set GPU resources
+    yq eval "${resources_path}.resources.limits.\"nvidia.com/gpu\" = ${gpus_per_pod}" -i "${values_file}"
+    yq eval "${resources_path}.resources.requests.\"nvidia.com/gpu\" = ${gpus_per_pod}" -i "${values_file}"
+
+    # Add EFA configuration for p5 instances
+    if [ "${efa_supported}" == "true" ] && [ "${max_efa}" -gt 0 ]; then
+        local efa_per_pod=$(( max_efa / pods_per_node ))
+        yq eval "${resources_path}.resources.limits.\"vpc.amazonaws.com/efa\" = ${efa_per_pod}" -i "${values_file}"
+        yq eval "${resources_path}.resources.requests.\"vpc.amazonaws.com/efa\" = ${efa_per_pod}" -i "${values_file}"
+    fi
+    echo "Configuration set for ${instance_type}:"
+    echo "- GPUs per node: ${gpu_count}"
+    echo "- Pods per node: ${pods_per_node}"
+    echo "- GPUs per pod: ${gpus_per_pod}"
+    #
+}
 
 create_and_verify_fsx_pvc() {
     local namespace="slurm"
