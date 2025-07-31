@@ -6,6 +6,23 @@ This is a test case for multi-node large model GRPO training using [Hugging Face
 
 ## Prerequisites
 
+### Download the model
+
+We are going to use HF_HOME environment variable to access the model from the containers, so define it before downloading the model:
+```bash
+export HF_HOME=~/.cache/huggingface # or any other directory that you prefer
+```
+
+Install huggingface-cli:
+```bash
+pip install -U "huggingface_hub[cli]"
+```
+
+Download the model:
+```bash
+huggingface-cli download Qwen/Qwen2.5-72B
+```
+
 ### Docker Image
 
 All the dependencies are defined in `grpo.Dockerfile`. It uses Python 3.12, PyTorch 2.6.0 and the latest version of TRL. Build the image with the following command:
