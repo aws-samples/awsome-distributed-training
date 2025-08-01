@@ -51,16 +51,57 @@ load_lnet_modules()
 }
 
 # Mount the FSx Lustre file system using Ansible
-mount_fs()
-{
-    ansible localhost -b -m ansible.posix.mount -a "path=$MOUNT_POINT src=$FSX_DNS_NAME@tcp:/$FSX_MOUNTNAME fstype=lustre opts=noatime,flock,_netdev,x-systemd.automount,x-systemd.requires=network-online.target dump=0 passno=0 state=mounted"
+mount_fs() {
+    local max_attempts=5
+    local attempt=1
+    local delay=5
 
-    # Trigger automount by accessing the filesystem
-    echo "Triggering automount by accessing $MOUNT_POINT..."
-ls -la "$MOUNT_POINT" >/dev/null 2>&1 || true
-ansible localhost -m ansible.builtin.file -a "path=$MOUNT_POINT/test_file state=touch"
-ansible localhost -m ansible.builtin.file -a "path=$MOUNT_POINT/test_file state=absent"
+    echo "[INFO] Ensuring $MOUNT_POINT directory exists..."
+    ansible localhost -b -m ansible.builtin.file -a "path=$MOUNT_POINT state=directory" || true
+
+    echo "[INFO] Mounting FSx Lustre on $MOUNT_POINT..."
+
+    while (( attempt <= max_attempts )); do
+        echo "============================"
+        echo "[INFO] Attempt $attempt of $max_attempts"
+        echo "============================"
+
+        echo "[STEP] Mounting FSx..."
+        if ! ansible localhost -b -m ansible.posix.mount -a \
+            "path=$MOUNT_POINT src=$FSX_DNS_NAME@tcp:/$FSX_MOUNTNAME fstype=lustre opts=noatime,flock,_netdev,x-systemd.automount,x-systemd.requires=network-online.target dump=0 passno=0 state=mounted"; then
+            echo "[WARN] Mount command failed — retrying in $delay seconds"
+            sleep "$delay"; ((attempt++)); continue
+        fi
+
+        echo "[STEP] Verifying mountpoint..."
+        if ! ansible localhost -b -m ansible.builtin.command -a "mountpoint $MOUNT_POINT"; then            
+            echo "[WARN] Mountpoint verification failed — retrying in $delay seconds"
+            sleep "$delay"; ((attempt++)); continue
+        fi
+        echo "[STEP] Triggering automount..."
+        ls -la "$MOUNT_POINT" >/dev/null 2>&1 || true
+
+        echo "[STEP] Testing file access (touch)..."
+        if ! ansible localhost -b -m ansible.builtin.file -a "path=$MOUNT_POINT/test_file state=touch"; then
+            echo "[WARN] Touch failed — retrying in $delay seconds"
+            sleep "$delay"; ((attempt++)); continue
+        fi
+
+        echo "[STEP] Testing file access (delete)..."
+        if ! ansible localhost -b -m ansible.builtin.file -a "path=$MOUNT_POINT/test_file state=absent"; then
+            echo "[WARN] Delete failed — retrying in $delay seconds"
+            sleep "$delay"; ((attempt++)); continue
+        fi
+
+        echo "[SUCCESS] FSx mount succeeded on attempt $attempt"
+        return 0
+    done
+
+    echo "[ERROR] FSx mount failed after $max_attempts attempts"
+    return 1
 }
+
+
 
 restart_daemon()
 {
@@ -78,7 +119,7 @@ main()
     echo "Using mount_point: $MOUNT_POINT"
     echo "LUSTRE CLIENT CONFIGURATION $(print_lustre_version)"
     load_lnet_modules
-    mount_fs
+    mount_fs || exit 1
     restart_daemon
     echo "FSx Lustre mounted successfully to $MOUNT_POINT"
 }

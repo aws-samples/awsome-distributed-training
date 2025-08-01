@@ -228,6 +228,11 @@ def main(args):
                 ExecuteBashScript("./utils/fsx_ubuntu.sh").run("0")
 
         ExecuteBashScript("./start_slurm.sh").run(node_type, ",".join(controllers))
+        
+        # Setup user associations for Slurm accounting (only on controller nodes)
+        if node_type == SlurmNodeType.HEAD_NODE:
+            ExecuteBashScript("./setup_user_associations.sh").run()
+        
         ExecuteBashScript("./utils/gen-keypair-ubuntu.sh").run()
         ExecuteBashScript("./utils/ssh-to-compute.sh").run()
 
