@@ -53,7 +53,7 @@ The logs can be inspected using tail command:
 
 GRPO Training logs:
 ```bash
-tail -f -n +0 grpo_XXX.out 
+tail -f -n +0 grpo-XXX.out 
 ```
 sample output:
 ```
