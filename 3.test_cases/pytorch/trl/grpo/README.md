@@ -63,7 +63,7 @@ sample output:
 
 vLLM logs:
 ```bash
-tail -f -n +0 vllm_XXX.out
+tail -f -n +0 vllm-XXX.out
 ```
 sample output:
 ```
