@@ -20,7 +20,7 @@ pip install -U "huggingface_hub[cli]"
 
 Download the model:
 ```bash
-huggingface-cli download Qwen/Qwen2.5-72B
+hf download Qwen/Qwen2.5-72B
 ```
 
 ### Docker Image
