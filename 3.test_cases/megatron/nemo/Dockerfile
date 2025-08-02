@@ -1,12 +1,12 @@
-FROM nvcr.io/nvidia/nemo:24.12
-ARG GDRCOPY_VERSION=v2.4.1
-ARG EFA_INSTALLER_VERSION=1.37.0
-ARG AWS_OFI_NCCL_VERSION=v1.13.2-aws
-ARG NCCL_VERSION=v2.23.4-1
-ARG NCCL_TESTS_VERSION=v2.13.10
-ARG TRANSFORMERS_VERSION=4.48.1
+FROM nvcr.io/nvidia/nemo:25.07.00
+ARG GDRCOPY_VERSION=v2.5.1
+ARG EFA_INSTALLER_VERSION=1.43.1
+# ARG AWS_OFI_NCCL_VERSION=v1.13.2-aws    # OFI NCCL already packaged into EFA installation (/opt/amazon/ofi-nccl)
+ARG NCCL_VERSION=v2.23.4-1    
+ARG NCCL_TESTS_VERSION=v2.16.7
+ARG TRANSFORMERS_VERSION=4.54.1
 
-ARG OPEN_MPI_PATH=/opt/amazon/openmpi
+ARG OPEN_MPI_PATH=/opt/amazon/openmpi    # Open MPI already packaged into EFA installation (/opt/amazon/openmpi)
 
 ######################
 # Update and remove the IB libverbs
@@ -52,7 +52,7 @@ RUN rm -rf /root/.ssh/ \
  && cp /root/.ssh/id_rsa.pub /root/.ssh/authorized_keys \
  && printf "Host *\n  StrictHostKeyChecking no\n" >> /root/.ssh/config
 
-ENV LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:/opt/amazon/openmpi/lib:/opt/nccl/build/lib:/opt/amazon/efa/lib:/opt/aws-ofi-nccl/install/lib:$LD_LIBRARY_PATH
+ENV LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:/opt/amazon/openmpi/lib:/opt/nccl/build/lib:/opt/amazon/efa/lib:/opt/amazon/ofi-nccl/lib:$LD_LIBRARY_PATH
 ENV PATH=/opt/amazon/openmpi/bin/:/opt/amazon/efa/bin:/usr/bin:/usr/local/bin:$PATH
 
 #################################################
@@ -81,24 +81,24 @@ RUN cd $HOME \
 
 ###################################################
 ## Install AWS-OFI-NCCL plugin
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -y libhwloc-dev
-#Switch from sh to bash to allow parameter expansion
-SHELL ["/bin/bash", "-c"]
-RUN curl -OL https://github.com/aws/aws-ofi-nccl/releases/download/${AWS_OFI_NCCL_VERSION}/aws-ofi-nccl-${AWS_OFI_NCCL_VERSION//v}.tar.gz \
-    && tar -xf aws-ofi-nccl-${AWS_OFI_NCCL_VERSION//v}.tar.gz \
-    && cd aws-ofi-nccl-${AWS_OFI_NCCL_VERSION//v} \
-    && ./configure --prefix=/opt/aws-ofi-nccl/install \
-        --with-mpi=/opt/amazon/openmpi \
-        --with-libfabric=/opt/amazon/efa \
-        --with-cuda=/usr/local/cuda \
-        --enable-platform-aws \
-    && make -j $(nproc) \
-    && make install \
-    && cd .. \
-    && rm -rf aws-ofi-nccl-${AWS_OFI_NCCL_VERSION//v} \
-    && rm aws-ofi-nccl-${AWS_OFI_NCCL_VERSION//v}.tar.gz
+# RUN DEBIAN_FRONTEND=noninteractive apt-get install -y libhwloc-dev
+##Switch from sh to bash to allow parameter expansion
+# SHELL ["/bin/bash", "-c"]
+# RUN curl -OL https://github.com/aws/aws-ofi-nccl/releases/download/${AWS_OFI_NCCL_VERSION}/aws-ofi-nccl-${AWS_OFI_NCCL_VERSION//v}.tar.gz \
+#     && tar -xf aws-ofi-nccl-${AWS_OFI_NCCL_VERSION//v}.tar.gz \
+#     && cd aws-ofi-nccl-${AWS_OFI_NCCL_VERSION//v} \
+#     && ./configure --prefix=/opt/aws-ofi-nccl/install \
+#         --with-mpi=/opt/amazon/openmpi \
+#         --with-libfabric=/opt/amazon/efa \
+#         --with-cuda=/usr/local/cuda \
+#        --enable-platform-aws \
+#     && make -j $(nproc) \
+#     && make install \
+#     && cd .. \
+#     && rm -rf aws-ofi-nccl-${AWS_OFI_NCCL_VERSION//v} \
+#     && rm aws-ofi-nccl-${AWS_OFI_NCCL_VERSION//v}.tar.gz
 
-SHELL ["/bin/sh", "-c"]
+# SHELL ["/bin/sh", "-c"]
 
 ###################################################
 RUN rm -rf /var/lib/apt/lists/*
@@ -127,3 +127,6 @@ ENV OMPI_MCA_pml=^cm,ucx            \
 
 ## Turn off PMIx Error https://github.com/open-mpi/ompi/issues/7516
 ENV PMIX_MCA_gds=hash
+
+# Debug: Verify OFI NCCL and OPENMPI installation
+RUN ls -la /opt/amazon/efa/lib/ && ls -la /opt/amazon/ofi-nccl/lib/ && ls -la /opt/amazon/openmpi/lib/
