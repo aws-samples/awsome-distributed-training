@@ -108,7 +108,6 @@ RUN echo "hwloc_base_binding_policy = none" >> /opt/amazon/openmpi/etc/openmpi-m
 
 # Install additional dependencies required for perf testing
 RUN pip3 install --upgrade huggingface_hub>=0.34.0
-RUN pip3 install --upgrade megatron-core
 
 RUN pip3 install awscli pynvml wandb
 
