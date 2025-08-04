@@ -550,6 +550,35 @@ Resources:
       ResolveConflicts: OVERWRITE
 
 ### ---------------- SageMaker Execution and Service Roles ----------------###
+  HyperpodTrainingOperatorServiceRole:
+    Type: 'AWS::IAM::Role'
+    Condition: CreateEKSCluster
+    Properties:
+      RoleName: !Sub 'hyperpod-training-operator-service-role'
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Sid: AllowEksAuthToAssumeRoleForPodIdentity
+            Effect: Allow
+            Principal:
+              Service: pods.eks.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+              - 'sts:TagSession'
+      Path: /
+      Policies:
+        - PolicyName: !Sub 'hyperpod-training-operator-service-policy'
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'sagemaker:DescribeClusterNode'
+                Resource: !Sub 'arn:aws:sagemaker:${AWS::Region}:${AWS::AccountId}:cluster/*'
+      Tags:
+        - Key: Name
+          Value: !Sub 'hyperpod-training-operator-service-role'
+
   ExecutionRole:
     Type: 'AWS::IAM::Role'
     Properties:
