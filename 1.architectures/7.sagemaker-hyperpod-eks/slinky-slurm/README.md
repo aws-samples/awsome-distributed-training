@@ -23,7 +23,7 @@ The diagram above depicts the resulting proof-of-concept deployment outlined in 
 
 The login LoadBalancer type service is annotated to dynamically create an AWS Network Load Balancer using the [AWS Load Balancer Controller](https://github.com/kubernetes-sigs/aws-load-balancer-controller), allowing ML scientists to SSH into their login pods without interfacing with the Kubernetes API server via kubectl. 
 
-The login and compute node pods also have FSx for Lustre and FSx for OpenZFS shared filesystems mounted. Having containerized compute node pods allows many dependencies that would traditionally be installed manually using Conda or a Python virtual environment to be baked into the container image, but shared filesystems are still beneficial for storing training artifacts, data, logs, and checkpoints. If Conda environments are still required, FSx for OpenZFS has proven optimal to avoid IOPS saturation with many small files. 
+The login and compute node pods also have FSx for Lustre and (optionally) FSx for OpenZFS shared filesystems mounted. Having containerized compute node pods allows many dependencies that would traditionally be installed manually using Conda or a Python virtual environment to be baked into the container image, but shared filesystems are still beneficial for storing training artifacts, data, logs, and checkpoints. If Conda environments are still required, FSx for OpenZFS has proven optimal to avoid IOPS saturation with many small files. 
 
 ---
 
@@ -517,7 +517,7 @@ kubectl get pv $(kubectl get pvc openzfs-claim -n slurm -ojson \
 ```
 ---
 #### Review Volume Mounts:
-FSx for Lustre and OpenZFS PVCs are added to the list of `extraVolumeMounts` and `extraVolumes` for both the login service and compute nodes in [g5-values.yaml](./g5/g5-values.yaml) and [p5-values.yaml](./p5/p5-values.yaml): 
+FSx for Lustre and OpenZFS PVCs are added to the list of `extraVolumeMounts` and `extraVolumes` for both the login service and compute nodes in [g5-values.yaml](./g5/g5-values.yaml) and [p5-values.yaml](./p5/p5-values.yaml). If you are using FSx for OpenZFS you will have to uncomment the mount under `extraVolumeMounts` and `extraVolumes`: 
 
 ```
 login:
