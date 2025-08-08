@@ -35,7 +35,7 @@ sam build -t managed-cluster-observability-pc.yaml
 sam deploy -t managed-cluster-observability-pc.yaml\
     --stack-name ${OBS_DASHBOARD_NAME} \
     --guided \
-    --capabilities CAPABILITY_IAM CAPABILITY_AUTO_EXPAND \
+    --capabilities CAPABILITY_IAM CAPABILITY_AUTO_EXPAND CAPABILITY_NAMED_IAM \
     --parameter-overrides \
     ParameterKey=PCClusterName,ParameterValue=<CLUSTER_NAME> \
     ParameterKey=SubnetId,ParameterValue=<SUBNET_ID> \
