@@ -1,3 +1,13 @@
+data "aws_eks_cluster" "existing_eks_cluster" {
+  count  = var.create_eks_module ? 0 : 1
+  name = var.existing_eks_cluster_name
+}
+
+data "aws_s3_bucket" "existing_s3_bucket" {
+  count  =  var.create_s3_bucket_module ? 0 : (var.existing_s3_bucket_name != "" ? 1 : 0)
+  bucket = var.existing_s3_bucket_name
+}
+
 locals {
   vpc_id = var.create_vpc_module ? module.vpc[0].vpc_id : var.existing_vpc_id
   private_subnet_id = var.create_private_subnet_module ? module.private_subnet[0].private_subnet_id : var.existing_private_subnet_id
@@ -82,7 +92,7 @@ module "sagemaker_iam_role" {
   source = "./modules/sagemaker_iam_role"
 
   resource_name_prefix = var.resource_name_prefix
-  s3_bucket_name      = local.s3_bucket_name
+  s3_bucket_name       = local.s3_bucket_name
 }
 
 module "helm_chart" {
@@ -123,17 +133,4 @@ module "hyperpod_cluster" {
   s3_bucket_name          = local.s3_bucket_name
   sagemaker_iam_role_name = local.sagemaker_iam_role_name
 
-}
-
-# Data source for current AWS region
-data "aws_region" "current" {}
-
-data "aws_eks_cluster" "existing_eks_cluster" {
-  count  = var.create_eks_module ? 0 : 1
-  name = var.existing_eks_cluster_name
-}
-
-data "aws_s3_bucket" "existing_s3_bucket" {
-  count  =  var.create_s3_bucket_module ? 0 : (var.existing_s3_bucket_name != "" ? 1 : 0)
-  bucket = var.existing_s3_bucket_name
 }

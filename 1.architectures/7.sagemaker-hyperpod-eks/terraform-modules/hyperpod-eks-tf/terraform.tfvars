@@ -1,4 +1,5 @@
 resource_name_prefix = "sagemaker-hyperpod-eks"
+aws_region           = "us-west-2"
 
 # VPC Module Variables
 create_vpc_module    = true

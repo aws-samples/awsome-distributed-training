@@ -121,5 +121,5 @@ output "hyperpod_cluster_status" {
 # Region Output
 output "aws_region" {
   description = "AWS region"
-  value       = data.aws_region.current.id
+  value       = var.aws_region
 }

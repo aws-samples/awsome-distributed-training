@@ -4,6 +4,12 @@ variable "resource_name_prefix" {
   default     = "sagemaker-hyperpod-eks"
 }
 
+variable "aws_region" {
+  description = "AWS Region to be targeted for deployment"
+  type        = string
+  default     = "us-west-2"
+}
+
 # VPC Module Variables
 variable "create_vpc_module" {
   description = "Whether to create VPC module"
