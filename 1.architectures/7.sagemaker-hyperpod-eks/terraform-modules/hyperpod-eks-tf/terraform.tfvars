@@ -45,7 +45,6 @@ existing_sagemaker_iam_role_name = ""
 
 # Helm Chart Module Variables
 create_helm_chart_module = true
-helm_repo_url            = "https://github.com/aws/sagemaker-hyperpod-cli.git"
 helm_repo_path           = "helm_chart/HyperPodHelmChart"
 namespace                = "kube-system"
 helm_release_name        = "hyperpod-dependencies"

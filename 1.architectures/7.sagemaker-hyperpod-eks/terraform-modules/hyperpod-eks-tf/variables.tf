@@ -181,12 +181,6 @@ variable "create_helm_chart_module" {
   default     = true
 }
 
-variable "helm_repo_url" {
-  description = "The URL of the Helm repo"
-  type        = string
-  default     = "https://github.com/aws/sagemaker-hyperpod-cli.git"
-}
-
 variable "helm_repo_path" {
   description = "The path to the HyperPod Helm chart"
   type        = string
