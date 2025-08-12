@@ -51,7 +51,7 @@ export NCCL_DEBUG=INFO
 
 ## Pre-training Performance
 
-## NVIDIA H100(also applicable to H200)
+### NVIDIA H100(also applicable to H200)
 
 `NeMo/scripts/performance/recommended_model_configs/model_configs_h100.csv`
 
@@ -83,6 +83,119 @@ python -m scripts.performance.llm.pretrain_llama3_70b \
 python -m scripts.performance.llm.pretrain_llama31_405b \
     --account $(whoami) --partition p5en -i ./aws-nemo.sqsh \
     --gpu h100 --num_gpus 128 -gb 64 -mb 1 -tp 8 -pp 8 -cp 2 -vp 8 -ep 1
+```
+
+### NVIDIA B200
+
+`NeMo/scripts/performance/recommended_model_configs/model_configs_b200.csv`
+
+| Model     | #-GPUs | GBS | MBS | Sequence Length | TP | PP | CP | VP | EP | GA |
+|-----------|--------|-----|-----|-----------------|----|----|----|----|----|----|
+| LLAMA3-8B | 8      | 128 | 2   | 8192            | 1  | 1  | 1  | 1  | 1  | 8  |
+
+```bash
+python -m scripts.performance.llm.pretrain_llama3_8b \
+    --account $(whoami) --partition p6 -i ./aws-nemo.sqsh \
+    --gpu b200 -c fp8 --num_gpus 8 -gb 128 -mb 1 -tp 1 -pp 1 -cp 1 -vp 1 -ep 1
+```
+
+mxfp8:
+```bash
+python -m scripts.performance.llm.pretrain_llama3_8b \
+    --account $(whoami) --partition p6 -i ./aws-nemo.sqsh \
+    --gpu b200 -c fp8 --num_gpus 8 -gb 128 -mb 1 -tp 1 -pp 1 -cp 1 -vp 1 -ep 1 -fr mxfp8
+```
+
+| Model      | #-GPUs | GBS | MBS | Sequence Length | TP | PP | CP | VP | EP | GA |
+|------------|--------|-----|-----|-----------------|----|----|----|----|----|----|
+| LLAMA3-70B | 64     | 128 | 1   | 8192            | 1  | 1  | 1  | 1  | 1  | 2  |
+
+```bash
+python -m scripts.performance.llm.pretrain_llama3_70b \
+    --account $(whoami) --partition p6 -i ./aws-nemo.sqsh \
+    --gpu b200 -c fp8 --num_gpus 64 # -gb 128 -mb 1 -tp 1 -pp 1 -cp 1 -vp 1 -ep 1 -fsdp 1
+```
+
+| Model      | #-GPUs | GBS | MBS | Sequence Length | TP | PP | CP | VP | EP | GA |
+|------------|--------|-----|-----|-----------------|----|----|----|----|----|----|
+| LLAMA3-70B | 64     | 128 | 1   | 8192            | 2  | 4  | 2  | 5  | 1  | 32 |
+
+```bash
+python -m scripts.performance.llm.pretrain_llama3_70b \
+    --account $(whoami) --partition p6 -i ./aws-nemo.sqsh \
+    --gpu b200 -c fp8 --num_gpus 64 -gb 128 -mb 1 -tp 2 -pp 4 -cp 2 -vp 5 -ep 1
+```
+error
+
+| Model         | #-GPUs | GBS | MBS | Sequence Length | TP | PP | CP | VP | EP | GA |
+|---------------|--------|-----|-----|-----------------|----|----|----|----|----|----|
+| LLAMA3.1-405B | 128    | 64  | 1   | 8192            | 4  | 8  | 2  | 8  | 1  | 32 |
+
+```bash
+python -m scripts.performance.llm.pretrain_llama31_405b \
+    --account $(whoami) --partition p6 -i ./aws-nemo.sqsh \
+    --gpu b200 -c fp8 --num_gpus 128 -gb 64 -mb 1 -tp 4 -pp 8 -cp 2 -vp 8 -ep 1
+```
+
+| Model            | #-GPUs | GBS  | MBS | Sequence Length | TP | PP | CP | VP | EP | GA |
+|------------------|--------|------|-----|-----------------|----|----|----|----|----|----|
+| LLAMA4-Scout-LLM | 64     | 1024 | 1   | 8192            | 1  | 2  | 1  | 24 | 8  | 32 |
+
+```bash
+python -m scripts.performance.llm.pretrain_llama4_e16 \
+    --account $(whoami) --partition p6 -i ./aws-nemo.sqsh \
+    --gpu b200 -c fp8 --num_gpus 64 -gb 1024 -mb 1 -tp 1 -pp 2 -cp 1 -vp 24 -ep 8
+```
+
+| Model               | #-GPUs | GBS  | MBS | Sequence Length | TP | PP | CP | VP | EP | GA |
+|---------------------|--------|------|-----|-----------------|----|----|----|----|----|----|
+| LLAMA4-Maverick-LLM | 128    | 1024 | 1   | 8192            | 1  | 2  | 1  | 12 | 64 | 16 |
+
+```bash
+python -m scripts.performance.llm.pretrain_llama4_e128 \
+    --account $(whoami) --partition p6 -i ./aws-nemo.sqsh \
+    --gpu b200 -c fp8 --num_gpus 128 -gb 1024 -mb 1 -tp 1 -pp 2 -cp 1 -vp 12 -ep 64
+```
+
+
+| Model        | #-GPUs | GBS | MBS | Sequence Length | TP | PP | CP | VP | EP | GA |
+|--------------|--------|-----|-----|-----------------|----|----|----|----|----|----|
+| Mixtral-8x7B | 64     | 256 | 2   | 4096            | 1  | 1  | 1  | 1  | 8  | 2  |
+
+```bash
+python -m scripts.performance.llm.pretrain_mixtral_8x7b \
+    --account $(whoami) --partition p6 -i ./aws-nemo.sqsh \
+    --gpu b200 -c fp8 --num_gpus 64 -gb 256 -mb 2 -tp 1 -pp 1 -cp 1 -vp 1 -ep 8
+```
+
+| Model         | #-GPUs | GBS | MBS | Sequence Length | TP | PP | CP | VP | EP | GA |
+|---------------|--------|-----|-----|-----------------|----|----|----|----|----|----|
+| Mixtral-8x22B | 256    | 64  | 1   | 65536           | 2  | 4  | 8  | 14 | 8  | 16 |
+
+```bash
+python -m scripts.performance.llm.pretrain_mixtral_8x22b \
+    --account $(whoami) --partition p6 -i ./aws-nemo.sqsh \
+    --gpu b200 -c fp8 --num_gpus 256 -gb 64 -mb 1 -tp 2 -pp 4 -cp 8 -vp 14 -ep 8
+```
+
+| Model           | #-GPUs | GBS | MBS | Sequence Length | TP | PP | CP | VP | EP | GA |
+|-----------------|--------|-----|-----|-----------------|----|----|----|----|----|----|
+| Nemotron5-H-56B | 64     | 192 | 2   | 8192            | 4  | 1  | 1  | 1  | 1  | 6  |
+
+```bash
+python -m scripts.performance.llm.pretrain_nemotronh_56b \
+    --account $(whoami) --partition p6 -i ./aws-nemo.sqsh \
+    --gpu b200 -c fp8 --num_gpus 64 -gb 192 -mb 2 -tp 4 -pp 1 -cp 1 -vp 1 -ep 1
+```
+
+| Model      | #-GPUs | GBS  | MBS | Sequence Length | TP | PP | CP | VP | EP | GA  |
+|------------|--------|------|-----|-----------------|----|----|----|----|----|-----|
+| DeepSeekV3 | 256    | 2048 | 1   | 4096            | 2  | 16 | 1  | 1  | 8  | 256 |
+
+```bash
+python -m scripts.performance.llm.pretrain_deepseek_v3 \
+    --account $(whoami) --partition p6 -i ./aws-nemo.sqsh \
+    --gpu b200 -c fp8 --num_gpus 256 -gb 2048 -mb 1 -tp 2 -pp 16 -cp 1 -vp 1 -ep 8
 ```
 
 ## Fine-Tuning Performance
