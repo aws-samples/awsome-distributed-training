@@ -49,7 +49,7 @@ export FI_PROVIDER=efa
 export NCCL_DEBUG=INFO
 ```
 
-## Recommended model configs
+## Pre-training Performance
 
 ## NVIDIA H100(also applicable to H200)
 
@@ -83,4 +83,86 @@ python -m scripts.performance.llm.pretrain_llama3_70b \
 python -m scripts.performance.llm.pretrain_llama31_405b \
     --account $(whoami) --partition p5en -i ./aws-nemo.sqsh \
     --gpu h100 --num_gpus 128 -gb 64 -mb 1 -tp 8 -pp 8 -cp 2 -vp 8 -ep 1
+```
+
+## Fine-Tuning Performance
+
+1. Specify `NEMO_HOME` explicitly to prevent `fiddle._src.experimental.serialization.UnserializableValueError`
+https://docs.nvidia.com/nemo-framework/user-guide/latest/nemorun/faqs.html#q-unserializablevalueerror-when-using-run-partial-or-run-config
+
+```bash
+export NEMO_HOME=...
+```
+
+~~2. Append `FLOPsMeasurementCallback` for task == "none" in `set_exp_logging_configs` in `helpers.py` to get FLOPs measurements.~~
+
+3. To enable `mxfp8` recipe, add `recipe.trainer.strategy.ddp.fp8_param_gather = True` in `finetune_llama3_8b.py`/`finetune_llama3_70b.py`
+```python
+if args.fp8_recipe == "mxfp8":
+    recipe.trainer.strategy.ddp.fp8_param_gather = True
+```
+
+### NVIDIA B200
+
+#### LLAMA3-8B SFT
+
+| Model     | Task | #-GPUs | GBS | MBS | Packed Sequence Length | TP | PP | VP | GA |
+|-----------|------|--------|-----|-----|------------------------|----|----|----|----|
+| LLAMA3-8B | SFT  | 8      | 8   | 1   | 16384                  | 1  | 1  | 1  | 1  |
+
+fp8:
+```bash
+python -m scripts.performance.llm.finetune_llama3_8b \
+    --account $(whoami) --partition p6 -i ./aws-nemo.sqsh \
+    -hf $HF_TOKEN \
+    --gpu b200 -c fp8 -f sft --num_gpus 8 -gb 8 -mb 1 -tp 1 -pp 1 -vp 1
+```
+mxfp8:
+```bash
+python -m scripts.performance.llm.finetune_llama3_8b \
+    --account $(whoami) --partition p6 -i ./aws-nemo.sqsh \
+    -hf $HF_TOKEN \
+    --gpu b200 -c fp8 -f sft --num_gpus 8 -gb 8 -mb 1 -tp 1 -pp 1 -vp 1 -fr mxfp8
+```
+
+#### LLAMA3-70B SFT
+
+| Model      | Task | #-GPUs | GBS | MBS | Packed Sequence Length | TP | PP | VP | GA |
+|------------|------|--------|-----|-----|------------------------|----|----|----|----|
+| LLAMA3-70B | SFT  | 32     | 32  | 1   | 4096                   | 2  | 4  | 5  | 8  |
+
+fp8:
+```bash
+python -m scripts.performance.llm.finetune_llama3_70b \
+    --account $(whoami) --partition p6 -i ./aws-nemo.sqsh \
+    -hf $HF_TOKEN \
+    --gpu b200 -c fp8 -f sft --num_gpus 32 -gb 32 -mb 1 -tp 2 -pp 4 -vp 5
+```
+mxfp8:
+```bash
+python -m scripts.performance.llm.finetune_llama3_70b \
+    --account $(whoami) --partition p6 -i ./aws-nemo.sqsh \
+    -hf $HF_TOKEN \
+    --gpu b200 -c fp8 -f sft --num_gpus 32 -gb 32 -mb 1 -tp 2 -pp 4 -vp 5 -fr mxfp8
+```
+
+#### LLAMA3-70B LoRA
+
+| Model      | Task  | #-GPUs | GBS | MBS | Packed Sequence Length | TP | PP | VP | GA |
+|------------|-------|--------|-----|-----|------------------------|----|----|----|----|
+| LLAMA3-70B | LoRA  | 8      | 32  | 1   | 4096                   | 1  | 4  | 20 | 16 |
+
+fp8:
+```bash
+python -m scripts.performance.llm.finetune_llama3_70b \
+    --account $(whoami) --partition p6 -i ./aws-nemo.sqsh \
+    -hf $HF_TOKEN \
+    --gpu b200 -c fp8 -f lora --num_gpus 8 -gb 32 -mb 1 -tp 1 -pp 4 -vp 20
+```
+mxfp8:
+```bash
+python -m scripts.performance.llm.finetune_llama3_70b \
+    --account $(whoami) --partition p6 -i ./aws-nemo.sqsh \
+    -hf $HF_TOKEN \
+    --gpu b200 -c fp8 -f lora --num_gpus 8 -gb 32 -mb 1 -tp 1 -pp 4 -vp 20 -fr mxfp8
 ```
