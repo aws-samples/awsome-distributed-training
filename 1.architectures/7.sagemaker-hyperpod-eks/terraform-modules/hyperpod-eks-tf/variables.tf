@@ -4,6 +4,12 @@ variable "resource_name_prefix" {
   default     = "sagemaker-hyperpod-eks"
 }
 
+variable "aws_region" {
+  description = "AWS Region to be targeted for deployment"
+  type        = string
+  default     = "us-west-2"
+}
+
 # VPC Module Variables
 variable "create_vpc_module" {
   description = "Whether to create VPC module"
@@ -173,12 +179,6 @@ variable "create_helm_chart_module" {
   description = "Whether to create Helm chart module"
   type        = bool
   default     = true
-}
-
-variable "helm_repo_url" {
-  description = "The URL of the Helm repo"
-  type        = string
-  default     = "https://github.com/aws/sagemaker-hyperpod-cli.git"
 }
 
 variable "helm_repo_path" {

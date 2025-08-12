@@ -1,3 +1,5 @@
+data "aws_region" "current" {}
+
 resource "aws_vpc_endpoint" "s3" {
   vpc_id       = var.vpc_id
   service_name = "com.amazonaws.${data.aws_region.current.id}.s3"
@@ -17,6 +19,3 @@ resource "aws_vpc_endpoint" "s3" {
   route_table_ids = [var.private_route_table_id]
   vpc_endpoint_type = "Gateway"
 }
-
-# Data source for current AWS region
-data "aws_region" "current" {}
