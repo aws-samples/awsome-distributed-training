@@ -1,3 +1,5 @@
+data "aws_region" "current" {}
+
 # IAM Role
 resource "aws_iam_role" "sagemaker_execution_role" {
   name = "${var.resource_name_prefix}-SMHP-Exec-Role-${data.aws_region.current.id}"
@@ -92,6 +94,3 @@ resource "aws_iam_role_policy_attachment" "sagemaker_execution_policy_attachment
   role       = aws_iam_role.sagemaker_execution_role.name
   policy_arn = aws_iam_policy.sagemaker_execution_policy.arn
 }
-
-# Data source for current AWS region
-data "aws_region" "current" {}

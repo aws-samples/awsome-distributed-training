@@ -33,6 +33,7 @@ kubernetes_version = "1.32"
 eks_cluster_name = "my-eks-cluster"
 hyperpod_cluster_name = "my-hp-cluster"
 resource_name_prefix = "hp-eks-test"
+aws_region = "us-west-2"
 availability_zone_id  = "usw2-az2"
 instance_groups = {
     accelerated-instance-group-1 = {
@@ -61,6 +62,7 @@ existing_vpc_id = "vpc-1234567890abcdef0"
 existing_nat_gateway_id = "nat-1234567890abcdef0"
 hyperpod_cluster_name = "my-hp-cluster"
 resource_name_prefix = "hp-eks-test"
+aws_region = "us-west-2"
 availability_zone_id  = "usw2-az2"
 instance_groups = {
     accelerated-instance-group-1 = {
@@ -78,6 +80,10 @@ EOL
 ---
 
 ## Deployment 
+First, clone the [HyperPod Helm charts GitHub repository](https://github.com/aws/sagemaker-hyperpod-cli/tree/main/helm_chart) to locally stage the dependencies Helm chart.  
+```bash
+git clone https://github.com/aws/sagemaker-hyperpod-cli.git /tmp/helm-repo
+```
 Run `terraform init` to initialize the Terraform working directory, install necessary provider plugins, download modules, set up state storage, and configure the backend for managing infrastructure state: 
 
 ```bash 
