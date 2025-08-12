@@ -43,21 +43,10 @@ if mount | grep -q "/opt/sagemaker"; then
 
   elif [[ "$os_version" == "2023" ]]; then
     # Amazon Linux 2023 logic (systemd override)
-    logger "Amazon Linux 2023 detected. Writing systemd override for containerd"
-
-    mkdir -p /etc/systemd/system/containerd.service.d
-
-    cat <<EOF | tee /etc/systemd/system/containerd.service.d/override.conf
-[Service]
-Environment="CONTAINERD_CONFIG=/etc/containerd/config.toml"
-ExecStart=
-ExecStart=/usr/bin/containerd --root /opt/sagemaker/containerd/data-root --config \$CONTAINERD_CONFIG
-EOF
-
-    logger "Reloading and restarting containerd"
-    systemctl daemon-reexec
-    systemctl daemon-reload
-    systemctl restart containerd
+    logger "Amazon Linux 2023 detected. WARNING: nodeadm will override containerd configuration"
+    logger "Current containerd config will be reset by nodeadm to use /var/lib/containerd"
+    logger "Manual intervention required post-nodeadm execution to set data-root to /opt/sagemaker/containerd/data-root"
+    logger "Consider implementing post-nodeadm hook or alternative solution"
 
   else
     logger "Unsupported OS version: $os_version. Skipping containerd configuration."
