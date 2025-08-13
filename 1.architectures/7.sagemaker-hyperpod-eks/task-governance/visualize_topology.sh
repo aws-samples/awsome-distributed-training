@@ -3,9 +3,7 @@
 is_supported_instance() {
     local instance_type="$1"
     local supported_types=(
-        "hpc6a.48xlarge" "hpc6id.32xlarge" "hpc7a.12xlarge" "hpc7a.24xlarge" 
-        "hpc7a.48xlarge" "hpc7a.96xlarge" "hpc7g.4xlarge" "hpc7g.8xlarge" 
-        "hpc7g.16xlarge" "p3dn.24xlarge" "p4d.24xlarge" "p4de.24xlarge" 
+        "p4d.24xlarge" "p4de.24xlarge" 
         "p5.48xlarge" "p5e.48xlarge" "p5en.48xlarge" "p6e-gb200.36xlarge"
         "trn1.2xlarge" "trn1.32xlarge" "trn1n.32xlarge" "trn2.48xlarge" 
         "trn2u.48xlarge" "p6-b200.48xlarge"
