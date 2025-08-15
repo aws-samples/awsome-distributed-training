@@ -3,10 +3,10 @@
 is_supported_instance() {
     local instance_type="$1"
     local supported_types=(
-        "p4d.24xlarge" "p4de.24xlarge" 
-        "p5.48xlarge" "p5e.48xlarge" "p5en.48xlarge" "p6e-gb200.36xlarge"
-        "trn1.2xlarge" "trn1.32xlarge" "trn1n.32xlarge" "trn2.48xlarge" 
-        "trn2u.48xlarge" "p6-b200.48xlarge"
+        "ml.p4d.24xlarge" "ml.p4de.24xlarge" 
+        "ml.p5.48xlarge" "ml.p5e.48xlarge" "ml.p5en.48xlarge" "ml.p6e-gb200.36xlarge"
+        "ml.trn1.2xlarge" "ml.trn1.32xlarge" "ml.trn1n.32xlarge" "ml.trn2.48xlarge" 
+        "ml.trn2u.48xlarge" "ml.p6-b200.48xlarge"
     )
     
     for supported in "${supported_types[@]}"; do
