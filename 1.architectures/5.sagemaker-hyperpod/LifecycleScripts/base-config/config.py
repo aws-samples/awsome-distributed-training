@@ -32,6 +32,8 @@ class Config:
     # Set true if you want to use FSx OpenZFS in addition to FSxL. 
     enable_fsx_openzfs = False
 
+    # Set false if you want to disable log rotation of Slurm daemon logs
+    enable_slurm_log_rotation = True
 
     s3_bucket = "" # required when enable_mount_s3 = True, replace with your actual data bucket name in quotes, ie. "my-dataset-bucket"
 
