@@ -18,4 +18,8 @@
 
 - Adding "aws ecr get-login-password" in multiple places but this can be a single place.
 
+- There are multiple install_xyz_exporter.sh but they take almost same structure. I should consider having a same docker image pulling/running function
 
+- Node exporter and EFA exporter cannot run on a same node. Port number conflict.
+
+    > time=2025-08-19T23:49:10.902Z level=ERROR source=node_exporter.go:247 msg="listen tcp :9100: bind: address already in use"
