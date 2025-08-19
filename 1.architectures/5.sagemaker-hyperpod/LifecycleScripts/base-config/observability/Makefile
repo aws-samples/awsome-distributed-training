@@ -5,4 +5,5 @@ install-on-head:
 
 install-on-workers:
 	srun -N 2 sudo bash ./install_dcgm_exporter.sh
+	srun -N 2 sudo bash ./install_efa_exporter.sh
 
