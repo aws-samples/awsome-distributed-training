@@ -4,7 +4,7 @@
 REGION=us-west-2
 
 # Define the container name
-CONTAINER_NAME="efa-node-exporter"
+CONTAINER_NAME="efa-exporter"
 
 ECR_ACCOUNT_ID=602401143452
 VERSION=1.0.0
@@ -56,7 +56,7 @@ if sudo docker run -d --restart always \
     -v "/:/host:ro,rslave" \
     $IMAGE \
     --path.rootfs=/host; then
-    echo "Successfully started EFA Node Exporter on node"
+    echo "Successfully started EFA Exporter on node"
     exit 0
 else
     echo "Failed to run Docker container"
