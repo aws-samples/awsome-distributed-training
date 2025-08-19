@@ -42,11 +42,56 @@ if mount | grep -q "/opt/sagemaker"; then
     fi
 
   elif [[ "$os_version" == "2023" ]]; then
-    # Amazon Linux 2023 logic (systemd override)
-    logger "Amazon Linux 2023 detected. WARNING: nodeadm will override containerd configuration"
-    logger "Current containerd config will be reset by nodeadm to use /var/lib/containerd"
-    logger "Manual intervention required post-nodeadm execution to set data-root to /opt/sagemaker/containerd/data-root"
-    logger "Consider implementing post-nodeadm hook or alternative solution"
+    # Amazon Linux 2023 logic (systemd override with custom config)
+    logger "Amazon Linux 2023 detected. Creating custom containerd config and systemd override"
+
+    # Create custom containerd config directory
+    mkdir -p /opt/sagemaker/containerd
+
+    # Create complete custom containerd config
+    cat <<EOF | tee /opt/sagemaker/containerd/config.toml
+version = 2
+root = "/opt/sagemaker/containerd/data-root"
+state = "/run/containerd"
+
+[grpc]
+address = "/run/containerd/containerd.sock"
+
+[plugins."io.containerd.grpc.v1.cri".containerd]
+default_runtime_name = "nvidia"
+discard_unpacked_layers = true
+
+[plugins."io.containerd.grpc.v1.cri"]
+sandbox_image = "registry.k8s.io/pause:3.8"
+enable_cdi = false
+
+[plugins."io.containerd.grpc.v1.cri".registry]
+config_path = "/etc/containerd/certs.d:/etc/docker/certs.d"
+
+[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.nvidia]
+runtime_type = "io.containerd.runc.v2"
+base_runtime_spec = "/etc/containerd/base-runtime-spec.json"
+
+[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.nvidia.options]
+BinaryName = "/usr/bin/nvidia-container-runtime"
+SystemdCgroup = true
+
+[plugins."io.containerd.grpc.v1.cri".cni]
+bin_dir = "/opt/cni/bin"
+conf_dir = "/etc/cni/net.d"
+EOF
+
+    # Create systemd override
+    mkdir -p /etc/systemd/system/containerd.service.d
+
+    cat <<EOF | tee /etc/systemd/system/containerd.service.d/override.conf
+[Service]
+Environment="CONTAINERD_CONFIG=/opt/sagemaker/containerd/config.toml"
+ExecStart=
+ExecStart=/usr/bin/containerd --config \$CONTAINERD_CONFIG
+EOF
+
+    systemctl daemon-reload
 
   else
     logger "Unsupported OS version: $os_version. Skipping containerd configuration."
