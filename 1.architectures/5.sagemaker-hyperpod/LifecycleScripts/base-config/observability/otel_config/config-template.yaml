@@ -1,3 +1,4 @@
+## Head node
 receivers:
   prometheus:
     config:
@@ -53,7 +54,7 @@ receivers:
             - targets: ['localhost:9400']
         - job_name: 'efa_exporter'
           static_configs:
-            - targets: ['localhost:9100']
+            - targets: ['localhost:9109']
             
 processors:
   batch:

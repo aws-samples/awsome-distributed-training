@@ -1,0 +1,39 @@
+## Head node
+receivers:
+  prometheus:
+    config:
+      global:
+        scrape_interval: 15s
+        evaluation_interval: 15s
+      scrape_configs:
+        - job_name: 'node-exporter'
+          static_configs:
+            - targets: ['localhost:9100']
+        - job_name: 'slurm_exporter'
+          static_configs:
+            - targets: ['localhost:8080']
+
+processors:
+  batch:
+    timeout: 10s
+    send_batch_size: 1024
+
+exporters:
+  prometheusremotewrite:
+    endpoint: https://aps-workspaces.us-west-2.amazonaws.com/workspaces/ws-e37c0ee4-7f7f-4f65-b72b-5455852d0c23/api/v1/remote_write
+    auth:
+      authenticator: sigv4auth
+
+extensions:
+  sigv4auth:
+    region: us-west-2
+    service: aps
+
+service:
+  extensions: [sigv4auth]
+  pipelines:
+    metrics:
+      receivers: [prometheus]
+      processors: [batch]
+      exporters: [prometheusremotewrite]
+      

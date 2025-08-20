@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+
 # FIXME: should auto detect
 REGION=us-west-2
 
@@ -55,7 +58,8 @@ if sudo docker run -d --restart always \
     --pid="host" \
     -v "/:/host:ro,rslave" \
     $IMAGE \
-    --path.rootfs=/host; then
+    --path.rootfs=/host \
+    --web.listen-address=:9109; then
     echo "Successfully started EFA Exporter on node"
     exit 0
 else

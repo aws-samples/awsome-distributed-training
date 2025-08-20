@@ -56,7 +56,7 @@ if sudo docker run -d --restart always \
     --name=$CONTAINER_NAME \
     --net="host" \
     --pid="host" \
-    -v $(pwd)/etc_otel:/etc/otel \
+    -v /etc/otel:/etc/otel \
     -p 4317:4317 -p 4318:4318 -p 8889:8889 \
     $IMAGE \
     --config=/etc/otel/config.yaml ; then
