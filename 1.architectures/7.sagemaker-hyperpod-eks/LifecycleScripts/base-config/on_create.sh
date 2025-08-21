@@ -62,7 +62,7 @@ default_runtime_name = "nvidia"
 discard_unpacked_layers = true
 
 [plugins."io.containerd.grpc.v1.cri"]
-sandbox_image = "registry.k8s.io/pause:3.8"
+sandbox_image = "localhost/kubernetes/pause"
 enable_cdi = false
 
 [plugins."io.containerd.grpc.v1.cri".registry]
@@ -92,6 +92,8 @@ ExecStart=/usr/bin/containerd --config \$CONTAINERD_CONFIG
 EOF
 
     systemctl daemon-reload
+
+    cp -a /var/lib/containerd /opt/sagemaker/containerd/data-root
 
   else
     logger "Unsupported OS version: $os_version. Skipping containerd configuration."
