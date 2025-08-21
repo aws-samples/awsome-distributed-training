@@ -21,4 +21,14 @@
 
 - There are multiple install_xyz_exporter.sh but they take almost same structure. I should consider having a same docker image pulling/running function
 
-- localhost:8080 ... should reconsider the port number
+- localhost:8080 ... should reconsider the port number for slurm-exporter. 8080 is often used for "my HTTP server".
+
+- "instance" attribute should use hostname.
+
+    > node_cpu_seconds_total{cpu="16", instance="localhost:9100", job="node-exporter", mode="nice"}
+
+    > node_amazonefa_send_wrs_total{device="rdmap0s26", instance="localhost:9109", job="efa_exporter", port="1"}
+
+    > DCGM_FI_DEV_MEMORY_TEMP{DCGM_FI_DRIVER_VERSION="570.172.08", Hostname="ip-10-1-201-66", UUID="GPU-4e7a917e-1cac-ddf5-0730-d55dcc6fddb6", device="nvidia0", gpu="0", instance="localhost:9400", job="dcgm_exporter", modelName="NVIDIA A10G", pci_bus_id="00000000:00:1B.0"}
+
+    > slurm_nodes_fail{instance="localhost:8080", job="slurm_exporter"}
