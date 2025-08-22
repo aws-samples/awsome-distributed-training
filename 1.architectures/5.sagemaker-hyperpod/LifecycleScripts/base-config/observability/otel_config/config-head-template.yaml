@@ -1,4 +1,4 @@
-## Head node
+## Controller Node OTEL Config
 receivers:
   prometheus:
     config:
@@ -9,9 +9,15 @@ receivers:
         - job_name: 'node-exporter'
           static_configs:
             - targets: ['localhost:9100']
+          relabel_configs:
+            - target_label: instance
+              replacement: '{HOSTNAME}'
         - job_name: 'slurm_exporter'
           static_configs:
             - targets: ['localhost:8080']
+          relabel_configs:
+            - target_label: instance
+              replacement: '{HOSTNAME}'  
 
 processors:
   batch:
@@ -20,13 +26,13 @@ processors:
 
 exporters:
   prometheusremotewrite:
-    endpoint: https://aps-workspaces.us-west-2.amazonaws.com/workspaces/ws-e37c0ee4-7f7f-4f65-b72b-5455852d0c23/api/v1/remote_write
+    endpoint: {AMPREMOTEWRITEURL}
     auth:
       authenticator: sigv4auth
 
 extensions:
   sigv4auth:
-    region: us-west-2
+    region: {REGION}
     service: aps
 
 service:
@@ -36,4 +42,3 @@ service:
       receivers: [prometheus]
       processors: [batch]
       exporters: [prometheusremotewrite]
-      

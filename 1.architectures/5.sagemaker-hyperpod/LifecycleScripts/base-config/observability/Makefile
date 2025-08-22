@@ -4,10 +4,10 @@
 install-all: install-head install-workers
 
 install-head:
-	sudo python3 install_observability.py --node-type controller
+	sudo python3 install_observability.py --node-type controller --region us-west-2 --prometheus-remote-write-url https://aps-workspaces.us-west-2.amazonaws.com/workspaces/ws-e37c0ee4-7f7f-4f65-b72b-5455852d0c23/api/v1/remote_write
 
 install-workers:
-	srun -N 2 sudo python3 install_observability.py --node-type compute
+	srun -N 2 sudo python3 install_observability.py --node-type compute --region us-west-2 --prometheus-remote-write-url https://aps-workspaces.us-west-2.amazonaws.com/workspaces/ws-e37c0ee4-7f7f-4f65-b72b-5455852d0c23/api/v1/remote_write
 
 
 stop-all: stop-head stop-workers
