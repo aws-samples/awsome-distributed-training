@@ -91,6 +91,11 @@ To store your distilled model artifacts, you'll need to configure a Hugging Face
    export HUB_LOCATION="your-username/your-model-name"
    ```
 
+### Setup Persistant Volume Claim(PVC) for fsx 
+
+Depending on the save location, We need to setup an PVC for FSx to save the model artifacts. Please follow the link [here](https://catalog.workshops.aws/sagemaker-hyperpod-eks/en-US/01-cluster/06-fsx-for-lustre) to setup FSx CSI Driver and PVC. You can skip this step if you have a model repository setup on Huggingface.
+
+
 ### Preparing the Kubernetes Manifest
 
 First, install envsubst if you don't have it already. Then generate your Kubernetes manifest from the template:
@@ -105,13 +110,23 @@ export INSTANCE_TYPE=ml.p5en.48xlarge
 export NUM_NODES=2
 export GPU_PER_NODE=8
 export EFA_PER_NODE=16
-export TOTAL_NODES=$((GPU_PER_NODE * NUM_NODES))
+export TOTAL_PROCESSES=$((GPU_PER_NODE * NUM_NODES))
 export FI_PROVIDER=efa
-export HF_TOKEN=<Your HuggingFace Token>
+export HF_TOKEN=<Your HuggingFace Token> # irrespective of the model artifacts save location, you need HF token (for model download)
+export SAVE_LOCATION=both  # Options: hub, fsx, both
 export HUB_LOCATION=<the hub location to drop the trained artifacts>
+#add as needed
+export TEACHER_MODEL="arcee-ai/Arcee-Spark"
+export STUDENT_MODEL="Qwen/Qwen2-1.5B"
+export NUM_SAMPLES=100
+export NUM_EPOCHS=3
+export OUTPUT_DIR=/fsx
 ```
+If you are not using both or FSx lustre for model save location, comment out lines 34-36 and 104-105 on distill.yaml-template file.
+
 envsubst is part of the [GNU gettext utilities](https://www.gnu.org/software/gettext/manual/html_node/envsubst-Invocation.html) and is used for environment variable substitution in text files.
 You can use Q developer to get the setup instructions
+
 
 ```bash
 # Generate manifest
@@ -152,7 +167,7 @@ To find the master pod and check training logs:
 kubectl logs distill-worker-0 | grep master_addr=
 
 # View logs from the master node (adjust node number as needed)
-kubectl logs -f distill-worker-1
+kubectl logs -f distill-worker-0
 ```
 
 ## Understanding the Distillation Framework
@@ -266,9 +281,12 @@ These parameters control the training process and can be adjusted based on your 
 - `--max_length`: Maximum sequence length (default: 4096)
 - `--chat_template`: Custom chat template for tokenization
 
-### Training Parameters
-- `--output_dir`: Output directory for checkpoints (default: "./results")
+### Save Location Configuration
+- `--save_location`: Where to save the model - "hub", "fsx", or "both" (default: "both")
+- `--output_dir`: FSX output directory for checkpoints (default: "/fsx/model")
 - `--hub_location`: HuggingFace Hub location for model upload (default: "Satyach/distilled-model-v1")
+
+### Training Parameters
 - `--num_train_epochs`: Number of training epochs (default: 3)
 - `--per_device_train_batch_size`: Batch size per device (default: 1)
 - `--gradient_accumulation_steps`: Gradient accumulation steps (default: 8)
@@ -305,10 +323,12 @@ command:
       --main_process_ip=distill-worker-0 --main_process_port=23456 \
       --mixed_precision=bf16 --rdzv_backend=c10d --use_deepspeed \
       distil_logits_cli.py \
+      --save_location both \
       --teacher_model "arcee-ai/Arcee-Spark" \
       --student_model "Qwen/Qwen2-1.5B" \
       --dataset_name "mlabonne/FineTome-100k" \
       --per_device_train_batch_size 1 \
       --gradient_accumulation_steps 16 \
+      --output_dir /fsx \
       --use_flash_attention
 ```

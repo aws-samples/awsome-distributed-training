@@ -33,8 +33,9 @@ def parse_arguments():
                         help="Chat template for tokenizer")
     
     # Training settings
-    parser.add_argument("--hub_location", type=str, default="Satyach/distilled-model-v1", help="hub location") 
-    parser.add_argument("--output_dir", type=str, default="./results", help="Output directory")
+    parser.add_argument("--save_location", type=str, choices=["hub", "fsx", "both"], default="both", help="Where to save the model: hub, fsx, or both")
+    parser.add_argument("--hub_location", type=str, default="Satyach/distilled-model-v1", help="Hub location (required if save_location is hub or both)") 
+    parser.add_argument("--output_dir", type=str, default="/fsx", help="FSX output directory (required if save_location is fsx or both)")
     parser.add_argument("--num_train_epochs", type=int, default=3, help="Number of training epochs")
     parser.add_argument("--per_device_train_batch_size", type=int, default=1, help="Batch size per device")
     parser.add_argument("--gradient_accumulation_steps", type=int, default=8, help="Gradient accumulation steps")
@@ -125,9 +126,12 @@ def build_config(args):
         "resume_from_checkpoint": args.resume_from_checkpoint,
         "fp16": args.fp16,
         "bf16": args.bf16,
-        "push_to_hub":True,
-        "hub_model_id":args.hub_location
+        "push_to_hub": args.save_location in ["hub", "both"],
+        "hub_model_id": args.hub_location if args.save_location in ["hub", "both"] else None
     }
+    
+    # Save location settings
+    config["save_location"] = args.save_location
     
     # Distillation settings
     config["distillation"] = {
@@ -139,9 +143,7 @@ def build_config(args):
     config["model_config"] = {
         "use_flash_attention": args.use_flash_attention
     }
-    config["hub_location"] = {
-        "hub_location": args.hub_location
-    }
+    config["hub_location"] = args.hub_location
     
     # Spectrum settings
     if args.layers_to_unfreeze:
@@ -292,9 +294,17 @@ def main():
     print(f"Starting training for {config['training']['num_train_epochs']} epochs")
     trainer.train(resume_from_checkpoint=config["training"]["resume_from_checkpoint"])
     
-    # Save the final model
-    print(f"Training complete. Saving model to {config['training']['output_dir']}")
-    #trainer.push_to_hub(config["hub_location"]["hub_location"])
+    # Save model based on configuration
+    print("Training complete. Saving model...")
+    
+    if config["save_location"] in ["fsx", "both"]:
+        print(f"Saving model to FSX: {config['training']['output_dir']}")
+        trainer.save_model(config["training"]["output_dir"])
+    
+    if config["save_location"] in ["hub", "both"]:
+        print(f"Pushing model to hub: {config['hub_location']}")
+        trainer.push_to_hub(config["hub_location"])
+    
     print("Model saved successfully!")
 
 if __name__ == "__main__":

@@ -31,12 +31,9 @@ spec:
             - name: local
               hostPath:
                 path: /mnt/k8s-disks/0
-            # - name: model-storage
-            #   persistentVolumeClaim:
-            #     claimName: models-pvc
-            # - name: results
-            #   persistentVolumeClaim:
-            #     claimName: results-pvc
+            - name: persistent-storage
+              persistentVolumeClaim:
+                claimName: fsx-claim
           containers:
             - name: pytorch
               image: ${IMAGE_URI}
@@ -83,7 +80,7 @@ spec:
                 - -c
                 - |
                   huggingface-cli login --token ${HF_TOKEN}
-                  accelerate launch --num_processes=$TOTAL_NODES \
+                  accelerate launch --num_processes=$TOTAL_PROCESSES \
                   --num_machines=$NUM_NODES \
                   --machine_rank=0 \
                   --main_process_ip=distill-worker-0 \
@@ -91,14 +88,18 @@ spec:
                   --mixed_precision=bf16 \
                   --rdzv_backend=c10d \
                   --use_deepspeed \
-                  distil_logits_cli.py
-                  --hub_location=$HUB_LOCATION
+                  distil_logits_cli.py \
+                  --save_location=${SAVE_LOCATION} \
+                  --hub_location=${HUB_LOCATION} \
+                  --teacher_model=${TEACHER_MODEL} \
+                  --student_model=${STUDENT_MODEL} \
+                  --num_samples=${NUM_SAMPLES} \
+                  --num_train_epochs=${NUM_EPOCHS} \
+                  --output_dir=${OUTPUT_DIR}
               volumeMounts:
                 - name: shmem
                   mountPath: /dev/shm
                 - name: local
                   mountPath: /local
-                # - name: model-storage
-                #   mountPath: /models
-                # - name: results
-                #   mountPath: /workspace/results
+                - name: persistent-storage
+                  mountPath: /fsx
