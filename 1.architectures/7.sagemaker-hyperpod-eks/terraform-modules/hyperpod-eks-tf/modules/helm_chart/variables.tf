@@ -8,12 +8,6 @@ variable "eks_cluster_name" {
   type        = string
 }
 
-variable "helm_repo_url" {
-  description = "The URL of the Helm repo containing the HyperPod Helm chart"
-  type        = string
-  default     = "https://github.com/aws/sagemaker-hyperpod-cli.git"
-}
-
 variable "helm_repo_path" {
   description = "The path to the HyperPod Helm chart in the Helm repo"
   type        = string

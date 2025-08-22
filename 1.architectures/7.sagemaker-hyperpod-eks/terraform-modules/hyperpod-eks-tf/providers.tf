@@ -1,9 +1,9 @@
 provider "aws" {
-  region = "us-west-2" # Adjust as needed
+  region = var.aws_region
 }
 
 provider "awscc" {
-  region = "us-west-2"
+  region = var.aws_region
 }
 
 provider "helm" {

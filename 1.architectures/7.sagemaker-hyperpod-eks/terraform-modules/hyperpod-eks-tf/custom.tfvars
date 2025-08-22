@@ -2,6 +2,7 @@ kubernetes_version = "1.32"
 eks_cluster_name = "tf-eks-cluster"
 hyperpod_cluster_name = "tf-hp-cluster"
 resource_name_prefix = "tf-eks-test"
+aws_region = "us-west-2"
 availability_zone_id  = "usw2-az2"
 instance_groups = {
     accelerated-instance-group-1 = {
