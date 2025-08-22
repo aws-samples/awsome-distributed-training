@@ -14,6 +14,12 @@ IMAGE="$ECR_ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/hyperpod/node_exporter:${VE
 MAX_RETRIES=5
 RETRY_DELAY=5  # Initial delay in seconds
 
+# Set additional flags for advanced metrics if ADVANCED is set to 1
+ADDITIONAL_FLAGS=""
+if [ "$ADVANCED" = "1" ]; then
+    ADDITIONAL_FLAGS="--collector.cgroup --collector.ksmd --collector.meminfo_numa --collector.ethtool --collector.mountstats --collector.network_route --collector.processes --collector.tcpstat"
+fi
+
 # Check if the container exists and is running
 if docker ps --filter "name=$CONTAINER_NAME" --filter "status=running" | grep -q "$CONTAINER_NAME"; then
     echo "Container $CONTAINER_NAME is already running."
@@ -55,7 +61,8 @@ if sudo docker run -d --restart always \
     --pid="host" \
     -v "/:/host:ro,rslave" \
     $IMAGE \
-    --path.rootfs=/host; then
+    --path.rootfs=/host \
+    $ADDITIONAL_FLAGS; then
     echo "Successfully started Node Exporter on node"
     exit 0
 else

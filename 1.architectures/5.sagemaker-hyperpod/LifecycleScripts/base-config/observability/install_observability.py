@@ -35,6 +35,7 @@ def install_observability(node_type, prometheus_remote_write_url, advanced=False
 
     env_vars = os.environ.copy()
     env_vars["REGION"] = region
+    env_vars["ADVANCED"] = "1" if advanced else "0"
 
     if node_type=="controller":
 
