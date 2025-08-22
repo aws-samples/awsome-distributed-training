@@ -1,8 +1,19 @@
 import os
+import json
 import shutil
 import argparse
 import subprocess
 import socket
+
+
+def get_region_from_resource_config():
+
+    filepath = "/opt/ml/config/resource_config.json"
+    with open(filepath, 'r') as f:
+        d = json.loads(f.read())
+    cluster_arn = d["ClusterConfig"]["ClusterArn"]
+    region = cluster_arn.split(":")[3]
+    return region
 
 
 def create_file_from_template(template_path, output_path, replacements):
@@ -17,8 +28,9 @@ def create_file_from_template(template_path, output_path, replacements):
         output_file.write(content)
 
 
-def install_observability(node_type, region, prometheus_remote_write_url, advanced=False):
+def install_observability(node_type, prometheus_remote_write_url, advanced=False):
 
+    region = get_region_from_resource_config()
     hostname = socket.gethostname()
 
     env_vars = os.environ.copy()
@@ -73,7 +85,6 @@ if __name__ == "__main__":
 
     argparser = argparse.ArgumentParser(description="Script to install HyperPod observability")
     argparser.add_argument('--node-type', action="store", required=True, help='Node type (controller, login, compute)')
-    argparser.add_argument('--region', action="store", required=True, help='AWS Region (e.g. us-west-2)')
     argparser.add_argument('--prometheus-remote-write-url', action="store", required=True, help='Prometheus remote write URL (e.g. https://aps-workspaces.us-west-2.amazonaws.com/workspaces/ws-e37c0ee4-7f7f-4f65-b72b-5455852d0c23/api/v1/remote_write)')
     argparser.add_argument('--advanced', action="store_true", default=False, help='Advanced setup (default: False)')
     args = argparser.parse_args()
@@ -82,7 +93,7 @@ if __name__ == "__main__":
 
     print("Starting observability installation")
 
-    install_observability(args.node_type, args.region, args.prometheus_remote_write_url, args.advanced)
+    install_observability(args.node_type, args.prometheus_remote_write_url, args.advanced)
 
     print("---")
     print("Finished observability installation")
