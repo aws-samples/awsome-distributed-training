@@ -11,36 +11,12 @@ CONTAINER_NAME="dcgm-exporter"
 ECR_ACCOUNT_ID=602401143452
 DCGM_EXPORTER_VERSION=4.1.1-4.0.4-ubi9
 IMAGE="$ECR_ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/hyperpod/dcgm_exporter:${DCGM_EXPORTER_VERSION}"
-METRICS_CSV_URL="https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/main/4.validation_and_observability/4.prometheus-grafana/dcgm-metrics.csv"
-METRICS_CSV_PATH="/tmp/dcgm-metrics.csv"
+METRICS_CSV_DIR="/etc/dcgm-exporter"
+METRICS_CSV_FILE="/etc/dcgm-exporter/dcgm-metrics.csv"
 
 # Maximum number of retries
 MAX_RETRIES=5
 RETRY_DELAY=5  # Initial delay in seconds
-
-# Function to download file with exponential backoff
-download_with_retry() {
-    local attempt=0
-    local delay=$RETRY_DELAY
-
-    while [ $attempt -lt $MAX_RETRIES ]; do
-        echo "Attempting to download metrics CSV (attempt $((attempt + 1))/$MAX_RETRIES)..."
-        if curl -s -f -o "$METRICS_CSV_PATH" "$METRICS_CSV_URL"; then
-            echo "Successfully downloaded metrics CSV."
-            return 0
-        else
-            attempt=$((attempt + 1))
-            if [ $attempt -lt $MAX_RETRIES ]; then
-                echo "Download failed. Retrying in $delay seconds..."
-                sleep $delay
-                delay=$((delay * 2))  # Exponential backoff
-            else
-                echo "Failed to download metrics CSV after $MAX_RETRIES attempts. Exiting..."
-                return 1
-            fi
-        fi
-    done
-}
 
 # Check if the container exists and is running
 if docker ps --filter "name=$CONTAINER_NAME" --filter "status=running" | grep -q "$CONTAINER_NAME"; then
@@ -62,12 +38,6 @@ if nvidia-smi > /dev/null 2>&1; then
     INSTANCE_TYPE=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -s http://169.254.169.254/latest/meta-data/instance-type)
 
     echo "Instance Type is recognized as $INSTANCE_TYPE, setting DCGM_EXPORTER_VERSION to $DCGM_EXPORTER_VERSION"
-
-    # Download metrics CSV with retry
-    if ! download_with_retry; then
-        echo "Failed to download metrics CSV. Exiting..."
-        exit 1
-    fi
 
     # Retry logic for pulling the image
     attempt=0
@@ -93,18 +63,15 @@ if nvidia-smi > /dev/null 2>&1; then
         fi
     done
 
-    # Create a volume mount point for the metrics file
-    METRICS_MOUNT="/etc/dcgm-exporter/custom-metrics.csv"
-
     # Run the DCGM Exporter Docker container with the custom metrics
     if sudo docker run -d --restart always \
         --name $CONTAINER_NAME \
         --gpus all \
         --net host \
         --cap-add SYS_ADMIN \
-        -v "$METRICS_CSV_PATH:$METRICS_MOUNT" \
+        -v "$METRICS_CSV_DIR:$METRICS_CSV_DIR" \
         $IMAGE \
-        -f "$METRICS_MOUNT"; then
+        -f "$METRICS_CSV_FILE"; then
         echo "Running DCGM exporter in a Docker container on port 9400..."
     else
         echo "Failed to run DCGM Exporter Docker container"

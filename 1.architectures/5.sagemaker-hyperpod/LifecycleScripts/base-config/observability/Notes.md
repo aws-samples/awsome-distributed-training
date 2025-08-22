@@ -32,3 +32,12 @@
     > DCGM_FI_DEV_MEMORY_TEMP{DCGM_FI_DRIVER_VERSION="570.172.08", Hostname="ip-10-1-201-66", UUID="GPU-4e7a917e-1cac-ddf5-0730-d55dcc6fddb6", device="nvidia0", gpu="0", instance="localhost:9400", job="dcgm_exporter", modelName="NVIDIA A10G", pci_bus_id="00000000:00:1B.0"}
 
     > slurm_nodes_fail{instance="localhost:8080", job="slurm_exporter"}
+
+- Should consider login nodes as well.
+
+    can be only node exporter and otel collector
+
+- "OTEL Collector must start after all exporters are running"
+
+    How important is this? Currently containers are configured to automatically restart, and execution order is not considered.
+
