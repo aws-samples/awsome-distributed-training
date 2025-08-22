@@ -3,9 +3,6 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 
-# FIXME: should auto detect
-REGION=us-west-2
-
 # Define the container name
 CONTAINER_NAME="otel-collector"
 

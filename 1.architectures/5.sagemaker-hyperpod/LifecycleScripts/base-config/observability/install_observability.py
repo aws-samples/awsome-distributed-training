@@ -21,6 +21,9 @@ def install_observability(node_type, region, prometheus_remote_write_url, advanc
 
     hostname = socket.gethostname()
 
+    env_vars = os.environ.copy()
+    env_vars["REGION"] = region
+
     if node_type=="controller":
 
         os.makedirs("/etc/otel", exist_ok=True)
@@ -34,9 +37,9 @@ def install_observability(node_type, region, prometheus_remote_write_url, advanc
             }
         )
 
-        subprocess.run( ["bash", "./install_node_exporter.sh"] )
-        subprocess.run( ["bash", "./install_slurm_exporter.sh"] )
-        subprocess.run( ["bash", "./install_otel_collector.sh"] )
+        subprocess.run( ["bash", "./install_node_exporter.sh"], env=env_vars )
+        subprocess.run( ["bash", "./install_slurm_exporter.sh"], env=env_vars )
+        subprocess.run( ["bash", "./install_otel_collector.sh"], env=env_vars )
 
     elif node_type=="compute":
 
@@ -57,10 +60,10 @@ def install_observability(node_type, region, prometheus_remote_write_url, advanc
             }
         )
 
-        subprocess.run( ["bash", "./install_node_exporter.sh"] )
-        subprocess.run( ["bash", "./install_dcgm_exporter.sh"] )
-        subprocess.run( ["bash", "./install_efa_exporter.sh"] )
-        subprocess.run( ["bash", "./install_otel_collector.sh"] )
+        subprocess.run( ["bash", "./install_node_exporter.sh"], env=env_vars )
+        subprocess.run( ["bash", "./install_dcgm_exporter.sh"], env=env_vars )
+        subprocess.run( ["bash", "./install_efa_exporter.sh"], env=env_vars )
+        subprocess.run( ["bash", "./install_otel_collector.sh"], env=env_vars )
 
     elif node_type=="login":
         pass
