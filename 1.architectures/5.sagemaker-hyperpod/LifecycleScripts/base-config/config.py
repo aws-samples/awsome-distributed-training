@@ -39,6 +39,16 @@ class Config:
         raise ValueError("Error: A bucket name must be specified when enable_mount_s3 is True")
 
 
+# Configuration parameters for observability
+class ObservabilityConfig:
+
+    # Prometheus remote write URL (e.g. https://aps-workspaces.us-west-2.amazonaws.com/workspaces/ws-e37c0ee4-7f7f-4f65-b72b-5455852d0c23/api/v1/remote_write)
+    prometheus_remote_write_url = "https://aps-workspaces.us-west-2.amazonaws.com/workspaces/ws-e37c0ee4-7f7f-4f65-b72b-5455852d0c23/api/v1/remote_write"
+
+    # Set true if you want to collect advanced metrics
+    advanced_metrics = False
+
+
 # Configuration parameters for ActiveDirectory/LDAP/SSSD
 class SssdConfig:
 
