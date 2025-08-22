@@ -271,6 +271,9 @@ def main(args):
         if Config.enable_mount_s3:
             ExecuteBashScript("./utils/mount-s3.sh").run(Config.s3_bucket)
 
+        if Config.enable_slurm_log_rotation:
+            ExecuteBashScript("./utils/enable_slurm_log_rotation.sh").run()
+
     print("[INFO]: Success: All provisioning scripts completed")
 
 
