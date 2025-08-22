@@ -1,7 +1,7 @@
 # makefile for manual installation for development (will be deleted eventually)
 # run these commands on the head node
 
-NUM_WORKERS ?= 3
+NUM_WORKERS ?= 5
 PROMETHEUS_REMOTE_WRITE_URL ?= https://aps-workspaces.us-west-2.amazonaws.com/workspaces/ws-e37c0ee4-7f7f-4f65-b72b-5455852d0c23/api/v1/remote_write
 ADVANCED ?= 0
 

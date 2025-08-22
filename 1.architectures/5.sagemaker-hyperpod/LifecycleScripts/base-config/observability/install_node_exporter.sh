@@ -17,7 +17,7 @@ RETRY_DELAY=5  # Initial delay in seconds
 # Set additional flags for advanced metrics if ADVANCED is set to 1
 ADDITIONAL_FLAGS=""
 if [ "$ADVANCED" = "1" ]; then
-    ADDITIONAL_FLAGS="--collector.cgroup --collector.ksmd --collector.meminfo_numa --collector.ethtool --collector.mountstats --collector.network_route --collector.processes --collector.tcpstat"
+    ADDITIONAL_FLAGS="--collector.cgroups --collector.ksmd --collector.meminfo_numa --collector.ethtool --collector.mountstats --collector.network_route --collector.processes --collector.tcpstat"
 fi
 
 # Check if the container exists and is running
