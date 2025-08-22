@@ -28,30 +28,27 @@ from typing import Any, Dict, List
 import torch
 import torch.distributed as dist
 import torch_xla.core.xla_model as xm
+import torch_xla.runtime as xr
 import torch_xla.distributed.parallel_loader as pl
 import torch_xla.distributed.xla_multiprocessing as xmp
 from logger import Logger
-from modeling_llama_nxd import CoreAttention, LlamaForCausalLM
-from training_utils import Throughput, create_llama_pretraining_dataset, get_mixed_precision_config
+from modeling_llama_nxd import CoreAttention, LlamaForCausalLM, init_weights
+from training_utils import Throughput, create_llama_pretraining_dataset, get_mixed_precision_config, get_sin_cos_matrix
 from transformers import AdamW, LlamaConfig, set_seed
 from transformers.optimization import get_linear_schedule_with_warmup
 
 import neuronx_distributed as nxd
-from neuronx_distributed.parallel_layers import (
-    checkpointing,
-    grads,
-    layers,
-    parallel_state,
-)
+from neuronx_distributed.parallel_layers import parallel_state
 from neuronx_distributed.parallel_layers.utils import requires_init_pg_override
 from neuronx_distributed.utils.adamw_fp32_optim_params import AdamW_FP32OptimParams
-
-# For PT autocast.
-torch.cuda.is_bf16_supported = lambda: True
+from neuronx_distributed.utils.batch_utils import get_batch_on_this_context_parallel_rank
 
 # Workaround for NaNs seen with transformers version >= 4.21.0
 # https://github.com/aws-neuron/aws-neuron-sdk/issues/593
 import transformers.modeling_utils as modeling_utils
+
+# For PT autocast.
+torch.cuda.is_bf16_supported = lambda: True
 
 if os.environ.get("XLA_USE_BF16") or os.environ.get("XLA_DOWNCAST_BF16"):
     modeling_utils.get_parameter_dtype = lambda x: torch.bfloat16
@@ -142,6 +139,8 @@ def get_model(flags):
     config.qkv_linear = flags.qkv_linear
     config.max_position_embeddings = max(config.max_position_embeddings, seq_len)
     config.use_flash_attention = args.use_flash_attention > 0
+    config.transpose_nki_inputs = args.transpose_nki_inputs > 0
+    config.fuse_qkv = args.fuse_qkv > 0
     if flags.num_layers > 0:
         config.num_hidden_layers = flags.num_layers
     if flags.sequence_parallel_enabled:
@@ -150,27 +149,9 @@ def get_model(flags):
         config.selective_checkpoint_enabled = True
     if args.hidden_size != -1:
         config.hidden_size = args.hidden_size
+    config.head_dim = config.hidden_size // config.num_attention_heads
     xm.master_print(config)
     model = LlamaForCausalLM(config)
-
-    def get_sin_cos_matrix(config):
-        head_dim = config.hidden_size // config.num_attention_heads
-        base = 10000
-        inv_freq = 1.0 / (base ** (torch.arange(0, head_dim, 2).float() / head_dim))
-        t = torch.arange(config.max_position_embeddings, dtype=inv_freq.dtype)
-        freqs = torch.einsum("i,j->ij", t, inv_freq)
-        # Different from paper, but it uses a different permutation in order to obtain the same calculation
-        emb = torch.cat((freqs, freqs), dim=-1)
-        return emb.cos()[None, None, :, :].to(torch.float32), emb.sin()[None, None, :, :].to(torch.float32)
-
-    # Here we make sure we use the same sine and cosine matrices for all layers.
-    # Making use of same tensors would make the CSE algorithm eliminate the lookup call
-    # from layers, keeping only lookup from first layer.
-    with torch.no_grad():
-        cos, sin = get_sin_cos_matrix(config)
-        for layer in model.model.layers:
-            layer.self_attn.rotary_emb.cos_cached = cos
-            layer.self_attn.rotary_emb.sin_cached = sin
     xm.master_print(model)
     return model
 
@@ -205,6 +186,7 @@ def train_llama(flags):
 
     nxd_config = nxd.neuronx_distributed_config(
         tensor_parallel_size=flags.tensor_parallel_size,
+        context_parallel_size=flags.context_parallel_size,
         optimizer_config={"zero_one_enabled": flags.use_zero_1, "grad_clipping": True, "max_grad_norm": 1.0},
         sequence_parallel=flags.sequence_parallel_enabled,
         activation_checkpoint_config=CoreAttention if flags.selective_checkpoint_enabled else "full",
@@ -213,7 +195,8 @@ def train_llama(flags):
     )
 
     # Creating NxD model
-    model = nxd.initialize_parallel_model(nxd_config, get_model, flags)
+    include_buffers = True
+    model = nxd.initialize_parallel_model(nxd_config, get_model, include_buffers, flags)
 
     world_size = parallel_state.get_data_parallel_size()
     is_root = xm.is_master_ordinal(local=False)
@@ -224,7 +207,7 @@ def train_llama(flags):
     running_loss = torch.zeros(1, dtype=torch.double).to(device)
 
     param_optimizer = list(model.named_parameters())
-    no_decay = ["bias", "LayerNorm"]  # gamma/beta are in LayerNorm.weight
+    no_decay = ["bias", "norm"]  # gamma/beta are in LayerNorm.weight
 
     optimizer_grouped_parameters = [
         {
@@ -271,7 +254,7 @@ def train_llama(flags):
             {
                 "Model": model.config.model_type,
                 "Model configuration": str(model.config),
-                "World size": xm.xrt_world_size(),
+                "World size": xr.world_size(),
                 "Data parallel degree": world_size,
                 "Batch size": flags.batch_size,
                 "Total steps": flags.steps_this_run,
@@ -291,6 +274,8 @@ def train_llama(flags):
 
     def train_loop_fn(model, optimizer, train_loader, epoch, global_step, training_ustep, running_loss, use_zero_1):
         for _, data in enumerate(train_loader):
+            if parallel_state.get_context_model_parallel_size() > 1:
+                data = get_batch_on_this_context_parallel_rank(data)
             training_ustep += 1
             input_ids = data["input_ids"]
             attention_mask = data["attention_mask"]
@@ -301,6 +286,10 @@ def train_llama(flags):
                 labels=labels,
             )
             loss = outputs.loss / flags.grad_accum_usteps
+            cp_size = parallel_state.get_context_model_parallel_size()
+            if cp_size > 1:
+                torch.distributed.all_reduce(running_loss, group=parallel_state.get_context_model_parallel_group())
+                running_loss /= cp_size
             loss.backward()
             running_loss += loss.detach()
 
@@ -312,7 +301,7 @@ def train_llama(flags):
                 running_loss_reduced = xm.all_reduce(
                     xm.REDUCE_SUM,
                     running_loss_div,
-                    groups=parallel_state.get_data_parallel_group(as_list=True),
+                    groups=parallel_state.get_data_parallel_replica_groups(),
                 )
                 running_loss_reduced_detached = running_loss_reduced.detach()
                 running_loss.zero_()
@@ -337,6 +326,7 @@ def train_llama(flags):
                             throughput.get_throughput(),
                             total_norm_cpu,
                         )
+                        throughput.reset_time()
 
                 if global_step % flags.logging_interval == 0:
                     # Printing the loss inside the step closure. This won't block
@@ -595,6 +585,7 @@ if __name__ == "__main__":
         help="Whether to print grad norm",
     )
     parser.add_argument("--tensor_parallel_size", default=2, type=int, help="Tensor parallel size")
+    parser.add_argument("--context_parallel_size", type=int, default=1, help="CP size")
     parser.add_argument("--seq_len", default=2048, type=int, help="Sequence length")
     parser.add_argument("--use_mix_precision", action="store_true", help="Use mix precision.")
     parser.add_argument("--use_zero_1", action="store_true", help="Use ZeRO-1.")
@@ -642,7 +633,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--use_gpu_compatible_precision",
-        default=0,
+        default=1,
         type=int,
         help="Use gpu compatible precision",
     )
@@ -673,6 +664,15 @@ if __name__ == "__main__":
         type=int,
         help="Use neuron kernel",
     )
+    parser.add_argument("--fuse_qkv", type=int, default=1, help="Whether to enable fused qkv")
+    parser.add_argument(
+        "--transpose_nki_inputs", 
+        type=int, 
+        default=1, 
+        help="Whether to transpose inputs to nki kernel for better perf when using FlashAttention"
+    )
+
+
 
     args = parser.parse_args(sys.argv[1:])
 
@@ -680,10 +680,11 @@ if __name__ == "__main__":
         args.steps_this_run = args.max_steps
 
     os.environ["NEURON_RT_STOCHASTIC_ROUNDING_EN"] = "0" if args.use_gpu_compatible_precision > 0 else "1"
-    if args.use_mix_precision:
-        os.environ["XLA_DOWNCAST_BF16"] = "1"
-    else:
-        os.environ["XLA_USE_BF16"] = "1"
+    if not args.use_gpu_compatible_precision:
+        if args.use_mix_precision:
+            os.environ["XLA_DOWNCAST_BF16"] = "1"
+        else:
+            os.environ["XLA_USE_BF16"] = "1"
 
     # WORLD_SIZE is set by torchrun
     if os.environ.get("WORLD_SIZE"):
@@ -696,3 +697,4 @@ if __name__ == "__main__":
         _mp_fn(0, args)
     else:
         xmp.spawn(_mp_fn, args=(args,))
+        

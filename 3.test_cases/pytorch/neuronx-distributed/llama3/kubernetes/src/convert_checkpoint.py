@@ -1,6 +1,6 @@
 import argparse
 
-from checkpoint_converter import CheckpointConverterBase
+from neuronx_distributed.scripts.checkpoint_converter import CheckpointConverterBase
 
 
 class CheckpointConverterLlama(CheckpointConverterBase):

@@ -1,4 +1,4 @@
-FROM 763104351884.dkr.ecr.us-east-2.amazonaws.com/pytorch-training-neuronx:2.1.2-neuronx-py310-sdk2.19.1-ubuntu20.04
+FROM 763104351884.dkr.ecr.us-east-2.amazonaws.com/pytorch-training-neuronx:2.7.0-neuronx-py310-sdk2.24.1-ubuntu22.04
 
 RUN git clone https://github.com/aws-neuron/neuronx-distributed.git
 COPY ./src /workspace
