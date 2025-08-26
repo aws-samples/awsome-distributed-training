@@ -14,7 +14,7 @@ receivers:
               replacement: '{HOSTNAME}'
         - job_name: 'slurm_exporter'
           static_configs:
-            - targets: ['localhost:8080']
+            - targets: ['localhost:9341']
           relabel_configs:
             - target_label: instance
               replacement: '{HOSTNAME}'  

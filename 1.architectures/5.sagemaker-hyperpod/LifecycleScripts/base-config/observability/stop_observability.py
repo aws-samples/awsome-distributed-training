@@ -9,7 +9,7 @@ def stop_observability(node_type):
 
     if node_type=="controller":
 
-        subprocess.run( ["systemctl", "stop", "prometheus-slurm-exporter"] )
+        subprocess.run( ["systemctl", "stop", "slurm_exporter"] )
         subprocess.run( ["docker", "stop", "node-exporter"] )
         subprocess.run( ["docker", "stop", "otel-collector"] )
 

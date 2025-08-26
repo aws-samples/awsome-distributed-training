@@ -33,3 +33,6 @@ status:
 	docker ps --no-trunc
 	srun -N $(NUM_WORKERS) docker ps --no-trunc
 
+clean:
+	rm -f go1.22*
+	sudo rm -rf slurm_exporter
