@@ -30,13 +30,11 @@ echo "export AWS_REGION=${AWS_REGION}" >> env_vars
 echo "[INFO] AWS_REGION = ${AWS_REGION}"
 
 # Retrieve EKS CLUSTER Name if not already defined
-echo "region: $AWS_REGION"
-
 if [[ -z "${EKS_CLUSTER_NAME}" ]]; then
     # Only retrieve from CloudFormation if not already set
     export EKS_CLUSTER_NAME=`aws cloudformation describe-stacks \
         --stack-name $STACK_ID \
-        --query 'Stacks[0].Outputs[?OutputKey==\`EKSClusterName\`].OutputValue' \
+        --query 'Stacks[0].Outputs[?OutputKey==\`OutputEKSClusterName\`].OutputValue' \
         --region ${AWS_REGION} \
         --output text`
 
@@ -58,7 +56,7 @@ if [[ -z "${EKS_CLUSTER_ARN}" ]]; then
     # First attempt: retrieve from CloudFormation
     export EKS_CLUSTER_ARN=`aws cloudformation describe-stacks \
         --stack-name $STACK_ID \
-        --query 'Stacks[0].Outputs[?OutputKey==\`EKSClusterArn\`].OutputValue' \
+        --query 'Stacks[0].Outputs[?OutputKey==\`OutputEKSClusterArn\`].OutputValue' \
         --region ${AWS_REGION} \
         --output text`
 
@@ -94,7 +92,7 @@ if [[ -z "${S3_BUCKET_NAME}" ]]; then
     # Retrieve S3 Bucket Name 
     export S3_BUCKET_NAME=`aws cloudformation describe-stacks \
         --stack-name $STACK_ID \
-        --query 'Stacks[0].Outputs[?OutputKey==\`S3BucketName\`].OutputValue' \
+        --query 'Stacks[0].Outputs[?OutputKey==\`OutputS3BucketName\`].OutputValue' \
         --region ${AWS_REGION} \
         --output text`
 
@@ -115,7 +113,7 @@ if [[ -z "${EXECUTION_ROLE}" ]]; then
     # Retrieve SageMaker Execution Role 
     export EXECUTION_ROLE=`aws cloudformation describe-stacks \
         --stack-name $STACK_ID \
-        --query 'Stacks[0].Outputs[?OutputKey==\`SageMakerIAMRoleArn\`].OutputValue' \
+        --query 'Stacks[0].Outputs[?OutputKey==\`OutputSageMakerIAMRoleArn\`].OutputValue' \
         --region ${AWS_REGION} \
         --output text`
 
@@ -136,7 +134,7 @@ if [[ -z "${VPC_ID}" ]]; then
     # Only retrieve from CloudFormation if not already set
     export VPC_ID=`aws cloudformation describe-stacks \
         --stack-name $STACK_ID \
-        --query 'Stacks[0].Outputs[?OutputKey==\`VpcId\`].OutputValue' \
+        --query 'Stacks[0].Outputs[?OutputKey==\`OutputVpcId\`].OutputValue' \
         --region ${AWS_REGION} \
         --output text`
 
@@ -157,7 +155,7 @@ if [[ -z "${PRIVATE_SUBNET_ID}" ]]; then
     # Only retrieve from CloudFormation if not already set
     export PRIVATE_SUBNET_ID=`aws cloudformation describe-stacks \
         --stack-name $STACK_ID \
-        --query 'Stacks[0].Outputs[?OutputKey==\`PrivateSubnetId\`].OutputValue' \
+        --query 'Stacks[0].Outputs[?OutputKey==\`OutputPrivateSubnetIds\`].OutputValue' \
         --region ${AWS_REGION} \
         --output text`
 
@@ -178,7 +176,7 @@ if [[ -z "${SECURITY_GROUP_ID}" ]]; then
     # Only retrieve from CloudFormation if not already set
     export SECURITY_GROUP_ID=`aws cloudformation describe-stacks \
         --stack-name $STACK_ID \
-        --query 'Stacks[0].Outputs[?OutputKey==\`SecurityGroupId\`].OutputValue' \
+        --query 'Stacks[0].Outputs[?OutputKey==\`OutputSecurityGroupId\`].OutputValue' \
         --region ${AWS_REGION} \
         --output text`
 
