@@ -2,7 +2,9 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: 'Setup to monitor sagemaker hyperpod clusters on AWS. Amazon
   Managed Prometheus and Amazon Manged Grafana workspaces with associated IAM
   roles are deployed in the AWS Account. Prometheus and exporter services are
-  set up on Cluster Nodes. Author: Matt Nightingale - nghtm@'
+  set up on Cluster Nodes. Create custom dashboard resources for the slurm in
+  grafana dashboard. 
+  Author: Matt Nightingale - nghtm@, Madhubalasri Balachandran - madbal@'
 
 Parameters:
   CustomResourceS3Bucket:
@@ -25,8 +27,8 @@ Parameters:
   GrafanaExistingWorkspaceId:
     Type: String
     Default: ''
-    Description: Existing Grafana workspace Id that will be used. If not provided, a
-      new workspace will be created.
+    Description: Existing Grafana workspace Id that will be used. If not 
+      provided, a new workspace will be created.
 
 Conditions:
   CreatePrometheusWorkspace: !Equals
