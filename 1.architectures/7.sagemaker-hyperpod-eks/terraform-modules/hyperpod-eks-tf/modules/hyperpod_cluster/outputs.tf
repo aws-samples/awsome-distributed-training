@@ -13,6 +13,11 @@ output "instance_group_names" {
   value       = keys(var.instance_groups)
 }
 
+output "restricted_instance_group_names" {
+  description = "Names of restricted instance groups created"
+  value       = keys(var.restricted_instance_groups)
+}
+
 output "hyperpod_cluster_status" {
   description = "The status of the HyperPod cluster"
   value       = awscc_sagemaker_cluster.hyperpod_cluster.cluster_status

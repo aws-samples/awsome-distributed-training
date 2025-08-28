@@ -125,7 +125,9 @@ module "hyperpod_cluster" {
   resource_name_prefix    = var.resource_name_prefix
   hyperpod_cluster_name   = var.hyperpod_cluster_name
   node_recovery           = var.node_recovery
+  node_provisioning_mode = var.node_provisioning_mode
   instance_groups         = var.instance_groups
+  restricted_instance_groups = var.restricted_instance_groups
   private_subnet_id       = local.private_subnet_id
   security_group_id       = local.security_group_id
   eks_cluster_name        = local.eks_cluster_name

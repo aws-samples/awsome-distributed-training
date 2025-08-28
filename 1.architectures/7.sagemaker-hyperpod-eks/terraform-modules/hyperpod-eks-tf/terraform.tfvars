@@ -53,13 +53,14 @@ helm_release_name        = "hyperpod-dependencies"
 create_hyperpod_module = true
 hyperpod_cluster_name  = "ml-cluster"
 node_recovery          = "Automatic"
+node_provisioning_mode = "Continuous"
 
 # For the instance_groups variable, you'll need to define specific groups. Here's an example:
 instance_groups = {
   instance-group-1 = {
     instance_type             = "ml.g5.8xlarge"
     instance_count            = 8
-    ebs_volume_size           = 100
+    ebs_volume_size_in_gb     = 100
     threads_per_core          = 2
     enable_stress_check       = true
     enable_connectivity_check = true

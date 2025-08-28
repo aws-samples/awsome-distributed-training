@@ -7,7 +7,7 @@ instance_groups = {
     accelerated-instance-group-1 = {
         instance_type = "ml.p5.48xlarge",
         instance_count = 2,
-        ebs_volume_size = 500,
+        ebs_volume_size_in_gb = 500,
         threads_per_core = 2,
         enable_stress_check = true,
         enable_connectivity_check = true,
@@ -16,7 +16,7 @@ instance_groups = {
     general-instance-group-2 = {
         instance_type = "ml.m5.2xlarge",
         instance_count = 2,
-        ebs_volume_size = 500,
+        ebs_volume_size_in_gb = 500,
         threads_per_core = 1,
         lifecycle_script = "on_create.sh"
     }

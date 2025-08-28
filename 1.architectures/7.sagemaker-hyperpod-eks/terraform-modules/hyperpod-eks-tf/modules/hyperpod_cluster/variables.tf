@@ -20,17 +20,46 @@ variable "node_recovery" {
   }
 }
 
+variable "node_provisioning_mode" { 
+  description = "Determines the scaling strategy for the SageMaker HyperPod cluster. When set to 'Continuous', enables continuous scaling which dynamically manages node provisioning. Set to null to disable continuous provisioning and use standard scaling approach."
+  type        = string
+  default     = "Continuous"
+  validation {
+    condition     = var.node_provisioning_mode == null || var.node_provisioning_mode == "Continuous"
+    error_message = "Node provisioning mode must be either 'Continuous' or null"
+  }
+}
+
 variable "instance_groups" {
   description = "Map of instance group configurations"
   type = map(object({
-    instance_type       = string
-    instance_count      = number
-    ebs_volume_size    = number
-    threads_per_core   = number
-    enable_stress_check = bool
+    instance_type             = string
+    instance_count            = number
+    ebs_volume_size_in_gb     = number
+    threads_per_core          = number
+    enable_stress_check       = bool
     enable_connectivity_check = bool
-    lifecycle_script    = string
+    lifecycle_script          = string
+    image_id                  = optional(string)
+    training_plan_arn         = optional(string)
   }))
+  default = {}
+}
+
+variable "restricted_instance_groups" {
+  description = "Map of restricted instance group configurations"
+  type = map(object({
+    instance_type                    = string
+    instance_count                   = number
+    ebs_volume_size_in_gb            = number
+    threads_per_core                 = number
+    enable_stress_check              = bool
+    enable_connectivity_check        = bool
+    fsxl_per_unit_storage_throughput = number
+    fsxl_size_in_gi_b                = number
+    training_plan_arn                = optional(string)
+  }))
+  default = {}
 }
 
 variable "sagemaker_iam_role_name" {

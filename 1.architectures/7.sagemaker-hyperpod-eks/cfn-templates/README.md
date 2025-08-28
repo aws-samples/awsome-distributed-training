@@ -283,7 +283,7 @@ Parameter Values Required if Disabled:
 
 <details>
 <summary>HyperPodClusterStack</summary>
-This stack creates a new SageMaker HyperPod cluster with two configurable node groups, one for general purpose nodes, and one for accelerated nodes. 
+This stack creates a new SageMaker HyperPod cluster with 3 configurable instance groups, one for general purpose nodes, one for accelerated nodes, and one for restricted nodes for training Amazon Nova models.
 
 <sp></sp>
 
@@ -291,16 +291,25 @@ Resources Created:
 <ul>
     <li>HyperPod Cluster</li>
     <li>General Purpose instance group (Optional, disable by setting `CreateGeneralPurposeInstanceGroup` to `false`)</li>
-    <li>Accelerated instance group</li>
+    <li>Accelerated instance group (Optional, disable by setting `CreateAcceleratedInstanceGroup` to `false`)</li>
+    <li>Restricted instance group (Optional, disable by setting `CreateRestrictedInstanceGroup` to `false`)</li>
 </ul>
 
 Default Parameter Values:
 <ul>
+
+<li>HyperPod Cluster Parameters: 
+<ul>
+    <li>HyperPodClusterName: ml-cluster</li>    
+    <li>NodeRecovery: Automatic</li> 
+    <li>UseContinuousNodeProvisioningMode: true</li>   
+</ul>
+</li>
+
 <li>Accelerated Instance Group Parameters:
 <ul>
-<li>HyperPodClusterName: ml-cluster</li>
-    <li>NodeRecovery: Automatic</li>
-    <li>AcceleratedInstanceGroupName: accelerated-worker-group-1</li>
+    <li>CreateAcceleratedInstanceGroup: true</li>
+    <li>AcceleratedInstanceGroupName: accelerated-instance-group</li>
     <li>AcceleratedInstanceType: ml.g5.xlarge</li>
     <li>AcceleratedInstanceCount: 1</li>
     <li>AcceleratedEBSVolumeSize: 500</li>
@@ -308,19 +317,41 @@ Default Parameter Values:
     <li>AcceleratedLifeCycleConfigOnCreate: on_create.sh</li>
     <li>EnableInstanceStressCheck: true</li>
     <li>EnableInstanceConnectivityCheck: true</li>
+    <li>AcceleratedLifeCycleConfigOnCreate: on_create.sh</li>
+    <li>AcceleratedTrainingPlanArn: None</li>
+    <li>AcceleratedImageId: None</li>
 </ul>
 </li>
 
 <li>General Purpose Instance Group Parameters:
 <ul>
-    <li>GeneralPurposeInstanceGroupName: general-purpose-worker-group-2</li>
+    <li>CreateGeneralPurposeInstanceGroup: false</li>
+    <li>GeneralPurposeInstanceGroupName: general-purpose-instance-group</li>
     <li>GeneralPurposeInstanceType: ml.m5.2xlarge</li>
     <li>GeneralPurposeInstanceCount 1</li>
     <li>GeneralPurposeEBSVolumeSize: 500</li>
     <li>GeneralPurposeThreadsPerCore: 1</li>
     <li>GeneralPurposeLifeCycleConfigOnCreate: on_create.sh</li>
+    <li>GeneralPurposeImageId: None</li>
 </ul>
 </li>
+
+<li>Restricted Instance Group Parameters: 
+<ul>
+   <li>CreateRestrictedInstanceGroup: false</li>
+   <li>RestrictedInstanceGroupName: restricted-instance-group</li>
+   <li>RestrictedInstanceType: ml.g5.8xlarge</li>
+   <li>RestrictedInstanceCount: 1</li>
+   <li>RestrictedPerUnitStorageThroughput: 250</li>
+   <li>RestrictedSizeInGiB: 1200</li>
+   <li>RestrictedEBSVolumeSize: 500</li>
+   <li>EnableRestrictedInstanceStressCheck: true</li>
+   <li>EnableRestrictedInstanceConnectivityCheck: true</li>
+   <li>RestrictedThreadsPerCore: 1</li>
+   <li>RestrictedTrainingPlanArn: None</li>
+</ul>
+</li>
+
 </ul>
 
 Parameter Values Required if Disabled:

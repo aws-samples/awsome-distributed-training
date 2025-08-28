@@ -22,11 +22,27 @@ Parameters:
       - Automatic
       - None
 
+  UseContinuousNodeProvisioningMode:
+    Description: Whether to enable continuous node provisioning mode for the HyperPod cluster.
+    Type: String
+    Default: true
+    AllowedValues: 
+      - true
+      - false
+ 
 ### ----------------  Accelerated Instance Group 1 Params----------------###
+  CreateAcceleratedInstanceGroup:
+    Description: Whether to create an accelerated instance group for the HyperPod cluster.
+    Type: String
+    Default: true
+    AllowedValues: 
+      - true
+      - false
+
   AcceleratedInstanceGroupName: 
     Description: The name of the accelerated instance group for the HyperPod cluster.
     Type: String
-    Default: accelerated-worker-group-1
+    Default: accelerated-instance-group
 
   AcceleratedInstanceType:
     Description: The instance type of the accelerated instance group for the HyperPod cluster.
@@ -48,14 +64,14 @@ Parameters:
   AcceleratedThreadsPerCore: 
     Description: The number of threads per CPU core in the accelerated instance group for the HyperPod cluster.
     Type: Number
+    Default: 1
     AllowedValues: 
       - 1 
       - 2
-    Default: 1
 
   EnableInstanceStressCheck:
     Type: String
-    Description: Enable Instance Stress deep health check
+    Description: Enable instance stress deep health check
     Default: true
     AllowedValues: 
       - true
@@ -63,7 +79,7 @@ Parameters:
 
   EnableInstanceConnectivityCheck:
     Type: String
-    Description: Enable Instance Connectivity deep health check
+    Description: Enable instance connectivity deep health check
     Default: true
     AllowedValues: 
       - true
@@ -74,11 +90,21 @@ Parameters:
     Type: String
     Default: on_create.sh
 
+  AcceleratedTrainingPlanArn:
+    Description: The ARN of the accelerated instance group training plan
+    Type: String
+    Default: ""
+
+  AcceleratedImageId:
+    Description: The AMI ID of the accelerated instance group for the HyperPod cluster.
+    Type: String
+    Default: ""
+
   ### ----------------  General Purpose Instance Group 2 Params ----------------###
   CreateGeneralPurposeInstanceGroup: 
     Description: Whether to create a general purpose instance group for the HyperPod cluster.
     Type: String
-    Default: true
+    Default: false
     AllowedValues: 
       - true
       - false
@@ -86,7 +112,7 @@ Parameters:
   GeneralPurposeInstanceGroupName: 
     Description: The name of the general purpose instance group for the HyperPod cluster.
     Type: String
-    Default: general-purpose-worker-group-2
+    Default: general-purpose-instance-group
 
   GeneralPurposeInstanceType: 
     Description: The instance type of the general purpose instance group for the HyperPod cluster.
@@ -108,15 +134,92 @@ Parameters:
   GeneralPurposeThreadsPerCore:
     Description: The number of threads per CPU core in the general purpose instance group for the HyperPod cluster.
     Type: Number 
+    Default: 1
     AllowedValues: 
       - 1 
       - 2
-    Default: 1
 
   GeneralPurposeLifeCycleConfigOnCreate: 
     Description: The file name of lifecycle script for the general purpose instance group. This script runs during cluster creation.
     Type: String
     Default: on_create.sh
+
+  GeneralPurposeImageId:
+    Description: The AMI ID of the general purpose instance group for the HyperPod cluster.
+    Type: String
+    Default: ""
+
+  ### ----------------  Restricted Instance Group Params ----------------###
+  CreateRestrictedInstanceGroup:
+    Description: Whether to create a restricted instance group for the HyperPod cluster.
+    Type: String
+    Default: false
+    AllowedValues: 
+      - true
+      - false
+
+  RestrictedInstanceGroupName: 
+    Description: The name of the restricted instance group for the HyperPod cluster.
+    Type: String
+    Default: restricted-instance-group
+
+  RestrictedInstanceType:
+    Description: The instance type of the restricted instance group for the HyperPod cluster.
+    Type: String
+    Default: ml.g5.8xlarge
+
+  RestrictedInstanceCount:
+    Description: The number of instances in the restricted instance group for the HyperPod cluster.
+    Type: Number
+    Default: 1
+
+  RestrictedPerUnitStorageThroughput:
+    Description: The throughput for the service-managed FSx for Lustre file system 
+    Type: Number
+    Default: 250
+
+  RestrictedSizeInGiB: 
+    Description: The volume size for the service-managed FSx for Lustre file system
+    Type: Number
+    Default: 1200
+
+  RestrictedEBSVolumeSize:
+    Description: > 
+        The size in gigabytes (GB) of the additional EBS volume to be attached 
+        to the instances in the restricted instance group for the HyperPod cluster.
+    Type: Number
+    Default: 500
+
+  EnableRestrictedInstanceStressCheck:
+    Type: String
+    Description: Enable restricted instance stress deep health check
+    Default: true
+    AllowedValues: 
+      - true
+      - false
+
+  EnableRestrictedInstanceConnectivityCheck:
+    Type: String
+    Description: Enable restricted instance connectivity deep health check
+    Default: true
+    AllowedValues: 
+      - true
+      - false
+
+  RestrictedThreadsPerCore:
+    Description: The number of threads per CPU core in the restricted instance group for the HyperPod cluster.
+    Type: Number
+    Default: 1
+    AllowedValues: 
+      - 1 
+      - 2
+
+  RestrictedTrainingPlanArn:
+    Description: The ARN of the restricted instance group training plan
+    Type: String
+    Default: ""
+
+  ### ----------------  Common Params ----------------###
 
   SageMakerIAMRoleName:
     Description: The name of the IAM role that SageMaker will use to access the AWS resources on your behalf. 
@@ -149,6 +252,10 @@ Parameters:
 ###---------------- Condition Params ----------------###
 
 Conditions:
+
+  ShouldIncludeNodeProvisioningMode: !Equals [!Ref UseContinuousNodeProvisioningMode, true]
+
+###---------------- Accelerated Conditions ----------------###
   IncludeStressCheck: !Equals [!Ref EnableInstanceStressCheck, true ]
 
   IncludeConnectivityCheck: !Equals [!Ref EnableInstanceConnectivityCheck, true ]
@@ -161,17 +268,51 @@ Conditions:
     - !Condition IncludeStressCheck
     - !Not [!Condition IncludeConnectivityCheck]
 
-  # IncludeOnlyConnectivityCheck: !And 
-  #   - !Not [!Condition IncludeStressCheck]
-  #   - !Condition IncludeConnectivityCheck
-
   AtLeastOneCheckEnabled: !Or
     - !Condition IncludeStressCheck
     - !Condition IncludeConnectivityCheck
 
+###---------------- Restricted Conditions ----------------###
+  IncludeRestrictedStressCheck: !Equals [!Ref EnableRestrictedInstanceStressCheck, true ]
+
+  IncludeRestrictedConnectivityCheck: !Equals [!Ref EnableRestrictedInstanceConnectivityCheck, true ]
+
+  IncludeBothRestrictedChecks: !And 
+    - !Condition IncludeRestrictedStressCheck
+    - !Condition IncludeRestrictedConnectivityCheck
+
+  IncludeOnlyRestrictedStressCheck: !And 
+    - !Condition IncludeRestrictedStressCheck
+    - !Not [!Condition IncludeRestrictedConnectivityCheck]
+
+  AtLeastOneRestrictedCheckEnabled: !Or
+    - !Condition IncludeRestrictedStressCheck
+    - !Condition IncludeRestrictedConnectivityCheck
+
+###---------------- Training Plan Conditions ----------------###
+
+  HasRestrictedTrainingPlan: !Not [!Equals [!Ref RestrictedTrainingPlanArn, ""]]
+
+  HasAcceleratedTrainingPlan: !Not [!Equals [!Ref AcceleratedTrainingPlanArn, ""]]
+
+###---------------- Image ID Conditions ----------------###
+
+  HasGeneralPurposeImageId: !Not [!Equals [!Ref GeneralPurposeImageId, ""]]
+
+  HasAcceleratedImageId: !Not [!Equals [!Ref AcceleratedImageId, ""]]
+
+###---------------- Instance Group Conditions ----------------###
+
+  ShouldCreateAcceleratedGroup: !Equals [!Ref CreateAcceleratedInstanceGroup, true ]
 
   ShouldCreateGeneralPurposeGroup: !Equals [!Ref CreateGeneralPurposeInstanceGroup, true ]
-  
+
+  ShouldCreateRestrictedInstanceGroup: !Equals [!Ref CreateRestrictedInstanceGroup, true]
+
+  ShouldCreateAnyInstanceGroups: !Or
+    - !Condition ShouldCreateAcceleratedGroup
+    - !Condition ShouldCreateGeneralPurposeGroup
+
 ###--------------------------------------------------###
 Resources: 
 
@@ -179,43 +320,93 @@ Resources:
     Type: AWS::SageMaker::Cluster
     Properties:
       ClusterName: !Ref HyperPodClusterName
-      InstanceGroups:
-        - InstanceGroupName: !Ref AcceleratedInstanceGroupName
-          ExecutionRole: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${SageMakerIAMRoleName}'
-          InstanceType: !Ref AcceleratedInstanceType
-          InstanceCount: !Ref AcceleratedInstanceCount
-          ThreadsPerCore: !Ref AcceleratedThreadsPerCore
-          InstanceStorageConfigs: 
-            - EbsVolumeConfig: 
-                VolumeSizeInGB: !Ref AcceleratedEBSVolumeSize
-          LifeCycleConfig: 
-            OnCreate: !Ref AcceleratedLifeCycleConfigOnCreate
-            SourceS3Uri: !Sub 's3://${S3BucketName}'
-          OnStartDeepHealthChecks: 
-            !If
-              - AtLeastOneCheckEnabled
-              - !If
-                  - IncludeBothChecks
-                  - ["InstanceStress", "InstanceConnectivity"]
-                  - !If
-                      - IncludeOnlyStressCheck
-                      - ["InstanceStress"]
-                      - ["InstanceConnectivity"]
-              - !Ref AWS::NoValue
-        - !If
-          - ShouldCreateGeneralPurposeGroup
-          - InstanceGroupName: !Ref GeneralPurposeInstanceGroupName
+      RestrictedInstanceGroups: !If
+        - ShouldCreateRestrictedInstanceGroup
+        - - InstanceGroupName: !Ref RestrictedInstanceGroupName
             ExecutionRole: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${SageMakerIAMRoleName}'
-            InstanceType: !Ref GeneralPurposeInstanceType
-            InstanceCount: !Ref GeneralPurposeInstanceCount
-            ThreadsPerCore: !Ref GeneralPurposeThreadsPerCore
+            InstanceType: !Ref RestrictedInstanceType
+            InstanceCount: !Ref RestrictedInstanceCount
+            ThreadsPerCore: !Ref RestrictedThreadsPerCore
+            EnvironmentConfig: 
+              FSxLustreConfig:
+                PerUnitStorageThroughput: !Ref RestrictedPerUnitStorageThroughput
+                SizeInGiB: !Ref RestrictedSizeInGiB
             InstanceStorageConfigs: 
               - EbsVolumeConfig: 
-                  VolumeSizeInGB: !Ref GeneralPurposeEBSVolumeSize
-            LifeCycleConfig: 
-              OnCreate: !Ref GeneralPurposeLifeCycleConfigOnCreate
-              SourceS3Uri: !Sub 's3://${S3BucketName}'
-          - !Ref AWS::NoValue
+                  VolumeSizeInGiB: !Ref RestrictedEBSVolumeSize
+            OnStartDeepHealthChecks: 
+              !If
+                - AtLeastOneRestrictedCheckEnabled
+                - !If
+                    - IncludeBothRestrictedChecks
+                    - ["InstanceStress", "InstanceConnectivity"]
+                    - !If
+                        - IncludeOnlyRestrictedStressCheck
+                        - ["InstanceStress"]
+                        - ["InstanceConnectivity"]
+                - !Ref AWS::NoValue
+            TrainingPlanArn: !If
+              - HasRestrictedTrainingPlan
+              - !Ref RestrictedTrainingPlanArn
+              - !Ref AWS::NoValue
+        - !Ref AWS::NoValue
+      InstanceGroups: !If
+        - ShouldCreateAnyInstanceGroups
+        - - !If 
+            - ShouldCreateAcceleratedGroup
+            - InstanceGroupName: !Ref AcceleratedInstanceGroupName
+              ExecutionRole: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${SageMakerIAMRoleName}'
+              InstanceType: !Ref AcceleratedInstanceType
+              InstanceCount: !Ref AcceleratedInstanceCount
+              ThreadsPerCore: !Ref AcceleratedThreadsPerCore
+              InstanceStorageConfigs: 
+                - EbsVolumeConfig: 
+                    VolumeSizeInGB: !Ref AcceleratedEBSVolumeSize
+              LifeCycleConfig: 
+                OnCreate: !Ref AcceleratedLifeCycleConfigOnCreate
+                SourceS3Uri: !Sub 's3://${S3BucketName}'
+              OnStartDeepHealthChecks: 
+                !If
+                  - AtLeastOneCheckEnabled
+                  - !If
+                      - IncludeBothChecks
+                      - ["InstanceStress", "InstanceConnectivity"]
+                      - !If
+                          - IncludeOnlyStressCheck
+                          - ["InstanceStress"]
+                          - ["InstanceConnectivity"]
+                  - !Ref AWS::NoValue
+              TrainingPlanArn: !If
+                - HasAcceleratedTrainingPlan
+                - !Ref AcceleratedTrainingPlanArn
+                - !Ref AWS::NoValue
+              ImageId: !If
+                - HasAcceleratedImageId
+                - !Ref AcceleratedImageId
+                - !Ref AWS::NoValue
+          - !If
+            - ShouldCreateGeneralPurposeGroup
+            - InstanceGroupName: !Ref GeneralPurposeInstanceGroupName
+              ExecutionRole: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${SageMakerIAMRoleName}'
+              InstanceType: !Ref GeneralPurposeInstanceType
+              InstanceCount: !Ref GeneralPurposeInstanceCount
+              ThreadsPerCore: !Ref GeneralPurposeThreadsPerCore
+              InstanceStorageConfigs: 
+                - EbsVolumeConfig: 
+                    VolumeSizeInGB: !Ref GeneralPurposeEBSVolumeSize
+              LifeCycleConfig: 
+                OnCreate: !Ref GeneralPurposeLifeCycleConfigOnCreate
+                SourceS3Uri: !Sub 's3://${S3BucketName}'
+              ImageId: !If
+                - HasGeneralPurposeImageId
+                - !Ref GeneralPurposeImageId
+                - !Ref AWS::NoValue
+            - !Ref AWS::NoValue
+        - !Ref AWS::NoValue
+      NodeProvisioningMode: !if
+        - ShouldIncludeNodeProvisioningMode
+        - Continuous
+        - !Ref AWS::NoValue
       NodeRecovery: !Ref NodeRecovery
       Orchestrator: 
         Eks:
