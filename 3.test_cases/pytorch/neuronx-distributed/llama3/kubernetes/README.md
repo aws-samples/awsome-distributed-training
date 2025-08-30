@@ -36,7 +36,7 @@ region=us-east-2
 dlc_account_id=763104351884
 aws ecr get-login-password --region $region | docker login --username AWS --password-stdin $dlc_account_id.dkr.ecr.$region.amazonaws.com
 
-docker pull 763104351884.dkr.ecr.us-east-2.amazonaws.com/pytorch-training-neuronx:2.7.0-neuronx-py310-sdk2.24.1-ubuntu22.04
+docker pull ${dlc_account_id}.dkr.ecr.${region}.amazonaws.com/pytorch-training-neuronx:2.7.0-neuronx-py310-sdk2.24.1-ubuntu22.04
 ```
 
 ### Build Docker Image and push to ECR
