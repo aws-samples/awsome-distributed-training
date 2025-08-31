@@ -30,7 +30,7 @@ versions of your libfabric.
 Use cuda>=12.0, nccl>=2.18.0 (recommend at least 2.18.5), aws-ofi-nccl>=1.7.2 (recommend at least
 1.7.3).
 
-The table below shows number of NVLinks for `p4de.24xlarge` and `p5.48xlarge` instances:
+The table below shows number of NVLinks for `p` instances:
 
 |   Instance    |    GPU    | # NVLinks | NVLink Generation |
 | :-----------: | :-------: | :-------: | :--------: |
