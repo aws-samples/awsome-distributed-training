@@ -3,11 +3,11 @@ version: 0.2
 env:
   variables:
     CUDA_VERSION: "12.8.1"
-    GDRCOPY_VERSION: "v2.4.4"
-    EFA_INSTALLER_VERSION: "1.42.0"
-    AWS_OFI_NCCL_VERSION: "v1.16.0"
-    NCCL_VERSION: "v2.27.5-1"
-    NCCL_TESTS_VERSION: "v2.16.4"
+    GDRCOPY_VERSION: "v2.5.1"
+    EFA_INSTALLER_VERSION: "1.43.2"
+    AWS_OFI_NCCL_VERSION: "v1.16.3"
+    NCCL_VERSION: "v2.27.7-1"
+    NCCL_TESTS_VERSION: "v2.16.9"
   exported-variables:
     - CUDA_VERSION
     - GDRCOPY_VERSION
