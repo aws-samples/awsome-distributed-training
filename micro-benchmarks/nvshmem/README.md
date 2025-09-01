@@ -11,11 +11,11 @@ The goal of this document is to provide a guide on how to build NVSHMEM with NCC
 For more details on how to build the NCCL Tests Docker image, please refer to the [NCCL Tests README](../nccl-tests/README.md).
 
 ```bash
-GDRCOPY_VERSION=v2.4.4
-EFA_INSTALLER_VERSION=1.38.1
-AWS_OFI_NCCL_VERSION=v1.14.0
-NCCL_VERSION=v2.26.2-1
-NCCL_TESTS_VERSION=v2.14.1
+GDRCOPY_VERSION=v2.5.1
+EFA_INSTALLER_VERSION=1.43.2
+AWS_OFI_NCCL_VERSION=v1.16.3
+NCCL_VERSION=v2.27.7-1
+NCCL_TESTS_VERSION=v2.16.9
 TAG="efa${EFA_INSTALLER_VERSION}-ofi${AWS_OFI_NCCL_VERSION}-nccl${NCCL_VERSION}-tests${NCCL_TESTS_VERSION}"
 NCCL_CONTAINER_IMAGE_NAME_TAG="nccl-tests:${TAG}"
 ```
@@ -33,7 +33,7 @@ docker build --progress=plain -f ../nccl-tests/nccl-tests.Dockerfile \
 ### Building NVSHMEM Docker image on top of NCCL Tests Docker base image
 
 ```bash
-NVSHMEM_VERSION=3.2.5-1
+NVSHMEM_VERSION=3.3.9
 TAG="efa${EFA_INSTALLER_VERSION}-ofi${AWS_OFI_NCCL_VERSION}-nccl${NCCL_VERSION}-tests${NCCL_TESTS_VERSION}-nvshmem${NVSHMEM_VERSION}"
 NVSHMEM_CONTAINER_IMAGE_NAME_TAG="nvshmem:${TAG}"
 ```

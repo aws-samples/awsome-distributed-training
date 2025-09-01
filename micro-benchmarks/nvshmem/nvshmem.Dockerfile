@@ -1,20 +1,25 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
-ARG GDRCOPY_VERSION=v2.4.1
-ARG EFA_INSTALLER_VERSION=1.37.0
-ARG AWS_OFI_NCCL_VERSION=v1.13.2-aws
-ARG NCCL_VERSION=v2.23.4-1
-ARG NCCL_TESTS_VERSION=v2.13.10
+ARG GDRCOPY_VERSION=v2.5.1
+ARG EFA_INSTALLER_VERSION=1.43.2
+ARG AWS_OFI_NCCL_VERSION=v1.16.3
+ARG NCCL_VERSION=v2.27.7-1
+ARG NCCL_TESTS_VERSION=v2.16.9
 
 FROM nccl-tests:efa${EFA_INSTALLER_VERSION}-ofi${AWS_OFI_NCCL_VERSION}-nccl${NCCL_VERSION}-tests${NCCL_TESTS_VERSION}
 
-ARG NVSHMEM_VERSION=3.2.5-1
+RUN apt-get update -y && apt-get upgrade -y
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y \
+    python3.10-dev \
+    python3.10-venv
+
+ARG NVSHMEM_VERSION=3.3.9
 
 ENV NVSHMEM_DIR=/opt/nvshmem
 ENV NVSHMEM_HOME=/opt/nvshmem
 
-RUN curl -L https://developer.nvidia.com/downloads/assets/secure/nvshmem/nvshmem_src_${NVSHMEM_VERSION}.txz -o /nvshmem_src_${NVSHMEM_VERSION}.txz \
-    && tar -xf /nvshmem_src_${NVSHMEM_VERSION}.txz -C / \
+RUN curl -L https://developer.download.nvidia.com/compute/redist/nvshmem/${NVSHMEM_VERSION}/source/nvshmem_src_cuda12-all-all-${NVSHMEM_VERSION}.tar.gz -o /nvshmem_src.txz \
+    && tar -xf /nvshmem_src.txz -C / \
     && cd /nvshmem_src \
     && mkdir -p build \
     && cd build \ 
