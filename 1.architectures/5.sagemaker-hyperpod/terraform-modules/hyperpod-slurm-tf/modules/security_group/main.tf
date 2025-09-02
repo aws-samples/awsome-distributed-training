@@ -1,0 +1,84 @@
+resource "aws_security_group" "hyperpod" {
+  name_prefix = "${var.resource_name_prefix}-sg"
+  description = "Security group for SageMaker HyperPod with EFA support"
+  vpc_id      = var.vpc_id
+
+  tags = {
+    Name = "${var.resource_name_prefix}-security-group"
+  }
+}
+
+# Self-referencing ingress rule for EFA communication
+resource "aws_security_group_rule" "efa_ingress" {
+  type                     = "ingress"
+  from_port                = 0
+  to_port                  = 65535
+  protocol                 = "-1"
+  source_security_group_id = aws_security_group.hyperpod.id
+  security_group_id        = aws_security_group.hyperpod.id
+  description              = "All to all communication for EFA Ingress within Security Group"
+}
+
+# Self-referencing egress rule for EFA communication
+resource "aws_security_group_rule" "efa_egress" {
+  type                     = "egress"
+  from_port                = 0
+  to_port                  = 65535
+  protocol                 = "-1"
+  source_security_group_id = aws_security_group.hyperpod.id
+  security_group_id        = aws_security_group.hyperpod.id
+  description              = "All to all communication for EFA Egress within Security Group"
+}
+
+# FSx Lustre LNET traffic rules
+resource "aws_security_group_rule" "fsx_lustre_lnet_tcp" {
+  type              = "ingress"
+  from_port         = 988
+  to_port           = 988
+  protocol          = "tcp"
+  cidr_blocks       = [var.vpc_cidr]
+  security_group_id = aws_security_group.hyperpod.id
+  description       = "FSx Lustre LNET TCP traffic on port 988"
+}
+
+resource "aws_security_group_rule" "fsx_lustre_lnet_udp" {
+  type              = "ingress"
+  from_port         = 988
+  to_port           = 988
+  protocol          = "udp"
+  cidr_blocks       = [var.vpc_cidr]
+  security_group_id = aws_security_group.hyperpod.id
+  description       = "FSx Lustre LNET UDP traffic on port 988"
+}
+
+# Egress rule for internet access
+resource "aws_security_group_rule" "internet_egress" {
+  type              = "egress"
+  from_port         = 0
+  to_port           = 65535
+  protocol          = "-1"
+  cidr_blocks       = ["0.0.0.0/0"]
+  security_group_id = aws_security_group.hyperpod.id
+  description       = "All to all communication for Egress to internet"
+}
+
+# FSx Lustre LNET traffic on port 988
+resource "aws_security_group_rule" "fsx_lustre_ingress" {
+  type              = "ingress"
+  from_port         = 988
+  to_port           = 988
+  protocol          = "tcp"
+  cidr_blocks       = ["10.0.0.0/8"]
+  security_group_id = aws_security_group.hyperpod.id
+  description       = "FSx Lustre LNET traffic"
+}
+
+resource "aws_security_group_rule" "fsx_lustre_egress" {
+  type              = "egress"
+  from_port         = 988
+  to_port           = 988
+  protocol          = "tcp"
+  cidr_blocks       = ["10.0.0.0/8"]
+  security_group_id = aws_security_group.hyperpod.id
+  description       = "FSx Lustre LNET traffic"
+}
