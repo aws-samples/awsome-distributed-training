@@ -333,7 +333,7 @@ Resources:
                 SizeInGiB: !Ref RestrictedSizeInGiB
             InstanceStorageConfigs: 
               - EbsVolumeConfig: 
-                  VolumeSizeInGiB: !Ref RestrictedEBSVolumeSize
+                  VolumeSizeInGB: !Ref RestrictedEBSVolumeSize
             OnStartDeepHealthChecks: 
               !If
                 - AtLeastOneRestrictedCheckEnabled
@@ -384,6 +384,7 @@ Resources:
                 - HasAcceleratedImageId
                 - !Ref AcceleratedImageId
                 - !Ref AWS::NoValue
+            - !Ref AWS::NoValue
           - !If
             - ShouldCreateGeneralPurposeGroup
             - InstanceGroupName: !Ref GeneralPurposeInstanceGroupName
@@ -403,7 +404,7 @@ Resources:
                 - !Ref AWS::NoValue
             - !Ref AWS::NoValue
         - !Ref AWS::NoValue
-      NodeProvisioningMode: !if
+      NodeProvisioningMode: !If
         - ShouldIncludeNodeProvisioningMode
         - Continuous
         - !Ref AWS::NoValue
