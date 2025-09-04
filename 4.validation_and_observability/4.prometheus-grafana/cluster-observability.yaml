@@ -11,14 +11,6 @@ Parameters:
     Type: String
     Default: awsome-distributed-training
     Description: The name of the S3 bucket containing the custom resource.
-  CustomResourceFunctionS3Key:
-    Type: String
-    Default: assets/observability-slurm-custom-resource-function.zip
-    Description: The S3 key for the lambda function zip file.
-  GrafanaServiceAccountfunctionS3Key:
-    Type: String
-    Default: assets/grafana-service-token-lambda-function.zip
-    Description: The S3 key for the lambda function zip file.
   PrometheusExistingWorkspaceId:
     Type: String
     Default: ''
@@ -127,7 +119,7 @@ Resources:
     Properties:
       Code:
         S3Bucket: !Ref CustomResourceS3Bucket
-        S3Key: !Ref GrafanaServiceAccountfunctionS3Key
+        S3Key: assets/grafana-service-token-lambda-function.zip
       Environment:
         Variables:
           GRAFANA_WORKSPACE_ID: !If
@@ -168,7 +160,7 @@ Resources:
     Properties:
       Code:
         S3Bucket: !Ref CustomResourceS3Bucket
-        S3Key: !Ref CustomResourceFunctionS3Key
+        S3Key: assets/observability-slurm-custom-resource-function.zip
       Environment:
         Variables:
           GRAFANA_WORKSPACE_ID: !If
