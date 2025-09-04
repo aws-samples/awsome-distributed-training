@@ -128,6 +128,9 @@ You can skip this part if you use pre-built image on `public.ecr.aws/hpc-cloud/n
 
 ## 2. Running the NCCL Tests
 
+Note: For topology aware NCCL tests, with features like export to csv, 
+passing in a topologically sorted hostfile to mpirun, look in slurm/topology-aware-nccl-tests
+
 ### Slurm with container
 
 Copy the file `slurm/nccl-tests.sbatch` or its content on your cluster then submit a preprocessing jobs with the command below:
