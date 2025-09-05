@@ -28,7 +28,7 @@ RUN curl -L https://developer.download.nvidia.com/compute/redist/nvshmem/${NVSHM
     -DCMAKE_INSTALL_PREFIX=/opt/nvshmem \
     \
     -DCUDA_HOME=/usr/local/cuda \
-    -DCMAKE_CUDA_ARCHITECTURES=90a \
+    -DCMAKE_CUDA_ARCHITECTURES="90a;100" \
     \
     -DNVSHMEM_USE_GDRCOPY=1 \
     -DGDRCOPY_HOME=/opt/gdrcopy \
