@@ -1,0 +1,105 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: fsx-lustre-pvc
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: fsx-lustre-sc
+  resources:
+    requests:
+      storage: 100Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fsx-lustre-test
+  namespace: default
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: fsx-lustre-test
+  template:
+    metadata:
+      labels:
+        app: fsx-lustre-test
+    spec:
+      containers:
+      - name: test-container
+        image: amazonlinux:latest
+        command:
+        - /bin/bash
+        - -c
+        - |
+          yum update -y
+          yum install -y util-linux
+          echo "Testing FSx Lustre mount at /mnt/fsx"
+          df -h /mnt/fsx
+          echo "Writing test file..."
+          echo "$(date): Hello from $(hostname)" >> /mnt/fsx/test-$(hostname).txt
+          echo "Reading test files:"
+          ls -la /mnt/fsx/
+          cat /mnt/fsx/test-*.txt
+          echo "FSx Lustre test completed. Sleeping..."
+          sleep 3600
+        volumeMounts:
+        - name: fsx-volume
+          mountPath: /mnt/fsx
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+      volumes:
+      - name: fsx-volume
+        persistentVolumeClaim:
+          claimName: fsx-lustre-pvc
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: fsx-performance-test
+  namespace: default
+spec:
+  template:
+    spec:
+      containers:
+      - name: performance-test
+        image: amazonlinux:latest
+        command:
+        - /bin/bash
+        - -c
+        - |
+          yum update -y
+          yum install -y time
+          echo "Running FSx Lustre performance test..."
+          
+          # Write performance test
+          echo "Testing write performance..."
+          time dd if=/dev/zero of=/mnt/fsx/test-write-$(date +%s).dat bs=1M count=100 oflag=direct
+          
+          # Read performance test
+          echo "Testing read performance..."
+          time dd if=/mnt/fsx/test-write-*.dat of=/dev/null bs=1M iflag=direct
+          
+          echo "Performance test completed"
+        volumeMounts:
+        - name: fsx-volume
+          mountPath: /mnt/fsx
+        resources:
+          requests:
+            cpu: 500m
+            memory: 512Mi
+          limits:
+            cpu: 1000m
+            memory: 1Gi
+      volumes:
+      - name: fsx-volume
+        persistentVolumeClaim:
+          claimName: fsx-lustre-pvc
+      restartPolicy: Never
+  backoffLimit: 3
