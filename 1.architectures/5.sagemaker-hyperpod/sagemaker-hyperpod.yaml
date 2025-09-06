@@ -13,7 +13,6 @@ Description: >
   1.2 TB storage which can be overridden by parameter. A role is also created which
   helps to execute HyperPod cluster operations.
 
-
 ####################
 ## Stack Metadata ##
 ####################
@@ -31,6 +30,9 @@ Metadata:
         Parameters:
           - PrimarySubnetAZ
           - BackupSubnetAZ
+          - IsLocalZone
+          - LocalZoneNATType
+          - NATGatewayAZ
       - Label:
           default: FSx Lustre configuration
         Parameters:
@@ -59,7 +61,7 @@ Metadata:
       SSMDocumentName:
         default: True/False; Create SSM Session Manager Document. Only set to False if SSM-SessionManagerRunShellAsUbuntu document exists in your account.
       PrimarySubnetAZ:
-        default: Availability zone id to deploy the primary subnets
+        default: Availability zone id to deploy the primary subnets (OR set this to your Local Zone ID if you set IsLocalZone to True. Example use1-dfw2-az1)
       BackupSubnetAZ:
         default: (Optional) Availability zone id to deploy the backup private subnet
       CreateS3Endpoint:
@@ -175,6 +177,27 @@ Parameters:
     Default: 0
     MinValue: 0
     MaxValue: 400000
+  
+  IsLocalZone:
+    Type: String
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Description: Set to true if you are using a local zone for GB200 (DFW only currently).
+
+  LocalZoneNATType:
+    Type: String
+    Default: 'gateway'
+    AllowedValues:
+      - 'gateway'
+      - 'instance'
+    Description: For Local Zones - NAT Gateway (high availability, cross-AZ charges) or NAT Instance (no cross-AZ charges, no HA)
+  
+  NATGatewayAZ:
+    Type: String
+    Default: 'use1-az2'
+    Description: Standard AZ for NAT Gateway when using Local Zone with gateway option
 
 ###############################
 ## Conditions for Parameters ##
@@ -186,6 +209,10 @@ Conditions:
   CreateSSMDocument: !Equals [!Ref 'SSMDocumentName', 'true']
   CreateOpenZFSCondition: !Equals [!Ref 'CreateOpenZFS', 'true']
   ConfigureCustomIops: !Not [!Equals [!Ref OpenZFSIops, 0]]
+  UseLocalZoneNATGateway: !And [!Equals [!Ref IsLocalZone, 'true'], !Equals [!Ref LocalZoneNATType, 'gateway']]
+  UseLocalZoneNATInstance: !And [!Equals [!Ref IsLocalZone, 'true'], !Equals [!Ref LocalZoneNATType, 'instance']]
+  UseStandardNATGateway: !Equals [!Ref IsLocalZone, 'false']
+
 
 
 ##########################
@@ -279,15 +306,129 @@ Resources:
 
   # Create a NAT GW then add it to the public subnet
   NATGateway:
+    Condition: UseStandardNATGateway
     Type: AWS::EC2::NatGateway
     Properties:
       AllocationId: !GetAtt ElasticIP.AllocationId
       SubnetId: !Ref PublicSubnet
 
   ElasticIP:
+    Condition: UseStandardNATGateway
     Type: AWS::EC2::EIP
     Properties:
       Domain: vpc
+  
+  ### IF YOU ARE USING A LOCAL ZONE, THIS CF STACK WILL EITHER CREATE A NAT GATEWAY OR A NAT INSTANCE
+  NATGatewaySubnet:
+    Condition: UseLocalZoneNATGateway
+    Type: AWS::EC2::Subnet
+    Properties:
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref VPC
+      CidrBlock: !Select [2, !Cidr [!GetAtt VPC.CidrBlock, 4, 8]]
+      AvailabilityZoneId: !Ref NATGatewayAZ
+      Tags:
+        - Key: Name
+          Value: NAT Gateway Subnet
+
+  NATGatewaySubnetRouteTableAssociation:
+    Condition: UseLocalZoneNATGateway
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref NATGatewaySubnet
+      RouteTableId: !Ref PublicRouteTable     
+
+  LocalZoneNATGateway:
+    Condition: UseLocalZoneNATGateway
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt LocalZoneNATGatewayEIP.AllocationId
+      SubnetId: !Ref NATGatewaySubnet
+
+  LocalZoneNATGatewayEIP:
+    Condition: UseLocalZoneNATGateway
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  LocalZoneEIP:
+    Condition: UseLocalZoneNATInstance
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      NetworkBorderGroup: !Sub "${AWS::Region}-dfw-2"   # TODO: CURRENTLY HARDCODED TO DFW.
+    
+  NATInstance:
+    Condition: UseLocalZoneNATInstance
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: ami-00ca32bbc84273381    # TODO: CURRENTLY HARDCODED TO IAD -- create map. 
+      InstanceType: c6i.2xlarge
+      SubnetId: !Ref PublicSubnet
+      SecurityGroupIds: [!Ref NATSecurityGroup]
+      SourceDestCheck: false
+      IamInstanceProfile: !Ref NATInstanceProfile
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash -ex
+          yum update -y
+          yum install iptables-services -y
+          systemctl enable iptables
+          systemctl start iptables
+          echo 'net.ipv4.ip_forward=1' > /etc/sysctl.d/custom-ip-forwarding.conf
+          sysctl -p /etc/sysctl.d/custom-ip-forwarding.conf
+          /sbin/iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+          /sbin/iptables -F FORWARD
+          service iptables save
+
+          # Associate EIP and disable source/dest check
+          TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+          INSTANCEID=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id)
+          aws --region ${AWS::Region} ec2 associate-address --instance-id $INSTANCEID --allocation-id ${LocalZoneEIP.AllocationId}
+
+  NATSecurityGroup:
+    Condition: UseLocalZoneNATInstance
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPC
+      GroupDescription: NAT Instance Security Group
+      SecurityGroupIngress:
+        - CidrIp: 10.0.0.0/8
+          IpProtocol: "-1"
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: "-1"
+      Tags:
+        - Key: Name
+          Value: NATSecurityGroup
+  
+  NATInstanceProfile:
+    Condition: UseLocalZoneNATInstance
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles: [!Ref NATInstanceRole]
+  
+  NATInstanceRole:
+    Condition: UseLocalZoneNATInstance  
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ["ec2.amazonaws.com"]
+            Action: "sts:AssumeRole"
+      Policies:
+        - PolicyName: AssociateEIP
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+            - Effect: Allow
+              Action:
+                - ec2:AssociateAddress
+                - ec2:ModifyInstanceAttribute
+              Resource: "*"
 
   # NOTE: when you create additional security groups, you must ensure that every
   # security group has ingress/egress from/to its own security group id. Failure
@@ -392,7 +533,11 @@ Resources:
     Properties:
       RouteTableId: !Ref PrivateRouteTable
       DestinationCidrBlock: 0.0.0.0/0
-      NatGatewayId: !Ref NATGateway
+      NatGatewayId: !If 
+        - UseStandardNATGateway
+        - !Ref NATGateway
+        - !If [UseLocalZoneNATGateway, !Ref LocalZoneNATGateway, !Ref 'AWS::NoValue']
+      InstanceId: !If [UseLocalZoneNATInstance, !Ref NATInstance, !Ref 'AWS::NoValue']
 
   # Associate the public route table to the public subnet
   PublicSubnetRouteTableAssociation:
