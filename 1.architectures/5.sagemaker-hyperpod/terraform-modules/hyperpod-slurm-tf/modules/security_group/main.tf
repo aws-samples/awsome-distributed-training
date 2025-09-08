@@ -51,6 +51,27 @@ resource "aws_security_group_rule" "fsx_lustre_lnet_udp" {
   description       = "FSx Lustre LNET UDP traffic on port 988"
 }
 
+# FSx Lustre LNET egress traffic rules
+resource "aws_security_group_rule" "fsx_lustre_lnet_tcp_egress" {
+  type              = "egress"
+  from_port         = 988
+  to_port           = 988
+  protocol          = "tcp"
+  cidr_blocks       = [var.vpc_cidr]
+  security_group_id = aws_security_group.hyperpod.id
+  description       = "FSx Lustre LNET TCP egress traffic on port 988"
+}
+
+resource "aws_security_group_rule" "fsx_lustre_lnet_udp_egress" {
+  type              = "egress"
+  from_port         = 988
+  to_port           = 988
+  protocol          = "udp"
+  cidr_blocks       = [var.vpc_cidr]
+  security_group_id = aws_security_group.hyperpod.id
+  description       = "FSx Lustre LNET UDP egress traffic on port 988"
+}
+
 # Egress rule for internet access
 resource "aws_security_group_rule" "internet_egress" {
   type              = "egress"
@@ -62,23 +83,3 @@ resource "aws_security_group_rule" "internet_egress" {
   description       = "All to all communication for Egress to internet"
 }
 
-# FSx Lustre LNET traffic on port 988
-resource "aws_security_group_rule" "fsx_lustre_ingress" {
-  type              = "ingress"
-  from_port         = 988
-  to_port           = 988
-  protocol          = "tcp"
-  cidr_blocks       = ["10.0.0.0/8"]
-  security_group_id = aws_security_group.hyperpod.id
-  description       = "FSx Lustre LNET traffic"
-}
-
-resource "aws_security_group_rule" "fsx_lustre_egress" {
-  type              = "egress"
-  from_port         = 988
-  to_port           = 988
-  protocol          = "tcp"
-  cidr_blocks       = ["10.0.0.0/8"]
-  security_group_id = aws_security_group.hyperpod.id
-  description       = "FSx Lustre LNET traffic"
-}
