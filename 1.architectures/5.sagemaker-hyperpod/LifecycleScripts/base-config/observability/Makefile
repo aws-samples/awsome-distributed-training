@@ -2,7 +2,7 @@
 # run these commands on the head node
 
 NUM_WORKERS ?= 5
-PROMETHEUS_REMOTE_WRITE_URL ?= https://aps-workspaces.us-west-2.amazonaws.com/workspaces/ws-e37c0ee4-7f7f-4f65-b72b-5455852d0c23/api/v1/remote_write
+PROMETHEUS_REMOTE_WRITE_URL ?= https://aps-workspaces.us-west-2.amazonaws.com/workspaces/ws-1143f100-e177-4eda-9269-2a1da719c1db/api/v1/remote_write
 ADVANCED ?= 0
 
 ifeq ($(ADVANCED),1)
