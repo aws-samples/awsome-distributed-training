@@ -2,7 +2,7 @@
 
 # must be run as sudo
 
-set -eux 
+set -eux
 
 # FSx Lustre Endpoints
 FSX_DNS_NAME="$1"
@@ -42,6 +42,57 @@ print_lustre_version()
     modinfo lustre | grep 'version:' | head -n 1 | awk '{print $2}'
 }
 
+# Configure EFA for Lustre if supported
+configure_efa_lustre()
+{
+    echo "[INFO] Configuring EFA for FSx Lustre..."
+
+    # Check if this is an EFA-supported instance type
+    local instance_type
+    # Try IMDSv2 first
+    TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600" -s --max-time 3 2>/dev/null)
+    if [[ -n "$TOKEN" ]]; then
+        instance_type=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -s --max-time 3 http://169.254.169.254/latest/meta-data/instance-type 2>/dev/null)
+    else
+        # Fallback to IMDSv1
+        instance_type=$(curl -s --max-time 3 http://169.254.169.254/latest/meta-data/instance-type 2>/dev/null)
+    fi
+
+    if [[ -z "$instance_type" ]]; then
+        echo "[WARN] Could not determine instance type, skipping EFA configuration"
+        return 0
+    fi
+
+    # EFA-supported instance types
+    case "$instance_type" in
+        p6-b200.*|p6e-gb200.*|p4d.*|p5.*|p5e.*|p5en.*|trn1.*|trn1n.*|c5n.*|c6gn.*|c6in.*|c7gn.*|g6.*|g6e.*|m5dn.*|m5n.*|m5zn.*|m6a.*|m6i.*|m6in.*|r5dn.*|r5n.*|r6in.*|x2gd.*)
+            echo "[INFO] Instance type $instance_type supports EFA"
+
+            # Download EFA configuration script with validation
+            if ! ansible localhost -m ansible.builtin.get_url -a "url=https://docs.aws.amazon.com/fsx/latest/LustreGuide/samples/configure-efa-fsx-lustre-client.zip dest=/tmp/configure-efa-fsx-lustre-client.zip mode='0644'"; then
+                echo "[ERROR] Failed to download EFA configuration script"
+                return 1
+            fi
+
+            # Extract the zip file
+            ansible localhost -m ansible.builtin.unarchive -a "src=/tmp/configure-efa-fsx-lustre-client.zip dest=/tmp remote_src=yes"
+
+            # Make script executable and run it
+            ansible localhost -b -m ansible.builtin.file -a "path=/tmp/configure-efa-fsx-lustre-client.sh mode='0755'"
+            ansible localhost -b -m ansible.builtin.command -a "/tmp/configure-efa-fsx-lustre-client.sh"
+
+            # Cleanup
+            ansible localhost -m ansible.builtin.file -a "path=/tmp/configure-efa-fsx-lustre-client.zip state=absent"
+            ansible localhost -m ansible.builtin.file -a "path=/tmp/configure-efa-fsx-lustre-client.sh state=absent"
+
+            echo "[INFO] EFA configuration for FSx Lustre completed"
+            ;;
+        *)
+            echo "[INFO] Instance type $instance_type does not support EFA - skipping EFA configuration"
+            ;;
+    esac
+}
+
 # Load lnet modules
 load_lnet_modules()
 {
@@ -74,7 +125,7 @@ mount_fs() {
         fi
 
         echo "[STEP] Verifying mountpoint..."
-        if ! ansible localhost -b -m ansible.builtin.command -a "mountpoint $MOUNT_POINT"; then            
+        if ! ansible localhost -b -m ansible.builtin.command -a "mountpoint $MOUNT_POINT"; then
             echo "[WARN] Mountpoint verification failed — retrying in $delay seconds"
             sleep "$delay"; ((attempt++)); continue
         fi
@@ -112,12 +163,13 @@ restart_daemon()
   systemctl status fsx.automount
 }
 
-main() 
+main()
 {
     verify_parameters
     echo "Mount_fsx called with fsx_dns_name: $FSX_DNS_NAME, fsx_mountname: $FSX_MOUNTNAME"
     echo "Using mount_point: $MOUNT_POINT"
     echo "LUSTRE CLIENT CONFIGURATION $(print_lustre_version)"
+    configure_efa_lustre
     load_lnet_modules
     mount_fs || exit 1
     restart_daemon
