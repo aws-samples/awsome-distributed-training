@@ -1,0 +1,262 @@
+---
+# Example 1: Standard workload that will be scheduled on Karpenter-managed nodes
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: karpenter-example-app
+  namespace: default
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: karpenter-example
+  template:
+    metadata:
+      labels:
+        app: karpenter-example
+    spec:
+      containers:
+      - name: app
+        image: nginx:latest
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+        ports:
+        - containerPort: 80
+      # This workload will prefer spot instances but can use on-demand
+      nodeSelector:
+        node-type: default
+      tolerations:
+      - key: karpenter.sh/provisioner-name
+        operator: Exists
+        effect: NoSchedule
+
+---
+# Example 2: GPU workload that requires GPU nodes
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: karpenter-gpu-workload
+  namespace: default
+spec:
+  template:
+    spec:
+      containers:
+      - name: gpu-job
+        image: nvidia/cuda:11.8-base-ubuntu20.04
+        command:
+        - /bin/bash
+        - -c
+        - |
+          echo "Starting GPU workload on Karpenter-managed node"
+          nvidia-smi
+          echo "GPU information:"
+          nvidia-smi --query-gpu=name,memory.total,memory.used --format=csv
+          # Simulate GPU workload
+          echo "Running CUDA sample..."
+          sleep 300
+          echo "GPU workload completed"
+        resources:
+          requests:
+            nvidia.com/gpu: 1
+            cpu: 1000m
+            memory: 2Gi
+          limits:
+            nvidia.com/gpu: 1
+            cpu: 2000m
+            memory: 4Gi
+      # This will specifically target GPU nodes managed by Karpenter
+      nodeSelector:
+        node-type: gpu
+        nvidia.com/gpu: "true"
+      tolerations:
+      - key: nvidia.com/gpu
+        value: "true"
+        effect: NoSchedule
+      - key: karpenter.sh/provisioner-name
+        operator: Exists
+        effect: NoSchedule
+      restartPolicy: Never
+  backoffLimit: 3
+
+---
+# Example 3: Burst workload that demonstrates Karpenter's fast scaling
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: karpenter-burst-workload
+  namespace: default
+spec:
+  replicas: 1  # Will be scaled up to demonstrate Karpenter
+  selector:
+    matchLabels:
+      app: burst-workload
+  template:
+    metadata:
+      labels:
+        app: burst-workload
+    spec:
+      containers:
+      - name: cpu-intensive
+        image: busybox:latest
+        command:
+        - /bin/sh
+        - -c
+        - |
+          echo "Starting CPU-intensive workload on $(hostname)"
+          echo "Node labels:"
+          cat /etc/hostname
+          # Simulate CPU-intensive work
+          while true; do
+            echo "Working... $(date)"
+            # Light CPU work to demonstrate scaling
+            dd if=/dev/zero of=/dev/null bs=1M count=100 2>/dev/null
+            sleep 10
+          done
+        resources:
+          requests:
+            cpu: 500m
+            memory: 512Mi
+          limits:
+            cpu: 1000m
+            memory: 1Gi
+      nodeSelector:
+        node-type: default
+      tolerations:
+      - key: karpenter.sh/provisioner-name
+        operator: Exists
+        effect: NoSchedule
+
+---
+# Example 4: Mixed workload that can run on both spot and on-demand
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: karpenter-mixed-workload
+  namespace: default
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: mixed-workload
+  template:
+    metadata:
+      labels:
+        app: mixed-workload
+    spec:
+      containers:
+      - name: web-server
+        image: httpd:2.4
+        resources:
+          requests:
+            cpu: 250m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        ports:
+        - containerPort: 80
+      # Demonstrate Karpenter's intelligent node selection
+      nodeSelector:
+        node-type: default
+      tolerations:
+      - key: karpenter.sh/provisioner-name
+        operator: Exists
+        effect: NoSchedule
+      affinity:
+        # Prefer spot instances for cost optimization
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            preference:
+              matchExpressions:
+              - key: karpenter.sh/capacity-type
+                operator: In
+                values: ["spot"]
+
+---
+# Example 5: Batch job demonstrating Karpenter's ability to scale from zero
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: karpenter-batch-processing
+  namespace: default
+spec:
+  parallelism: 10
+  completions: 50
+  template:
+    spec:
+      containers:
+      - name: batch-processor
+        image: alpine:latest
+        command:
+        - /bin/sh
+        - -c
+        - |
+          echo "Batch job starting on $(hostname)"
+          echo "Processing item $RANDOM..."
+          # Simulate batch processing work
+          sleep $((RANDOM % 60 + 30))
+          echo "Batch job completed on $(hostname)"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+      nodeSelector:
+        node-type: default
+      tolerations:
+      - key: karpenter.sh/provisioner-name
+        operator: Exists
+        effect: NoSchedule
+      restartPolicy: Never
+  backoffLimit: 3
+
+---
+# Service for the example app
+apiVersion: v1
+kind: Service
+metadata:
+  name: karpenter-example-service
+  namespace: default
+spec:
+  selector:
+    app: karpenter-example
+  ports:
+  - port: 80
+    targetPort: 80
+  type: ClusterIP
+
+---
+# HPA for demonstrating Karpenter's integration with pod autoscaling
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: karpenter-example-hpa
+  namespace: default
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: karpenter-burst-workload
+  minReplicas: 1
+  maxReplicas: 20
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
