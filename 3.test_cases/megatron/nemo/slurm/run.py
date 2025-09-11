@@ -3,6 +3,7 @@ import json
 import argparse
 import math
 import os
+import signal
 from functools import partial
 from typing import Any, Optional
 from nemo.collections import llm
