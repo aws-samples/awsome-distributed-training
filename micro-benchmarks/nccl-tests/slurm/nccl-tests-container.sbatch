@@ -27,7 +27,6 @@
 
 ## Set libfabric flags to use EFA
 export FI_PROVIDER=efa
-export FI_EFA_USE_DEVICE_RDMA=1 # use for p4d
 export FI_EFA_FORK_SAFE=1
 
 ## Set this flag for debugging EFA
