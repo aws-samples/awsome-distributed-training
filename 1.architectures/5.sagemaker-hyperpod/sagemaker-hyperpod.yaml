@@ -200,7 +200,7 @@ Conditions:
   CreateSSMDocument: !Equals [!Ref 'SSMDocumentName', 'true']
   CreateOpenZFSCondition: !Equals [!Ref 'CreateOpenZFS', 'true']
   ConfigureCustomIops: !Not [!Equals [!Ref OpenZFSIops, 0]]
-  UseLocalZoneNATGateway: !And [!Equals [!Ref IsLocalZone, 'true']]
+  UseLocalZoneNATGateway: !Equals [!Ref IsLocalZone, 'true']
   UseStandardNATGateway: !Equals [!Ref IsLocalZone, 'false']
 
 
