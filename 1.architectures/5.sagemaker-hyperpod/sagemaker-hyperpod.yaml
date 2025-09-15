@@ -315,7 +315,7 @@ Resources:
     Properties:
       MapPublicIpOnLaunch: true
       VpcId: !Ref VPC
-      CidrBlock: !Select [2, !Cidr [!GetAtt VPC.CidrBlock, 4, 8]]
+      CidrBlock: 10.0.128.0/24
       AvailabilityZoneId: !Ref NATGatewayAZ
       Tags:
         - Key: Name
