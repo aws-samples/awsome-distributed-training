@@ -7,10 +7,10 @@ Description: 'Setup to monitor sagemaker hyperpod clusters on AWS. Amazon
   Author: Matt Nightingale - nghtm@, Madhubalasri Balachandran - madbal@'
 
 Parameters:
-  CustomResourceS3Bucket:
+  CustomResourceS3BucketBaseName:
     Type: String
-    Default: awsome-distributed-training
-    Description: The name of the S3 bucket containing the custom resource.
+    Default: hpslurm-observability
+    Description: The base name of the S3 bucket containing the custom resource. Region name (e.g. "-us-east-1") will be added to the actual S3 bucket name.
   CustomResourceFunctionS3Key:
     Type: String
     Default: assets/observability-slurm-custom-resource-function.zip
@@ -126,7 +126,7 @@ Resources:
     Type: AWS::Lambda::Function
     Properties:
       Code:
-        S3Bucket: !Ref CustomResourceS3Bucket
+        S3Bucket: !Sub ${CustomResourceS3BucketBaseName}-${AWS::Region}
         S3Key: !Ref GrafanaServiceAccountfunctionS3Key
       Environment:
         Variables:
@@ -167,7 +167,7 @@ Resources:
     DeletionPolicy: Retain
     Properties:
       Code:
-        S3Bucket: !Ref CustomResourceS3Bucket
+        S3Bucket: !Sub ${CustomResourceS3BucketBaseName}-${AWS::Region}
         S3Key: !Ref CustomResourceFunctionS3Key
       Environment:
         Variables:
