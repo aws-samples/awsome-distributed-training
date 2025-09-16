@@ -5,9 +5,8 @@ class Config:
     # Default is true to install Docker/Enroot/Pyxis.
     enable_docker_enroot_pyxis = True
 
-    # Set true if you want to install metric exporter software and Prometheus for observability
-    # DCGM Exporter and EFA Node Exporter are installed on compute nodes,
-    # Slurm Exporter and Prometheus are installed on controller node.
+    # Set true if you want to install metric exporters and OpenTelemetry collector for observability
+    # For more information, see https://catalog.workshops.aws/sagemaker-hyperpod/en-US/09-observability
     enable_observability = False
 
     # Set true if you want to:
@@ -40,10 +39,11 @@ class Config:
 
 
 # Configuration parameters for observability
+# For more information, see https://catalog.workshops.aws/sagemaker-hyperpod/en-US/09-observability
 class ObservabilityConfig:
 
-    # Prometheus remote write URL (e.g. https://aps-workspaces.us-west-2.amazonaws.com/workspaces/ws-e37c0ee4-7f7f-4f65-b72b-5455852d0c23/api/v1/remote_write)
-    prometheus_remote_write_url = "https://aps-workspaces.us-west-2.amazonaws.com/workspaces/ws-e37c0ee4-7f7f-4f65-b72b-5455852d0c23/api/v1/remote_write"
+    # Prometheus remote write URL
+    prometheus_remote_write_url = "https://aps-workspaces.us-west-2.amazonaws.com/workspaces/ws-abcd1234-abcd-1234-ab12-1234abcd1234/api/v1/remote_write"
 
     # Set true if you want to collect advanced metrics
     advanced_metrics = False
