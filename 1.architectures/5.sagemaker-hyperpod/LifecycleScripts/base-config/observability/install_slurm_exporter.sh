@@ -1,25 +1,32 @@
 #!/bin/bash
 
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+
 # Check if Slurm ctld service is running to identify controller node:
-if sudo systemctl is-active --quiet slurmctld; then
+if systemctl is-active --quiet slurmctld; then
     # Check if Go is installed, if not, install it
     if ! command -v go &> /dev/null; then
         echo "Go is not installed. Installing Go..."
-        sudo apt install -y -o DPkg::Lock::Timeout=120 golang
+        rm -rf /usr/local/go
+        wget https://go.dev/dl/go1.22.2.linux-amd64.tar.gz
+        tar -C /usr/local -xzf go1.22.2.linux-amd64.tar.gz
+        export PATH=$PATH:/usr/local/go/bin
     else
         echo "Go is already installed."
     fi
     echo "This was identified as the controller node because Slurmctld is running. Begining SLURM Exporter Installation"
-    git clone -b 0.20 https://github.com/vpenso/prometheus-slurm-exporter.git
-    cd prometheus-slurm-exporter
-    sudo make && sudo cp bin/prometheus-slurm-exporter /usr/bin/
-    sudo tee /etc/systemd/system/prometheus-slurm-exporter.service > /dev/null <<EOF
+    git clone -b v1.1.0 https://github.com/SckyzO/slurm_exporter.git
+    cd slurm_exporter
+
+    make build && cp bin/slurm_exporter /usr/bin/
+    tee /etc/systemd/system/slurm_exporter.service > /dev/null <<EOF
 [Unit]
 Description=Prometheus SLURM Exporter
 
 [Service]
 Environment=PATH=/opt/slurm/bin:\$PATH
-ExecStart=/usr/bin/prometheus-slurm-exporter
+ExecStart=/usr/bin/slurm_exporter
 Restart=on-failure
 RestartSec=15
 Type=simple
@@ -27,9 +34,8 @@ Type=simple
 [Install]
 WantedBy=multi-user.target
 EOF
-    sudo systemctl daemon-reload
-    sudo systemctl enable --now prometheus-slurm-exporter
-    sudo systemctl status prometheus-slurm-exporter
+    systemctl daemon-reload
+    systemctl enable --now slurm_exporter
     echo "Prometheus SLURM Exporter installation completed successfully."
 else
     echo "This was identified as a worker node because Slurmctld is not running. Did not begin Prometheus SLURM Exporter installation. Exiting gracefully."

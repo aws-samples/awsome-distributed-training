@@ -1,12 +1,24 @@
 #!/bin/bash
 
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+
 # Define the container name
-CONTAINER_NAME="efa-node-exporter"
-IMAGE="public.ecr.aws/hpc-cloud/efa-node-exporter:latest"
+CONTAINER_NAME="node-exporter"
+
+ECR_ACCOUNT_ID=602401143452
+VERSION=v1.9.1
+IMAGE="$ECR_ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/hyperpod/node_exporter:${VERSION}"
 
 # Maximum number of retries
 MAX_RETRIES=5
 RETRY_DELAY=5  # Initial delay in seconds
+
+# Set additional flags for advanced metrics if ADVANCED is set to 1
+ADDITIONAL_FLAGS=""
+if [ "$ADVANCED" = "1" ]; then
+    ADDITIONAL_FLAGS="--collector.cgroups --collector.ksmd --collector.meminfo_numa --collector.ethtool --collector.mountstats --collector.network_route --collector.processes --collector.tcpstat"
+fi
 
 # Check if the container exists and is running
 if docker ps --filter "name=$CONTAINER_NAME" --filter "status=running" | grep -q "$CONTAINER_NAME"; then
@@ -23,6 +35,9 @@ fi
 attempt=0
 while [ $attempt -lt $MAX_RETRIES ]; do
     echo "Attempting to pull image ($attempt/$MAX_RETRIES)..."
+
+    aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ECR_ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com
+
     if sudo docker pull "$IMAGE"; then
         echo "Successfully pulled image."
         break
@@ -46,8 +61,9 @@ if sudo docker run -d --restart always \
     --pid="host" \
     -v "/:/host:ro,rslave" \
     $IMAGE \
-    --path.rootfs=/host; then
-    echo "Successfully started EFA Node Exporter on node"
+    --path.rootfs=/host \
+    $ADDITIONAL_FLAGS; then
+    echo "Successfully started Node Exporter on node"
     exit 0
 else
     echo "Failed to run Docker container"
