@@ -68,6 +68,7 @@ If you wish to build the containar image by yourself, follow this section. Alter
           -t ${CONTAINER_IMAGE_NAME_TAG} \
           .
    ```
+   Note: If you are using an arm64 platform (like p6e-gb200.36xlarge, or any ultraserver comprised of that instance, for example), pass in `--platform=linux/arm64` into the `docker build` command above. Or, just build your image directly on an `arm64` based instance!
  
 1. Once the container image is prepared, you can check if it is present with `docker images`. You should see an output similar to this one:
    ```
