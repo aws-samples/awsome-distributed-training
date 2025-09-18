@@ -57,7 +57,7 @@ parse_args() {
 
 # Function to check if ml-cluster exists in ~/.ssh/config
 check_ssh_config() {
-    if grep -q "Host ${cluster_name}" ~/.ssh/config; then
+    if grep -wq "Host ${cluster_name}$" ~/.ssh/config; then
         echo -e "${BLUE}1. Detected ${GREEN}${cluster_name}${BLUE} in  ${GREEN}~/.ssh/config${BLUE}. Skipping adding...${NC}"
     else
         echo -e "${BLUE}Would you like to add ${GREEN}${cluster_name}${BLUE} to  ~/.ssh/config (yes/no)?${NC}"

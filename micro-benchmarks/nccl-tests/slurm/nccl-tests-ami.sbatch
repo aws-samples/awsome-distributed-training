@@ -33,7 +33,6 @@ mpirun -N 1 bash -c 'echo $(hostname) ➡️ $(cat /sys/devices/virtual/dmi/id/b
 # run all_reduce test
 mpirun -n $((8 * SLURM_JOB_NUM_NODES)) -N 8 \
         -x FI_PROVIDER=efa \
-	-x FI_EFA_USE_DEVICE_RDMA=1  \
 	-x FI_EFA_FORK_SAFE=1 \
 	-x LD_LIBRARY_PATH=$ADDITIONAL_LD_LIBRARY_PATH:/opt/amazon/efa/lib:/opt/amazon/openmpi/lib:/opt/amazon/ofi-nccl/lib:/usr/local/lib:/usr/lib:$LD_LIBRARY_PATH \
 	-x NCCL_DEBUG=INFO \

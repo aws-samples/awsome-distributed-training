@@ -238,17 +238,21 @@ def main(args):
 
         # Install metric exporting software and Prometheus for observability
         if Config.enable_observability:
-            if node_type == SlurmNodeType.COMPUTE_NODE:
-                ExecuteBashScript("./utils/install_docker.sh").run()
-                ExecuteBashScript("./utils/install_dcgm_exporter.sh").run()
-                ExecuteBashScript("./utils/install_efa_node_exporter.sh").run()
 
-            if node_type == SlurmNodeType.HEAD_NODE:
-                wait_for_scontrol()
-                ExecuteBashScript("./utils/install_docker.sh").run()
-                ExecuteBashScript("./utils/install_slurm_exporter.sh").run()
-                ExecuteBashScript("./utils/install_head_node_exporter.sh").run()
-                ExecuteBashScript("./utils/install_prometheus.sh").run()
+            from config import ObservabilityConfig
+
+            ExecuteBashScript("./utils/install_docker.sh").run()
+
+            cmd = [
+                "python3", "-u", "install_observability.py",
+                "--node-type", node_type,
+                "--prometheus-remote-write-url", ObservabilityConfig.prometheus_remote_write_url, 
+            ]
+
+            if ObservabilityConfig.advanced_metrics:
+                cmd += ["--advanced"]
+            
+            subprocess.run(cmd, cwd="./observability", check=True)
         
         # Install Docker/Enroot/Pyxis
         if Config.enable_docker_enroot_pyxis:
@@ -270,6 +274,9 @@ def main(args):
 
         if Config.enable_mount_s3:
             ExecuteBashScript("./utils/mount-s3.sh").run(Config.s3_bucket)
+
+        if Config.enable_slurm_log_rotation:
+            ExecuteBashScript("./utils/enable_slurm_log_rotation.sh").run()
 
     print("[INFO]: Success: All provisioning scripts completed")
 

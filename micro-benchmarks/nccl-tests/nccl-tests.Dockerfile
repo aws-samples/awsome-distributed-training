@@ -3,11 +3,11 @@
 ARG CUDA_VERSION=12.8.1
 FROM nvcr.io/nvidia/cuda:${CUDA_VERSION}-devel-ubuntu22.04
 
-ARG GDRCOPY_VERSION=v2.4.4
-ARG EFA_INSTALLER_VERSION=1.42.0
-ARG AWS_OFI_NCCL_VERSION=v1.16.0
-ARG NCCL_VERSION=v2.27.5-1
-ARG NCCL_TESTS_VERSION=v2.16.4
+ARG GDRCOPY_VERSION=v2.5.1
+ARG EFA_INSTALLER_VERSION=1.43.2
+ARG AWS_OFI_NCCL_VERSION=v1.16.3
+ARG NCCL_VERSION=v2.27.7-1
+ARG NCCL_TESTS_VERSION=v2.16.9
 
 RUN apt-get update -y && apt-get upgrade -y
 RUN apt-get remove -y --allow-change-held-packages \
@@ -53,8 +53,8 @@ RUN sed -i 's/[ #]\(.*StrictHostKeyChecking \).*/ \1no/g' /etc/ssh/ssh_config &&
     echo "    UserKnownHostsFile /dev/null" >> /etc/ssh/ssh_config && \
     sed -i 's/#\(StrictModes \).*/\1no/g' /etc/ssh/sshd_config
 
-ENV LD_LIBRARY_PATH /usr/local/cuda/extras/CUPTI/lib64:/opt/amazon/openmpi/lib:/opt/nccl/build/lib:/opt/amazon/efa/lib:/opt/aws-ofi-nccl/install/lib:/usr/local/lib:$LD_LIBRARY_PATH
-ENV PATH /opt/amazon/openmpi/bin/:/opt/amazon/efa/bin:/usr/bin:/usr/local/bin:$PATH
+ENV LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:/opt/amazon/openmpi/lib:/opt/nccl/build/lib:/opt/amazon/efa/lib:/opt/aws-ofi-nccl/install/lib:/usr/local/lib:$LD_LIBRARY_PATH
+ENV PATH=/opt/amazon/openmpi/bin/:/opt/amazon/efa/bin:/usr/bin:/usr/local/bin:$PATH
 
 RUN curl https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py \
     && python3 /tmp/get-pip.py \
@@ -69,10 +69,10 @@ RUN git clone -b ${GDRCOPY_VERSION} https://github.com/NVIDIA/gdrcopy.git /tmp/g
     && cd /tmp/gdrcopy \
     && make prefix=/opt/gdrcopy install
 
-ENV LD_LIBRARY_PATH /opt/gdrcopy/lib:$LD_LIBRARY_PATH
-ENV LIBRARY_PATH /opt/gdrcopy/lib:$LIBRARY_PATH
-ENV CPATH /opt/gdrcopy/include:$CPATH
-ENV PATH /opt/gdrcopy/bin:$PATH
+ENV LD_LIBRARY_PATH=/opt/gdrcopy/lib:$LD_LIBRARY_PATH
+ENV LIBRARY_PATH=/opt/gdrcopy/lib:$LIBRARY_PATH
+ENV CPATH=/opt/gdrcopy/include:$CPATH
+ENV PATH=/opt/gdrcopy/bin:$PATH
 
 #################################################
 ## Install EFA installer
@@ -135,4 +135,4 @@ ENV OMPI_MCA_pml=^ucx            \
 ENV PMIX_MCA_gds=hash
 
 ## Set LD_PRELOAD for NCCL library
-ENV LD_PRELOAD /opt/nccl/build/lib/libnccl.so
+ENV LD_PRELOAD=/opt/nccl/build/lib/libnccl.so
