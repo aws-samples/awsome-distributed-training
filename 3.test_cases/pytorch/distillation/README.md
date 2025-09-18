@@ -32,7 +32,7 @@ cd awsome-distributed-training/3.test_cases/pytorch/distillation
 aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws/hpc-cloud
 export REGION=$(aws ec2 describe-availability-zones --output text --query 'AvailabilityZones[0].[RegionName]')
 export ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
-export REGISTRY=${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/
+export REGISTRY=${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com
 ```
 
 ### Building the Docker Image
@@ -41,10 +41,10 @@ Build your Docker image containing PyTorch, Transformers, and other required lib
 
 ```bash
 # For standard Linux environments
-docker build -t ${REGISTRY}distill:pytorch2.7.1 .
+docker build -t ${REGISTRY}/distill:pytorch2.7.1 .
 
 # For Mac developers targeting Linux/AMD64
-docker buildx build --platform linux/amd64 -t ${REGISTRY}distill:pytorch2.7.1 .
+docker buildx build --platform linux/amd64 -t ${REGISTRY}/distill:pytorch2.7.1 .
 ```
 
 ### Pushing to Amazon ECR
@@ -53,7 +53,7 @@ Push the image to Amazon ECR for use with your EKS cluster:
 
 ```bash
 # Create repository if needed
-REGISTRY_COUNT=$(aws ecr describe-repositories | grep "distill" | wc -l)
+REGISTRY_COUNT=$(aws ecr describe-repositories --query 'repositories[?repositoryName==`distill`]' --output text | wc -l)
 if [ "$REGISTRY_COUNT" -eq 0 ]; then
     aws ecr create-repository --repository-name distill
 fi
@@ -63,7 +63,7 @@ echo "Logging in to $REGISTRY..."
 aws ecr get-login-password | docker login --username AWS --password-stdin $REGISTRY
 
 # Push image
-docker image push ${REGISTRY}distill:pytorch2.7.1
+docker image push ${REGISTRY}/distill:pytorch2.7.1
 ```
 
 ### Accessing Hugging Face Datasets
@@ -74,7 +74,7 @@ Our distillation process uses datasets from Hugging Face. We can either download
 
 To access these datasets:
 1. Create a Hugging Face account if you don't have one
-2. Generate an access token with read permissions
+2. Generate an [access token](https://huggingface.co/docs/hub/main/en/security-tokens) with read permissions 
 3. Keep this token for use in our Kubernetes manifest
 
 ### Setting up Hugging Face Hub Location
@@ -98,14 +98,14 @@ Depending on the save location, We need to setup an PVC for FSx to save the mode
 
 ### Preparing the Kubernetes Manifest
 
-First, install envsubst if you don't have it already. Then generate your Kubernetes manifest from the template:
+First, install [envsubst](https://github.com/a8m/envsubst) if you don't have it already. Then generate your Kubernetes manifest from the template:
 
 ```bash
 # Change to Kubernetes directory
 cd kubernetes/
 
 # Set environment variables
-export IMAGE_URI=${REGISTRY}distill:pytorch2.7.1
+export IMAGE_URI=${REGISTRY}/distill:pytorch2.7.1
 export INSTANCE_TYPE=ml.p5en.48xlarge
 export NUM_NODES=2
 export GPU_PER_NODE=8
