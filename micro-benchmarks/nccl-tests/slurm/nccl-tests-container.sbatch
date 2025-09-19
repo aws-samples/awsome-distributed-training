@@ -45,7 +45,7 @@ export NCCL_P2P_NET_CHUNKSIZE=524288
 ### Improve performance for AllReduce by selecting specific protocol and algorithm for specific
 ### message size and number of ranks.
 ### More information https://github.com/aws/aws-ofi-nccl/wiki/Algorithm-and-Protocol-Tuner-for-AWS.
-export NCCL_TUNER_PLUGIN=/opt/aws-ofi-nccl/install/lib/libnccl-ofi-tuner.so
+export NCCL_TUNER_PLUGIN=/opt/amazon/ofi-nccl/lib/x86_64-linux-gnu/libnccl-ofi-tuner.so
 
 
 declare -a ARGS=(
