@@ -42,55 +42,110 @@ print_lustre_version()
     modinfo lustre | grep 'version:' | head -n 1 | awk '{print $2}'
 }
 
+# Verify if FSxL is created with EFA-enabled and if the FS is in the same AZ (cross AZ is not supported)
+verify_fsx_efa_compatibility()
+{
+    local fsx_dns_name="$1"
+
+    echo "[INFO] Verifying FSx EFA compatibility"
+
+    # Extract FSx filesystem ID from DNS name
+    local fsx_id=$(echo "$fsx_dns_name" | cut -d'.' -f1)
+
+    # Get instance AZ
+    local instance_az
+    TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600" -s --max-time 3 2>/dev/null)
+    if [[ -n "$TOKEN" ]]; then
+        instance_az=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -s --max-time 3 http://169.254.169.254/latest/meta-data/placement/availability-zone 2>/dev/null)
+    else
+        instance_az=$(curl -s --max-time 3 http://169.254.169.254/latest/meta-data/placement/availability-zone 2>/dev/null)
+    fi
+
+    if [[ -z "$instance_az" ]]; then
+        echo "[WARN] Could not determine instance AZ - proceeding without EFA verification"
+        return 1
+    fi
+
+    # Get FSx filesystem details (EFA and Subnet details)
+    local fsx_info
+    if ! fsx_info=$(aws fsx describe-file-systems --file-system-ids "$fsx_id" --query 'FileSystems[0].{LustreConfiguration: LustreConfiguration, SubnetIds: SubnetIds}' --output json 2>/dev/null); then
+        echo "[WARN] Could not describe FSx filesystem - proceeding without EFA verification"
+        return 1
+    fi
+
+    # Check if FSx has EFA enabled (checking for EfaEnabled field and value. Currently, as observed, if FSx is created without EFA, the field doesn't exist in the describe call)
+    local efa_enabled=$(echo "$fsx_info" | python3 -c "import sys, json; data=json.load(sys.stdin); lustre_config=data.get('LustreConfiguration', {}); print('FieldNotPresent' if 'EfaEnabled' not in lustre_config else lustre_config['EfaEnabled'])" 2>/dev/null)
+
+    if [[ "$efa_enabled" != "True" ]]; then
+        if [[ "$efa_enabled" == "FieldNotPresent" ]]; then
+            echo "[INFO] FSx filesystem was not created with EFA enabled - skipping EFA configuration"
+        else
+            echo "[INFO] FSx filesystem has EFA disabled (EfaEnabled: $efa_enabled) - skipping EFA configuration"
+        fi
+        return 1
+    fi
+
+    # Get FSx AZ from subnet (To match FSx and instance AZ)
+    local fsx_subnet=$(echo "$fsx_info" | python3 -c "import sys, json; data=json.load(sys.stdin); print(data['SubnetIds'][0])" 2>/dev/null)
+
+    if [[ -z "$fsx_subnet" ]]; then
+        echo "[WARN] Could not determine FSx subnet - proceeding without EFA verification"
+        return 1
+    fi
+
+    local fsx_az=$(aws ec2 describe-subnets --subnet-ids "$fsx_subnet" --query 'Subnets[0].AvailabilityZone' --output text 2>/dev/null)
+
+    if [[ "$instance_az" != "$fsx_az" ]]; then
+        echo "[INFO] FSx filesystem is in different AZ ($fsx_az vs $instance_az) - EFA not supported cross-AZ"
+        return 1
+    fi
+
+    echo "[INFO] FSx filesystem is EFA-compatible (same AZ: $instance_az, EfaEnabled: true)"
+    return 0
+}
+
 # Configure EFA for Lustre if supported
 configure_efa_lustre()
 {
-    echo "[INFO] Configuring EFA for FSx Lustre..."
+    echo "[INFO] Configuring EFA for FSx Lustre"
 
-    # Check if this is an EFA-supported instance type
-    local instance_type
-    # Try IMDSv2 first
-    TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600" -s --max-time 3 2>/dev/null)
-    if [[ -n "$TOKEN" ]]; then
-        instance_type=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -s --max-time 3 http://169.254.169.254/latest/meta-data/instance-type 2>/dev/null)
-    else
-        # Fallback to IMDSv1
-        instance_type=$(curl -s --max-time 3 http://169.254.169.254/latest/meta-data/instance-type 2>/dev/null)
-    fi
-
-    if [[ -z "$instance_type" ]]; then
-        echo "[WARN] Could not determine instance type, skipping EFA configuration"
+    # Check if instance has EFA drivers installed and configured
+    local efa_output
+    efa_output=$(fi_info -p efa 2>/dev/null)
+    if [[ $? -ne 0 ]] || ! echo "$efa_output" | grep -q "provider: efa"; then
+        echo "[INFO] EFA provider not available - skipping EFA configuration"
         return 0
     fi
 
-    # EFA-supported instance types
-    case "$instance_type" in
-        p6-b200.*|p6e-gb200.*|p4d.*|p5.*|p5e.*|p5en.*|trn1.*|trn1n.*|c5n.*|c6gn.*|c6in.*|c7gn.*|g6.*|g6e.*|m5dn.*|m5n.*|m5zn.*|m6a.*|m6i.*|m6in.*|r5dn.*|r5n.*|r6in.*|x2gd.*)
-            echo "[INFO] Instance type $instance_type supports EFA"
+    # Verify FSx EFA compatibility
+    if ! verify_fsx_efa_compatibility "$FSX_DNS_NAME"; then
+        echo "[INFO] FSx not EFA-compatible - skipping EFA configuration"
+        return 0
+    fi
 
-            # Download EFA configuration script with validation
-            if ! ansible localhost -m ansible.builtin.get_url -a "url=https://docs.aws.amazon.com/fsx/latest/LustreGuide/samples/configure-efa-fsx-lustre-client.zip dest=/tmp/configure-efa-fsx-lustre-client.zip mode='0644'"; then
-                echo "[ERROR] Failed to download EFA configuration script"
-                return 1
-            fi
+    echo "[INFO] EFA requirements met - proceeding with EFA configuration"
+    echo "[INFO] - EFA provider: available"
+    echo "[INFO] - FSx EFA enabled: yes"
+    echo "[INFO] - Same AZ: yes"
 
-            # Extract the zip file
-            ansible localhost -m ansible.builtin.unarchive -a "src=/tmp/configure-efa-fsx-lustre-client.zip dest=/tmp remote_src=yes"
+    # Download EFA configuration script
+    if ! ansible localhost -m ansible.builtin.get_url -a "url=https://docs.aws.amazon.com/fsx/latest/LustreGuide/samples/configure-efa-fsx-lustre-client.zip dest=/tmp/configure-efa-fsx-lustre-client.zip mode='0644'"; then
+        echo "[ERROR] Failed to download EFA configuration script"
+        return 1
+    fi
 
-            # Make script executable and run it
-            ansible localhost -b -m ansible.builtin.file -a "path=/tmp/configure-efa-fsx-lustre-client.sh mode='0755'"
-            ansible localhost -b -m ansible.builtin.command -a "/tmp/configure-efa-fsx-lustre-client.sh"
+    # Extract the zip file
+    ansible localhost -m ansible.builtin.unarchive -a "src=/tmp/configure-efa-fsx-lustre-client.zip dest=/tmp remote_src=yes"
 
-            # Cleanup
-            ansible localhost -m ansible.builtin.file -a "path=/tmp/configure-efa-fsx-lustre-client.zip state=absent"
-            ansible localhost -m ansible.builtin.file -a "path=/tmp/configure-efa-fsx-lustre-client.sh state=absent"
+    # Make script executable and run it
+    ansible localhost -b -m ansible.builtin.file -a "path=/tmp/configure-efa-fsx-lustre-client/setup.sh mode='0755'"
+    ansible localhost -b -m ansible.builtin.command -a "/tmp/configure-efa-fsx-lustre-client/setup.sh"
 
-            echo "[INFO] EFA configuration for FSx Lustre completed"
-            ;;
-        *)
-            echo "[INFO] Instance type $instance_type does not support EFA - skipping EFA configuration"
-            ;;
-    esac
+    # Cleanup
+    ansible localhost -m ansible.builtin.file -a "path=/tmp/configure-efa-fsx-lustre-client.zip state=absent"
+    ansible localhost -m ansible.builtin.file -a "path=/tmp/configure-efa-fsx-lustre-client/setup.sh state=absent"
+
+    echo "[INFO] EFA configuration for FSx Lustre completed"
 }
 
 # Load lnet modules
