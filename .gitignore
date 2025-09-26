@@ -153,3 +153,11 @@ wandb/
 
 # Enroot container image
 *.sqsh
+
+*.csv
+submitted_jobs*.txt
+topo_sorted_hostnames.txt
+micro-benchmarks/nccl-tests/slurm/topology-aware-nccl-tests/hostnames.txt
+*.patch
+micro-benchmarks/nccl-tests/slurm/find_bad_nodes/logs/analysis_summary_*.txt
+micro-benchmarks/nccl-tests/slurm/find_bad_nodes/logs/node_combinations_*.txt
