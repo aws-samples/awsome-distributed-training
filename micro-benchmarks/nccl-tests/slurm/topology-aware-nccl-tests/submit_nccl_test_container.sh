@@ -8,7 +8,7 @@ set -e
 
 # Configuration
 NODE_COUNTS=(2 4 8 16)
-APPS_PATH="/fsxl"
+APPS_PATH="${APPS_PATH:-/fsxl}"
 TEST_TYPES=("allreduce" "allgather" "reducescatter" "alltoall")
 # TEST_TYPES=("allreduce" )
 SPLIT_MASK=("0x0" "0x7")
