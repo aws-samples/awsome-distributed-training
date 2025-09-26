@@ -23,10 +23,10 @@ First, you will create python virtual environment to install `torch-neuronx` and
 
 ```bash
 # Install Python venv 
-sudo apt-get install -y python3.8-venv g++ 
+sudo apt-get install -y python3.10-venv g++ 
 
 # Create Python venv
-python3.8 -m venv /fsx/ubuntu/aws_neuron_venv_pytorch 
+python3.10 -m venv /fsx/ubuntu/aws_neuron_venv_pytorch 
 
 # Activate Python venv 
 source /fsx/ubuntu/aws_neuron_venv_pytorch/bin/activate 
@@ -42,24 +42,23 @@ python -m pip install wget awscli huggingface_hub
 python -m pip install --upgrade neuronx-cc==2.* torch-neuronx==2.1.* torchvision
 
 #Install the neuronx-distributed package 
-python -m pip install neuronx_distributed --extra-index-url https://pip.repos.neuron.amazonaws.com
-```
+python -m pip install neuronx_distributed 
 
-This test case tested with  Neuron SDK 2.21.0 which includes the following software stack:
+
+This example was tested with Neuron SDK 2.25.0 which includes the following software stack:
 
 ```bash
 (aws_neuron_venv_pytorch) ubuntu:~$ pip list | grep neuron
-libneuronxla              2.1.714.0
-neuronx-cc                2.16.372.0+4a9b2326
-neuronx-distributed       0.10.1
-torch-neuronx             2.1.2.2.4.0
+libneuronxla             2.1.714.0
+neuronx-cc               2.20.9961.0+0acef03a
+neuronx-distributed      0.14.18461+9ac233f2
+torch-neuronx            2.1.2.2.4.0
 
 $ srun -N1 dpkg -l | grep neuron # This command runs on a compute instance (trn1.32xlarge)
-ii  aws-neuronx-collectives                2.23.133.0-3e70920f2                  amd64        neuron_ccom built using CMake
-ii  aws-neuronx-dkms                       2.19.64.0                             amd64        aws-neuronx driver in DKMS format.
-ii  aws-neuronx-oci-hook                   2.6.36.0                              amd64        neuron_oci_hook built using CMake
-ii  aws-neuronx-runtime-lib                2.23.110.0-9b5179492                  amd64        neuron_runtime built using CMake
-ii  aws-neuronx-tools                      2.20.204.0                            amd64        Neuron profile and debug tools
+ii  aws-neuronx-collectives                     2.27.34.0-ec8cd5e8b                     amd64        neuron_ccom built using CMake
+ii  aws-neuronx-dkms                            2.23.9.0                                all          aws-neuronx driver in DKMS format.
+ii  aws-neuronx-runtime-lib                     2.27.23.0-8deec4dbf                     amd64        neuron_runtime built using CMake
+ii  aws-neuronx-tools                           2.25.145.0                              amd64        Neuron profile and debug tools
 ```
 
 
@@ -119,7 +118,7 @@ First, create a Hugging Face account to retrieve a [token](https://huggingface.c
 Save the token onto the head node and download the Llama model:
 
 ```bash
-huggingface-cli login
+hf auth login
 ```
 
 You will be prompted to input the token. Paste the token and answer `n` when asked to add the token as a git credential.
@@ -144,7 +143,7 @@ Now you are ready to grab llama3 model weights:
 
 
 ```bash
-huggingface-cli download meta-llama/Meta-Llama-3-70B --local-dir /fsx/ubuntu/Meta-Llama-3-70B
+hf download meta-llama/Meta-Llama-3-70B --local-dir /fsx/ubuntu/Meta-Llama-3-70B
 ```
 
 Once the download process is completed, you will see the following structure:
@@ -176,7 +175,7 @@ Copy tokenizer configs under the test case repository.
 ```bash
 cp /fsx/ubuntu/Meta-Llama-3-70B/*token* /fsx/ubuntu/llama
 ```
-#### Convert Llama3 model weighs
+#### Convert Llama3 model weights
 
 Neuron Distributed requires its checkpoints to be pre-sharded based on the parallel processing configuration (tensor parallel degree and pipeline parallel degree). This preprocessing involves two main steps:
 
@@ -202,13 +201,15 @@ sbatch --job-name=save-checkpoints --output=logs/save-checkpoints.out \
        --wrap "srun python save-llama3-70B-model.py"
 ```
 
+You can check the status of this this job using the "squeue" command.
+
 Next, we use the `convert_checkpoints.py` script to shard the checkpoints. Execute the following command to shards based on the distributed training setting we are going to use in the next step:
 
 ```bash
 mkdir -p /fsx/ubuntu/llama3_70B/pretrained_weight
 sbatch --job-name=convert-checkpoint --output=logs/convert-checkpoint.out \
        --wrap "\ 
-              srun python convert_checkpoints.py \
+              srun python /fsx/ubuntu/llama/convert_checkpoints.py \
               --hw_backend trn1 \
               --tp_size 32 --pp_size 8 --n_layers 80 \
               --save_xser 1 \
@@ -323,7 +324,7 @@ Before submitting the job, we need to modify a few arguments in `torchrun`  in `
 ```bash
 torchrun $DISTRIBUTED_ARGS run_llama_nxd.py \
         ...
-        --fuse_qkv 1 \
+        --kv_replicator 4 \
         --pretrained_weight 1 \ # Change value
         ...
         --checkpoint_freq 5 \ # change value
@@ -332,106 +333,11 @@ torchrun $DISTRIBUTED_ARGS run_llama_nxd.py \
         --tb_dir $tb_dir |& tee $LOG_PATH/log
 exit ${PIPESTATUS[0]}        
 ```
-Using the updated `run_llama3_70B_tp_pp.sh` script, we first pre-compile the graphs using the neuron_parallel_compile. Let’s run the command below:
-```
-sbatch --job-name run_llama3_70B \
-       --output logs/run_llama3_70B.out \
-       --exclusive --nodes 16 \
-       --cpus-per-task 64 \
-       --wrap="srun neuron_parallel_compile bash $(pwd)/run_llama3_70B_tp_pp.sh"
-```
-The 1st-time compilation effort could take up to 25 min. After the compilation completes, it is expected to see this output:
-```
-.........
-Compiler status PASS
-2025-01-17 01:16:07.000934:  42821  INFO ||NEURON_PARALLEL_COMPILE||: worker 6 finished with num of tasks 1....
-2025-01-17 01:16:07.000970:  42821  INFO ||NEURON_CACHE||: Current remaining items are 0, locked are 2, failed are 0, done are 32, total is 34
-2025-01-17 01:16:07.000981:  32201  INFO ||NEURON_PARALLEL_COMPILE||: {
-    "compilation_summary": {
-        "true": 2
-    },
-    "compilation_report": {
-        "/fsx/ubuntu/cache_dir_neuron/neuronxcc-2.16.372.0+4a9b2326/MODULE_9993940051196728623+3cc9a3cb/model.hlo_module.pb": {
-            "status": true,
-            "retry": 0,
-            "compile_time": 9.770226240158081
-        },
-        "/fsx/ubuntu/cache_dir_neuron/neuronxcc-2.16.372.0+4a9b2326/MODULE_7470829644182149778+3cc9a3cb/model.hlo_module.pb": {
-            "status": true,
-            "retry": 0,
-            "compile_time": 192.86727905273438
-        }
-    },
-    "start_time": 1737076372.654127,
-    "compilation_time": 195.32730412483215
-}
-2025-01-17 01:16:07.000981:  32201  INFO ||NEURON_PARALLEL_COMPILE||: Total graphs: 2
-2025-01-17 01:16:07.000981:  32201  INFO ||NEURON_PARALLEL_COMPILE||: Total successful compilations: 2
-2025-01-17 01:16:07.000981:  32201  INFO ||NEURON_PARALLEL_COMPILE||: Total failed compilations: 0
-..............
-Compiler status PASS
-2025-01-17 01:16:20.000242:  48243  INFO ||NEURON_PARALLEL_COMPILE||: worker 0 finished with num of tasks 1....
-2025-01-17 01:16:20.000264:  48243  INFO ||NEURON_CACHE||: Current remaining items are 0, locked are 1, failed are 0, done are 33, total is 34
-.
-Compiler status PASS
-2025-01-17 01:16:38.000143:  48247  INFO ||NEURON_PARALLEL_COMPILE||: worker 4 finished with num of tasks 1....
-2025-01-17 01:16:38.000162:  48247  INFO ||NEURON_CACHE||: Current remaining items are 0, locked are 0, failed are 0, done are 34, total is 34
-2025-01-17 01:16:38.000177:  37654  INFO ||NEURON_PARALLEL_COMPILE||: {
-    "compilation_summary": {
-        "true": 8
-    },
-    "compilation_report": {
-        "/fsx/ubuntu/cache_dir_neuron/neuronxcc-2.16.372.0+4a9b2326/MODULE_13896381258680072431+3cc9a3cb/model.hlo_module.pb": {
-            "status": true,
-            "retry": 0,
-            "compile_time": 207.77499103546143
-        },
-        "/fsx/ubuntu/cache_dir_neuron/neuronxcc-2.16.372.0+4a9b2326/MODULE_15605214078085204741+3cc9a3cb/model.hlo_module.pb": {
-            "status": true,
-            "retry": 0,
-            "compile_time": 62.078277826309204
-        },
-        "/fsx/ubuntu/cache_dir_neuron/neuronxcc-2.16.372.0+4a9b2326/MODULE_17180165851576277373+3cc9a3cb/model.hlo_module.pb": {
-            "status": true,
-            "retry": 0,
-            "compile_time": 13.69736123085022
-        },
-        "/fsx/ubuntu/cache_dir_neuron/neuronxcc-2.16.372.0+4a9b2326/MODULE_17186493308924889042+3cc9a3cb/model.hlo_module.pb": {
-            "status": true,
-            "retry": 0,
-            "compile_time": 13.605631828308105
-        },
-        "/fsx/ubuntu/cache_dir_neuron/neuronxcc-2.16.372.0+4a9b2326/MODULE_17656286827372360109+3cc9a3cb/model.hlo_module.pb": {
-            "status": true,
-            "retry": 0,
-            "compile_time": 224.9934914112091
-        },
-        "/fsx/ubuntu/cache_dir_neuron/neuronxcc-2.16.372.0+4a9b2326/MODULE_15118541367256155893+3cc9a3cb/model.hlo_module.pb": {
-            "status": true,
-            "retry": 0,
-            "compile_time": 69.67782711982727
-        },
-        "/fsx/ubuntu/cache_dir_neuron/neuronxcc-2.16.372.0+4a9b2326/MODULE_6234946551864249267+3cc9a3cb/model.hlo_module.pb": {
-            "status": true,
-            "retry": 0,
-            "compile_time": 73.62903022766113
-        },
-        "/fsx/ubuntu/cache_dir_neuron/neuronxcc-2.16.372.0+4a9b2326/MODULE_2285528399009206869+3cc9a3cb/model.hlo_module.pb": {
-            "status": true,
-            "retry": 0,
-            "compile_time": 52.13106894493103
-        }
-    },
-    "start_time": 1737076372.4143333,
-    "compilation_time": 225.76303887367249
-}
-2025-01-17 01:16:38.000177:  37654  INFO ||NEURON_PARALLEL_COMPILE||: Total graphs: 8
-2025-01-17 01:16:38.000177:  37654  INFO ||NEURON_PARALLEL_COMPILE||: Total successful compilations: 8
-2025-01-17 01:16:38.000177:  37654  INFO ||NEURON_PARALLEL_COMPILE||: Total failed compilations: 0
 
-```
+The Neuron SDK will need to run a compilation process as the first step in training.  While it is possible to do this compilation ahead of time on a smaller group of machines using the [neuron_parallel_compile](https://awsdocs-neuron.readthedocs-hosted.com/en/latest/frameworks/torch/torch-neuronx/api-reference-guide/training/pytorch-neuron-parallel-compile.html#pytorch-neuronx-parallel-compile-cli) tool, this tutorial lets the nodes compile on the fly.  You may see a notice in the log that some nodes are waiting while another node is compiling.  The initial compilation could add 25 minutes to your training job the first time you run it.  Subsequent runs should use the compiled graphs from the local cache.
 
-Now we can submit the real training job as follows:
+
+We can submit the training job as follows:
 
 ```bash
 sbatch --job-name run_llama3_70B \
