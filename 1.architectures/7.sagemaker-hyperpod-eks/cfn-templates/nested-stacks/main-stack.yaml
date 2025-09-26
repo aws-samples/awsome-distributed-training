@@ -31,6 +31,11 @@ Metadata:
         Parameters: 
           - AvailabilityZoneId
           - PrivateSubnet1CIDR
+      - Label:
+            default: Local Zone Configuration (for GB200)
+        Parameters:
+            - IsLocalZone
+            - NATGatewayAZ
       - Label: 
           default: Parameter Checks Recommended If EKSClusterStack == true
         Parameters: 
@@ -242,6 +247,17 @@ Parameters:
     Description: The Id of a NAT Gateway to route internet bound traffic to from the newly create private subnet. 
     Type: String
     Default: nat-1234567890abcdef0
+
+  IsLocalZone:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+    Description: Set to true if using Local Zone Deployment (for GB200)
+
+  NATGatewayAZ:
+    Type: String
+    Default: 'use1-az2'
+    Description: Standard AZ for NAT Gateway when using Local Zone (for GB200)
 
   ### ---------------- EKS Params ----------------###
 
@@ -700,6 +716,8 @@ Resources:
         VpcCIDR: !Ref VpcCIDR
         PublicSubnet1CIDR: !Ref PublicSubnet1CIDR
         PublicSubnet2CIDR: !Ref PublicSubnet2CIDR
+        IsLocalZone: !Ref IsLocalZone
+        NATGatewayAZ: !Ref NATGatewayAZ
 
   PrivateSubnetStack:
     Type: AWS::CloudFormation::Stack
