@@ -38,7 +38,7 @@ submitted_jobs=()
 timestamp=$(date +"%Y%m%d_%H%M%S")
 job_ids_file="logs/submitted_jobs_${timestamp}.txt"
 job_details_file="logs/job_details_${timestamp}.csv"
-
+mkdir -p logs
 # Initialize CSV file with headers
 echo "JobID,Nodes,TestType,SplitMask,TotalGPUs,SubmissionTime" > "$job_details_file"
 
