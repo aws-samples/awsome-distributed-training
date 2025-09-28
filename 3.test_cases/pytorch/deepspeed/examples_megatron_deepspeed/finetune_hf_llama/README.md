@@ -6,9 +6,9 @@ This test case showcase how to finetune Llama2 model from HuuggingFace Weights u
 Set the following environment variables to run the test cases:
 
 ```bash
-export APPS_PATH=/fsx/apps
-export ENROOT_IMAGE=$APPS_PATH/deepspeed.sqsh
-export FSX_PATH=/fsx
+export CONTAINER_PATH=/fsxl/containers
+export ENROOT_IMAGE=$CONTAINER_PATH/deepspeed.sqsh
+export FSX_PATH=/fsxl
 export MODEL_PATH=$FSX_PATH/deepspeed
 export DATA_PATH=$FSX_PATH/alpaca
 ```
@@ -21,8 +21,24 @@ mkdir -p ${DATA_PATH}
 wget https://raw.githubusercontent.com/tatsu-lab/stanford_alpaca/main/alpaca_data.json -O ${DATA_PATH}/alpaca_data.json
 ```
 
-Llama2 model, which governed by the Meta license and must be downloaded and converted to the standard [Hugging Face](https://huggingface.co/) format prior to running this sample.
-You can submit access request from [here](https://ai.meta.com/resources/models-and-libraries/llama-downloads/), we need "Llama 2 & Llama Chat" to be checked. Use the [download.sh](https://github.com/facebookresearch/llama/blob/main/download.sh) in the official repository. You will be asked to input an URL from the email you recieve from meta.  
+Llama2 model is governed by the Meta license and must be downloaded and converted to the standard [Hugging Face](https://huggingface.co/) format prior to running this sample.
+
+### Option 1: Download from Hugging Face (Recommended)
+1. Visit [meta-llama/Llama-2-7b](https://huggingface.co/meta-llama/Llama-2-7b) on Hugging Face
+2. Accept the license terms and submit an access request (processed hourly)
+3. Install Hugging Face CLI: `pip install -U "huggingface_hub[cli]"`
+4. Login to Hugging Face: `huggingface-cli login`
+5. Download the model to your desired location:
+   ```bash
+   hf download meta-llama/Llama-2-7b --local-dir ${MODEL_PATH}/Llama2-meta/7B
+   hf download meta-llama/Llama-2-7b tokenizer.model --local-dir ${MODEL_PATH}/Llama2-meta
+   ```
+
+### Option 2: Download from Meta
+1. Submit an access request from [Meta's Llama downloads page](https://www.llama.com/llama-downloads/)
+2. You will receive an email with a signed download URL (valid for 24 hours)
+3. Use the [download.sh](https://github.com/meta-llama/llama/blob/main/download.sh) script from the official repository
+4. Run `./download.sh` and paste the URL from your email when prompted  
 
 We will assume that you had placed the model and tokenizer as follows on cluster:
 
