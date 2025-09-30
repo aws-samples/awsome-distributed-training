@@ -6,14 +6,10 @@
 #SBATCH --cpus-per-task=48
 #SBATCH --partition=p5en
 
-export HF_TOKEN=$(cat /fsx/ubuntu/.cache/huggingface/token)
-
-cd /fsx/ubuntu/nanoVLM
-
-source nanoVLM_env/bin/activate
+HF_TOKEN=$HF_TOKEN
 
 mkdir -p logs
-mkdir -p /fsx/ubuntu/datasets/nanoVLM/cauldron
+mkdir -p $DATASET_DIR
 
 
 python3 << 'EOF'
@@ -21,7 +17,7 @@ from datasets import load_dataset
 import os
 import time
 
-local_path = "/fsx/ubuntu/datasets/nanoVLM/cauldron"
+local_path = os.environ["DATASET_DIR"]
 
 os.makedirs(local_path, exist_ok=True)
 
