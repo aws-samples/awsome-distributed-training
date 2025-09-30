@@ -13,7 +13,16 @@ This guide assumes that you have the following:
 
 Make sure that your current directory is under a shared filesystem such as `/fsx`. 
 
-## 2. Install Dependencies and Prepare Virtual Environment
+## 2. Clone this repo
+
+  ```bash
+  cd ~
+  git clone https://github.com/aws-samples/awsome-distributed-training/
+  cd awsome-distributed-training/3.test_cases/pytorch/nanoVLM/
+  ```
+
+
+## 3. Install Dependencies and Prepare Virtual Environment
 
 Create Virtual environment and install the dependencies to download our dataset and test the generation in subsequent sections.
 
@@ -24,11 +33,10 @@ Create Virtual environment and install the dependencies to download our dataset 
 
   ```
 
-## 3. Hugging Face token
+## 4. Hugging Face token
 
 First, create a Hugging Face account to retrieve a [token](https://huggingface.co/settings/tokens.). Log in to your account and create an access token from Hugging Face Tokens. 
 
-Save the token onto the head node and download the Llama model:
 
 ### Get huggingface token
 
@@ -54,60 +62,72 @@ Your token has been saved to /fsx/ubuntu/.cache/huggingface/token
 Login successful
 ```
 
-Then use the saved token `${HF_TOKEN}` to create configuration.
+Then export the saved token `${HF_TOKEN}` to use in the subsequent steps
 
-## 4. Clone this repo
+```bash
+export HF_TOKEN=$(cat /path_where_the_token_is_saved_from_the_above_step)
+```
+for example:
+```bash
+export HF_TOKEN=$(cat /fsx/ubuntu/.cache/huggingface/token)
+```
 
-  ```bash
-  cd ~
-  git clone https://github.com/aws-samples/awsome-distributed-training/
-  cd awsome-distributed-training/3.test_cases/pytorch/nanoVLM/slurm
-  ```
+## 5. Clone the nanoVLM repository
 
-## 5. Download the dataset required for the training
-The default dataset path will be '/fsx/ubuntu/datasets/nanoVLM/cauldron' and the datasets are ["clevr", "vqav2", "docvqa"]. 
+```bash
+git clone https://github.com/huggingface/nanoVLM.git
+cd nanoVLM
+git checkout 9de5e17ac2f4c578c32085131d966464cdd252b5
+cd ..
+```
+This sample has been developed with the above commit hash. 
 
-### Optional) You can modify this as needed to dowload the entire dataset by setting the configs to the entry below:
+## 6. Download the dataset required for the training
+
+Specify path to download dataset for example:
+
+```bash
+export DATASET_DIR=$PWD/datasets/cauldron
+```
+
+The default dataset path will be $DATASET_DIR and the datasets are ["clevr", "vqav2", "docvqa"]. 
+
+### (Optional) You can modify this as needed to dowload the entire dataset by setting the configs to the entry below in Line 24 in slurm/download_dataset.sbatch file:
 
 ```bash
 configs = get_dataset_config_names("HuggingFaceM4/the_cauldron")
 ```
 
 ```bash
+cd slurm
 sbatch download_dataset.sbatch
 ```
 
-```
-Downloading 1/3: clevr
-✓ Saved clevr in 113.5s
-Downloading 2/3: vqav2
-✓ Saved vqav2 in 101.2s
-Downloading 3/3: docvqa
-✓ Saved docvqa in 41.7s
-Total time: 256.3s
-```
-
-## 6. Clone the nanoVLM repository
+## 7. Update the dataset and checkpoint path in the NanoVLM config 
 
 ```bash
 cd ..
-git clone https://github.com/huggingface/nanoVLM.git
-cd nanoVLM
+sed -i "s|train_dataset_path: str = '[^']*'|train_dataset_path: str = '$DATASET_DIR'|" $PWD/nanoVLM/models/config.py
 ```
 
-## 7. Update the dataset path in the config 
+Since this demo is just to showcase the workflow, we can also reduce the number of evaluation tasks from [mmstar,mmmu,ocrbench,textvqa,docvqa,scienceqa,mme,infovqa] to just using [mmstar,mmmu] with the command below:
 
 ```bash
-sed -i "s|train_dataset_path: str = '[^']*'|train_dataset_path: str = '/fsx/ubuntu/datasets/nanoVLM/cauldron'|" /fsx/ubuntu/nanoVLM/nanoVLM/models/config.py
+sed -i "s/lmms_eval_tasks: str = 'mmstar,mmmu,ocrbench,textvqa,docvqa,scienceqa,mme,infovqa'/lmms_eval_tasks: str = 'mmstar,mmmu'/" $PWD/nanoVLM/models/config.py
 ```
-
-Since this demo is just to showcase the workflow, we can also redunce the number of evaluation tasks from [mmstar,mmmu,ocrbench,textvqa,docvqa,scienceqa,mme,infovqa] to just using [mmstar,mmmu] with the command below:
 
 ```bash
-sed -i "s/lmms_eval_tasks: str = 'mmstar,mmmu,ocrbench,textvqa,docvqa,scienceqa,mme,infovqa'/lmms_eval_tasks: str = 'mmstar,mmmu'/" /fsx/ubuntu/nanoVLM/nanoVLM/models/config.py
+export CHECKPOINT_DIR=$PWD/nanoVLM/checkpoints
 ```
 
-sed -i "s/lmms_eval_tasks: str = 'mmstar,mmmu,ocrbench,textvqa,docvqa,scienceqa,mme,infovqa'/lmms_eval_tasks: str = 'mmstar,mmmu'/" /fsxl/rallela/nanoVLM/nanoVLM/models/config.py
+```bash
+sed -i "s|vlm_checkpoint_path: str = '[^']*'|vlm_checkpoint_path: str = '$CHECKPOINT_DIR'|" $PWD/nanoVLM/models/config.py
+```
+
+Disable logging metrics to wandb for this sample:
+```bash
+sed -i "s/log_wandb: bool = True/log_wandb: bool = False/" $PWD/nanoVLM/models/config.py
+```
 
 ### (Optional) If training and running evaluations on g5 instances, update the configuration as below to avoid OOM issues.
 ```bash
@@ -116,7 +136,6 @@ sed -i \
   -e 's/lm_max_position_embeddings: int = 8192/lm_max_position_embeddings: int = 2048/' \
   -e 's/lm_max_length: int = 8192/lm_max_length: int = 2048/' \
   -e 's/max_img_size: int = 2048/max_img_size: int = 1024/' \
-  -e "s|vlm_checkpoint_path: str = 'checkpoints'|vlm_checkpoint_path: str = '/fsx/ubuntu/nanoVLM/checkpoints'|" \
   -e 's/data_cutoff_idx: int = None/data_cutoff_idx: int = 5000/' \
   -e 's/gradient_accumulation_steps: int = 8/gradient_accumulation_steps: int = 4/' \
   -e 's/eval_interval: int = 500/eval_interval: int = 50/' \
@@ -129,23 +148,20 @@ sed -i \
   -e 's/log_wandb: bool = True/log_wandb: bool = False/' \
   -e 's/use_lmms_eval: bool = True/use_lmms_eval: bool = False/' \
   -e "s/lmms_eval_tasks: str = 'mmstar,mmmu,ocrbench,textvqa,docvqa,scienceqa,mme,infovqa'/lmms_eval_tasks: str = 'mmstar,mmmu'/" \
-  /fsx/ubuntu/nanoVLM/nanoVLM/models/config.py
+  $PWD/nanoVLM/models/config.py
 ```
 
 ## 8. Build and Configure the NaNoVLM Job Container
 The provided Dockerfile (`nanoVLM.Dockerfile`) will set up the environment with all required dependencies:
 
 ```bash
-cd ..
 docker build -t nanovlm:latest -f nanovlm.Dockerfile .
 enroot import -o nanovlm.sqsh  dockerd://nanovlm:latest
-
-
 ```
 ## 9. Launch Training
 
 ```bash
-cd 
+cd slurm
 sbatch launch_training.sbatch
 ```
 Note the path where the checkpoints will be generated from the slurm.out log file as this will be used in the subsequent sections for evaluation and generation
@@ -157,26 +173,15 @@ For example:
 ```
 
 ## 10. Run evaluation
-Update the checkpoint directory in launch_evaluation.sh to the checkpoint we generated above
-
-```
-export CHECKPOINT_DIR="your-checkpoint-directory"
-```
 
 ```bash
-cd 
 sbatch launch_evaluation.sbatch
 ```
 
 ## 11. Test generation
-Export the checkpoint directory in your terminal
-
-```
-export CHECKPOINT_DIR="your-checkpoint-directory"
-```
 
 ```bash
-cd ..
+cd ../nanoVLM
 python generate.py --checkpoint $CHECKPOINT_DIR
 
 ```

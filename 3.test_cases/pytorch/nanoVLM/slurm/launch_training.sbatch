@@ -3,16 +3,16 @@
 #SBATCH --output=logs/train_nanoVLM/%A.out
 #SBATCH --error=logs/train_nanoVLM/%A.err
 #SBATCH --time=01:00:00
-#SBATCH --nodes=2
+#SBATCH --nodes=4
 #SBATCH --partition=p5en
 
 GPUS_PER_NODE=8 #set to 1 for g5.8xlarge
 
-cd /fsx/ubuntu/nanoVLM
+cd ..
 
 export CONTAINER_IMAGE=$(pwd)/nanovlm.sqsh
 
-export FSX_MOUNT=/fsx/ubuntu:/fsx/ubuntu
+export FSX_MOUNT=$(pwd):$(pwd)
 
 
 export NCCL_DEBUG=INFO
