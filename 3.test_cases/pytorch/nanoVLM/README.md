@@ -146,7 +146,6 @@ sed -i \
   -e 's/max_sample_length: int = 8192/max_sample_length: int = 2048/' \
   -e 's/train_dataset_name: tuple\[str, ...\] = ("all", )/train_dataset_name: tuple[str, ...] = ("default",)/' \
   -e 's/log_wandb: bool = True/log_wandb: bool = False/' \
-  -e 's/use_lmms_eval: bool = True/use_lmms_eval: bool = False/' \
   -e "s/lmms_eval_tasks: str = 'mmstar,mmmu,ocrbench,textvqa,docvqa,scienceqa,mme,infovqa'/lmms_eval_tasks: str = 'mmstar,mmmu'/" \
   $PWD/nanoVLM/models/config.py
 ```
