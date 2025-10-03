@@ -54,7 +54,7 @@ cat <<EOF > configs/ds_config.json
 }
 EOF
 
-export HOSTFILE=/fsx/hostfile
+export HOSTFILE=${MY_FSX}/hostfile
 # create hostfile on the fly
 # https://github.com/microsoft/DeepSpeed/issues/3489
 function makehostfile() {
@@ -68,7 +68,7 @@ makehostfile > ${HOSTFILE}
 
 declare -a ARGS=(
     --container-image ${IMAGE}
-    --container-mounts /fsx,/opt/slurm/bin
+    --container-mounts ${FSX_PATH},/opt/slurm/bin,/home/aravneel:/home/aravneel
 )
 declare -a DIST_ARGS=(
     --nnodes ${NNODES}
@@ -81,7 +81,7 @@ declare -a DIST_ARGS=(
 )
 declare -a CONVERT_ARGS=(
     --hf-ckpt-num-shards 3 
-    --origin-hf-ckpt-dir ${MODEL_PATH}/Llama2-7b-hf
+    --hf-ckpt-dir ${MODEL_PATH}/Llama2-7b-hf
     --save ${MEGA_DS_LLAMA_PATH}
 )
 declare -a COMM_ARGS=(

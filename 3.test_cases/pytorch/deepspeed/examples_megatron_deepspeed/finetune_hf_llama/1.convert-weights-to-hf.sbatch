@@ -10,12 +10,12 @@
 : "${DATASET:=c4_subset}"
 : "${DATA_PATH:=$FSX_PATH/$DATASET}"
 : "${MODEL_PATH:=$FSX_PATH/deepspeed}"
-: "${CONTAINER_MOUNT:=$FSX_PATH:$FSX_PATH}"
+: "${CONTAINER_MOUNT:=$FSX_PATH:$FSX_PATH,${PWD}:/workspace}"
 
 
 declare -a ARGS=(
     --container-image ${IMAGE}
-    --container-mounts /fsx
+    --container-mounts ${CONTAINER_MOUNT}  #/fsx
 )
 
 srun -l "${ARGS[@]}" python3 ${PWD}/src/convert_llama_weights_to_hf.py \
