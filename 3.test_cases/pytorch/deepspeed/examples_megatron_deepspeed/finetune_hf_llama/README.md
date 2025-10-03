@@ -76,7 +76,7 @@ ${MODEL_PATH}/Llama2-7b-hf
 
 Finally, transforms the checkpoint into Megatron DeepSpeed format:
 
-``bash
+```bash
 bash 2.convert-weights-to-mega-ds.sh
 ```
 
