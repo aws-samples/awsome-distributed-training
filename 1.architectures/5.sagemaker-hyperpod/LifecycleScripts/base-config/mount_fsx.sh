@@ -73,18 +73,6 @@ verify_fsx_efa_compatibility()
         return 1
     fi
 
-    # Check if FSx has EFA enabled (checking for EfaEnabled field and value. Currently, as observed, if FSx is created without EFA, the field doesn't exist in the describe call)
-    local efa_enabled=$(echo "$fsx_info" | python3 -c "import sys, json; data=json.load(sys.stdin); lustre_config=data.get('LustreConfiguration', {}); print('FieldNotPresent' if 'EfaEnabled' not in lustre_config else lustre_config['EfaEnabled'])" 2>/dev/null)
-
-    if [[ "$efa_enabled" != "True" ]]; then
-        if [[ "$efa_enabled" == "FieldNotPresent" ]]; then
-            echo "[INFO] FSx filesystem was not created with EFA enabled - skipping EFA configuration"
-        else
-            echo "[INFO] FSx filesystem has EFA disabled (EfaEnabled: $efa_enabled) - skipping EFA configuration"
-        fi
-        return 1
-    fi
-
     # Get FSx AZ from subnet (To match FSx and instance AZ)
     local fsx_subnet=$(echo "$fsx_info" | python3 -c "import sys, json; data=json.load(sys.stdin); print(data['SubnetIds'][0])" 2>/dev/null)
 
@@ -97,6 +85,18 @@ verify_fsx_efa_compatibility()
 
     if [[ "$instance_az" != "$fsx_az" ]]; then
         echo "[INFO] FSx filesystem is in different AZ ($fsx_az vs $instance_az) - EFA not supported cross-AZ"
+        return 1
+    fi
+
+    # Check if FSx has EFA enabled (checking for EfaEnabled field and value. Currently, as observed, if FSx is created without EFA, the field doesn't exist in the describe call)
+    local efa_enabled=$(echo "$fsx_info" | python3 -c "import sys, json; data=json.load(sys.stdin); lustre_config=data.get('LustreConfiguration', {}); print('FieldNotPresent' if 'EfaEnabled' not in lustre_config else lustre_config['EfaEnabled'])" 2>/dev/null)
+
+    if [[ "$efa_enabled" != "True" ]]; then
+        if [[ "$efa_enabled" == "FieldNotPresent" ]]; then
+            echo "[INFO] FSx filesystem was not created with EFA enabled - skipping EFA configuration"
+        else
+            echo "[INFO] FSx filesystem has EFA disabled (EfaEnabled: $efa_enabled) - skipping EFA configuration"
+        fi
         return 1
     fi
 
