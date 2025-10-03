@@ -110,7 +110,7 @@ spec:
           initContainers:
             - name: script-downloader
               image: public.ecr.aws/hpc-cloud/nccl-tests:latest
-              command: ["curl", "https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/refs/heads/main/3.test_cases/16.pytorch-cpu-ddp/ddp.py", "-o", "/local/ddp.py"]
+              command: ["curl", "https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/main/3.test_cases/pytorch/cpu-ddp/ddp.py", "-o", "/local/ddp.py"]
               volumeMounts:
                 - name: shmem
                   mountPath: /dev/shm
