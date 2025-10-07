@@ -27,6 +27,7 @@ Make sure that your current directory is under a shared filesystem such as `/fsx
 Create Virtual environment and install the dependencies to download our dataset and test the generation in subsequent sections.
 
   ```bash
+  sudo apt install python3.10-venv
   python3 -m venv nanoVLM-env
   source nanoVLM-env/bin/activate
   pip install torch numpy torchvision pillow datasets huggingface-hub transformers wandb einops accelerate loguru lmms_eval
