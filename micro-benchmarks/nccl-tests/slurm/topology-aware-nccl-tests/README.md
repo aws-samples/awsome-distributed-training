@@ -155,24 +155,24 @@ Follow the steps below to generate a topologically sorted hostfile which you can
 ./generate_hostfile.sh
 # this will generate a file with of name hostnames.txt which contains all the nodes in your cluster
 
-# Second sort it by passing it to hostfile-topologify.py
+# Second sort it by passing it to hostfile_topologify.py
 # Replace us-east-1 with your actual AWS region
-hostfile-topologify.py --input hostnames.txt --output topo_sorted_hostnames.txt --region us-east-1
+python hostfile_topologify.py --input hostnames.txt --output topo_sorted_hostnames.txt --region us-east-1
 
 # Edit submit script to use topology file
 # Set TOPO_SORTED_FILE="topo_sorted_hostnames.txt" in submit_nccl_test_ami.sh
 ```
 
-**hostfile-topologify.py Usage:**
+**hostfile_topologify.py Usage:**
 ```bash
 # Basic usage with default region (us-east-1)
-hostfile-topologify.py --input hostnames.txt --output sorted_hostnames.txt
+python hostfile_topologify.py --input hostnames.txt --output sorted_hostnames.txt
 
 # Specify custom AWS region
-hostfile-topologify.py --input hostnames.txt --output sorted_hostnames.txt --region ap-northeast-1
+python hostfile_topologify.py --input hostnames.txt --output sorted_hostnames.txt --region ap-northeast-1
 
 # Output to stdout (default)
-hostfile-topologify.py --input hostnames.txt --region eu-west-1
+python hostfile_topologify.py --input hostnames.txt --region eu-west-1
 ```
 
 **Parameters:**
@@ -279,25 +279,75 @@ cat logs/submitted_jobs_ami_<timestamp>.txt
 ```
 
 
-## 4. File Reference
+## 4. Testing
+
+### Test Suite for hostfile_topologify.py
+
+A comprehensive test suite is available to validate the topology sorting functionality:
+
+```bash
+./run_unit_tests.sh
+```
+
+**Test Coverage:**
+- **Topology-Based Ordering**: Validates that hosts are output in correct topology-aware order for optimal NCCL placement
+- **Pagination with Ordering**: Tests pagination handling (>64 hosts) while maintaining topology-based grouping
+- **Instance ID Processing**: Validates that the expected EC2 instance IDs are correctly processed from the mock topology API response
+- **Empty File Handling**: Tests graceful handling of empty hostfiles
+- **Hierarchical Network Validation**: Ensures hosts are grouped by network topology layers in contiguous blocks
+
+**Mock Data Structure:**
+The test suite uses realistic mock EC2 API responses that simulate a hierarchical network topology:
+- **Small Test**: 4 instances (i-1example, i-2example, i-3example, i-4example)
+- **Large Test**: 70 instances (i-1example through i-70example) to test pagination
+- **Instance Type**: All instances use p5en.48xlarge for consistency
+- **Network Hierarchy**:
+  - **Level 1**: All instances share a single top-level network node (nn-1example)
+  - **Level 2**: Instances alternate between two intermediate nodes (nn-2example, nn-3example)
+  - **Level 3**: Each instance has a unique leaf network node (nn-4example, nn-5example, etc.)
+
+**Topology Ordering Validation:**
+Tests verify that the output maintains topology-aware ordering where:
+- Hosts with the same Level 2 network node are grouped together
+- Groups are contiguous (no interleaving between different topology groups)
+- This ordering optimizes NCCL communication by placing nearby ranks on physically adjacent instances
+
+**Test Files:**
+- `test_hostfile_topologify.py`: Comprehensive test suite for topology-aware host ordering
+  - `test_topology_based_ordering`: Validates 4-host topology sorting with order verification
+  - `test_pagination_with_topology_ordering`: Tests 70-host pagination while maintaining topology groups
+  - `test_empty_hostfile`: Handles empty input files gracefully
+- `test_requirements.txt`: Test dependencies (pytest, boto3, botocore)
+- `run_unit_tests.sh`: Convenience script to run tests with optional coverage reporting
+
+## 5. File Reference
 
 ### Core Scripts
 
 | File | Purpose |
 |------|---------|
-| `slurm/v2/nccl-tests-ami.sbatch` | SLURM batch script for AMI-based execution |
-| `slurm/v2/nccl-tests-container.sbatch` | SLURM batch script for container-based execution |
-| `slurm/v2/submit_nccl_test_ami.sh` | Automated test suite submission script |
-| `slurm/v2/process_nccl_results.sh` | Automated result processing and CSV conversion |
-| `slurm/v2/generate_hostfile.sh` | Generate a file with all the hosts in a cluster |
-| `slurm/v2/hostfile-topologify.py` | Generate sorted hostfile for topology optimization (supports --region parameter) |
+| `nccl-tests-ami.sbatch` | SLURM batch script for AMI-based execution |
+| `nccl-tests-container.sbatch` | SLURM batch script for container-based execution |
+| `submit_nccl_test_ami.sh` | Automated test suite submission script |
+| `submit_nccl_test_container.sh` | Automated container test suite submission script |
+| `process_nccl_results.sh` | Automated result processing and CSV conversion |
+| `generate_hostfile.sh` | Generate a file with all the hosts in a cluster |
+| `hostfile_topologify.py` | Generate sorted hostfile for topology optimization (supports --region parameter) |
+
+### Test Files
+
+| File | Purpose |
+|------|---------|
+| `test_hostfile_topologify.py` | Comprehensive test suite for topology-aware host ordering with order validation |
+| `test_requirements.txt` | Test dependencies (pytest, boto3, botocore) |
+| `run_unit_tests.sh` | Convenience script to run tests with optional coverage reporting |
 
 ### Output Directories
 
 | Directory | Contents |
 |-----------|----------|
-| `slurm/v2/logs/` | Job output files and submission tracking |
-| `slurm/v2/nccl_results/` | Processed CSV results and summaries |
+| `logs/` | Job output files and submission tracking |
+| `nccl_results/` | Processed CSV results and summaries |
 
 
 ## 3. Understanding NCCL Bandwidth
