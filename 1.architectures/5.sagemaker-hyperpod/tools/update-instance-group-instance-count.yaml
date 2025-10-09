@@ -1,0 +1,423 @@
+Parameters:
+  HyperpodClusterName:
+    Type: String
+    Default: ml-cluster
+    Description: Name of the Sagemaker Hyperpod cluster to work with
+  InstanceGroupName:
+    Type: String
+    Default: accelerated-worker-group-1
+    Description: Name of the instance group to work with
+  ScaleDownCount:
+    Type: String
+    Default: "0"
+    Description: Number of instances when scaling down
+  ScaleUpCount:
+    Type: String
+    Default: "8"
+    Description: Number of instances when scaling up
+  ScaleDownCron:
+    Type: String
+    Default: cron(0 20 * * ? *)
+    Description: Cron expresion to be use for the scale down rule
+  ScaleUpCron:
+    Type: String
+    Default: cron(0 8 * * ? *)
+    Description: Cron expresion to be use for the scale up rule
+Resources:
+  UpdateHyperpodInstanceGroupInstanceCountRoleCAFAD403:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      Description: Role for the Lambda function to update the instance count of a SageMaker HyperPod instance group
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+  UpdateHyperpodInstanceGroupInstanceCountRoleDefaultPolicy47328BA5:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - sagemaker:DescribeCluster
+              - sagemaker:UpdateCluster
+              - sagemaker:BatchDeleteClusterNodes
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:sagemaker:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :cluster/*
+          - Action:
+              - eks:AssociateAccessPolicy
+              - eks:CreateAccessEntry
+              - eks:DeleteAccessEntry
+              - eks:DescribeAccessEntry
+              - eks:DescribeCluster
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:aws:eks:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :access-entry/*/*/*/*/*
+              - Fn::Join:
+                  - ""
+                  - - "arn:aws:eks:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :cluster/*
+          - Action: iam:PassRole
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:iam::"
+                  - Ref: AWS::AccountId
+                  - :role/*
+        Version: "2012-10-17"
+      PolicyName: UpdateHyperpodInstanceGroupInstanceCountRoleDefaultPolicy47328BA5
+      Roles:
+        - Ref: UpdateHyperpodInstanceGroupInstanceCountRoleCAFAD403
+  UpdateHyperpodInstanceGroupInstanceCountCAF78010:
+    Type: AWS::Lambda::Function
+    Properties:
+      Architectures:
+        - arm64
+      Code:
+        ZipFile: "
+
+          import boto3
+
+          import json
+
+          import os
+
+
+          def lambda_handler(event, context):
+
+          \    \"\"\"
+
+          \    AWS Lambda function to update the number of instances in a SageMaker HyperPod instance group.
+
+          \    Uses environment variables for configuration:
+
+          \    - HYPERPOD_CLUSTER_NAME: Name of the HyperPod cluster
+
+          \    - HYPERPOD_INSTANCE_GROUP: Name of the instance group to update (default: accelerated-worker-group)
+
+          \    - HYPERPOD_INSTANCE_COUNT: Number of instances to set (default: 0)
+
+          \    \"\"\"
+
+          \    # Get parameters from environment variables, with optional override from event
+
+          \    cluster_name = event.get('cluster_name', os.environ.get('HYPERPOD_CLUSTER_NAME'))
+
+          \    instance_group = event.get('instance_group', os.environ.get('HYPERPOD_INSTANCE_GROUP'))
+
+          \    instance_count = int(event.get('instance_count'))
+
+
+          \    # Validate required parameters
+
+          \    if not cluster_name:
+
+          \        return {
+
+          \            'statusCode': 400,
+
+          \            'body': json.dumps('Error: cluster_name is required (set via event or HYPERPOD_CLUSTER_NAME environment variable)')
+
+          \        }
+
+
+          \    # Get region from event, environment variable, or default
+
+          \    region = event.get('region', os.environ.get('AWS_REGION', 'us-east-1'))
+
+
+          \    # Initialize SageMaker client
+
+          \    sagemaker_client = boto3.client('sagemaker', region_name=region)
+
+
+          \    try:
+
+          \        # Get current cluster configuration
+
+          \        response = sagemaker_client.describe_cluster(
+
+          \            ClusterName=cluster_name
+
+          \        )
+
+
+          \        # Find the target instance group
+
+          \        instance_groups = response.get('InstanceGroups', [])
+
+          \        target_group = None
+
+          \        other_groups = []
+
+
+          \        for group in instance_groups:
+
+          \            if group.get('InstanceGroupName') == instance_group:
+
+          \                target_group = group
+
+          \            else:
+
+          \                other_groups.append(group)
+
+
+          \        if not target_group:
+
+          \            return {
+
+          \                'statusCode': 404,
+
+          \                'body': json.dumps(f'Error: {instance_group} not found in the cluster')
+
+          \            }
+
+
+          \        # Create a copy of the target group with updated instance count
+
+          \        updated_target_group = {
+
+          \            'InstanceGroupName': instance_group,
+
+          \            'InstanceCount': instance_count,
+
+          \            'InstanceType': target_group.get('InstanceType'),
+
+          \            'LifeCycleConfig': target_group.get('LifeCycleConfig'),
+
+          \            'ExecutionRole': target_group.get('ExecutionRole')
+
+          \        }
+
+
+          \        # Include InstanceStorageConfigs if present in the original configuration
+
+          \        if 'InstanceStorageConfigs' in target_group:
+
+          \            updated_target_group['InstanceStorageConfigs'] = target_group['InstanceStorageConfigs']
+
+
+          \        # Prepare the update request with all instance groups
+
+          \        # We need to include all instance groups in the update request
+
+          \        update_groups = [updated_target_group]
+
+
+          \        # Include other instance groups unchanged
+
+          \        for group in other_groups:
+
+          \            update_group = {
+
+          \                'InstanceGroupName': group.get('InstanceGroupName'),
+
+          \                'InstanceCount': group.get('CurrentCount'),
+
+          \                'InstanceType': group.get('InstanceType'),
+
+          \                'LifeCycleConfig': group.get('LifeCycleConfig'),
+
+          \                'ExecutionRole': group.get('ExecutionRole')
+
+          \            }
+
+
+          \            # Include InstanceStorageConfigs if present
+
+          \            if 'InstanceStorageConfigs' in group:
+
+          \                update_group['InstanceStorageConfigs'] = group['InstanceStorageConfigs']
+
+
+          \            update_groups.append(update_group)
+
+
+          \        # Get node recovery setting if present
+
+          \        node_recovery = response.get('NodeRecovery', 'Automatic')
+
+          \        print('update groups: ', update_groups)
+
+          \        # Update the cluster with all instance groups
+
+          \        update_response = sagemaker_client.update_cluster(
+
+          \            ClusterName=cluster_name,
+
+          \            InstanceGroups=update_groups,
+
+          \            NodeRecovery=node_recovery
+
+          \        )
+
+
+          \        return {
+
+          \            'statusCode': 200,
+
+          \            'body': json.dumps({
+
+          \                'message': f'Successfully updated {instance_group} to {instance_count} instances',
+
+          \                'update_details': update_response
+
+          \            })
+
+          \        }
+
+          \    except Exception as e:
+
+          \        return {
+
+          \            'statusCode': 500,
+
+          \            'body': json.dumps(f'Error updating cluster: {str(e)}')
+
+          \        }
+
+          \                "
+      Environment:
+        Variables:
+          HYPERPOD_CLUSTER_NAME:
+            Ref: HyperpodClusterName
+          HYPERPOD_INSTANCE_GROUP:
+            Ref: InstanceGroupName
+      Handler: index.lambda_handler
+      MemorySize: 128
+      Role:
+        Fn::GetAtt:
+          - UpdateHyperpodInstanceGroupInstanceCountRoleCAFAD403
+          - Arn
+      Runtime: python3.13
+      Timeout: 30
+    DependsOn:
+      - UpdateHyperpodInstanceGroupInstanceCountRoleDefaultPolicy47328BA5
+      - UpdateHyperpodInstanceGroupInstanceCountRoleCAFAD403
+  UpdateHyperpodInstanceGroupInstanceCountLogGroupF950D618:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName:
+        Fn::Join:
+          - ""
+          - - /aws/lambda/
+            - Ref: UpdateHyperpodInstanceGroupInstanceCountCAF78010
+      RetentionInDays: 731
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+  HyperPodScaleDownRule667EC34E:
+    Type: AWS::Events::Rule
+    Properties:
+      Description:
+        Fn::Join:
+          - ""
+          - - "Scale down "
+            - Ref: InstanceGroupName
+            - " in "
+            - Ref: HyperpodClusterName
+            - " to "
+            - Ref: ScaleDownCount
+            - " instances"
+      ScheduleExpression:
+        Ref: ScaleDownCron
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::GetAtt:
+              - UpdateHyperpodInstanceGroupInstanceCountCAF78010
+              - Arn
+          Id: Target0
+          Input:
+            Fn::Join:
+              - ""
+              - - '{"cluster_name":"'
+                - Ref: HyperpodClusterName
+                - '","instance_group":"'
+                - Ref: InstanceGroupName
+                - '","instance_count":"'
+                - Ref: ScaleDownCount
+                - '","action":"scale-down"}'
+  HyperPodScaleDownRuleAllowEventRuleHyperpodInstanceCountUpdateUpdateHyperpodInstanceGroupInstanceCountF26B980BD6564B21:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - UpdateHyperpodInstanceGroupInstanceCountCAF78010
+          - Arn
+      Principal: events.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+          - HyperPodScaleDownRule667EC34E
+          - Arn
+  HyperPodScaleUpRule47956CBB:
+    Type: AWS::Events::Rule
+    Properties:
+      Description:
+        Fn::Join:
+          - ""
+          - - "Scale up "
+            - Ref: InstanceGroupName
+            - " in "
+            - Ref: HyperpodClusterName
+            - " to "
+            - Ref: ScaleUpCount
+            - " instances"
+      ScheduleExpression:
+        Ref: ScaleUpCron
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::GetAtt:
+              - UpdateHyperpodInstanceGroupInstanceCountCAF78010
+              - Arn
+          Id: Target0
+          Input:
+            Fn::Join:
+              - ""
+              - - '{"cluster_name":"'
+                - Ref: HyperpodClusterName
+                - '","instance_group":"'
+                - Ref: InstanceGroupName
+                - '","instance_count":"'
+                - Ref: ScaleUpCount
+                - '","action":"scale-up"}'
+  HyperPodScaleUpRuleAllowEventRuleHyperpodInstanceCountUpdateUpdateHyperpodInstanceGroupInstanceCountF26B980B6A706B98:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - UpdateHyperpodInstanceGroupInstanceCountCAF78010
+          - Arn
+      Principal: events.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+          - HyperPodScaleUpRule47956CBB
+          - Arn
+
