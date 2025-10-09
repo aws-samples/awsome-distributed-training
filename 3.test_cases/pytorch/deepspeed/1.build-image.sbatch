@@ -11,8 +11,8 @@
 set -euxo pipefail
 
 # default variables for Enroot, if these variables are defined then use them
-: "${APPS_PATH:=/fsx/apps}"
-: "${IMAGE:=$APPS_PATH/deepspeed.sqsh}"
+: "${CONTAINER_PATH:=/fsxl/containers}"
+: "${IMAGE:=$CONTAINER_PATH/deepspeed.sqsh}"
 
 ENROOT_IMAGE=deepspeed
 docker build -t ${ENROOT_IMAGE} -f 0.deepspeed.dockerfile .
