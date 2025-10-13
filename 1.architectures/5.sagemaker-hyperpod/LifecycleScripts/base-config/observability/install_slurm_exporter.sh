@@ -23,6 +23,7 @@ if systemctl is-active --quiet slurmctld; then
     echo "This was identified as the controller node because Slurmctld is running. Begining SLURM Exporter Installation"
     git clone -b v1.1.0 https://github.com/SckyzO/slurm_exporter.git
     cd slurm_exporter
+
     make build && cp bin/slurm_exporter /usr/bin/
     tee /etc/systemd/system/slurm_exporter.service > /dev/null <<EOF
 [Unit]
