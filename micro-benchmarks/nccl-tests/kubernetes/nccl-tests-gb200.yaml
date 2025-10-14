@@ -18,7 +18,7 @@ spec:
   runPolicy:
     cleanPodPolicy: Running
     backoffLimit: 20
-  slotsPerWorker: 8
+  slotsPerWorker: 4
   mpiReplicaSpecs:
     Launcher:
       replicas: 1
@@ -39,7 +39,6 @@ spec:
             - --allow-run-as-root
             - --tag-output
             - -np
-            # - "8" 
             - "72" 
             - -npernode
             - "4"
@@ -60,7 +59,7 @@ spec:
             - -x
             - NCCL_NVLS_ENABLE=1
             - -x
-            - NCCL_MNNVL_ENABLE=2
+            - NCCL_MNNVL_ENABLE=1
             - -x
             - NCCL_BUFFSIZE=8388608
             - -x
@@ -89,7 +88,20 @@ spec:
     Worker:
       replicas: 18
       template:
+        metadata:
+          labels:
+            nccl-tests-replica: mpi-worker
         spec:
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchExpressions:
+                  - key: nccl-tests-replica
+                    operator: In
+                    values:
+                    - mpi-worker
+                topologyKey: nvidia.com/gpu.clique
           containers:
           - image: public.ecr.aws/u1m6g1t5/nccl-tests-arm64:latest
             imagePullPolicy: IfNotPresent
