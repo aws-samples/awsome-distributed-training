@@ -227,9 +227,10 @@ Parameters:
     Description: >
       The Availability Zone Id you wish to create a private subnet in.
       This private subnet will be used by HyperPod to deploy cross-account ENIs. 
-      The Availability Zone Id you specify should correspond to the location of your accelerated compute capacity.
+      The Availability Zone Id you specify should correspond to the location of your accelerated compute capacity. 
+      If this is for GB200, use use1-dfw2-az1
     Type: String
-    Default: usw2-az2
+    Default: usw2-az2 
     # AllowedPattern: ^[a-z]{3,4}[0-9]-az[0-9]$
     # ConstraintDescription: The Availability Zone Id must match the expression
     #   ^[a-z]{3,4}[0-9]-az[0-9]$. For example, use1-az4, usw2-az2, or apse1-az2.
