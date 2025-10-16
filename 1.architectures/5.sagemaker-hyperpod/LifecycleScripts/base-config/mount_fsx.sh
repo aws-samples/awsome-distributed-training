@@ -110,10 +110,15 @@ configure_efa_lustre()
     echo "[INFO] Configuring EFA for FSx Lustre"
 
     # Check if instance has EFA drivers installed and configured
-    local efa_output
-    efa_output=$(fi_info -p efa 2>/dev/null)
-    if [[ $? -ne 0 ]] || ! echo "$efa_output" | grep -q "provider: efa"; then
-        echo "[INFO] EFA provider not available - skipping EFA configuration"
+    if [[ -x "/opt/amazon/efa/bin/fi_info" ]]; then
+        if /opt/amazon/efa/bin/fi_info -p efa >/dev/null 2>&1; then
+            echo "[INFO] EFA provider detected successfully"
+        else
+            echo "[INFO] EFA provider not available - skipping EFA configuration"
+            return 0
+        fi
+    else
+        echo "[INFO] EFA tools not found - skipping EFA configuration"
         return 0
     fi
 
