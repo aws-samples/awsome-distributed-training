@@ -899,7 +899,7 @@ Resources:
         CustomResourceS3Bucket: 
           Fn::FindInMap: 
             - AssetS3Buckets
-            - us-east-1-alt
+            - us-east-1-extra
             - BucketName
         LayerS3Key: '2433d39e-ccfe-4c00-9d3d-9917b729258e/lambda-layer.zip'
         FunctionS3Key: '2433d39e-ccfe-4c00-9d3d-9917b729258e/function.zip'
