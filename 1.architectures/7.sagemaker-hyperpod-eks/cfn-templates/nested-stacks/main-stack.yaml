@@ -176,6 +176,8 @@ Mappings:
     us-east-1:
       # BucketName: ws-assets-prod-iad-r-iad-ed304a55c2ca1aee
       BucketName: awsome-distributed-training
+    us-east-1-extra:
+      BucketName: ws-assets-prod-iad-r-iad-ed304a55c2ca1aee
     ap-northeast-2:
       BucketName: ws-assets-prod-iad-r-icn-ced060f0d38bc0b0
     ap-northeast-3:
@@ -897,7 +899,7 @@ Resources:
         CustomResourceS3Bucket: 
           Fn::FindInMap: 
             - AssetS3Buckets
-            - Ref: 'AWS::Region'
+            - us-east-1-alt
             - BucketName
         LayerS3Key: '2433d39e-ccfe-4c00-9d3d-9917b729258e/lambda-layer.zip'
         FunctionS3Key: '2433d39e-ccfe-4c00-9d3d-9917b729258e/function.zip'
