@@ -1,35 +1,49 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 #
+# AWS Batch setup for P6 distributed training with multi-node NCCL tests
+# Author: yusongw@
+#
+# Usage:
+#   1. Create resource group and add Capacity Block Reservation (CBML):
+#      aws resource-groups create-group --name my-capacity-group \
+#        --resource-query '{"Type":"TAG_FILTERS_1_0","Query":"{\"ResourceTypeFilters\":[\"AWS::EC2::CapacityReservation\"],\"TagFilters\":[]}"}'
+#      aws resource-groups group-resources --group my-capacity-group \
+#        --resource-arns arn:aws:ec2:us-east-1:123456789012:capacity-reservation/cr-1234567890
+#
+#   2. Deploy stack:
+#      aws cloudformation create-stack --stack-name aws-batch-p6 \
+#        --template-body file://aws-batch-distributed-training-p6.yaml \
+#        --parameters \
+#          ParameterKey=VPCStackParameter,ParameterValue="aws-batch-vpc" \
+#          ParameterKey=CapacityReservationResourceGroupArn,ParameterValue="arn:aws:resource-groups:us-east-1:123456789012:group/my-capacity-group" \
+#        --capabilities CAPABILITY_NAMED_IAM
+#
+#   3. Generate and upload SSH key:
+#      ssh-keygen -t rsa -b 2048 -N '' -f /tmp/batch_key
+#      aws secretsmanager put-secret-value --secret-id aws-batch-p6-ssh-key --secret-string file:///tmp/batch_key
+#      rm /tmp/batch_key /tmp/batch_key.pub
+#
 AWSTemplateFormatVersion: '2010-09-09'
-Description: >
-  AWS Batch setup for P6 distributed training with multi-node NCCL tests.
-  Usage:
-    aws cloudformation create-stack --stack-name aws-batch-p6 \
-      --template-body file://aws-batch-distributed-training-p6.yaml \
-      --parameters \
-        ParameterKey=VPCStackParameter,ParameterValue="aws-batch-vpc" \
-        ParameterKey=CapacityBlockId,ParameterValue="cr-1234567890" \
-        ParameterKey=PlacementGroupName,ParameterValue="my-placement-group" \
-      --capabilities CAPABILITY_NAMED_IAM
-Author: yusongw@
+Description: AWS Batch setup for P6 distributed training with multi-node NCCL tests. Simplified deployment with inline container setup.
 
 Parameters:
   VPCStackParameter:
     Type: String
     Description: Private subnets will be retrieved for the compute environment
     Default: 'aws-batch-vpc'
-  CapacityBlockId:
-    Description: ID of the Capacity Block
+  CapacityReservationResourceGroupArn:
+    Description: ARN of the Capacity Reservation Resource Group (recommended for managing multiple capacity blocks)
     Type: String
     Default: ''
-  PlacementGroupName:
-    Description: Optional cluster Placement Group name to use for EC2 placement (leave blank for none)
+  CapacityBlockId:
+    Description: ID of a specific Capacity Block (alternative to Resource Group)
     Type: String
     Default: ''
 
 Conditions:
-  HasPlacement: !Not [ !Equals [ !Ref PlacementGroupName, '' ] ]
+  UseResourceGroup: !Not [ !Equals [ !Ref CapacityReservationResourceGroupArn, '' ] ]
+  UseCapacityBlock: !Not [ !Equals [ !Ref CapacityBlockId, '' ] ]
 
 Metadata:
   AWS::CloudFormation::Interface:
@@ -41,15 +55,15 @@ Metadata:
       - Label:
           default: AWS Batch Configuration
         Parameters:
+          - CapacityReservationResourceGroupArn
           - CapacityBlockId
-          - PlacementGroupName
     ParameterLabels:
       VPCStackParameter:
         default: Name of the VPC Stack
+      CapacityReservationResourceGroupArn:
+        default: Capacity Reservation Resource Group ARN (recommended)
       CapacityBlockId:
-        default: Capacity Block ID
-      PlacementGroupName:
-        default: Optional EC2 Placement Group name
+        default: Capacity Block ID (alternative)
 
 Resources:
   ###################
@@ -62,11 +76,13 @@ Resources:
         InstanceMarketOptions:
           MarketType: "capacity-block"
         CapacityReservationSpecification:
-          CapacityReservationTarget:
-            CapacityReservationId: !Ref CapacityBlockId
-        # Optional placement group (only inserted when PlacementGroupName parameter is provided)
-        Placement:
-          GroupName: !If [ HasPlacement, !Ref PlacementGroupName, !Ref "AWS::NoValue" ]
+          CapacityReservationTarget: !If
+            - UseResourceGroup
+            - CapacityReservationResourceGroupArn: !Ref CapacityReservationResourceGroupArn
+            - !If
+              - UseCapacityBlock
+              - CapacityReservationId: !Ref CapacityBlockId
+              - !Ref "AWS::NoValue"
         NetworkInterfaces:
           - Description: EFA Interface
             Groups: !Split
@@ -180,7 +196,7 @@ Resources:
                 Action:
                   - secretsmanager:GetSecretValue
                 Resource:
-                  - !GetAtt SSHKeySecret.Arn
+                  - !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${AWS::StackName}-ssh-key-*'
 
   ECSTaskInstanceProfile:
     Type: AWS::IAM::InstanceProfile
@@ -191,20 +207,14 @@ Resources:
       InstanceProfileName: !Join [ "", [ "ECSTaskInstanceProfileIAM-", !Ref AWS::StackName ] ]
 
   ##
-  ## EC2 Key Pair and Secrets Manager
+  ## Secrets Manager - Placeholder for SSH key (populate manually after stack creation)
   ##
-  BatchSSHKeyPair:
-    Type: AWS::EC2::KeyPair
-    Properties:
-      KeyName: !Sub "${AWS::StackName}-batch-ssh-key"
-      KeyType: rsa
-
   SSHKeySecret:
     Type: AWS::SecretsManager::Secret
     Properties:
       Name: !Sub "${AWS::StackName}-ssh-key"
-      Description: "SSH private key for Batch MNP jobs (plain text format)"
-      SecretString: !GetAtt BatchSSHKeyPair.PrivateKeyValue
+      Description: "SSH private key for Batch MNP jobs - populate with: ssh-keygen -t rsa -b 2048 -N '' -f /tmp/batch_key && aws secretsmanager put-secret-value --secret-id <secret-arn> --secret-string file:///tmp/batch_key"
+      SecretString: "PLACEHOLDER - Run the command in Description to generate and upload SSH key"
 
   ##
   ## Compute Environment and Job Definition
@@ -327,7 +337,7 @@ Resources:
                 - Name: NCCL_TEST_CMD
                   Value: "/opt/nccl-tests/build/all_reduce_perf -b 8 -e 16G -f 2 -g 1 -c 1 -n 100"
                 - Name: SSH_SECRET_ARN
-                  Value: !GetAtt SSHKeySecret.Arn
+                  Value: !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${AWS::StackName}-ssh-key'
               ResourceRequirements:
                 - Type: VCPU
                   Value: 192
@@ -410,13 +420,9 @@ Outputs:
     Description: ECR Repository for the containers
     Value: !Join ['', [!Ref 'AWS::AccountId','.dkr.ecr.', !Ref 'AWS::Region', '.amazonaws.com/', !Ref NCCLTestRepository ] ]
 
-  SSHKeyPairId:
-    Description: EC2 Key Pair ID for SSH access
-    Value: !GetAtt BatchSSHKeyPair.KeyPairId
-
   SSHKeySecretArn:
     Description: ARN of the SSH private key secret in Secrets Manager
-    Value: !GetAtt SSHKeySecret.Arn
+    Value: !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${AWS::StackName}-ssh-key'
 
   JobDefinitionMultiInstance:
     Description: Job definition for Multi-node Parallel Jobs
