@@ -49,6 +49,60 @@ aws cloudformation create-stack --stack-name aws-batch-p5 \
                                 --capabilities CAPABILITY_NAMED_IAM
 ```
 
+## P6 Deployment (Simplified)
+
+For P6 instances (p6-b200.48xlarge), use the simplified template that eliminates the need for custom Docker images and bootstrap scripts.
+
+- **Template file**: [`aws-batch-distributed-training-p6.yaml`](./aws-batch-distributed-training-p6.yaml)
+
+### Features
+
+- Inline container setup - no custom Dockerfile needed
+- Uses public NCCL tests image directly: `public.ecr.aws/hpc-cloud/nccl-tests:latest`
+- Capacity Reservation Resource Group support for easier capacity management
+- Manual SSH key generation stored in Secrets Manager
+- Single CloudFormation template deployment
+
+### Deployment Steps
+
+```bash
+# Step 1: Deploy CloudFormation Stack
+aws cloudformation create-stack --stack-name aws-batch-p6 \
+  --template-body file://aws-batch-distributed-training-p6.yaml \
+  --parameters ParameterKey=VPCStackParameter,ParameterValue="aws-batch-vpc" \
+  --capabilities CAPABILITY_NAMED_IAM
+
+# Step 2: Add Capacity Block to Resource Group
+# Get the resource group ARN from stack outputs
+RESOURCE_GROUP_ARN=$(aws cloudformation describe-stacks --stack-name aws-batch-p6 \
+  --query 'Stacks[0].Outputs[?OutputKey==`CapacityReservationResourceGroupArn`].OutputValue' \
+  --output text)
+
+# Add your capacity reservation(s) to the group
+aws resource-groups group-resources --group ${RESOURCE_GROUP_ARN} \
+  --resource-arns arn:aws:ec2:us-east-1:123456789012:capacity-reservation/cr-1234567890
+
+# Step 3: Generate and Upload SSH Key
+ssh-keygen -t rsa -b 2048 -N '' -f /tmp/batch_key
+aws secretsmanager put-secret-value \
+  --secret-id aws-batch-p6-ssh-key \
+  --secret-string file:///tmp/batch_key
+rm /tmp/batch_key /tmp/batch_key.pub
+```
+
+### P6 Template Parameters
+
+| Name                    | Type     | Details                                     |
+|-------------------------|----------|---------------------------------------------|
+| `VPCStackParameter`     | Required | Name of the VPC stack in CloudFormation     |
+
+### P6 Architecture Notes
+
+- **8 EFA interfaces** configured for p6-b200.48xlarge instances
+- **Inline bash script** in Job Definition handles SSH setup, hostfile generation, and NCCL test execution
+- **No custom Docker image required** - uses base NCCL tests image with runtime configuration
+- **SSH keys** stored in Secrets Manager and fetched at container startup
+
 ## Gotchas
 
 There are a few things to know as you evaluate this architecture:

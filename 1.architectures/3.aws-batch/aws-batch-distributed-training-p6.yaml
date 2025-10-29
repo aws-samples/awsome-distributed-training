@@ -3,26 +3,7 @@
 #
 # AWS Batch setup for P6 distributed training with multi-node NCCL tests
 # Author: yusongw@
-#
-# Usage:
-#   1. Create resource group and add Capacity Block Reservation (CBML):
-#      aws resource-groups create-group --name my-capacity-group \
-#        --resource-query '{"Type":"TAG_FILTERS_1_0","Query":"{\"ResourceTypeFilters\":[\"AWS::EC2::CapacityReservation\"],\"TagFilters\":[]}"}'
-#      aws resource-groups group-resources --group my-capacity-group \
-#        --resource-arns arn:aws:ec2:us-east-1:123456789012:capacity-reservation/cr-1234567890
-#
-#   2. Deploy stack:
-#      aws cloudformation create-stack --stack-name aws-batch-p6 \
-#        --template-body file://aws-batch-distributed-training-p6.yaml \
-#        --parameters \
-#          ParameterKey=VPCStackParameter,ParameterValue="aws-batch-vpc" \
-#          ParameterKey=CapacityReservationResourceGroupArn,ParameterValue="arn:aws:resource-groups:us-east-1:123456789012:group/my-capacity-group" \
-#        --capabilities CAPABILITY_NAMED_IAM
-#
-#   3. Generate and upload SSH key:
-#      ssh-keygen -t rsa -b 2048 -N '' -f /tmp/batch_key
-#      aws secretsmanager put-secret-value --secret-id aws-batch-p6-ssh-key --secret-string file:///tmp/batch_key
-#      rm /tmp/batch_key /tmp/batch_key.pub
+# See README.md for detailed usage instructions
 #
 AWSTemplateFormatVersion: '2010-09-09'
 Description: AWS Batch setup for P6 distributed training with multi-node NCCL tests. Simplified deployment with inline container setup.
@@ -32,18 +13,9 @@ Parameters:
     Type: String
     Description: Private subnets will be retrieved for the compute environment
     Default: 'aws-batch-vpc'
-  CapacityReservationResourceGroupArn:
-    Description: ARN of the Capacity Reservation Resource Group (recommended for managing multiple capacity blocks)
-    Type: String
-    Default: ''
   CapacityBlockId:
-    Description: ID of a specific Capacity Block (alternative to Resource Group)
+    Description: ID of the Capacity Block Reservation
     Type: String
-    Default: ''
-
-Conditions:
-  UseResourceGroup: !Not [ !Equals [ !Ref CapacityReservationResourceGroupArn, '' ] ]
-  UseCapacityBlock: !Not [ !Equals [ !Ref CapacityBlockId, '' ] ]
 
 Metadata:
   AWS::CloudFormation::Interface:
@@ -55,17 +27,29 @@ Metadata:
       - Label:
           default: AWS Batch Configuration
         Parameters:
-          - CapacityReservationResourceGroupArn
           - CapacityBlockId
     ParameterLabels:
       VPCStackParameter:
         default: Name of the VPC Stack
-      CapacityReservationResourceGroupArn:
-        default: Capacity Reservation Resource Group ARN (recommended)
       CapacityBlockId:
-        default: Capacity Block ID (alternative)
+        default: Capacity Block Reservation ID
 
 Resources:
+  ###################
+  ## Resource Group ##
+  ###################
+  CapacityReservationResourceGroup:
+    Type: AWS::ResourceGroups::Group
+    Properties:
+      Name: !Sub "${AWS::StackName}-capacity-group"
+      Description: Capacity reservations for AWS Batch P6
+      ResourceQuery:
+        Type: CLOUDFORMATION_STACK_1_0
+        Query:
+          ResourceTypeFilters:
+            - AWS::AllSupported
+          StackIdentifier: !Ref AWS::StackId
+
   ###################
   ## EC2 Resources ##
   ###################
@@ -76,13 +60,8 @@ Resources:
         InstanceMarketOptions:
           MarketType: "capacity-block"
         CapacityReservationSpecification:
-          CapacityReservationTarget: !If
-            - UseResourceGroup
-            - CapacityReservationResourceGroupArn: !Ref CapacityReservationResourceGroupArn
-            - !If
-              - UseCapacityBlock
-              - CapacityReservationId: !Ref CapacityBlockId
-              - !Ref "AWS::NoValue"
+          CapacityReservationTarget:
+            CapacityReservationResourceGroupArn: !GetAtt CapacityReservationResourceGroup.Arn
         NetworkInterfaces:
           - Description: EFA Interface
             Groups: !Split
@@ -412,6 +391,10 @@ Resources:
         Attempts: 1
 
 Outputs:
+  CapacityReservationResourceGroupArn:
+    Description: ARN of the Capacity Reservation Resource Group (add your CBML to this group)
+    Value: !GetAtt CapacityReservationResourceGroup.Arn
+
   ECRRepository:
     Description: ECR Repository for the containers
     Value: !Ref NCCLTestRepository
