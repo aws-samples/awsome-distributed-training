@@ -2,7 +2,7 @@
 
 This architecture serves as an example to run distributed training jobs on p4d.24xlarge instances but can be easily be modified to accommodate other instance kinds (Trn or other P instances).
 
-> **Important**: it is assumed that you deployed the VPC template [`2.vpc-one-az.yaml`](../0.vpc_network/2.vpc-oneaz.yaml) as our Batch template will fetch automatically the EFA Security Group ID (SG) and Subnet ID to setup the AWS Batch Compute Environment. Both the SG and Subnet are exported values from the VPC template.
+> **Important**: it is assumed that you deployed the VPC template [`2.vpc-one-az.yaml`](../1.vpc_network/2.vpc-oneaz.yaml) as our Batch template will fetch automatically the EFA Security Group ID (SG) and Subnet ID to setup the AWS Batch Compute Environment. Both the SG and Subnet are exported values from the VPC template.
 
 This architecture consists of the following resources:
 
@@ -49,7 +49,7 @@ aws cloudformation create-stack --stack-name aws-batch-p5 \
                                 --capabilities CAPABILITY_NAMED_IAM
 ```
 
-## P6 Deployment (Simplified)
+## P6 Deployment
 
 For P6 instances (p6-b200.48xlarge), use the simplified template that eliminates the need for custom Docker images and bootstrap scripts.
 
@@ -67,34 +67,55 @@ For P6 instances (p6-b200.48xlarge), use the simplified template that eliminates
 
 ```bash
 # Step 1: Deploy CloudFormation Stack
-aws cloudformation create-stack --stack-name aws-batch-p6 \
+aws cloudformation create-stack --stack-name batch-p6 \
   --template-body file://aws-batch-distributed-training-p6.yaml \
-  --parameters ParameterKey=VPCStackParameter,ParameterValue="aws-batch-vpc" \
+  --parameters \
+    ParameterKey=VPCStackParameter,ParameterValue="vpc-stack-ml" \
+    ParameterKey=CapacityReservationId,ParameterValue="cr-1234567890" \
   --capabilities CAPABILITY_NAMED_IAM
 
-# Step 2: Add Capacity Block to Resource Group
-# Get the resource group ARN from stack outputs
-RESOURCE_GROUP_ARN=$(aws cloudformation describe-stacks --stack-name aws-batch-p6 \
-  --query 'Stacks[0].Outputs[?OutputKey==`CapacityReservationResourceGroupArn`].OutputValue' \
-  --output text)
-
-# Add your capacity reservation(s) to the group
-aws resource-groups group-resources --group ${RESOURCE_GROUP_ARN} \
-  --resource-arns arn:aws:ec2:us-east-1:123456789012:capacity-reservation/cr-1234567890
-
-# Step 3: Generate and Upload SSH Key
+# Step 2: Generate and Upload SSH Key
 ssh-keygen -t rsa -b 2048 -N '' -f /tmp/batch_key
 aws secretsmanager put-secret-value \
-  --secret-id aws-batch-p6-ssh-key \
+  --secret-id batch-p6-ssh-key \
   --secret-string file:///tmp/batch_key
 rm /tmp/batch_key /tmp/batch_key.pub
 ```
 
 ### P6 Template Parameters
 
-| Name                    | Type     | Details                                     |
-|-------------------------|----------|---------------------------------------------|
-| `VPCStackParameter`     | Required | Name of the VPC stack in CloudFormation     |
+| Name                      | Type     | Details                                     |
+|---------------------------|----------|---------------------------------------------|
+| `VPCStackParameter`       | Required | Name of the VPC stack in CloudFormation     |
+| `CapacityReservationId`   | Required | Capacity Reservation ID (e.g., cr-1234567890) |
+
+### Submitting a Test Job
+
+After deployment and SSH key setup, submit a multi-node NCCL test job:
+
+```bash
+# Get the job definition and queue from stack outputs
+JOB_DEFINITION=$(aws cloudformation describe-stacks --stack-name batch-p6 \
+  --query 'Stacks[0].Outputs[?OutputKey==`JobDefinitionMultiInstance`].OutputValue' \
+  --output text)
+
+JOB_QUEUE=$(aws cloudformation describe-stacks --stack-name batch-p6 \
+  --query 'Stacks[0].Outputs[?OutputKey==`DistributedDeepLearningJQ`].OutputValue' \
+  --output text)
+
+# Submit a 2-node NCCL test job
+aws batch submit-job \
+  --job-name nccl-test-2node \
+  --job-queue ${JOB_QUEUE} \
+  --job-definition ${JOB_DEFINITION} \
+  --node-overrides numNodes=2
+
+# Check job status
+aws batch describe-jobs --jobs <job-id>
+
+# View job logs in CloudWatch Logs (check the job's logStreamName from describe-jobs)
+aws logs tail /aws/batch/job --follow
+```
 
 ### P6 Architecture Notes
 
@@ -102,13 +123,13 @@ rm /tmp/batch_key /tmp/batch_key.pub
 - **Inline bash script** in Job Definition handles SSH setup, hostfile generation, and NCCL test execution
 - **No custom Docker image required** - uses base NCCL tests image with runtime configuration
 - **SSH keys** stored in Secrets Manager and fetched at container startup
+- **Default NCCL Test**: all_reduce_perf with 8 GPUs per node, 16 total processes
 
 ## Gotchas
 
 There are a few things to know as you evaluate this architecture:
 - EFA interfaces need to be declared explicitly in the EC2 Launch Template and you need to provide the security group used for EFA.
 - The Compute Environment must retrieve the list of private subnets from the VPC template. This list is exported by the VPC template.
-- The Batch Job Definition assumes you are pushing a container with `stress-ng` and is pre-configured as such.
 
 ## Architecture Diagram
 

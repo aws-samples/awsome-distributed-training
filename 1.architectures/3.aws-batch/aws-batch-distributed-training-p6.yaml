@@ -13,9 +13,10 @@ Parameters:
     Type: String
     Description: Private subnets will be retrieved for the compute environment
     Default: 'aws-batch-vpc'
-  CapacityBlockId:
-    Description: ID of the Capacity Block Reservation
+  CapacityReservationId:
     Type: String
+    Description: Capacity Reservation ID (e.g., cr-1234567890)
+    Default: ''
 
 Metadata:
   AWS::CloudFormation::Interface:
@@ -24,15 +25,9 @@ Metadata:
           default: General configuration
         Parameters:
           - VPCStackParameter
-      - Label:
-          default: AWS Batch Configuration
-        Parameters:
-          - CapacityBlockId
     ParameterLabels:
       VPCStackParameter:
         default: Name of the VPC Stack
-      CapacityBlockId:
-        default: Capacity Block Reservation ID
 
 Resources:
   ###################
@@ -41,14 +36,17 @@ Resources:
   CapacityReservationResourceGroup:
     Type: AWS::ResourceGroups::Group
     Properties:
-      Name: !Sub "${AWS::StackName}-capacity-group"
-      Description: Capacity reservations for AWS Batch P6
+      Name: !Sub "${AWS::StackName}-capacity-reservations"
+      Description: Capacity reservations for Batch P6
       ResourceQuery:
-        Type: CLOUDFORMATION_STACK_1_0
+        Type: TAG_FILTERS_1_0
         Query:
           ResourceTypeFilters:
-            - AWS::AllSupported
-          StackIdentifier: !Ref AWS::StackId
+            - AWS::EC2::CapacityReservation
+          TagFilters:
+            - Key: ManagedBy
+              Values:
+                - !Ref AWS::StackName
 
   ###################
   ## EC2 Resources ##
@@ -61,7 +59,7 @@ Resources:
           MarketType: "capacity-block"
         CapacityReservationSpecification:
           CapacityReservationTarget:
-            CapacityReservationResourceGroupArn: !GetAtt CapacityReservationResourceGroup.Arn
+            CapacityReservationId: !Ref CapacityReservationId
         NetworkInterfaces:
           - Description: EFA Interface
             Groups: !Split
@@ -213,6 +211,8 @@ Resources:
           - Fn::ImportValue: !Sub ${VPCStackParameter}-PrivateSubnet
         Type: EC2
         InstanceRole: !Ref ECSTaskInstanceProfile
+        Ec2Configuration:
+          - ImageType: ECS_AL2023_NVIDIA
         LaunchTemplate:
           LaunchTemplateId: !Ref DistributedDeepLearningLT
           Version: $Latest
@@ -255,12 +255,17 @@ Resources:
                 - -c
                 - |
                   set -euo pipefail
+                  export PATH="/usr/local/bin:/usr/sbin:$PATH"
                   echo "Node ${AWS_BATCH_JOB_NODE_INDEX}/${AWS_BATCH_JOB_NUM_NODES} starting"
+                  
+                  # Get AWS region from metadata service (IMDSv2)
+                  TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+                  AWS_REGION=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -s http://169.254.169.254/latest/meta-data/placement/region)
                   
                   # Fetch SSH key from Secrets Manager
                   mkdir -p /root/.ssh
                   chmod 700 /root/.ssh
-                  aws --region "$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | grep region | cut -d'\"' -f4)" secretsmanager get-secret-value --secret-id "${SSH_SECRET_ARN}" --query SecretString --output text > /root/.ssh/id_rsa
+                  /usr/local/bin/aws --region "${AWS_REGION}" secretsmanager get-secret-value --secret-id "${SSH_SECRET_ARN}" --query SecretString --output text > /root/.ssh/id_rsa
                   chmod 600 /root/.ssh/id_rsa
                   ssh-keygen -y -f /root/.ssh/id_rsa > /root/.ssh/id_rsa.pub
                   cat /root/.ssh/id_rsa.pub > /root/.ssh/authorized_keys
