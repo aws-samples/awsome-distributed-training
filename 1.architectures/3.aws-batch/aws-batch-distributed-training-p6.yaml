@@ -1,0 +1,427 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+#
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  AWS Batch setup for P6 distributed training with multi-node NCCL tests.
+  Usage:
+    aws cloudformation create-stack --stack-name aws-batch-p6 \
+      --template-body file://aws-batch-distributed-training-p6.yaml \
+      --parameters \
+        ParameterKey=VPCStackParameter,ParameterValue="aws-batch-vpc" \
+        ParameterKey=CapacityBlockId,ParameterValue="cr-1234567890" \
+        ParameterKey=PlacementGroupName,ParameterValue="my-placement-group" \
+      --capabilities CAPABILITY_NAMED_IAM
+Author: yusongw@
+
+Parameters:
+  VPCStackParameter:
+    Type: String
+    Description: Private subnets will be retrieved for the compute environment
+    Default: 'aws-batch-vpc'
+  CapacityBlockId:
+    Description: ID of the Capacity Block
+    Type: String
+    Default: ''
+  PlacementGroupName:
+    Description: Optional cluster Placement Group name to use for EC2 placement (leave blank for none)
+    Type: String
+    Default: ''
+
+Conditions:
+  HasPlacement: !Not [ !Equals [ !Ref PlacementGroupName, '' ] ]
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: General configuration
+        Parameters:
+          - VPCStackParameter
+      - Label:
+          default: AWS Batch Configuration
+        Parameters:
+          - CapacityBlockId
+          - PlacementGroupName
+    ParameterLabels:
+      VPCStackParameter:
+        default: Name of the VPC Stack
+      CapacityBlockId:
+        default: Capacity Block ID
+      PlacementGroupName:
+        default: Optional EC2 Placement Group name
+
+Resources:
+  ###################
+  ## EC2 Resources ##
+  ###################
+  DistributedDeepLearningLT:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateData:
+        InstanceMarketOptions:
+          MarketType: "capacity-block"
+        CapacityReservationSpecification:
+          CapacityReservationTarget:
+            CapacityReservationId: !Ref CapacityBlockId
+        # Optional placement group (only inserted when PlacementGroupName parameter is provided)
+        Placement:
+          GroupName: !If [ HasPlacement, !Ref PlacementGroupName, !Ref "AWS::NoValue" ]
+        NetworkInterfaces:
+          - Description: EFA Interface
+            Groups: !Split
+              - ','
+              - Fn::ImportValue: !Sub ${VPCStackParameter}-SecurityGroup
+            NetworkCardIndex: 0
+            DeviceIndex: 0
+            DeleteOnTermination: true
+            InterfaceType: efa
+          - Description: EFA Interface
+            Groups: !Split
+              - ','
+              - Fn::ImportValue: !Sub ${VPCStackParameter}-SecurityGroup
+            NetworkCardIndex: 1
+            DeviceIndex: 0
+            DeleteOnTermination: true
+            InterfaceType: efa
+          - Description: EFA Interface
+            Groups: !Split
+              - ','
+              - Fn::ImportValue: !Sub ${VPCStackParameter}-SecurityGroup
+            NetworkCardIndex: 2
+            DeviceIndex: 0
+            DeleteOnTermination: true
+            InterfaceType: efa
+          - Description: EFA Interface
+            Groups: !Split
+              - ','
+              - Fn::ImportValue: !Sub ${VPCStackParameter}-SecurityGroup
+            NetworkCardIndex: 3
+            DeviceIndex: 0
+            DeleteOnTermination: true
+            InterfaceType: efa
+          - Description: EFA Interface
+            Groups: !Split
+              - ','
+              - Fn::ImportValue: !Sub ${VPCStackParameter}-SecurityGroup
+            NetworkCardIndex: 4
+            DeviceIndex: 0
+            DeleteOnTermination: true
+            InterfaceType: efa
+          - Description: EFA Interface
+            Groups: !Split
+              - ','
+              - Fn::ImportValue: !Sub ${VPCStackParameter}-SecurityGroup
+            NetworkCardIndex: 5
+            DeviceIndex: 0
+            DeleteOnTermination: true
+            InterfaceType: efa
+          - Description: EFA Interface
+            Groups: !Split
+              - ','
+              - Fn::ImportValue: !Sub ${VPCStackParameter}-SecurityGroup
+            NetworkCardIndex: 6
+            DeviceIndex: 0
+            DeleteOnTermination: true
+            InterfaceType: efa
+          - Description: EFA Interface
+            Groups: !Split
+              - ','
+              - Fn::ImportValue: !Sub ${VPCStackParameter}-SecurityGroup
+            NetworkCardIndex: 7
+            DeviceIndex: 0
+            DeleteOnTermination: true
+            InterfaceType: efa
+
+  ########################
+  ## Batch Architecture ##
+  ########################
+
+  ##
+  ## IAM Roles for AWS Batch
+  ##
+  BatchInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          -
+            Effect: Allow
+            Principal:
+              Service:
+                - batch.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSBatchServiceRole
+
+  ECSTaskServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          -
+            Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role
+      Policies:
+        - PolicyName: SecretsManagerReadForSSH
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource:
+                  - !GetAtt SSHKeySecret.Arn
+
+  ECSTaskInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+        - !Ref ECSTaskServiceRole
+      InstanceProfileName: !Join [ "", [ "ECSTaskInstanceProfileIAM-", !Ref AWS::StackName ] ]
+
+  ##
+  ## EC2 Key Pair and Secrets Manager
+  ##
+  BatchSSHKeyPair:
+    Type: AWS::EC2::KeyPair
+    Properties:
+      KeyName: !Sub "${AWS::StackName}-batch-ssh-key"
+      KeyType: rsa
+
+  SSHKeySecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub "${AWS::StackName}-ssh-key"
+      Description: "SSH private key for Batch MNP jobs (plain text format)"
+      SecretString: !GetAtt BatchSSHKeyPair.PrivateKeyValue
+
+  ##
+  ## Compute Environment and Job Definition
+  ##
+  DistributedDeepLearningCE:
+    Type: AWS::Batch::ComputeEnvironment
+    Properties:
+      Type: MANAGED
+      ServiceRole: !Ref BatchInstanceRole
+      ComputeResources:
+        AllocationStrategy: BEST_FIT
+        MaxvCpus: 100000
+        DesiredvCpus: 0
+        MinvCpus: 0
+        Subnets: !Split
+          - ','
+          - Fn::ImportValue: !Sub ${VPCStackParameter}-PrivateSubnet
+        Type: EC2
+        InstanceRole: !Ref ECSTaskInstanceProfile
+        LaunchTemplate:
+          LaunchTemplateId: !Ref DistributedDeepLearningLT
+          Version: $Latest
+        InstanceTypes:
+          - p6-b200.48xlarge
+      State: ENABLED
+      Tags:
+        Name: Batch Deep Learning
+
+  DistributedDeepLearningJQ:
+    Type: AWS::Batch::JobQueue
+    Properties:
+      ComputeEnvironmentOrder:
+        - ComputeEnvironment: !Ref DistributedDeepLearningCE
+          Order: 1
+      Priority: 1
+      State: "ENABLED"
+
+  ##
+  ## ECR and AWS Batch Job definition
+  ##
+  NCCLTestRepository:
+    Type: AWS::ECR::Repository
+
+  NCCLTest:
+    Type: AWS::Batch::JobDefinition
+    Properties:
+      Type: multinode
+      NodeProperties:
+        MainNode: 0
+        NumNodes: 2
+        NodeRangeProperties:
+          - TargetNodes: '0:'
+            Container:
+              # Use base nccl-tests image from public ECR
+              Image: public.ecr.aws/hpc-cloud/nccl-tests:latest
+              # Inline command that sets up SSH and hostfile, then runs NCCL test
+              Command:
+                - /bin/bash
+                - -c
+                - |
+                  set -euo pipefail
+                  echo "Node ${AWS_BATCH_JOB_NODE_INDEX}/${AWS_BATCH_JOB_NUM_NODES} starting"
+                  
+                  # Fetch SSH key from Secrets Manager
+                  mkdir -p /root/.ssh
+                  chmod 700 /root/.ssh
+                  aws --region "$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | grep region | cut -d'\"' -f4)" secretsmanager get-secret-value --secret-id "${SSH_SECRET_ARN}" --query SecretString --output text > /root/.ssh/id_rsa
+                  chmod 600 /root/.ssh/id_rsa
+                  ssh-keygen -y -f /root/.ssh/id_rsa > /root/.ssh/id_rsa.pub
+                  cat /root/.ssh/id_rsa.pub > /root/.ssh/authorized_keys
+                  chmod 600 /root/.ssh/authorized_keys
+                  
+                  if [ "${AWS_BATCH_JOB_NUM_NODES}" -eq 1 ]; then
+                    # Single node job
+                    exec /opt/amazon/openmpi/bin/mpirun --allow-run-as-root -np "${NCCL_TOTAL_PROCS}" --bind-to none -x PATH -x LD_LIBRARY_PATH -x FI_PROVIDER=efa -x FI_EFA_USE_DEVICE_RDMA=1 -x FI_EFA_FORK_SAFE=1 ${NCCL_TEST_CMD}
+                  fi
+                  
+                  if [ "${AWS_BATCH_JOB_NODE_INDEX}" -eq "${AWS_BATCH_JOB_MAIN_NODE_INDEX}" ]; then
+                    # Main node: collect IPs and build hostfile
+                    mkdir -p /tmp/hosts
+                    echo "Main node waiting for ${AWS_BATCH_JOB_NUM_NODES} nodes"
+                    
+                    while [ "$(ls /tmp/hosts 2>/dev/null | wc -l)" -lt "${AWS_BATCH_JOB_NUM_NODES}" ]; do
+                      sleep 1
+                    done
+                    
+                    # Build hostfile
+                    for idx in $(ls /tmp/hosts | sort -n); do
+                      ip="$(cat /tmp/hosts/${idx})"
+                      echo "${ip} slots=${NCCL_PROCS_PER_NODE}" >> /tmp/hostfile
+                    done
+                    
+                    echo "Hostfile:"
+                    cat /tmp/hostfile
+                    
+                    # Launch NCCL test
+                    exec /opt/amazon/openmpi/bin/mpirun --allow-run-as-root -np "${NCCL_TOTAL_PROCS}" --hostfile /tmp/hostfile --bind-to none -x PATH -x LD_LIBRARY_PATH -x FI_PROVIDER=efa -x FI_EFA_USE_DEVICE_RDMA=1 -x FI_EFA_FORK_SAFE=1 ${NCCL_TEST_CMD}
+                  else
+                    # Worker node: register with main
+                    for i in 1 2 3 4 5; do
+                      if ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5 -o BatchMode=yes root@"${AWS_BATCH_JOB_MAIN_NODE_PRIVATE_IPV4_ADDRESS}" "mkdir -p /tmp/hosts && echo '$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)' > /tmp/hosts/${AWS_BATCH_JOB_NODE_INDEX}"; then
+                        echo "Registered with main node"
+                        break
+                      fi
+                      sleep 1
+                    done
+                    
+                    # Wait for mpirun
+                    tail -f /dev/null
+                  fi
+              Environment:
+                - Name: LD_LIBRARY_PATH
+                  Value: /opt/amazon/openmpi/lib:/opt/nccl/build/lib:/opt/amazon/efa/lib:/opt/aws-ofi-nccl/install/lib:/usr/local/nvidia/lib:$LD_LIBRARY_PATH
+                - Name: PATH
+                  Value: $PATH:/opt/amazon/efa/bin:/usr/bin
+                - Name: NCCL_PROCS_PER_NODE
+                  Value: "8"
+                - Name: NCCL_TOTAL_PROCS
+                  Value: "16"
+                - Name: NCCL_TEST_CMD
+                  Value: "/opt/nccl-tests/build/all_reduce_perf -b 8 -e 16G -f 2 -g 1 -c 1 -n 100"
+                - Name: SSH_SECRET_ARN
+                  Value: !GetAtt SSHKeySecret.Arn
+              ResourceRequirements:
+                - Type: VCPU
+                  Value: 192
+                - Type: GPU
+                  Value: 8
+                - Type: MEMORY
+                  Value: 1049000
+              Ulimits:
+                - Name: memlock
+                  HardLimit: -1
+                  SoftLimit: -1
+                - Name: stack
+                  HardLimit: 67108864
+                  SoftLimit: 67108864
+                - Name: nofile
+                  HardLimit: 1024000
+                  SoftLimit: 1024000
+              LinuxParameters:
+                SharedMemorySize: 49152
+                # Expose the first 8 uverbs devices for EFA on p6-b200
+                Devices:
+                  - HostPath: /dev/infiniband/uverbs0
+                    ContainerPath: /dev/infiniband/uverbs0
+                    Permissions:
+                      - READ
+                      - WRITE
+                      - MKNOD
+                  - HostPath: /dev/infiniband/uverbs1
+                    ContainerPath: /dev/infiniband/uverbs1
+                    Permissions:
+                      - READ
+                      - WRITE
+                      - MKNOD
+                  - HostPath: /dev/infiniband/uverbs2
+                    ContainerPath: /dev/infiniband/uverbs2
+                    Permissions:
+                      - READ
+                      - WRITE
+                      - MKNOD
+                  - HostPath: /dev/infiniband/uverbs3
+                    ContainerPath: /dev/infiniband/uverbs3
+                    Permissions:
+                      - READ
+                      - WRITE
+                      - MKNOD
+                  - HostPath: /dev/infiniband/uverbs4
+                    ContainerPath: /dev/infiniband/uverbs4
+                    Permissions:
+                      - READ
+                      - WRITE
+                      - MKNOD
+                  - HostPath: /dev/infiniband/uverbs5
+                    ContainerPath: /dev/infiniband/uverbs5
+                    Permissions:
+                      - READ
+                      - WRITE
+                      - MKNOD
+                  - HostPath: /dev/infiniband/uverbs6
+                    ContainerPath: /dev/infiniband/uverbs6
+                    Permissions:
+                      - READ
+                      - WRITE
+                      - MKNOD
+                  - HostPath: /dev/infiniband/uverbs7
+                    ContainerPath: /dev/infiniband/uverbs7
+                    Permissions:
+                      - READ
+                      - WRITE
+                      - MKNOD
+      PropagateTags: true
+      RetryStrategy:
+        Attempts: 1
+
+Outputs:
+  ECRRepository:
+    Description: ECR Repository for the containers
+    Value: !Ref NCCLTestRepository
+
+  ECRRepositoryUrl:
+    Description: ECR Repository for the containers
+    Value: !Join ['', [!Ref 'AWS::AccountId','.dkr.ecr.', !Ref 'AWS::Region', '.amazonaws.com/', !Ref NCCLTestRepository ] ]
+
+  SSHKeyPairId:
+    Description: EC2 Key Pair ID for SSH access
+    Value: !GetAtt BatchSSHKeyPair.KeyPairId
+
+  SSHKeySecretArn:
+    Description: ARN of the SSH private key secret in Secrets Manager
+    Value: !GetAtt SSHKeySecret.Arn
+
+  JobDefinitionMultiInstance:
+    Description: Job definition for Multi-node Parallel Jobs
+    Value: !Ref NCCLTest
+
+  DistributedDeepLearningJQ:
+    Description: Job Queue
+    Value: !Ref DistributedDeepLearningJQ
