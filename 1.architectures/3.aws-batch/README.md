@@ -14,7 +14,7 @@ This architecture consists of the following resources:
 
 ## Template
 
-This template deploys AWS Batch and EC2 resources. It can be deployed via the console and the AWS CLI. Regardless of the deployment method it is assumed that you deployed the VPC template [`2.vpc-one-az.yaml`](../0.vpc_network/2.vpc-oneaz.yaml) prior to deploying that one.
+This template deploys AWS Batch and EC2 resources. It can be deployed via the console and the AWS CLI. Regardless of the deployment method it is assumed that you deployed the VPC template [`2.vpc-one-az.yaml`](../1.vpc_network/2.vpc-oneaz.yaml) prior to deploying that one.
 
 - **Template file**: [`0.aws-batch-distributed-training.yaml`](./0.aws-batch-distributed-training.yaml)
 

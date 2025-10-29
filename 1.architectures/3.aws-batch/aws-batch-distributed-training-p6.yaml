@@ -271,14 +271,19 @@ Resources:
                   cat /root/.ssh/id_rsa.pub > /root/.ssh/authorized_keys
                   chmod 600 /root/.ssh/authorized_keys
                   
+                  # Start SSH daemon
+                  /usr/sbin/sshd
+                  
                   if [ "${AWS_BATCH_JOB_NUM_NODES}" -eq 1 ]; then
                     # Single node job
                     exec /opt/amazon/openmpi/bin/mpirun --allow-run-as-root -np "${NCCL_TOTAL_PROCS}" --bind-to none -x PATH -x LD_LIBRARY_PATH -x FI_PROVIDER=efa -x FI_EFA_USE_DEVICE_RDMA=1 -x FI_EFA_FORK_SAFE=1 ${NCCL_TEST_CMD}
                   fi
                   
                   if [ "${AWS_BATCH_JOB_NODE_INDEX}" -eq "${AWS_BATCH_JOB_MAIN_NODE_INDEX}" ]; then
-                    # Main node: collect IPs and build hostfile
+                    # Main node: register own IP and collect worker IPs
                     mkdir -p /tmp/hosts
+                    MY_IP=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -s http://169.254.169.254/latest/meta-data/local-ipv4)
+                    echo "${MY_IP}" > /tmp/hosts/${AWS_BATCH_JOB_NODE_INDEX}
                     echo "Main node waiting for ${AWS_BATCH_JOB_NUM_NODES} nodes"
                     
                     while [ "$(ls /tmp/hosts 2>/dev/null | wc -l)" -lt "${AWS_BATCH_JOB_NUM_NODES}" ]; do
@@ -298,8 +303,9 @@ Resources:
                     exec /opt/amazon/openmpi/bin/mpirun --allow-run-as-root -np "${NCCL_TOTAL_PROCS}" --hostfile /tmp/hostfile --bind-to none -x PATH -x LD_LIBRARY_PATH -x FI_PROVIDER=efa -x FI_EFA_USE_DEVICE_RDMA=1 -x FI_EFA_FORK_SAFE=1 ${NCCL_TEST_CMD}
                   else
                     # Worker node: register with main
+                    MY_IP=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -s http://169.254.169.254/latest/meta-data/local-ipv4)
                     for i in 1 2 3 4 5; do
-                      if ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5 -o BatchMode=yes root@"${AWS_BATCH_JOB_MAIN_NODE_PRIVATE_IPV4_ADDRESS}" "mkdir -p /tmp/hosts && echo '$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)' > /tmp/hosts/${AWS_BATCH_JOB_NODE_INDEX}"; then
+                      if ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5 -o BatchMode=yes root@"${AWS_BATCH_JOB_MAIN_NODE_PRIVATE_IPV4_ADDRESS}" "mkdir -p /tmp/hosts && echo '${MY_IP}' > /tmp/hosts/${AWS_BATCH_JOB_NODE_INDEX}"; then
                         echo "Registered with main node"
                         break
                       fi
