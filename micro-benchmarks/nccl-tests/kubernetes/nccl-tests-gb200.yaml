@@ -112,6 +112,11 @@ spec:
             resources:
               limits:
                 nvidia.com/gpu: 4
+                vpc.amazonaws.com/efa: 4 #p6e has 4 NICs 
+                memory: 32000Mi
+              requests:
+                nvidia.com/gpu: 4
+                vpc.amazonaws.com/efa: 4 #p6e has 4 NICs 
                 memory: 32000Mi
               claims:
               - name: compute-domain-channel
