@@ -14,7 +14,7 @@ This repository provides CloudFormation templates and examples for running distr
 
 ## Prerequisites
 
-> **⚠️ Important**: You must deploy the VPC template [`2.vpc-one-az.yaml`](../../1.vpc_network/2.vpc-oneaz.yaml) before deploying any Batch template. The Batch templates automatically fetch the EFA Security Group ID and Subnet ID from the VPC template's exported values.
+> **⚠️ Important**: You must deploy the VPC template [`2.vpc-one-az.yaml`](../../1.vpc_network/2.vpc-one-az.yaml) before deploying any Batch template. The Batch templates automatically fetch the EFA Security Group ID and Subnet ID from the VPC template's exported values.
 
 ## Architecture Overview
 
