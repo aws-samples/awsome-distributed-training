@@ -7,10 +7,10 @@ This repository provides CloudFormation templates and examples for running distr
 - [Prerequisites](#prerequisites)
 - [Architecture Overview](#architecture-overview)
 - [Available Templates](#available-templates)
-- [Standard Deployment (P4/P5)](#standard-deployment-p4p5)
-- [P6 Deployment](#p6-deployment)
+- [P4 Instance Deployment](#p4-instance-deployment)
+- [P5 Instance Deployment](#p5-instance-deployment)
+- [P6 Instance Deployment](#p6-instance-deployment)
 - [Important Considerations](#important-considerations)
-- [Architecture Diagram](#architecture-diagram)
 
 ## Prerequisites
 
