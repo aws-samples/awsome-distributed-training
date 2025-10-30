@@ -150,7 +150,7 @@ func (c *AmazonEfaCollector) Update(ch chan<- prometheus.Metric) error {
 			c.pushCounter(ch, "rdma_write_bytes", port.Counters.RdmaWriteBytes, port.Name, portStr)
 			c.pushCounter(ch, "rdma_write_recv_bytes", port.Counters.RdmaWriteRecvBytes, port.Name, portStr)
 			c.pushCounter(ch, "rdma_write_wr_err", port.Counters.RdmaWriteWrErr, port.Name, portStr)
-			c.pushCounter(ch, "rdma_write_wrs", port.Counters.RdmaWritedWrs, port.Name, portStr)
+			c.pushCounter(ch, "rdma_write_wrs", port.Counters.RdmaWriteWrs, port.Name, portStr)
 			c.pushCounter(ch, "recv_bytes", port.Counters.RecvBytes, port.Name, portStr)
 			c.pushCounter(ch, "recv_wrs", port.Counters.RecvWrs, port.Name, portStr)
 			c.pushCounter(ch, "reg_mr_err", port.Counters.RegMrErr, port.Name, portStr)

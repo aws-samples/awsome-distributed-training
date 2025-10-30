@@ -46,10 +46,10 @@ type AmazonEfaCounters struct {
 	RdmaReadRespBytes  *uint64 // hw_counters/rdma_read_resp_bytes
 	RdmaReadWrErr      *uint64 // hw_counters/rdma_read_wr_err
 	RdmaReadWrs        *uint64 // hw_counters/rdma_read_wrs
-	RdmaWriteBytes     *uint64 // hw_counters/rdma_read_bytes
-	RdmaWriteRecvBytes *uint64 // hw_counters/rdma_read_resp_bytes
-	RdmaWriteWrErr     *uint64 // hw_counters/rdma_read_wr_err
-	RdmaWritedWrs      *uint64 // hw_counters/rdma_read_wrs
+	RdmaWriteBytes     *uint64 // hw_counters/rdma_write_bytes
+	RdmaWriteRecvBytes *uint64 // hw_counters/rdma_write_resp_bytes
+	RdmaWriteWrErr     *uint64 // hw_counters/rdma_write_wr_err
+	RdmaWriteWrs       *uint64 // hw_counters/rdma_write_wrs
 	RecvBytes          *uint64 // hw_counters/recv_bytes
 	RecvWrs            *uint64 // hw_counters/recv_wrs
 	RegMrErr           *uint64 // hw_counters/reg_mr_err
@@ -270,7 +270,7 @@ func parseAmazonEfaCounters(portPath string) (*AmazonEfaCounters, error) {
 			case "rdma_write_wr_err":
 				counters.RdmaWriteWrErr, err = parseUInt64(value)
 			case "rdma_write_wrs":
-				counters.RdmaWritedWrs, err = parseUInt64(value)
+				counters.RdmaWriteWrs, err = parseUInt64(value)
 			case "recv_bytes":
 				counters.RecvBytes, err = parseUInt64(value)
 			case "recv_wrs":
