@@ -48,36 +48,41 @@ func NewAmazonEfaCollector(logger *slog.Logger) (Collector, error) {
 
 	// Detailed description for all metrics.
 	descriptions := map[string]string{
-		"alloc_pd_err":          "Number of allocations PD errors",
-		"alloc_ucontext_err":    "Number of allocations UContext errors",
-		"cmds_err":              "Number of commands errors",
-		"completed_cmds":        "Number of completed commands",
-		"create_ah_err":         "Number of create AH errors",
-		"create_cq_err":         "Number of create CQ errors",
-		"create_qp_err":         "Number of create qp errors",
-		"keep_alive_rcvd":       "Number of keep-alive packets received",
-		"lifespan":              "Lifespan of the port",
-		"mmap_err":              "Number of mmap errors",
-		"no_completion_cmds":    "Number of commands with no completion",
-		"rdma_read_bytes":       "Number of bytes read with RDMA",
-		"rdma_read_resp_bytes":  "Number of read reponses bytes with RDMA",
-		"rdma_read_wr_err":      "Number of read write errors with RDMA",
-		"rdma_read_wrs":         "Number of read rs with RDMA",
-		"rdma_write_bytes":      "Number of bytes wrote with RDMA",
-		"rdma_write_recv_bytes": "Number of bytes wrote and received with RDMA",
-		"rdma_write_wr_err":     "Number of bytes wrote wr with error RDMA",
-		"rdma_write_wrs":        "Number of bytes wrote wrs RDMA",
-		"recv_bytes":            "Number of bytes recv bytes",
-		"recv_wrs":              "Number of bytes recv wrs",
-		"reg_mr_err":            "Number of reg_mr errors",
-		"rx_bytes":              "Number of bytes received",
-		"rx_drops":              "Number of packets droped",
-		"rx_pkts":               "Number of packets received",
-		"send_bytes":            "Number of bytes send",
-		"send_wrs":              "Number of wrs send",
-		"submitted_cmds":        "Number of submitted commands",
-		"tx_bytes":              "Number of bytes transmitted",
-		"tx_pkts":               "Number of packets transmitted",
+		"alloc_pd_err":          		"Number of allocations PD errors",
+		"alloc_ucontext_err":   		"Number of allocations UContext errors",
+		"cmds_err":              		"Number of commands errors",
+		"completed_cmds":        		"Number of completed commands",
+		"create_ah_err":         		"Number of create AH errors",
+		"create_cq_err":         		"Number of create CQ errors",
+		"create_qp_err":         		"Number of create qp errors",
+		"impaired_remote_conn_events": 	"Number of EFA SRD connections entered an impaired state, resulting in a reduced throughput rate limit.",
+		"keep_alive_rcvd":       		"Number of keep-alive packets received",
+		"lifespan":              		"Lifespan of the port",
+		"mmap_err":              		"Number of mmap errors",
+		"no_completion_cmds":    		"Number of commands with no completion",
+		"rdma_read_bytes":       		"Number of bytes read with RDMA",
+		"rdma_read_resp_bytes":  		"Number of read reponses bytes with RDMA",
+		"rdma_read_wr_err":      		"Number of read write errors with RDMA",
+		"rdma_read_wrs":         		"Number of read rs with RDMA",
+		"rdma_write_bytes":      		"Number of bytes wrote with RDMA",
+		"rdma_write_recv_bytes": 		"Number of bytes wrote and received with RDMA",
+		"rdma_write_wr_err":     		"Number of bytes wrote wr with error RDMA",
+		"rdma_write_wrs":        		"Number of bytes wrote wrs RDMA",
+		"recv_bytes":            		"Number of bytes recv bytes",
+		"recv_wrs":              		"Number of bytes recv wrs",
+		"reg_mr_err":            		"Number of reg_mr errors",
+		"retrans_bytes":		 		"Number of efa_srd bytes retransmitted",
+		"retrans_pkts":			 		"Number of efa_srd packets retransmitted",
+		"retrans_timeout_events":		"Number of times SRD traffic reached timeout and required network path change",
+		"rx_bytes":              		"Number of bytes received",
+		"rx_drops":              		"Number of packets droped",
+		"rx_pkts":               		"Number of packets received",
+		"send_bytes":            		"Number of bytes send",
+		"send_wrs":              		"Number of wrs send",
+		"submitted_cmds":        		"Number of submitted commands",
+		"tx_bytes":              		"Number of bytes transmitted",
+		"tx_pkts":               		"Number of packets transmitted",
+		"unresponsive_remote_events":	"Number of times SRD connection remote was unresponsive",
 	}
 
 	i.metricDescs = make(map[string]*prometheus.Desc)
@@ -139,6 +144,7 @@ func (c *AmazonEfaCollector) Update(ch chan<- prometheus.Metric) error {
 			c.pushCounter(ch, "create_ah_err", port.Counters.CreateAhErr, port.Name, portStr)
 			c.pushCounter(ch, "create_cq_err", port.Counters.CreateCqErr, port.Name, portStr)
 			c.pushCounter(ch, "create_qp_err", port.Counters.CreateQpErr, port.Name, portStr)
+			c.pushCounter(ch, "impaired_remote_conn_events", port.Counters.ImpairedRemoteConnEvents, port.Name, portStr)
 			c.pushCounter(ch, "keep_alive_rcvd", port.Counters.KeepAliveRcvd, port.Name, portStr)
 			c.pushCounter(ch, "lifespan", port.Counters.Lifespan, port.Name, portStr)
 			c.pushCounter(ch, "mmap_err", port.Counters.MmapErr, port.Name, portStr)
@@ -153,6 +159,9 @@ func (c *AmazonEfaCollector) Update(ch chan<- prometheus.Metric) error {
 			c.pushCounter(ch, "rdma_write_wrs", port.Counters.RdmaWriteWrs, port.Name, portStr)
 			c.pushCounter(ch, "recv_bytes", port.Counters.RecvBytes, port.Name, portStr)
 			c.pushCounter(ch, "recv_wrs", port.Counters.RecvWrs, port.Name, portStr)
+			c.pushCounter(ch, "retrans_bytes", port.Counters.RetransBytes, port.Name, portStr)
+			c.pushCounter(ch, "retrans_pkts", port.Counters.RetransPkts, port.Name, portStr)
+			c.pushCounter(ch, "retrans_timeout_events", port.Counters.RetransTimeoutEvents, port.Name, portStr)
 			c.pushCounter(ch, "reg_mr_err", port.Counters.RegMrErr, port.Name, portStr)
 			c.pushCounter(ch, "rx_bytes", port.Counters.RxBytes, port.Name, portStr)
 			c.pushCounter(ch, "rx_drops", port.Counters.RxDrops, port.Name, portStr)
@@ -162,6 +171,7 @@ func (c *AmazonEfaCollector) Update(ch chan<- prometheus.Metric) error {
 			c.pushCounter(ch, "submitted_cmds", port.Counters.SubmittedCmds, port.Name, portStr)
 			c.pushCounter(ch, "tx_bytes", port.Counters.TxBytes, port.Name, portStr)
 			c.pushCounter(ch, "tx_pkts", port.Counters.TxPkts, port.Name, portStr)
+			c.pushCounter(ch, "unresponsive_remote_events", port.Counters.UnresponsiveRemoteEvents, port.Name, portStr)
 		}
 	}
 
