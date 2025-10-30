@@ -45,6 +45,12 @@ if mount | grep -q "/opt/sagemaker"; then
     # Amazon Linux 2023 logic (systemd override with custom config)
     logger "Amazon Linux 2023 detected. Creating custom containerd config and systemd override"
 
+    # Clean up old containerd data to avoid AL2->AL23 compatibility issues
+    if [[ -d "/opt/sagemaker/containerd/data-root" ]]; then
+      logger "Removing existing containerd data-root to prevent AL2/AL23 incompatibility"
+      rm -rf /opt/sagemaker/containerd/data-root
+    fi
+
     # Create custom containerd config directory
     mkdir -p /opt/sagemaker/containerd
 
