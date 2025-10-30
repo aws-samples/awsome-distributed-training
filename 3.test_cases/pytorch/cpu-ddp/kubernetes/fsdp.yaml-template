@@ -104,7 +104,11 @@ spec:
                 - "10"
                 - --batch_size=32
                 - --checkpoint_path=/fsx/snapshot.pt
-
+              env:
+                - name: NVIDIA_VISIBLE_DEVICES
+                  value: "void"
+                - name: NVIDIA_DRIVER_CAPABILITIES
+                  value: ""
               volumeMounts:
                 - name: shmem
                   mountPath: /dev/shm
