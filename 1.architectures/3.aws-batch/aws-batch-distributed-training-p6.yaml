@@ -31,22 +31,36 @@ Metadata:
 
 Resources:
   ###################
-  ## Resource Group ##
+  ## KMS Key for Secrets Manager ##
   ###################
-  CapacityReservationResourceGroup:
-    Type: AWS::ResourceGroups::Group
+  SecretsKMSKey:
+    Type: AWS::KMS::Key
     Properties:
-      Name: !Sub "${AWS::StackName}-capacity-reservations"
-      Description: Capacity reservations for Batch P6
-      ResourceQuery:
-        Type: TAG_FILTERS_1_0
-        Query:
-          ResourceTypeFilters:
-            - AWS::EC2::CapacityReservation
-          TagFilters:
-            - Key: ManagedBy
-              Values:
-                - !Ref AWS::StackName
+      Description: KMS key for encrypting Batch SSH secrets
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: Enable IAM User Permissions
+            Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action: 'kms:*'
+            Resource: '*'
+          - Sid: Allow Secrets Manager to use the key
+            Effect: Allow
+            Principal:
+              Service: secretsmanager.amazonaws.com
+            Action:
+              - 'kms:Decrypt'
+              - 'kms:GenerateDataKey'
+            Resource: '*'
+
+  SecretsKMSKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: !Sub 'alias/${AWS::StackName}-secrets'
+      TargetKeyId: !Ref SecretsKMSKey
 
   ###################
   ## EC2 Resources ##
@@ -55,6 +69,10 @@ Resources:
     Type: AWS::EC2::LaunchTemplate
     Properties:
       LaunchTemplateData:
+        MetadataOptions:
+          HttpTokens: required  # Enforce IMDSv2
+          HttpEndpoint: enabled
+          HttpPutResponseHopLimit: 1
         InstanceMarketOptions:
           MarketType: "capacity-block"
         CapacityReservationSpecification:
@@ -149,6 +167,24 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSBatchServiceRole
 
+  SecretsManagerPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: Policy for reading SSH secrets from Secrets Manager
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - secretsmanager:GetSecretValue
+            Resource:
+              - !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${AWS::StackName}-ssh-key-*'
+          - Effect: Allow
+            Action:
+              - kms:Decrypt
+            Resource:
+              - !GetAtt SecretsKMSKey.Arn
+
   ECSTaskServiceRole:
     Type: AWS::IAM::Role
     Properties:
@@ -164,16 +200,7 @@ Resources:
               - sts:AssumeRole
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role
-      Policies:
-        - PolicyName: SecretsManagerReadForSSH
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - secretsmanager:GetSecretValue
-                Resource:
-                  - !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${AWS::StackName}-ssh-key-*'
+        - !Ref SecretsManagerPolicy
 
   ECSTaskInstanceProfile:
     Type: AWS::IAM::InstanceProfile
@@ -195,26 +222,27 @@ Resources:
                 - ecs-tasks.amazonaws.com
             Action:
               - sts:AssumeRole
-      Policies:
-        - PolicyName: SecretsManagerReadForSSH
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - secretsmanager:GetSecretValue
-                Resource:
-                  - !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${AWS::StackName}-ssh-key-*'
+      ManagedPolicyArns:
+        - !Ref SecretsManagerPolicy
 
   ##
   ## Secrets Manager - Placeholder for SSH key (populate manually after stack creation)
   ##
   SSHKeySecret:
     Type: AWS::SecretsManager::Secret
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W77
+            reason: "SSH keys for Batch MNP do not require automatic rotation"
+      guard:
+        SuppressedRules:
+          - SECRETSMANAGER_ROTATION_ENABLED_CHECK
     Properties:
       Name: !Sub "${AWS::StackName}-ssh-key"
       Description: "SSH private key for Batch MNP jobs - populate with: ssh-keygen -t rsa -b 2048 -N '' -f /tmp/batch_key && aws secretsmanager put-secret-value --secret-id <secret-arn> --secret-string file:///tmp/batch_key"
       SecretString: "PLACEHOLDER - Run the command in Description to generate and upload SSH key"
+      KmsKeyId: !Ref SecretsKMSKey
 
   ##
   ## Compute Environment and Job Definition
@@ -256,11 +284,8 @@ Resources:
       State: "ENABLED"
 
   ##
-  ## ECR and AWS Batch Job definition
+  ## AWS Batch Job definition
   ##
-  NCCLTestRepository:
-    Type: AWS::ECR::Repository
-
   NCCLTest:
     Type: AWS::Batch::JobDefinition
     Properties:
@@ -431,18 +456,6 @@ Resources:
         Attempts: 1
 
 Outputs:
-  CapacityReservationResourceGroupArn:
-    Description: ARN of the Capacity Reservation Resource Group (add your CBML to this group)
-    Value: !GetAtt CapacityReservationResourceGroup.Arn
-
-  ECRRepository:
-    Description: ECR Repository for the containers
-    Value: !Ref NCCLTestRepository
-
-  ECRRepositoryUrl:
-    Description: ECR Repository for the containers
-    Value: !Join ['', [!Ref 'AWS::AccountId','.dkr.ecr.', !Ref 'AWS::Region', '.amazonaws.com/', !Ref NCCLTestRepository ] ]
-
   SSHKeySecretArn:
     Description: ARN of the SSH private key secret in Secrets Manager
     Value: !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${AWS::StackName}-ssh-key'
