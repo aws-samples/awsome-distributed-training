@@ -1,7 +1,7 @@
 FROM public.ecr.aws/docker/library/golang:1.24.1-bookworm AS build
 
-ARG NODE_EXPORTER_VERSION=v1.9.0
-ARG PROCFS_EXPORTER_VERSION=v0.16.0
+ARG NODE_EXPORTER_VERSION=v1.10.2
+ARG PROCFS_EXPORTER_VERSION=v0.19.2
 
 # Install ProcFS
 RUN git clone -b $PROCFS_EXPORTER_VERSION https://github.com/prometheus/procfs.git /workspace/procfs
