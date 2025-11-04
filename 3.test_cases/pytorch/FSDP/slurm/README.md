@@ -33,7 +33,7 @@ You will first build the container image with the command below:
 
 
 ```bash
-docker build -f ../Dockerfile -t fsdp:pytorch2.7.1 .
+docker build -f ../Dockerfile -t fsdp:pytorch2.7.1 ../.
 ```
 
 You will then convert the container image to a squash file via Enroot:
