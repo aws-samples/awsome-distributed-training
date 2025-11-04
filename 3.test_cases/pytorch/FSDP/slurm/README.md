@@ -71,8 +71,6 @@ Also, under `User Variables` make sure to adjust `GPUS_PER_NODE` to match the nu
 
 You can also adjust the training parameters in `TRAINING_ARGS` (for example, to increase batch size). Additional parameters can be found in `model/arguments.py`. Note that we use the same directory for both `--checkpoint_dir` and `--resume_from_checkpoint`. If there are multiple checkpoints, `--resume_from_checkpoint` will automatically select the most recent one. This way if our training is interupted for any reason, it will automatically pick up the most recent checkpoint.
 
-If you are using a container image, you need to uncomment the line below in the 
-
 ### Llama 3.1 8B training
 
 To launch your training for Llama 3.1 8B, run
