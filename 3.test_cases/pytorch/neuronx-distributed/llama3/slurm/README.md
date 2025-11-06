@@ -39,7 +39,7 @@ python -m pip config set global.extra-index-url https://pip.repos.neuron.amazona
 python -m pip install wget awscli huggingface_hub 
 
 # Install Neuron Compiler and Framework
-python -m pip install --upgrade neuronx-cc==2.* torch-neuronx==2.1.* torchvision
+python -m pip install --upgrade neuronx-cc==2.* torch-neuronx==2.8.* torchvision
 
 #Install the neuronx-distributed package 
 python -m pip install neuronx_distributed 
