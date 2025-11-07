@@ -1,0 +1,74 @@
+apiVersion: v1
+data:
+  collector.yaml: "receivers:\n  prometheus:\n    config:\n      scrape_configs:\n
+    \       - job_name: kubernetes-apiservers\n          scrape_interval: 30s\n          bearer_token_file:
+    /var/run/secrets/kubernetes.io/serviceaccount/token\n          kubernetes_sd_configs:\n
+    \           - role: endpoints\n          relabel_configs:\n            - action:
+    keep\n              regex: default;kubernetes;https\n              source_labels:\n
+    \               - __meta_kubernetes_namespace\n                - __meta_kubernetes_service_name\n
+    \               - __meta_kubernetes_endpoint_port_name\n            # Add cluster
+    name and id as label\n            - target_label: cluster_id\n              replacement:
+    0gto4cvyhcmd\n            - target_label: cluster_name\n              replacement:
+    mvincig-rlvr\n          scheme: https\n          tls_config:\n            ca_file:
+    /var/run/secrets/kubernetes.io/serviceaccount/ca.crt\n            insecure_skip_verify:
+    true\n        - job_name: kube-state-metrics\n          scrape_interval: 30s\n
+    \         kubernetes_sd_configs:\n            - role: service\n          relabel_configs:\n
+    \           - action: keep\n              regex: hyp-obs-kube-state-metrics \n
+    \             source_labels:\n                - __meta_kubernetes_service_name\n
+    \           - action: labelmap\n              regex: __meta_kubernetes_service_label_(.+)\n
+    \           - source_labels:\n                - __meta_kubernetes_namespace\n
+    \             target_label: kubernetes_namespace\n            - source_labels:\n
+    \               - __meta_kubernetes_service_name\n              target_label:
+    kubernetes_name\n            # Add cluster name and id as label\n            -
+    target_label: cluster_id\n              replacement: 0gto4cvyhcmd\n            -
+    target_label: cluster_name\n              replacement: mvincig-rlvr\n        -
+    job_name: kubeflow-trainer-metrics\n          scrape_interval: 30s\n          kubernetes_sd_configs:\n
+    \           - role: service\n          relabel_configs:\n            - action:
+    drop\n              regex: hp-training-operator-controller-manager-metrics-service\n
+    \             source_labels:\n                - __meta_kubernetes_service_name\n
+    \           - action: keep\n              regex: (.*kubeflow.*-controller-manager|training-operator)\n
+    \             source_labels:\n                - __meta_kubernetes_service_name\n
+    \           - action: keep\n              regex: monitoring-port\n              source_labels:\n
+    \               - __meta_kubernetes_service_port_name\n            - action: labelmap\n
+    \             regex: __meta_kubernetes_service_label_(.+)\n            - source_labels:\n
+    \               - __meta_kubernetes_namespace\n              target_label: kubernetes_namespace\n
+    \           - source_labels:\n                - __meta_kubernetes_service_name\n
+    \             target_label: kubernetes_name\n            # Add cluster name and
+    id as label\n            - target_label: cluster_id\n              replacement:
+    0gto4cvyhcmd\n            - target_label: cluster_name\n              replacement:
+    mvincig-rlvr\n          metrics_path: /metrics\n\n        - job_name: hp-training-operator-metrics\n
+    \         scrape_interval: 30s\n          kubernetes_sd_configs:\n            -
+    role: service\n          relabel_configs:\n            - action: keep\n              regex:
+    hp-training-operator-controller-manager-metrics-service\n              source_labels:\n
+    \               - __meta_kubernetes_service_name\n            - action: keep\n
+    \             regex: metrics-port\n              source_labels:\n                -
+    __meta_kubernetes_service_port_name\n            - action: labelmap\n              regex:
+    __meta_kubernetes_service_label_(.+)\n            - source_labels:\n                -
+    __meta_kubernetes_namespace\n              target_label: kubernetes_namespace\n
+    \           - source_labels:\n                - __meta_kubernetes_service_name\n
+    \             target_label: kubernetes_name\n            # Add cluster name and
+    id as label\n            - target_label: cluster_id\n              replacement:
+    0gto4cvyhcmd\n            - target_label: cluster_name\n              replacement:
+    mvincig-rlvr\n          metrics_path: /metrics\n          scheme: http\n\nprocessors:\n
+    \ batch:\n    timeout: 5s\n    send_batch_size: 5000\n    send_batch_max_size:
+    6000\n\n\nexporters:\n  debug:\n    verbosity: detailed\n  prometheusremotewrite:\n
+    \   add_metric_suffixes: false\n    endpoint: https://aps-workspaces.ap-northeast-1.amazonaws.com/workspaces/ws-b1b56a1d-2b76-48c8-91d2-e65db2925090/api/v1/remote_write\n
+    \   auth:\n      authenticator: sigv4auth\n    retry_on_failure:\n      enabled:
+    true\n      initial_interval: 1s\n      max_interval: 10s\n      max_elapsed_time:
+    60s\n\nextensions:\n  sigv4auth:\n    region: ap-northeast-1\n    service: \"aps\"\n\nservice:\n
+    \ extensions: [sigv4auth]\n  pipelines:\n    metrics:\n      receivers: [prometheus]\n
+    \     processors: [batch]\n      exporters: [prometheusremotewrite]\n"
+kind: ConfigMap
+metadata:
+  creationTimestamp: "2025-10-31T21:35:37Z"
+  name: hyperpod-observability-central-collector-config
+  namespace: hyperpod-observability
+  ownerReferences:
+  - apiVersion: observability.sagemaker.aws.amazon.com/v1alpha1
+    blockOwnerDeletion: true
+    controller: true
+    kind: ObservabilityConfig
+    name: hyperpod-observability
+    uid: bda07f42-03ed-4c46-867a-a6349cbddad7
+  resourceVersion: "30938"
+  uid: 533995a8-c884-45c4-ac8f-b957e19c1ceb
