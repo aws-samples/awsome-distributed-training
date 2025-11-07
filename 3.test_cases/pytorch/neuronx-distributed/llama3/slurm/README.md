@@ -301,6 +301,16 @@ Contrary to the cluster setup, the script assumes the shared directory to be `/s
 sed -i 's/\/shared/\/fsx\/ubuntu/g' run_llama3_70B_tp_pp.sh
 ```
 
+The script assumes 16 trn.32xlarge nodes, so let's update the Pipeline parallelsism, processes per node, pipeline/data parallelism degree, and global batch size to fit our cluster of 2 `trn2.48xlarge`.
+
+```bash
+sed -i -e 's/PROCESSES_PER_NODE=32/PROCESSES_PER_NODE=16/' \
+       -e 's/PP_DEGREE=8/PP_DEGREE=2/' \
+       -e 's/TP_DEGREE=32/TP_DEGREE=16/' \
+       -e 's/: ${GBS:=1024}/: ${GBS:=256}/' \
+       run_llama3_70B_tp_pp.sh
+```
+
 **Modification 2:**
 Before submitting the job, we need to modify a few arguments in `torchrun`  in `run_llama3_70B_tp_pp.sh` to minimize human intervention:
 
@@ -330,7 +340,7 @@ We can submit the training job as follows:
 ```bash
 sbatch --job-name run_llama3_70B \
        --output logs/run_llama3_70B.out \
-       --exclusive --nodes 16 \
+       --exclusive --nodes 2 \
        --wrap="srun bash $(pwd)/run_llama3_70B_tp_pp.sh"
 ```
 
@@ -338,7 +348,7 @@ If you are on HyperPod add the `--auto-resume=1` flag as follows to indicate tha
 ```bash
 sbatch --job-name run_llama3_70B \
        --output logs/run_llama3_70B.out \
-       --exclusive --nodes 16 \
+       --exclusive --nodes 2 \
        --wrap="srun --auto-resume=1 bash run_llama3_70B_tp_pp.sh"
 ```
 
@@ -349,7 +359,15 @@ You can track job progress as follows:
 ```bash
 tail -f logs/run_llama3_70B.out
 ```
+If your job errors out, we recommend to clear your cache before restarting the job with the following command:
 
+```
+# Optional: Clear entire cache to be safe
+rm -rf /fsx/ubuntu/cache_dir_neuron/*
+```
+
+# Optional: Clear entire cache to be safe
+rm -rf /fsx/ubuntu/cache_dir_neuron/*
 After a while you will see the following outputs in the log, indicating that the training progressing as expected:
 
 ```bash
