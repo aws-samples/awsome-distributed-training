@@ -4,7 +4,7 @@
  
 
 This guide assumes that you have following:
-* Slurm cluster using 2 [trn2.48xlarge](https://aws.amazon.com/ec2/instance-types/trn2/) instances with a shared parallel filesystem such as [Amazon FSx for Lustre](https://docs.aws.amazon.com/fsx/latest/LustreGuide/getting-started.html). 
+* Slurm cluster using 4 [trn2.48xlarge](https://aws.amazon.com/ec2/instance-types/trn2/) instances with a shared parallel filesystem such as [Amazon FSx for Lustre](https://docs.aws.amazon.com/fsx/latest/LustreGuide/getting-started.html). 
 
 
 The subsequent sections presume that you are operating from the home directory of this head node as the `ubuntu` user.
@@ -209,7 +209,7 @@ Next, we use the `convert_checkpoints.py` script to shard the checkpoints. Execu
 
 ```bash
 mkdir -p /fsx/ubuntu/llama3_70B/pretrained_weight
-sbatch --job-name=convert-checkpoint --output=logs/convert-checkpoint.out --wrap "srun python3 /fsx/ubuntu/llama/convert_checkpoints.py --hw_backend trn2 --tp_size 16 --pp_size 2 --n_layers 80 --save_xser 1 --kv_size_multiplier 4 --qkv_linear 1 --fuse_qkv True --input_dir /fsx/ubuntu/llama-3-70b.pt --output_dir /fsx/ubuntu/llama3_70B/pretrained_weight --config /fsx/ubuntu/Meta-Llama-3-70B/config.json --convert_from_full_state"
+sbatch --job-name=convert-checkpoint --output=logs/convert-checkpoint.out --wrap "srun python3 /fsx/ubuntu/llama/convert_checkpoints.py --hw_backend trn2 --tp_size 16 --pp_size 4 --n_layers 80 --save_xser 1 --kv_size_multiplier 4 --qkv_linear 1 --fuse_qkv True --input_dir /fsx/ubuntu/llama-3-70b.pt --output_dir /fsx/ubuntu/llama3_70B/pretrained_weight --config /fsx/ubuntu/Meta-Llama-3-70B/config.json --convert_from_full_state"
 ```
 
 You can track the progress with
