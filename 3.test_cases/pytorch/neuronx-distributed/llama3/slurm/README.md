@@ -198,8 +198,9 @@ EOF
 Submit the job with the following command to run the process on a compute node (`trn2.38xlarge`) which has sufficient memory to load the model:
 
 ```bash
+chmod +x save-llama3-70B-model.py
 sbatch --job-name=save-checkpoints --output=logs/save-checkpoints.out \
-       --wrap "srun python save-llama3-70B-model.py"
+       --wrap "srun ./save-llama3-70B-model.py"
 ```
 
 You can check the status of this this job using the "squeue" command.
@@ -208,19 +209,7 @@ Next, we use the `convert_checkpoints.py` script to shard the checkpoints. Execu
 
 ```bash
 mkdir -p /fsx/ubuntu/llama3_70B/pretrained_weight
-sbatch --job-name=convert-checkpoint --output=logs/convert-checkpoint.out \
-       --wrap "\ 
-              srun python /fsx/ubuntu/llama/convert_checkpoints.py \
-              --hw_backend trn2 \
-              --tp_size 16 --pp_size 2 --n_layers 80 \
-              --save_xser 1 \
-              --kv_size_multiplier 4 \
-              --qkv_linear 1 \
-              --fuse_qkv True \
-              --input_dir /fsx/ubuntu/llama-3-70b.pt \
-              --output_dir /fsx/ubuntu/llama3_70B/pretrained_weight \
-              --config /fsx/ubuntu/Meta-Llama-3-70B/config.json \
-              --convert_from_full_state"
+sbatch --job-name=convert-checkpoint --output=logs/convert-checkpoint.out --wrap "srun python3 /fsx/ubuntu/llama/convert_checkpoints.py --hw_backend trn2 --tp_size 16 --pp_size 2 --n_layers 80 --save_xser 1 --kv_size_multiplier 4 --qkv_linear 1 --fuse_qkv True --input_dir /fsx/ubuntu/llama-3-70b.pt --output_dir /fsx/ubuntu/llama3_70B/pretrained_weight --config /fsx/ubuntu/Meta-Llama-3-70B/config.json --convert_from_full_state"
 ```
 
 You can track the progress with
@@ -248,9 +237,7 @@ ls /fsx/ubuntu/llama3_70B/pretrained_weight/model/dp_rank_*_tp_rank_*_pp_rank_*.
 256
 ```
 
-As mentioned in the introduction of this section, the sharding ought to take hardware and cluster setup into account. Specifically, in our example, we have 16 trn1.32xlarge instances deployed on the HyperPod cluster. Each trn1.32xlarge instance has 16 Trainium Neuron Devices, each with 2 NeuronCore-v2, totaling 32 NeuronCore-v2 per instance, and 512 NeuronCore-v2 in the entire cluster.
-We divide the Llama3-70B model’s 80 layers into different stages, each containing the first 10 layers, second 10 layers, ..., 8th 10 layers, and assign them to 8 Trn1 instances. Each stage is further split with Tensor Parallelism, dividing the stage’s parameters across 32 NeuronCore-v2. Since we will have two replicas of the sharded models, we employ data parallelism with a degree of two to speed up the training process.
-The resultant checkpoints will be used in the next continual pretraining stage.
+This configuration is adapted for 2 trn2.48xlarge instances (32 total NeuronCores) from the original 16 trn1.32xlarge setup (512 total NeuronCores). Each trn2.48xlarge instance provides 16 NeuronCores. We use tensor parallelism (tp_size=16) to distribute model parameters across all cores within each instance, and pipeline parallelism (pp_size=2) to split the 80-layer model across the two instances, with each instance handling 40 consecutive layers. This results in a total parallelization of 32 cores (16×2), fully utilizing the available hardware without data parallelism due to the reduced core count compared to the original configuration.
 
 ### **Step 2: Download and preprocess wiki-corpus datasets**
 
