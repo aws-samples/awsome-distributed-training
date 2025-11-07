@@ -186,6 +186,7 @@ First, we need to save the original checkpoint into a single binary file. Below 
 
 ```
 cat > save-llama3-70B-model.py << EOF
+#!/usr/bin/env python3
 from transformers import AutoTokenizer, AutoModelForCausalLM
 import torch
 
@@ -194,7 +195,7 @@ torch.save(model.state_dict(), '/fsx/ubuntu/llama-3-70b.pt')
 EOF
 ```
 
-Submit the job with the following command to run the process on a compute node (`trn1.32xlarge`) which has sufficient memory to load the model:
+Submit the job with the following command to run the process on a compute node (`trn2.38xlarge`) which has sufficient memory to load the model:
 
 ```bash
 sbatch --job-name=save-checkpoints --output=logs/save-checkpoints.out \
@@ -210,8 +211,8 @@ mkdir -p /fsx/ubuntu/llama3_70B/pretrained_weight
 sbatch --job-name=convert-checkpoint --output=logs/convert-checkpoint.out \
        --wrap "\ 
               srun python /fsx/ubuntu/llama/convert_checkpoints.py \
-              --hw_backend trn1 \
-              --tp_size 32 --pp_size 8 --n_layers 80 \
+              --hw_backend trn2 \
+              --tp_size 16 --pp_size 2 --n_layers 80 \
               --save_xser 1 \
               --kv_size_multiplier 4 \
               --qkv_linear 1 \
