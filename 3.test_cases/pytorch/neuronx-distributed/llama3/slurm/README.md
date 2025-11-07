@@ -4,7 +4,7 @@
  
 
 This guide assumes that you have following:
-* Slurm cluster using 16 [trn1.32xlarge](https://aws.amazon.com/ec2/instance-types/trn1/) instances with a shared parallel filesystem such as [Amazon FSx for Lustre](https://docs.aws.amazon.com/fsx/latest/LustreGuide/getting-started.html). 
+* Slurm cluster using 2 [trn2.48xlarge](https://aws.amazon.com/ec2/instance-types/trn2/) instances with a shared parallel filesystem such as [Amazon FSx for Lustre](https://docs.aws.amazon.com/fsx/latest/LustreGuide/getting-started.html). 
 
 
 The subsequent sections presume that you are operating from the home directory of this head node as the `ubuntu` user.
@@ -234,17 +234,17 @@ Verify the number of checkpoints with:
 
 ```bash
 ls /fsx/ubuntu/llama3_70B/pretrained_weight/model/dp_rank_*_tp_rank_*_pp_rank_*.pt | wc -l
-256
+32
 ```
 
 This configuration is adapted for 2 trn2.48xlarge instances (32 total NeuronCores) from the original 16 trn1.32xlarge setup (512 total NeuronCores). Each trn2.48xlarge instance provides 16 NeuronCores. We use tensor parallelism (tp_size=16) to distribute model parameters across all cores within each instance, and pipeline parallelism (pp_size=2) to split the 80-layer model across the two instances, with each instance handling 40 consecutive layers. This results in a total parallelization of 32 cores (16×2), fully utilizing the available hardware without data parallelism due to the reduced core count compared to the original configuration.
 
 ### **Step 2: Download and preprocess wiki-corpus datasets**
 
-Next, we will download `wiki-corpus` dataset and tokenize it for later training with `get_dataset.py` script inside the `llama` directory. We use `sbatch`  command to submit the data processing job to the cluster:
+Next, we will download `wiki-corpus` dataset and tokenize it for later training with `get_dataset.py` script inside the `llama` directory. We use `srun`  command to submit the data processing job to the cluster:
 
 ```bash
-python3 get_dataset.py --llama-version 3
+srun python3 get_dataset.py --llama-version 3
 ```
 
 The example output is as follows:
