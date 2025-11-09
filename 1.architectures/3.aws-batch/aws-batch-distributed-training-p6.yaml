@@ -297,8 +297,8 @@ Resources:
         NodeRangeProperties:
           - TargetNodes: '0:'
             Container:
-              # Use base nccl-tests image from public ECR
-              Image: public.ecr.aws/hpc-cloud/nccl-tests:latest
+              # Use specific nccl-tests image with CUDA 12.8.1, EFA 1.42.0, OFI 1.16.0, NCCL 2.27.5
+              Image: public.ecr.aws/hpc-cloud/nccl-tests:cuda12.8.1-efa1.42.0-ofiv1.16.0-ncclv2.27.5-1-testsv2.16.4
               JobRoleArn: !GetAtt BatchJobRole.Arn
               # Inline command that sets up SSH and hostfile, then runs NCCL test
               Command:
