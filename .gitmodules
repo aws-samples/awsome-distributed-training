@@ -1,3 +1,0 @@
-[submodule "3.test_cases/post-training/rlvr/verl"]
-	path = 3.test_cases/post-training/rlvr/verl
-	url = https://github.com/volcengine/verl.git
