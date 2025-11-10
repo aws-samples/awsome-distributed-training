@@ -76,21 +76,63 @@ install_nfs_client()
 # Mount the FSx OpenZFS file system
 mount_fs()
 {
-    # Create mount point directory if it doesn't exist
-    if [ ! -d "$OPENZFS_MOUNT_POINT" ]; then
-        mkdir -p "$OPENZFS_MOUNT_POINT"
-    fi
+    local max_attempts=5
+    local attempt=1
+    local delay=5
 
-    retry_with_backoff $MAX_ATTEMPTS $INITIAL_BACKOFF "ansible localhost -b -m ansible.posix.mount -a \"path=$OPENZFS_MOUNT_POINT src=$FSX_OPENZFS_DNS_NAME:/fsx fstype=nfs opts=nfsvers=$NFS_VERSION,_netdev,nconnect=16,x-systemd.automount,x-systemd.requires=network-online.target dump=0 passno=0 state=mounted\""
+    echo "[INFO] Ensuring $OPENZFS_MOUNT_POINT directory exists..."
+    ansible localhost -b -m ansible.builtin.file -a "path=$OPENZFS_MOUNT_POINT state=directory" || true
+
+    echo "[INFO] Mounting FSx OpenZFS on $OPENZFS_MOUNT_POINT..."
+
+    while (( attempt <= max_attempts )); do
+        echo "============================"
+        echo "[INFO] Attempt $attempt of $max_attempts"
+        echo "============================"
+
+        echo "[STEP] Mounting FSx OpenZFS..."
+        if ! ansible localhost -b -m ansible.posix.mount -a \
+            "path=$OPENZFS_MOUNT_POINT src=$FSX_OPENZFS_DNS_NAME:/fsx fstype=nfs opts=nfsvers=$NFS_VERSION,_netdev,nconnect=16,x-systemd.automount,x-systemd.requires=network-online.target dump=0 passno=0 state=mounted"; then
+            echo "[WARN] Mount command failed — retrying in $delay seconds"
+            sleep "$delay"; ((attempt++)); continue
+        fi
+
+        echo "[STEP] Verifying mountpoint..."
+        if ! ansible localhost -b -m ansible.builtin.command -a "mountpoint $OPENZFS_MOUNT_POINT"; then
+            echo "[WARN] Mountpoint verification failed — retrying in $delay seconds"
+            sleep "$delay"; ((attempt++)); continue
+        fi
+
+        echo "[STEP] Triggering automount..."
+        ls -la "$OPENZFS_MOUNT_POINT" >/dev/null 2>&1 || true
+
+        echo "[STEP] Testing file access (touch)..."
+        if ! ansible localhost -b -m ansible.builtin.file -a "path=$OPENZFS_MOUNT_POINT/test_file state=touch"; then
+            echo "[WARN] Touch failed — retrying in $delay seconds"
+            sleep "$delay"; ((attempt++)); continue
+        fi
+
+        echo "[STEP] Testing file access (delete)..."
+        if ! ansible localhost -b -m ansible.builtin.file -a "path=$OPENZFS_MOUNT_POINT/test_file state=absent"; then
+            echo "[WARN] Delete failed — retrying in $delay seconds"
+            sleep "$delay"; ((attempt++)); continue
+        fi
+
+        echo "[SUCCESS] FSx OpenZFS mount succeeded on attempt $attempt"
+        return 0
+    done
+
+    echo "[ERROR] FSx OpenZFS mount failed after $max_attempts attempts"
+    return 1
 }
 
-# Verify mount was successful
-verify_mount()
+# Restart systemd daemon to ensure mount units are properly loaded
+restart_daemon()
 {
-    if ! mountpoint -q "$OPENZFS_MOUNT_POINT"; then
-        echo "Failed to verify mount point $OPENZFS_MOUNT_POINT"
-        exit 1
-    fi
+    ansible localhost -b -m ansible.builtin.systemd -a "daemon_reload=yes"
+    ansible localhost -b -m ansible.builtin.systemd -a "name=remote-fs.target state=restarted"
+    echo "Check status of OpenZFS automount..."
+    systemctl list-units | grep -i automount || true
 }
 
 main() 
@@ -99,8 +141,8 @@ main()
     echo "Using openzfs_mount_point: $OPENZFS_MOUNT_POINT"
     verify_parameters
     install_nfs_client
-    mount_fs
-    verify_mount
+    mount_fs || exit 1
+    restart_daemon
     echo "FSx OpenZFS mounted successfully to $OPENZFS_MOUNT_POINT"
 }
 
