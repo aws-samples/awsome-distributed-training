@@ -51,3 +51,4 @@ ansible localhost -b -m ansible.builtin.file -a "path='$FSX_DIR/.ssh/authorized_
 # Set permissions for the .ssh directory
 chmod 700 $FSX_DIR/.ssh
 # Change ownership to the ubuntu user
+chown -R ubuntu:ubuntu $FSX_DIR/.ssh
