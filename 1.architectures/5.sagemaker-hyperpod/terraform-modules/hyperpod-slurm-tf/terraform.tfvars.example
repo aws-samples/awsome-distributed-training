@@ -43,8 +43,8 @@ fsx_lustre_compression_type = "LZ4"
 fsx_lustre_version = "2.15"
 
 # OpenZFS Configuration
-fsx_openzfs_storage_capacity = 64
-fsx_openzfs_throughput_capacity = 64
+fsx_openzfs_storage_capacity = 64  # Varies by region
+fsx_openzfs_throughput_capacity = 64 # Varies by region
 fsx_openzfs_compression_type = "ZSTD"
 fsx_openzfs_deployment_type = "SINGLE_AZ_1"  # Options: SINGLE_AZ_1, SINGLE_AZ_HA_1, MULTI_AZ_1
 # fsx_openzfs_subnet_ids = ["subnet-12345", "subnet-67890"]  # Required for MULTI_AZ_1 (different AZs)
