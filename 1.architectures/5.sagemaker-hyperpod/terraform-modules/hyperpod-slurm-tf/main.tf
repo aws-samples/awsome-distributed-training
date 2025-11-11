@@ -12,6 +12,8 @@ locals {
   fsx_lustre_dns_name = var.create_fsx_lustre_module ? module.fsx_lustre[0].fsx_lustre_dns_name : var.existing_fsx_lustre_dns_name
   fsx_lustre_mount_name = var.create_fsx_lustre_module ? module.fsx_lustre[0].fsx_lustre_mount_name : var.existing_fsx_lustre_mount_name
   fsx_openzfs_dns_name = var.create_fsx_openzfs_module ? module.fsx_openzfs[0].fsx_openzfs_dns_name : var.existing_fsx_openzfs_dns_name
+  # For Multi-AZ, use provided subnet IDs; for Single-AZ, use single private subnet
+  fsx_openzfs_subnet_ids = var.fsx_openzfs_deployment_type == "MULTI_AZ_1" ? var.fsx_openzfs_subnet_ids : []
 }
 
 module "vpc" {
@@ -79,10 +81,12 @@ module "fsx_openzfs" {
 
   resource_name_prefix = var.resource_name_prefix
   private_subnet_id    = local.private_subnet_id
+  private_subnet_ids   = local.fsx_openzfs_subnet_ids
   security_group_id    = local.security_group_id
   storage_capacity     = var.fsx_openzfs_storage_capacity
   throughput_capacity  = var.fsx_openzfs_throughput_capacity
   compression_type     = var.fsx_openzfs_compression_type
+  deployment_type      = var.fsx_openzfs_deployment_type
 }
 
 module "lifecycle_script" {

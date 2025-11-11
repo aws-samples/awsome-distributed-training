@@ -180,12 +180,12 @@ variable "fsx_openzfs_storage_capacity" {
 }
 
 variable "fsx_openzfs_throughput_capacity" {
-  description = "Throughput capacity in MBps"
+  description = "Throughput capacity in MBps (Multi-AZ requires minimum 160 MBps)"
   type        = number
   default     = 64
   validation {
-    condition     = contains([64, 128, 256, 512, 1024, 2048, 3072, 4096], var.fsx_openzfs_throughput_capacity)
-    error_message = "Throughput capacity must be one of: 64, 128, 256, 512, 1024, 2048, 3072, 4096."
+    condition     = contains([64, 128, 160, 256, 512, 1024, 2048, 3072, 4096], var.fsx_openzfs_throughput_capacity)
+    error_message = "Throughput capacity must be one of: 64, 128, 160, 256, 512, 1024, 2048, 3072, 4096. Multi-AZ deployments require minimum 160 MBps."
   }
 }
 
@@ -197,6 +197,22 @@ variable "fsx_openzfs_compression_type" {
     condition     = contains(["ZSTD", "LZ4", "NONE"], var.fsx_openzfs_compression_type)
     error_message = "Compression type must be one of: ZSTD, LZ4, NONE."
   }
+}
+
+variable "fsx_openzfs_deployment_type" {
+  description = "FSx OpenZFS deployment type"
+  type        = string
+  default     = "SINGLE_AZ_1"
+  validation {
+    condition     = contains(["SINGLE_AZ_1", "SINGLE_AZ_HA_1", "MULTI_AZ_1"], var.fsx_openzfs_deployment_type)
+    error_message = "Deployment type must be one of: SINGLE_AZ_1, SINGLE_AZ_HA_1, MULTI_AZ_1."
+  }
+}
+
+variable "fsx_openzfs_subnet_ids" {
+  description = "List of subnet IDs for Multi-AZ FSx OpenZFS deployment (must be in different AZs)"
+  type        = list(string)
+  default     = []
 }
 
 variable "existing_fsx_openzfs_dns_name" {
