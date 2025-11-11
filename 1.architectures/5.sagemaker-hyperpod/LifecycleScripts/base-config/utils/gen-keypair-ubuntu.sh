@@ -14,10 +14,10 @@ if [ -d "$FSX_OZFS_DIR" ]; then
     elif [ -e "$FSX_OZFS_DIR/.ssh" ]; then
         echo "Removing existing $FSX_OZFS_DIR/.ssh and creating symbolic link..."
         rm -rf "$FSX_OZFS_DIR/.ssh"
-        ansible localhost -b -m ansible.builtin.file -a "src='$FSX_DIR/.ssh' dest='$FSX_OZFS_DIR/.ssh' state=link"
+        ansible localhost -b -m ansible.builtin.file -a "src='$FSX_DIR/.ssh' dest='$FSX_OZFS_DIR/.ssh' state=link force=yes"
     else
         echo "Linking $FSX_DIR/.ssh to $FSX_OZFS_DIR/.ssh..."
-        ansible localhost -b -m ansible.builtin.file -a "src='$FSX_DIR/.ssh' dest='$FSX_OZFS_DIR/.ssh' state=link"
+        ansible localhost -b -m ansible.builtin.file -a "src='$FSX_DIR/.ssh' dest='$FSX_OZFS_DIR/.ssh' state=link force=yes"
     fi
 fi
 
