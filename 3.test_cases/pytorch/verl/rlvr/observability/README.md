@@ -28,9 +28,26 @@ source setup/env_vars
 envsubst < raycluster-observability.yaml | kubectl apply -f -
 ```
 
-### 3. Import Dashboards to Grafana
+### 3. Download Grafana Dashboards
 
-The dashboard JSON files are in `observability/dashboards/`:
+1. You can download them directly from your cluster head pod:
+```
+HEAD_POD=$(kubectl get pods --selector ray.io/node-type=head,ray.io/cluster=rayml-efa -o jsonpath='{.items[0].metadata.name}')
+
+# Copy dashboard files from the pod
+kubectl cp $HEAD_POD:/tmp/ray/session_latest/metrics/grafana/dashboards/ ./dashboards/
+```
+
+2. Or you can download them directly from [KubeRay GitHub](https://github.com/ray-project/kuberay/tree/master/config/grafana):
+```
+# Clone the repo
+git clone https://github.com/ray-project/kuberay.git --depth 1
+cd kuberay/config/grafana
+ls *_grafana_dashboard.json
+```
+
+### 4. Import Dashboards to Grafana
+
 - `default_grafana_dashboard.json` - Main Ray Dashboard
 - `data_grafana_dashboard.json` - Ray Data metrics
 - `serve_grafana_dashboard.json` - Ray Serve metrics

@@ -1,6 +1,3 @@
-# Ray Cluster Environment Variables
-# export IMAGE="hiyouga/verl:ngc-th2.6.0-cu126-vllm0.8.4-flashinfer0.2.2-cxx11abi0"
-
 # Docker file
 export AWS_REGION=$(aws ec2 describe-availability-zones --output text --query 'AvailabilityZones[0].[RegionName]')
 export ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
@@ -19,13 +16,10 @@ export SECURITY_GROUP_ID="sg-xxx"
 
 # Ray configs
 export MODEL_NAME="Qwen3-8B"
-# export MODEL_PATH="Qwen/Qwen2.5-32B" # Set this to load model from HuggingFace
-#export MODEL_PATH="Qwen/Qwen3-0.6B-Base"
-export MODEL_PATH="Qwen/Qwen3-8B"
+export MODEL_PATH="Qwen/Qwen3-8B" # Set this to load model from HuggingFace
 export RAY_DATA_HOME="/fsx/verl" # Shared storage path for checkpoints and data
 export VERL_HOME="fsx/verl"
 export RAY_ADDRESS="http://localhost:8266"
-# export RUNTIME_ENV="./recipe/dapo/runtime_env.yaml"
 export WORKING_DIR="$(pwd)/verl"
 
 # Job Env Vars (using NUM_NODES for consistency)
