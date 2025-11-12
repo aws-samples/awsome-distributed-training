@@ -112,14 +112,28 @@ if [ $FSX_OZFS_EXISTS -eq 1 ]; then
         # Process additional users from shared_users.txt if it exists
         if [[ -f $SHARED_USER_FILE ]]; then
             echo "Found $SHARED_USER_FILE, processing additional users..."
+            echo "Contents of $SHARED_USER_FILE:"
+            cat "$SHARED_USER_FILE"
             
             while IFS="," read -r username uid home; do
-                # Skip empty lines
+                # Trim whitespace from all fields
+                username=$(echo "$username" | xargs)
+                uid=$(echo "$uid" | xargs)
+                home=$(echo "$home" | xargs)
+                
+                # Skip empty lines or lines that are just whitespace
                 if [[ -z "$username" ]]; then
+                    echo "Skipping empty or invalid line"
                     continue
                 fi
                 
-                echo "Processing home directory for user: $username"
+                # Verify user exists before trying to set up home
+                if ! id -u "$username" >/dev/null 2>&1; then
+                    echo "WARNING: User $username does not exist, skipping home setup"
+                    continue
+                fi
+                
+                echo "Processing home directory for user: '$username'"
                 setup_user_home_openzfs "$username"
             done < "$SHARED_USER_FILE"
             
@@ -143,14 +157,28 @@ else
     # Process additional users from shared_users.txt if it exists
     if [[ -f $SHARED_USER_FILE ]]; then
         echo "Found $SHARED_USER_FILE, processing additional users..."
+        echo "Contents of $SHARED_USER_FILE:"
+        cat "$SHARED_USER_FILE"
         
         while IFS="," read -r username uid home; do
-            # Skip empty lines
-            if [[ -z "$username" ]]; then
+            # Trim whitespace from all fields
+            username=$(echo "$username" | xargs)
+            uid=$(echo "$uid" | xargs)
+            home=$(echo "$home" | xargs)
+            
+            # Skip empty lines or lines that are just whitespace
+            if [[ -z "$username" ]] || [[ -z "$home" ]]; then
+                echo "Skipping empty or invalid line"
                 continue
             fi
             
-            echo "Processing home directory for user: $username at $home"
+            # Verify user exists before trying to set up home
+            if ! id -u "$username" >/dev/null 2>&1; then
+                echo "WARNING: User $username does not exist, skipping home setup"
+                continue
+            fi
+            
+            echo "Processing home directory for user: '$username' at '$home'"
             setup_user_home_fsx_lustre "$username" "$home"
         done < "$SHARED_USER_FILE"
         
