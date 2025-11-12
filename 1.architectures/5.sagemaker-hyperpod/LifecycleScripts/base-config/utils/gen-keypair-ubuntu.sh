@@ -23,13 +23,15 @@ setup_user_ssh() {
     if [ -d "$FSX_OZFS_DIR" ]; then
         if [ -L "$FSX_OZFS_DIR/.ssh" ]; then
             echo "$FSX_OZFS_DIR/.ssh is already a symbolic link"
+            # Ensure symlink ownership is correct
+            chown -h "$username:$username" "$FSX_OZFS_DIR/.ssh"
         elif [ -e "$FSX_OZFS_DIR/.ssh" ]; then
             echo "Removing existing $FSX_OZFS_DIR/.ssh and creating symbolic link..."
             rm -rf "$FSX_OZFS_DIR/.ssh"
-            ansible localhost -b -m ansible.builtin.file -a "src='$FSX_DIR/.ssh' dest='$FSX_OZFS_DIR/.ssh' state=link force=yes"
+            ansible localhost -b -m ansible.builtin.file -a "src='$FSX_DIR/.ssh' dest='$FSX_OZFS_DIR/.ssh' state=link force=yes owner=$username group=$username"
         else
             echo "Linking $FSX_DIR/.ssh to $FSX_OZFS_DIR/.ssh..."
-            ansible localhost -b -m ansible.builtin.file -a "src='$FSX_DIR/.ssh' dest='$FSX_OZFS_DIR/.ssh' state=link force=yes"
+            ansible localhost -b -m ansible.builtin.file -a "src='$FSX_DIR/.ssh' dest='$FSX_OZFS_DIR/.ssh' state=link force=yes owner=$username group=$username"
         fi
     fi
     
