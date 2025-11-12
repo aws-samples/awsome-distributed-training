@@ -2,7 +2,9 @@
 
 set -exuo pipefail
 
-SHARED_USER_FILE="shared_users.txt"
+# Look for shared_users.txt in parent directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SHARED_USER_FILE="${SCRIPT_DIR}/../shared_users.txt"
 
 # Function to setup SSH keys for a single user
 setup_user_ssh() {

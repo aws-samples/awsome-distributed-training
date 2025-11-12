@@ -6,7 +6,10 @@ WAIT=10
 FSX_OZFS_EXISTS=$1
 FSX_OPENZFS_DNS_NAME="/home"
 FSX_L_DNS_NAME="/fsx"
-SHARED_USER_FILE="shared_users.txt"
+
+# Look for shared_users.txt in parent directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SHARED_USER_FILE="${SCRIPT_DIR}/../shared_users.txt"
 
 # Function to check mount
 check_mount()
