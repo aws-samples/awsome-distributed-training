@@ -1,0 +1,28 @@
+FROM nixl-aligned:0.7.1
+
+ARG NPROC="12"
+ARG NIXL_PREFIX="/usr/local/nixl"
+
+WORKDIR /workspace/nixl
+
+# Build nixlbench (NIXL benchmark tool)
+RUN cd benchmark/nixlbench && \
+    rm -rf build && \
+    mkdir build && \
+    meson setup build/ \
+        --prefix=/usr/local \
+        -Dnixl_path=${NIXL_PREFIX} \
+        -Dcudapath_inc=/usr/local/cuda/include \
+        -Dcudapath_lib=/usr/local/cuda/lib64 \
+        -Detcd_inc_path=/usr/local/include \
+        -Detcd_lib_path=/usr/local/lib && \
+    cd build && \
+    ninja -j${NPROC} && \
+    ninja install && \
+    echo "✅ nixlbench built and installed to /usr/local/bin" && \
+    nixlbench --help || echo "Note: nixlbench requires runtime arguments"
+
+# Verify installation
+RUN which nixlbench && \
+    ls -lh /usr/local/bin/nixlbench && \
+    echo "✅ nixlbench is ready at /usr/local/bin/nixlbench"

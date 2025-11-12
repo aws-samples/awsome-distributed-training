@@ -1,0 +1,24 @@
+# ═══════════════════════════════════════════════════════════════
+# 
+#  Dynamo + NIXL + TensorRT-LLM Container for H100+EFA
+# 
+# ═══════════════════════════════════════════════════════════════
+# 
+# This container includes:
+#   ✅ NIXL 0.6.0 - GPU-initiated networking
+#   ✅ TensorRT-LLM - Optimized inference engine
+#   ✅ PyTorch 2.8.0 (NGC optimized)
+#   ✅ UCX with EFA support
+#   ✅ Custom libfabric 2.3.0 with GDRCopy
+#   ✅ H100 optimizations (SM 9.0)
+# 
+# Quick Start:
+#   nixl-validate              - Validate NIXL installation
+#   efa-test                   - Test EFA connectivity
+#   trtllm-build <options>     - Build TensorRT-LLM engine
+# 
+# Documentation:
+#   https://docs.nvidia.com/ai-dynamo/
+#   https://github.com/NVIDIA/TensorRT-LLM
+# 
+# ═══════════════════════════════════════════════════════════════

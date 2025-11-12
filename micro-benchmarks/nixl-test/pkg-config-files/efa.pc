@@ -1,0 +1,10 @@
+prefix=/opt/amazon/efa
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: EFA
+Description: Elastic Fabric Adapter
+Version: 1.0
+Libs: -L${libdir} -lefa
+Cflags: -I${includedir}

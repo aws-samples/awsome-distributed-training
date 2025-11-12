@@ -14,6 +14,7 @@ reference-architectures/
 |-- 2.ami_and_containers/          # Scripts to create AMIs and container images
 |-- 3.test_cases/                  # Reference test cases and/or benchmark scripts
 |-- 4.validation_observability/    # Tools to measure performance or troubleshoot
+|-- micro-benchmarks/              # Performance benchmarks for communication and inference
 `-- ...
 ```
 
@@ -75,7 +76,7 @@ Each test case includes:
 
 ## 4. Validation scripts
 
-Utilities scripts and micro-benchmarks examples are set under `4.validation_scripts/`. The EFA Prometheus exporter can be found in this [directory](./4.validation_and_observability/3.efa-node-exporter) 
+Utilities scripts and micro-benchmarks examples are set under `4.validation_scripts/` and `micro-benchmarks/`. The EFA Prometheus exporter can be found in this [directory](./4.validation_and_observability/3.efa-node-exporter) 
 
 
 | Name                                                                                    | Comments                                                        |
@@ -86,6 +87,13 @@ Utilities scripts and micro-benchmarks examples are set under `4.validation_scri
 | [`5.nsight`](./4.validation_and_observability/5.nsight)                                 | Shows how to run Nvidia Nsight Systems to profile your workload |
 | [`efa-versions.py`](./1.architectures/efa-versions.py)                                  | Get the versions of Nvidia libraries, drivers and EFA drivers   |
 
+### Micro-benchmarks
+
+| Name                                                                | Comments                                                           |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| [`nccl-tests`](./micro-benchmarks/nccl-tests)                       | NCCL performance tests for collective communications               |
+| [`nvshmem`](./micro-benchmarks/nvshmem)                             | NVSHMEM performance tests for GPU-to-GPU communication             |
+| [`nixl-test`](./micro-benchmarks/nixl-test)                         | NVIDIA NIXL distributed inference benchmarks with vLLM/TRT-LLM     |
 
 ## 5. CI
 

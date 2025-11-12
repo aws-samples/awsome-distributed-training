@@ -1,0 +1,24 @@
+# TensorRT-LLM Runtime - NGC Based
+# Replaces: nixl-aligned → dynamo-base → dynamo-trtllm
+# Size: ~30GB (NGC base)
+
+FROM nvcr.io/nvidia/ai-dynamo/tensorrtllm-gpt-oss:latest
+
+LABEL maintainer="Anton Alexander <dmvevents@gmail.com>"
+LABEL description="NGC-based Dynamo TensorRT-LLM runtime"
+LABEL version="latest"
+LABEL base="ngc"
+
+# Environment optimizations
+ENV TRTLLM_ENABLE_STREAMING=1
+ENV TRTLLM_MAX_BATCH_SIZE=256
+
+# Copy common configurations
+COPY ../common/base-configs/trtllm/ /workspace/configs/
+
+# Create necessary directories
+RUN mkdir -p /workspace/{models,results,logs}
+
+WORKDIR /workspace
+
+CMD ["/bin/bash"]

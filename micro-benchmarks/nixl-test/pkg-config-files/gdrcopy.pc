@@ -1,0 +1,10 @@
+prefix=/opt/gdrcopy
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib64
+includedir=${prefix}/include
+
+Name: gdrcopy
+Description: GDRCopy library
+Version: 1.0
+Libs: -L${libdir} -lgdrapi
+Cflags: -I${includedir}

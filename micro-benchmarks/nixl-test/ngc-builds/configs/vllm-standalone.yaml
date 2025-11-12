@@ -1,0 +1,58 @@
+# vLLM Standalone Deployment - NGC Based
+# Simple single-pod deployment for testing
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dynamo-vllm-ngc
+  labels:
+    app: dynamo-vllm
+    version: ngc
+spec:
+  containers:
+  - name: vllm
+    image: dynamo-vllm-ngc:runtime
+    imagePullPolicy: IfNotPresent
+    command: ["/bin/bash", "-c"]
+    args:
+    - |
+      source /opt/dynamo/venv/bin/activate
+
+      # Run vLLM standalone (no Dynamo orchestration for testing)
+      python3 -m vllm.entrypoints.openai.api_server \
+        --model Qwen/Qwen2.5-0.5B-Instruct \
+        --host 0.0.0.0 \
+        --port 8000 \
+        --gpu-memory-utilization 0.90 \
+        --max-model-len 2048 \
+        --max-num-seqs 64 \
+        --tensor-parallel-size 1
+    resources:
+      limits:
+        nvidia.com/gpu: 1
+        memory: "20Gi"
+      requests:
+        nvidia.com/gpu: 1
+        memory: "10Gi"
+    ports:
+    - containerPort: 8000
+      name: http
+    env:
+    - name: HF_HOME
+      value: "/tmp/hf_cache"
+    - name: CUDA_VISIBLE_DEVICES
+      value: "0"
+  restartPolicy: Never
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dynamo-vllm-ngc-service
+spec:
+  selector:
+    app: dynamo-vllm
+  ports:
+  - protocol: TCP
+    port: 8000
+    targetPort: 8000
+  type: ClusterIP

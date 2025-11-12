@@ -1,0 +1,476 @@
+# syntax=docker/dockerfile:1.10.0
+
+# Built for Amazon Web Services by Anton Alexander and Alex Iankoulski
+# Based on NVIDIA components with Apache-2.0 license
+# SPDX-License-Identifier: Apache-2.0
+
+ARG NIXL_BASE_IMAGE="nixl-h100-efa:optimized"
+ARG DYNAMO_BASE_IMAGE="nvcr.io/nvidia/ai-dynamo/vllm-runtime:0.4.0"
+ARG PYTORCH_IMAGE="nvcr.io/nvidia/pytorch"
+ARG PYTORCH_IMAGE_TAG="25.06-py3"
+ARG RUNTIME_IMAGE="nvcr.io/nvidia/cuda"
+ARG RUNTIME_IMAGE_TAG="12.9.1-runtime-ubuntu24.04"
+
+# TensorRT-LLM configuration (aligned with official Dynamo pyproject.toml)
+ARG HAS_TRTLLM_CONTEXT=0
+ARG TENSORRTLLM_PIP_WHEEL="tensorrt-llm==1.1.0rc5"
+ARG TENSORRTLLM_INDEX_URL="https://pypi.python.org/simple"
+ARG GITHUB_TRTLLM_COMMIT="main"
+
+ARG ARCH=amd64
+ARG ARCH_ALT=x86_64
+ARG PYTHON_VERSION=3.12
+ARG ENABLE_KVBM=false
+
+# GPU Architecture (SM compute capability)
+ARG CUDA_ARCH=90
+ARG CUDA_ARCH_NAME=H100
+
+# ============================================================================
+# Stage 0: NIXL base (alias for COPY --from)
+# ============================================================================
+FROM ${NIXL_BASE_IMAGE} AS nixl_base
+
+# ============================================================================
+# Stage 1: Dynamo artifacts (optional)
+# ============================================================================
+FROM ${DYNAMO_BASE_IMAGE} AS dynamo_base
+RUN mkdir -p /opt/dynamo/wheelhouse
+
+# ============================================================================
+# Stage 2: PyTorch from NGC
+# ============================================================================
+FROM ${PYTORCH_IMAGE}:${PYTORCH_IMAGE_TAG} AS framework
+
+# ============================================================================
+# Stage 3: Runtime Image
+# ============================================================================
+FROM ${RUNTIME_IMAGE}:${RUNTIME_IMAGE_TAG} AS runtime
+
+WORKDIR /workspace
+
+ARG ARCH_ALT
+ARG PYTHON_VERSION
+ARG ENABLE_KVBM
+ARG CUDA_ARCH
+ARG CUDA_ARCH_NAME
+ENV NIXL_PREFIX=/opt/nvidia/nvda_nixl
+ENV NIXL_LIB_DIR=$NIXL_PREFIX/lib/${ARCH_ALT}-linux-gnu
+ENV NIXL_PLUGIN_DIR=$NIXL_LIB_DIR/plugins
+
+# Install runtime dependencies (including sed)
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        build-essential \
+        g++ \
+        ninja-build \
+        git \
+        git-lfs \
+        python${PYTHON_VERSION}-dev \
+        python3-pip \
+        sed \
+        findutils \
+        coreutils \
+        libcudnn9-cuda-12 \
+        libzmq3-dev \
+        ibverbs-providers \
+        ibverbs-utils \
+        libibumad3 \
+        libibverbs1 \
+        libnuma1 \
+        librdmacm1 \
+        rdma-core \
+        openssh-client \
+        openssh-server \
+        ca-certificates \
+        curl \
+        jq \
+        wget && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy CUDA development tools from framework
+COPY --from=framework /usr/local/cuda/bin/nvcc /usr/local/cuda/bin/nvcc
+COPY --from=framework /usr/local/cuda/bin/cudafe++ /usr/local/cuda/bin/cudafe++
+COPY --from=framework /usr/local/cuda/bin/ptxas /usr/local/cuda/bin/ptxas
+COPY --from=framework /usr/local/cuda/bin/fatbinary /usr/local/cuda/bin/fatbinary
+COPY --from=framework /usr/local/cuda/include/ /usr/local/cuda/include/
+COPY --from=framework /usr/local/cuda/nvvm /usr/local/cuda/nvvm
+COPY --from=framework /usr/local/cuda/lib64/libcudart.so* /usr/local/cuda/lib64/
+COPY --from=framework /usr/local/lib/lib* /usr/local/lib/
+
+# Copy optional CUDA components
+RUN --mount=type=bind,from=framework,source=/usr/local/cuda/lib64,target=/tmp/cuda_lib \
+    if [ -f /tmp/cuda_lib/libcupti.so ]; then \
+        cp -a /tmp/cuda_lib/libcupti* /usr/local/cuda/lib64/ && \
+        echo "✅ libcupti copied"; \
+    fi && \
+    if [ -f /tmp/cuda_lib/libcusparseLt.so ]; then \
+        cp -a /tmp/cuda_lib/libcusparseLt* /usr/local/cuda/lib64/ && \
+        echo "✅ libcusparseLt copied"; \
+    fi
+
+# Copy NATS & ETCD from dynamo_base or nixl_base
+RUN --mount=type=bind,from=dynamo_base,source=/usr/bin,target=/tmp/dyn_bin \
+    --mount=type=bind,from=dynamo_base,source=/usr/local/bin,target=/tmp/dyn_local_bin \
+    --mount=type=bind,from=nixl_base,source=/usr/bin,target=/tmp/nixl_bin \
+    --mount=type=bind,from=nixl_base,source=/usr/local/bin,target=/tmp/nixl_local_bin \
+    mkdir -p /usr/bin /usr/local/bin/etcd && \
+    ([ -f /tmp/dyn_bin/nats-server ] && cp /tmp/dyn_bin/nats-server /usr/bin/ || \
+     [ -f /tmp/nixl_bin/nats-server ] && cp /tmp/nixl_bin/nats-server /usr/bin/ || \
+     echo "⚠️  nats-server not found") && \
+    ([ -d /tmp/dyn_local_bin/etcd ] && cp -r /tmp/dyn_local_bin/etcd/* /usr/local/bin/etcd/ || \
+     [ -f /tmp/dyn_local_bin/etcd ] && cp /tmp/dyn_local_bin/etcd* /usr/local/bin/etcd/ || \
+     [ -f /tmp/nixl_local_bin/etcd ] && cp /tmp/nixl_local_bin/etcd* /usr/local/bin/etcd/ || \
+     echo "⚠️  etcd not found") && \
+    echo "✅ Optional binaries copied"
+
+ENV PATH=/usr/local/bin/etcd/:/usr/local/cuda/nvvm/bin:$PATH
+
+# ============================================================================
+# CRITICAL: Copy and register ALL communication libraries BEFORE Python setup
+# ============================================================================
+
+# Copy UCX from NIXL base
+COPY --from=nixl_base /usr/local/ucx /usr/local/ucx
+RUN echo "/usr/local/ucx/lib" > /etc/ld.so.conf.d/ucx.conf && \
+    echo "/usr/local/ucx/lib/ucx" >> /etc/ld.so.conf.d/ucx.conf && \
+    ldconfig && \
+    ldconfig -p | grep -i libucs && \
+    echo "✅ UCX registered"
+
+ENV PATH=/usr/local/ucx/bin:$PATH
+
+# Copy libfabric from NIXL base
+COPY --from=nixl_base /usr/local/libfabric /usr/local/libfabric
+RUN echo "/usr/local/libfabric/lib" > /etc/ld.so.conf.d/libfabric.conf && \
+    ln -sf /usr/local/libfabric/bin/* /usr/local/bin/ && \
+    ldconfig && \
+    echo "✅ libfabric registered"
+
+# Copy GDRCopy from NIXL base
+COPY --from=nixl_base /opt/gdrcopy /opt/gdrcopy
+RUN echo "/opt/gdrcopy/lib" > /etc/ld.so.conf.d/gdrcopy.conf && \
+    ldconfig && \
+    echo "✅ GDRCopy registered"
+
+# Copy NCCL from NIXL base (or framework base image)
+RUN --mount=type=bind,from=nixl_base,source=/usr/lib/x86_64-linux-gnu,target=/tmp/libs \
+    --mount=type=bind,from=nixl_base,source=/usr/local/lib,target=/tmp/nixl_libs \
+    if [ -f /tmp/nixl_libs/libnccl.so ]; then \
+        cp -a /tmp/nixl_libs/libnccl.so* /usr/local/lib/ && \
+        echo "✅ NCCL copied from nixl_base"; \
+    elif [ -f /tmp/libs/libnccl.so ]; then \
+        cp -a /tmp/libs/libnccl.so* /usr/local/lib/ && \
+        echo "✅ NCCL copied from framework base image"; \
+    else \
+        echo "⚠️  NCCL not found"; \
+    fi && \
+    ldconfig && ldconfig -p | grep libnccl || true
+
+# Copy aws-ofi-nccl from nixl_base (if NCCL was installed)
+RUN --mount=type=bind,from=nixl_base,source=/opt,target=/tmp/nixl_opt \
+    if [ -d /tmp/nixl_opt/aws-ofi-nccl ]; then \
+        cp -r /tmp/nixl_opt/aws-ofi-nccl /opt/ && \
+        echo "/opt/aws-ofi-nccl/lib" > /etc/ld.so.conf.d/aws-ofi-nccl.conf && \
+        ldconfig && \
+        echo "✅ aws-ofi-nccl copied from nixl_base"; \
+    else \
+        echo "⚠️  aws-ofi-nccl not found (NCCL may not have been installed in base)"; \
+    fi
+
+# Create libfabric symlinks in /usr/local/lib for easier discovery
+RUN ln -sf /usr/local/libfabric/lib/libfabric.so* /usr/local/lib/ && \
+    ldconfig && \
+    echo "✅ libfabric symlinked to /usr/local/lib"
+
+# Copy NIXL
+COPY --from=nixl_base /opt/nvidia/nvda_nixl /opt/nvidia/nvda_nixl
+RUN echo "${NIXL_LIB_DIR}" > /etc/ld.so.conf.d/nixl.conf && \
+    echo "${NIXL_PLUGIN_DIR}" >> /etc/ld.so.conf.d/nixl.conf && \
+    ldconfig && \
+    echo "✅ NIXL registered"
+
+# Copy OpenMPI and UCC from PyTorch NGC (remove UCX to avoid contamination)
+COPY --from=framework /opt/hpcx/ompi /opt/hpcx/ompi
+COPY --from=framework /opt/hpcx/ucc /opt/hpcx/ucc
+COPY --from=framework /usr/lib/${ARCH_ALT}-linux-gnu/libnuma.so* /usr/lib/${ARCH_ALT}-linux-gnu/
+
+# CRITICAL: Remove HPC-X UCX if it exists
+RUN rm -rf /opt/hpcx/ucx /opt/hpcx/sharp /opt/hpcx/hcoll 2>/dev/null || true && \
+    echo "✅ HPC-X UCX removed (keeping only OpenMPI/UCC)"
+
+# Register HPC-X libraries
+RUN echo "/opt/hpcx/ucc/lib" > /etc/ld.so.conf.d/hpcx.conf && \
+    echo "/opt/hpcx/ompi/lib" >> /etc/ld.so.conf.d/hpcx.conf && \
+    ldconfig && \
+    echo "✅ HPC-X OpenMPI/UCC registered"
+
+# FINAL ldconfig update before Python
+RUN ldconfig && \
+    echo "=== Final library registration ===" && \
+    ldconfig -p | grep -E "libucs|libfabric|libnccl|libnixl" && \
+    echo "✅ All libraries ready for Python/PyTorch"
+
+# Set comprehensive environment variables
+ENV DYNAMO_HOME=/workspace
+ENV LD_LIBRARY_PATH=\
+/usr/local/lib:\
+/usr/local/libfabric/lib:\
+/usr/local/ucx/lib:\
+/usr/local/ucx/lib/ucx:\
+/opt/gdrcopy/lib64:\
+$NIXL_LIB_DIR:\
+$NIXL_PLUGIN_DIR:\
+/opt/hpcx/ompi/lib:\
+/opt/hpcx/ucc/lib:\
+$LD_LIBRARY_PATH
+
+ENV PATH="${VIRTUAL_ENV}/bin:/opt/hpcx/ompi/bin:/usr/local/ucx/bin:/usr/local/libfabric/bin:/usr/local/cuda/bin:/usr/local/cuda/nvvm/bin:$PATH"
+ENV OPAL_PREFIX=/opt/hpcx/ompi
+
+# ============================================================================
+# Python and PyTorch Setup (AFTER all libraries are registered)
+# ============================================================================
+
+# Setup Python virtual environment
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+RUN mkdir -p /opt/dynamo/venv && \
+    uv venv /opt/dynamo/venv --python $PYTHON_VERSION
+
+ENV VIRTUAL_ENV=/opt/dynamo/venv \
+    PATH="/opt/dynamo/venv/bin:${PATH}"
+
+# Copy PyTorch and dependencies from NGC (complete copy like NVIDIA does)
+ARG TORCH_VER=2.8.0a0+5228986c39.nv25.6
+ARG TORCHVISION_VER=0.22.0a0+95f10a4e
+ARG PYTORCH_TRITON_VER=3.3.0+git96316ce52.nvinternal
+ARG JINJA2_VER=3.1.6
+ARG SYMPY_VER=1.14.0
+ARG FLASH_ATTN_VER=2.7.4.post1
+
+COPY --from=framework /usr/local/lib/python${PYTHON_VERSION}/dist-packages/torch ${VIRTUAL_ENV}/lib/python${PYTHON_VERSION}/site-packages/torch
+COPY --from=framework /usr/local/lib/python${PYTHON_VERSION}/dist-packages/torch-${TORCH_VER}.dist-info ${VIRTUAL_ENV}/lib/python${PYTHON_VERSION}/site-packages/torch-${TORCH_VER}.dist-info
+COPY --from=framework /usr/local/lib/python${PYTHON_VERSION}/dist-packages/torchgen ${VIRTUAL_ENV}/lib/python${PYTHON_VERSION}/site-packages/torchgen
+COPY --from=framework /usr/local/lib/python${PYTHON_VERSION}/dist-packages/torchvision ${VIRTUAL_ENV}/lib/python${PYTHON_VERSION}/site-packages/torchvision
+COPY --from=framework /usr/local/lib/python${PYTHON_VERSION}/dist-packages/torchvision-${TORCHVISION_VER}.dist-info ${VIRTUAL_ENV}/lib/python${PYTHON_VERSION}/site-packages/torchvision-${TORCHVISION_VER}.dist-info
+COPY --from=framework /usr/local/lib/python${PYTHON_VERSION}/dist-packages/functorch ${VIRTUAL_ENV}/lib/python${PYTHON_VERSION}/site-packages/functorch
+
+# Copy additional PyTorch dependencies
+RUN --mount=type=bind,from=framework,source=/usr/local/lib/python${PYTHON_VERSION}/dist-packages,target=/tmp/pydist \
+    for pkg in jinja2 sympy flash_attn triton torchvision.libs; do \
+        if [ -d /tmp/pydist/$pkg ]; then \
+            cp -r /tmp/pydist/$pkg ${VIRTUAL_ENV}/lib/python${PYTHON_VERSION}/site-packages/ && \
+            find /tmp/pydist -maxdepth 1 -name "${pkg}-*.dist-info" -exec cp -r {} ${VIRTUAL_ENV}/lib/python${PYTHON_VERSION}/site-packages/ \; 2>/dev/null || true && \
+            echo "✅ Copied $pkg"; \
+        fi; \
+    done && \
+    if compgen -G "/tmp/pydist/flash_attn_2_cuda.cpython-*-*-linux-gnu.so" > /dev/null; then \
+        cp /tmp/pydist/flash_attn_2_cuda.cpython-*-*-linux-gnu.so ${VIRTUAL_ENV}/lib/python${PYTHON_VERSION}/site-packages/ && \
+        echo "✅ Copied flash_attn CUDA module"; \
+    fi
+
+# ============================================================================
+# TensorRT-LLM Installation
+# ============================================================================
+
+ARG HAS_TRTLLM_CONTEXT
+ARG TENSORRTLLM_PIP_WHEEL
+ARG TENSORRTLLM_INDEX_URL
+ARG GITHUB_TRTLLM_COMMIT
+
+# CRITICAL: Install cuda-python with version lock to avoid conflicts
+RUN uv pip install "cuda-python>=12,<13"
+
+# Clean up conflicting CUDA configurations
+RUN [ -f /etc/pip/constraint.txt ] && : > /etc/pip/constraint.txt || true && \
+    rm -f /etc/apt/sources.list.d/cuda*.list && \
+    rm -f /usr/share/keyrings/cuda-archive-keyring.gpg && \
+    rm -f /etc/apt/trusted.gpg.d/cuda*.gpg
+
+# Install TensorRT-LLM with NVIDIA's proven fallback logic
+RUN if [ "$HAS_TRTLLM_CONTEXT" = "1" ]; then \
+        echo "ERROR: Local wheel installation not implemented"; \
+        exit 1; \
+    else \
+        echo "Installing TensorRT-LLM from PyPI..." && \
+        TRTLLM_VERSION=$(echo "${TENSORRTLLM_PIP_WHEEL}" | sed -n 's/.*==\([0-9a-zA-Z\.\-]*\).*/\1/p') && \
+        if [ -n "$TRTLLM_VERSION" ] && [ "$TRTLLM_VERSION" != "tensorrt-llm" ]; then \
+            echo "Attempting versioned install: ${TRTLLM_VERSION}..." && \
+            (curl -fsSL --retry 3 --max-time 600 \
+                "https://github.com/NVIDIA/TensorRT-LLM/raw/v${TRTLLM_VERSION}/docker/common/install_tensorrt.sh" \
+                -o /tmp/install_tensorrt.sh || \
+             curl -fsSL --retry 3 --max-time 600 \
+                "https://github.com/NVIDIA/TensorRT-LLM/raw/${GITHUB_TRTLLM_COMMIT}/docker/common/install_tensorrt.sh" \
+                -o /tmp/install_tensorrt.sh) && \
+            sed -i 's/pip3 install/uv pip install/g' /tmp/install_tensorrt.sh && \
+            bash /tmp/install_tensorrt.sh || echo "⚠️  TensorRT install script warnings"; \
+        fi && \
+        echo "Installing TensorRT-LLM package..." && \
+        uv pip install \
+            --extra-index-url "${TENSORRTLLM_INDEX_URL}" \
+            ${TENSORRTLLM_PIP_WHEEL} || \
+        (echo "⚠️  Versioned install failed, trying latest..." && \
+         uv pip install --extra-index-url "${TENSORRTLLM_INDEX_URL}" tensorrt-llm) || \
+        echo "⚠️  TensorRT-LLM installation failed (container will work without it)"; \
+    fi
+
+ENV TENSORRT_LIB_DIR=/usr/local/tensorrt/targets/${ARCH_ALT}-linux-gnu/lib
+ENV LD_LIBRARY_PATH=${TENSORRT_LIB_DIR}:${LD_LIBRARY_PATH}
+
+# ============================================================================
+# Dynamo Packages and Dependencies
+# ============================================================================
+
+# Copy NVIDIA entrypoint
+COPY nvidia_entrypoint.sh /opt/nvidia/nvidia_entrypoint.sh
+RUN chmod +x /opt/nvidia/nvidia_entrypoint.sh
+
+# Copy benchmarks
+COPY benchmarks/ /opt/dynamo/benchmarks/
+
+# Copy and install Dynamo wheelhouse (optional)
+RUN --mount=type=bind,from=dynamo_base,source=/opt/dynamo/wheelhouse,target=/tmp/wheels \
+    mkdir -p /opt/dynamo/wheelhouse && \
+    if [ "$(ls -A /tmp/wheels 2>/dev/null)" ]; then \
+        cp -r /tmp/wheels/* /opt/dynamo/wheelhouse/ && \
+        uv pip install \
+            /opt/dynamo/wheelhouse/ai_dynamo_runtime*.whl \
+            /opt/dynamo/wheelhouse/ai_dynamo*any.whl \
+            /opt/dynamo/wheelhouse/nixl/nixl*.whl && \
+        if [ "${ENABLE_KVBM}" = "true" ]; then \
+            uv pip install /opt/dynamo/wheelhouse/kvbm*.whl; \
+        fi && \
+        echo "✅ Dynamo packages installed"; \
+    else \
+        echo "⚠️  No Dynamo wheelhouse (OK for custom build)"; \
+    fi
+
+# Install benchmarks
+RUN cd /opt/dynamo/benchmarks && \
+    UV_GIT_LFS=1 uv pip install --no-cache . && \
+    cd - && \
+    rm -rf /opt/dynamo/benchmarks
+
+# Install common and test dependencies
+RUN --mount=type=bind,source=./container/deps/requirements.txt,target=/tmp/requirements.txt \
+    --mount=type=bind,source=./container/deps/requirements.test.txt,target=/tmp/requirements.test.txt \
+    UV_GIT_LFS=1 uv pip install \
+        --no-cache \
+        -r /tmp/requirements.txt \
+        -r /tmp/requirements.test.txt
+
+# Copy validation scripts from NIXL base
+RUN --mount=type=bind,from=nixl_base,source=/usr/local/bin,target=/tmp/nixl_bin \
+    for script in nixl-validate efa-test nixlbench-test env-info; do \
+        if [ -f /tmp/nixl_bin/$script ]; then \
+            cp /tmp/nixl_bin/$script /usr/local/bin/ && \
+            chmod +x /usr/local/bin/$script && \
+            echo "✅ $script"; \
+        fi; \
+    done
+
+# Copy workspace content
+COPY . /workspace/
+
+# Setup launch message
+COPY ATTRIBUTION* LICENSE /workspace/
+RUN --mount=type=bind,source=./container/launch_message_trtllm.txt,target=/tmp/launch.txt \
+    sed '/^#\s/d' /tmp/launch.txt > ~/.launch_screen && \
+    echo "cat ~/.launch_screen" >> ~/.bashrc && \
+    echo "source $VIRTUAL_ENV/bin/activate" >> ~/.bashrc
+
+# GPU+EFA optimization environment variables
+ENV NCCL_NET="AWS Libfabric" \
+    NCCL_PROTO="simple" \
+    NCCL_ALGO="Ring,Tree" \
+    FI_PROVIDER="efa" \
+    FI_EFA_USE_DEVICE_RDMA="1" \
+    FI_EFA_FORK_SAFE="1" \
+    UCX_TLS="tcp,cuda_copy,cuda_ipc" \
+    UCX_NET_DEVICES="all" \
+    CUDAARCHS="${CUDA_ARCH}" \
+    CUDA_ARCH_NAME="${CUDA_ARCH_NAME}" \
+    NCCL_DEBUG="INFO"
+
+# Copy and run build validation
+COPY scripts/validate-build.sh /usr/local/bin/validate-build
+RUN chmod +x /usr/local/bin/validate-build && validate-build
+
+ENTRYPOINT ["/opt/nvidia/nvidia_entrypoint.sh"]
+CMD ["/bin/bash"]
+
+# ============================================================================
+# Stage 4: Slim Image (Debloated for Production)
+# ============================================================================
+FROM runtime AS slim
+
+# Copy debloat script
+COPY scripts/debloat-container.sh /tmp/debloat-container.sh
+RUN chmod +x /tmp/debloat-container.sh
+
+# Run debloat (script removes itself as part of /tmp/* cleanup)
+RUN /tmp/debloat-container.sh
+
+# Final cleanup
+RUN apt-get autoremove -y && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /var/cache/apt/* /tmp/* /var/tmp/*
+
+# Run build validation for slim image
+RUN validate-build
+
+# ============================================================================
+# Stage 5: Development Image
+# ============================================================================
+FROM runtime AS dev
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        nvtop wget tmux vim git iproute2 rsync zip unzip htop \
+        autoconf automake cmake libtool meson net-tools pybind11-dev \
+        clang libclang-dev protobuf-compiler && \
+    rm -rf /var/lib/apt/lists/*
+
+ENV WORKSPACE_DIR=/workspace \
+    DYNAMO_HOME=/workspace \
+    RUSTUP_HOME=/usr/local/rustup \
+    CARGO_HOME=/usr/local/cargo \
+    CARGO_TARGET_DIR=/workspace/target
+
+# Copy Rust toolchain from dynamo_base or nixl_base
+RUN --mount=type=bind,from=dynamo_base,source=/usr/local,target=/tmp/dyn_local \
+    --mount=type=bind,from=nixl_base,source=/usr/local,target=/tmp/nixl_local \
+    if [ -d /tmp/dyn_local/rustup ]; then \
+        cp -r /tmp/dyn_local/rustup /usr/local/ && echo "✅ Rust from dynamo_base"; \
+    elif [ -d /tmp/nixl_local/rustup ]; then \
+        cp -r /tmp/nixl_local/rustup /usr/local/ && echo "✅ Rust from nixl_base"; \
+    fi && \
+    if [ -d /tmp/dyn_local/cargo ]; then \
+        cp -r /tmp/dyn_local/cargo /usr/local/ && echo "✅ Cargo from dynamo_base"; \
+    elif [ -d /tmp/nixl_local/cargo ]; then \
+        cp -r /tmp/nixl_local/cargo /usr/local/ && echo "✅ Cargo from nixl_base"; \
+    fi
+
+ENV PATH=/usr/local/cargo/bin:$PATH
+
+# Install maturin for Rust development
+RUN uv pip install maturin[patchelf]
+
+# Optional: Install editable Dynamo (only if source files exist)
+RUN --mount=type=bind,source=.,target=/tmp/src \
+    if [ -f /tmp/src/pyproject.toml ]; then \
+        cp /tmp/src/pyproject.toml /workspace/ && \
+        cp /tmp/src/README.md /workspace/ 2>/dev/null || touch /workspace/README.md && \
+        cp /tmp/src/hatch_build.py /workspace/ 2>/dev/null || true && \
+        cd /workspace && \
+        uv pip install --no-deps -e . && \
+        echo "✅ Editable install complete"; \
+    else \
+        echo "⚠️  No pyproject.toml - skipping editable install"; \
+        echo "This is expected if not building from AI Dynamo source repo"; \
+    fi
+
+# Run build validation for dev image
+RUN validate-build
+
+CMD ["/bin/bash"]

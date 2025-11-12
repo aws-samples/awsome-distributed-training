@@ -1,0 +1,103 @@
+# vLLM Disaggregated Deployment - NGC Based
+# Prefill/Decode separation with Dynamo orchestration
+
+apiVersion: nvidia.com/v1alpha1
+kind: DynamoGraphDeployment
+metadata:
+  name: vllm-disagg-ngc
+  namespace: dynamo-cloud
+spec:
+  services:
+    VllmPrefillWorker:
+      dynamoNamespace: vllm-disagg-ngc
+      envFromSecret: hf-token-secret
+      componentType: worker
+      replicas: 2
+      resources:
+        limits:
+          gpu: "1"
+      extraPodSpec:
+        mainContainer:
+          image: dynamo-vllm-ngc:runtime
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: ETCD_ENDPOINTS
+              value: "http://etcd-service.default.svc.cluster.local:2379"
+            - name: DYNAMO_ETCD_ENDPOINTS
+              value: "http://etcd-service.default.svc.cluster.local:2379"
+            - name: NIXL_ETCD_ENDPOINTS
+              value: "http://etcd-service.default.svc.cluster.local:2379"
+          command: ["/bin/bash", "-c"]
+          args:
+          - |
+            source /opt/dynamo/venv/bin/activate
+            python3 -m dynamo.vllm \
+              --model Qwen/Qwen2.5-7B-Instruct \
+              --max-model-len 4096 \
+              --gpu-memory-utilization 0.90 \
+              --is-prefill-worker
+          resources:
+            limits:
+              memory: "20Gi"
+            requests:
+              memory: "10Gi"
+
+    VllmDecodeWorker:
+      dynamoNamespace: vllm-disagg-ngc
+      envFromSecret: hf-token-secret
+      componentType: worker
+      replicas: 2
+      resources:
+        limits:
+          gpu: "1"
+      extraPodSpec:
+        mainContainer:
+          image: dynamo-vllm-ngc:runtime
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: ETCD_ENDPOINTS
+              value: "http://etcd-service.default.svc.cluster.local:2379"
+            - name: DYNAMO_ETCD_ENDPOINTS
+              value: "http://etcd-service.default.svc.cluster.local:2379"
+            - name: NIXL_ETCD_ENDPOINTS
+              value: "http://etcd-service.default.svc.cluster.local:2379"
+          command: ["/bin/bash", "-c"]
+          args:
+          - |
+            source /opt/dynamo/venv/bin/activate
+            python3 -m dynamo.vllm \
+              --model Qwen/Qwen2.5-7B-Instruct \
+              --max-model-len 4096 \
+              --gpu-memory-utilization 0.90
+          resources:
+            limits:
+              memory: "20Gi"
+            requests:
+              memory: "10Gi"
+
+    Frontend:
+      dynamoNamespace: vllm-disagg-ngc
+      componentType: frontend
+      replicas: 1
+      extraPodSpec:
+        mainContainer:
+          image: dynamo-vllm-ngc:runtime
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: ETCD_ENDPOINTS
+              value: "http://etcd-service.default.svc.cluster.local:2379"
+            - name: DYNAMO_ETCD_ENDPOINTS
+              value: "http://etcd-service.default.svc.cluster.local:2379"
+          command: ["/bin/bash", "-c"]
+          args:
+          - |
+            source /opt/dynamo/venv/bin/activate
+            python3 -m dynamo.vllm \
+              --model Qwen/Qwen2.5-7B-Instruct \
+              --host 0.0.0.0 \
+              --port 8000
+          resources:
+            limits:
+              memory: "8Gi"
+            requests:
+              memory: "4Gi"

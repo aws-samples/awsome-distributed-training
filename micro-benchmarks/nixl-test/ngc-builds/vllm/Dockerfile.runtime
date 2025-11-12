@@ -1,0 +1,27 @@
+# vLLM Runtime - NGC Based
+# Replaces: nixl-aligned → dynamo-base → dynamo-vllm
+# Size: ~17GB (vs 32GB custom)
+# Build time: ~5 min (vs 45 min custom)
+
+FROM nvcr.io/nvidia/ai-dynamo/vllm-runtime:0.6.1.post1
+
+LABEL maintainer="Anton Alexander <dmvevents@gmail.com>"
+LABEL description="NGC-based Dynamo vLLM runtime"
+LABEL version="0.6.1"
+LABEL base="ngc"
+
+# Environment optimizations
+ENV VLLM_GPU_MEMORY_UTILIZATION=0.90
+ENV VLLM_MAX_MODEL_LEN=4096
+ENV VLLM_MAX_NUM_SEQS=256
+ENV CUDA_LAUNCH_BLOCKING=0
+
+# Copy common configurations
+COPY ../common/base-configs/vllm/ /workspace/configs/
+
+# Create necessary directories
+RUN mkdir -p /workspace/{models,results,logs}
+
+WORKDIR /workspace
+
+CMD ["/bin/bash"]

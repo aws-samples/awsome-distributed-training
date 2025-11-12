@@ -1,0 +1,38 @@
+# vLLM Development - NGC Based
+# Runtime + development tools
+
+FROM nvcr.io/nvidia/ai-dynamo/vllm-runtime:0.6.1.post1
+
+LABEL maintainer="Anton Alexander <dmvevents@gmail.com>"
+LABEL description="NGC-based Dynamo vLLM development image"
+LABEL version="0.6.1"
+LABEL base="ngc"
+
+# Install development tools
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    cmake \
+    git \
+    vim \
+    gdb \
+    htop \
+    tmux \
+    curl \
+    wget \
+    python3-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Environment optimizations
+ENV VLLM_GPU_MEMORY_UTILIZATION=0.90
+ENV VLLM_MAX_MODEL_LEN=4096
+ENV VLLM_MAX_NUM_SEQS=256
+
+# Copy configurations
+COPY ../common/base-configs/vllm/ /workspace/configs/
+
+# Create workspace
+RUN mkdir -p /workspace/{models,results,logs,dev}
+
+WORKDIR /workspace
+
+CMD ["/bin/bash"]

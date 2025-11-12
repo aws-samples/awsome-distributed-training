@@ -1,0 +1,29 @@
+# Dynamo Runtime Requirements
+
+# Core dependencies
+numpy>=1.26.0
+pandas>=2.0.0
+requests>=2.31.0
+pyyaml>=6.0
+
+# Distributed communication
+ray>=2.9.0
+mpi4py>=3.1.5
+
+# Monitoring and observability
+prometheus-client>=0.19.0
+opentelemetry-api>=1.22.0
+opentelemetry-sdk>=1.22.0
+
+# Networking
+aiohttp>=3.9.0
+websockets>=12.0
+
+# Utilities
+click>=8.1.0
+rich>=13.7.0
+tqdm>=4.66.0
+
+# Serialization
+msgpack>=1.0.7
+protobuf>=4.25.0

@@ -1,0 +1,16 @@
+# Test dependencies
+
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-timeout>=2.2.0
+pytest-xdist>=3.5.0
+pytest-cov>=4.1.0
+
+# Code quality
+black>=23.12.0
+isort>=5.13.0
+mypy>=1.8.0
+ruff>=0.1.9
+
+# Benchmarking
+pytest-benchmark>=4.0.0

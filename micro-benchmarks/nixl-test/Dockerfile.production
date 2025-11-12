@@ -1,0 +1,799 @@
+# Built for Amazon Web Services by Anton Alexander and Alex Iankoulski
+# Based on NVIDIA components with Apache-2.0 license
+# SPDX-License-Identifier: Apache-2.0
+
+#################################################################
+#  ____                                    ____           _
+# |  _ \ _   _ _ __   __ _ _ __ ___   ___|  _ \ ___  ___| | ___
+# | | | | | | | '_ \ / _` | '_ ` _ \ / _ \ | | / __/ __| |/ / |
+# | |_| | |_| | | | | (_| | | | | | | (_) | |_| \__ \__ \   <| |
+# |____/ \__, |_| |_|\__,_|_| |_| |_|\___/|____/|___/___/_|\_\_|
+#        |___/                                                   
+#  ____            _        _                 
+# / ___|___  _ __ | |_ __ _(_)_ __   ___ _ __ 
+#| |   / _ \| '_ \| __/ _` | | '_ \ / _ \ '__|
+#| |__| (_) | | | | || (_| | | | | |  __/ |   
+# \____\___/|_| |_|\__\__,_|_|_| |_|\___|_|   
+#                                              
+# Production container for Dynamo + NIXL with EFA + Optional NCCL
+# Targets Amazon EKS HyperPod with GPU-initiated networking
+#################################################################
+
+##################################
+########## Build Arguments #######
+##################################
+
+ARG BASE_IMAGE="nvcr.io/nvidia/cuda-dl-base"
+ARG BASE_IMAGE_TAG="25.01-cuda12.8-devel-ubuntu24.04"
+ARG ARCH=amd64
+ARG ARCH_ALT=x86_64
+ARG PYTHON_VERSION=3.12
+
+# GPU Architecture (SM compute capability)
+ARG CUDA_ARCH=90
+ARG CUDA_ARCH_NAME=H100
+
+# Communication stack versions
+ARG EFA_INSTALLER_VERSION=1.43.1
+ARG UCX_VERSION=v1.19.0
+ARG LIBFABRIC_VERSION=2.3.0
+ARG GDRCOPY_VERSION=2.4.1
+ARG NIXL_VERSION=0.6.0
+
+# NCCL versions (optional)
+ARG NCCL_VERSION=2.23.4-1
+ARG AWS_OFI_NCCL_VERSION=v1.12.0-aws
+
+# Feature flags
+ARG INSTALL_NCCL=1
+ARG INSTALL_NVSHMEM=0
+ARG NVSHMEM_VERSION=3.2.1
+
+# Build parallelism
+ARG NPROC=8
+
+##################################
+########## Stage A: Base #########
+##################################
+
+FROM ${BASE_IMAGE}:${BASE_IMAGE_TAG} AS system-base
+
+ARG ARCH
+ARG ARCH_ALT
+ARG PYTHON_VERSION
+ARG EFA_INSTALLER_VERSION
+ARG GDRCOPY_VERSION
+ARG LIBFABRIC_VERSION
+ARG UCX_VERSION
+ARG NIXL_VERSION
+ARG NPROC
+
+USER root
+WORKDIR /opt/build
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONIOENCODING=UTF-8 \
+    CUDA_HOME="/usr/local/cuda" \
+    PATH="${CUDA_HOME}/bin:/usr/local/bin:${PATH}"
+
+##################################
+########## Stage B: Core Deps ####
+##################################
+
+FROM system-base AS core-deps
+
+# Install essential system packages
+RUN apt-get update -y && \
+    apt-get install -y --no-install-recommends \
+        # Essential tools (preserve against debloat)
+        sed \
+        findutils \
+        coreutils \
+        bash \
+        procps \
+        iproute2 \
+        net-tools \
+        openssh-client \
+        openssh-server \
+        # Build essentials
+        autoconf \
+        automake \
+        build-essential \
+        ca-certificates \
+        cmake \
+        git \
+        git-lfs \
+        libtool \
+        meson \
+        ninja-build \
+        pkg-config \
+        wget \
+        curl \
+        unzip \
+        # Python build dependencies
+        python3-dev \
+        python${PYTHON_VERSION}-dev \
+        pybind11-dev \
+        # Rust build dependencies
+        clang \
+        libclang-dev \
+        protobuf-compiler \
+        # Networking and IPC
+        libibverbs-dev \
+        rdma-core \
+        ibverbs-utils \
+        libibumad-dev \
+        libnuma-dev \
+        librdmacm-dev \
+        ibverbs-providers \
+        hwloc \
+        libhwloc-dev \
+        # Additional libraries
+        libssl-dev \
+        zlib1g-dev \
+        libaio-dev \
+        # EFA dependencies
+        pciutils \
+        environment-modules \
+        tcl && \
+    apt-mark manual sed findutils coreutils bash procps iproute2 && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+#===========================================================================
+# EFA Installer (without kernel modules, skip libfabric for custom build)
+#===========================================================================
+RUN cd /tmp && \
+    echo "=== Installing EFA Installer (skipping libfabric for custom build) ===" && \
+    curl -O https://efa-installer.amazonaws.com/aws-efa-installer-${EFA_INSTALLER_VERSION}.tar.gz && \
+    tar -xf aws-efa-installer-${EFA_INSTALLER_VERSION}.tar.gz && \
+    cd aws-efa-installer && \
+    ./efa_installer.sh -y --skip-kmod --skip-limit-conf --enable-gdr --no-verify || true && \
+    cd .. && rm -rf aws-efa-installer*
+
+# Setup EFA library paths
+RUN echo "=== Setting up EFA library paths for downstream builds ===" && \
+    mkdir -p /opt/amazon/efa/lib /opt/amazon/efa/include
+
+# Find and symlink EFA library
+RUN if [ -f /usr/lib/x86_64-linux-gnu/libefa.so ]; then \
+        ln -sf /usr/lib/x86_64-linux-gnu/libefa.so* /opt/amazon/efa/lib/ && \
+        echo "✅ EFA library symlinked from /usr/lib/x86_64-linux-gnu/"; \
+    elif [ -f /usr/lib/aarch64-linux-gnu/libefa.so ]; then \
+        ln -sf /usr/lib/aarch64-linux-gnu/libefa.so* /opt/amazon/efa/lib/ && \
+        echo "✅ EFA library symlinked from /usr/lib/aarch64-linux-gnu/"; \
+    elif [ -f /opt/amazon/efa/lib/libefa.so ]; then \
+        echo "✅ EFA library already at /opt/amazon/efa/lib/"; \
+    else \
+        echo "⚠️  WARNING: EFA library not found, searching..." && \
+        find /usr /opt -name "libefa.so*" 2>/dev/null | head -1 | xargs -I {} dirname {} | xargs -I {} ln -sf {}/libefa.so* /opt/amazon/efa/lib/ && \
+        echo "✅ EFA library linked"; \
+    fi
+
+# Symlink EFA headers
+RUN if [ -d /usr/include/infiniband ]; then \
+        rm -rf /opt/amazon/efa/include/infiniband && \
+        ln -sfn /usr/include/infiniband /opt/amazon/efa/include/infiniband && \
+        echo "✅ EFA headers symlinked from /usr/include/infiniband"; \
+    fi && \
+    if [ -d /usr/include/rdma ]; then \
+        rm -rf /opt/amazon/efa/include/rdma && \
+        ln -sfn /usr/include/rdma /opt/amazon/efa/include/rdma && \
+        echo "✅ RDMA headers symlinked from /usr/include/rdma"; \
+    fi
+
+# Verify EFA library is accessible
+RUN ls -lh /opt/amazon/efa/lib/ && \
+    ls -lh /opt/amazon/efa/include/
+
+# Register EFA in ldconfig
+RUN echo "/opt/amazon/efa/lib" > /etc/ld.so.conf.d/efa.conf && \
+    ldconfig && \
+    echo "✅ EFA library registered in ldconfig"
+
+# Create pkg-config for EFA
+RUN mkdir -p /opt/amazon/efa/lib/pkgconfig
+COPY pkg-config-files/efa.pc /opt/amazon/efa/lib/pkgconfig/
+
+#===========================================================================
+# GDRCopy - GPU Direct RDMA support
+#===========================================================================
+RUN cd /tmp && \
+    echo "=== Building GDRCopy v${GDRCOPY_VERSION} ===" && \
+    git clone https://github.com/NVIDIA/gdrcopy.git -b v${GDRCOPY_VERSION} && \
+    cd gdrcopy && \
+    sed -ie '13s@$@ -L $(CUDA)/lib64/stubs@' tests/Makefile && \
+    CUDA=${CUDA_HOME} make prefix=/opt/gdrcopy lib lib_install && \
+    echo "/opt/gdrcopy/lib64" > /etc/ld.so.conf.d/gdrcopy.conf && \
+    ldconfig && \
+    echo "✅ GDRCopy installed and registered" && \
+    cd .. && rm -rf gdrcopy
+
+# Create pkg-config for GDRCopy
+RUN mkdir -p /opt/gdrcopy/lib/pkgconfig
+COPY pkg-config-files/gdrcopy.pc /opt/gdrcopy/lib/pkgconfig/
+
+# Set up comprehensive environment for downstream stages
+ENV EFA_PATH="/opt/amazon/efa" \
+    GDRCOPY_PATH="/opt/gdrcopy" \
+    PKG_CONFIG_PATH="/opt/amazon/efa/lib/pkgconfig:/opt/gdrcopy/lib/pkgconfig:${PKG_CONFIG_PATH}" \
+    LD_LIBRARY_PATH="/opt/amazon/efa/lib:/opt/gdrcopy/lib64:/usr/local/lib:/usr/local/cuda/lib64:${LD_LIBRARY_PATH}" \
+    LIBRARY_PATH="/opt/amazon/efa/lib:/opt/gdrcopy/lib64:/usr/local/lib:${LIBRARY_PATH}" \
+    CPATH="/opt/amazon/efa/include:/opt/gdrcopy/include:/usr/local/cuda/include:${CPATH}"
+
+##################################
+########## Stage C: ML Deps ######
+##################################
+
+FROM core-deps AS ml-deps
+
+ARG LIBFABRIC_VERSION
+ARG NPROC
+
+#===========================================================================
+# libfabric - Build from source with EFA provider support
+#===========================================================================
+RUN cd /tmp && \
+    echo "=== Building libfabric v${LIBFABRIC_VERSION} from source ===" && \
+    wget --tries=3 --waitretry=5 --timeout=30 \
+        "https://github.com/ofiwg/libfabric/releases/download/v${LIBFABRIC_VERSION}/libfabric-${LIBFABRIC_VERSION}.tar.bz2" \
+        -O libfabric.tar.bz2 && \
+    tar xjf libfabric.tar.bz2 && rm libfabric.tar.bz2 && \
+    cd libfabric-* && \
+    ./configure \
+        --prefix=/usr/local/libfabric \
+        --disable-verbs \
+        --disable-psm3 \
+        --disable-opx \
+        --disable-usnic \
+        --disable-rstream \
+        --enable-efa \
+        --with-cuda=${CUDA_HOME} \
+        --enable-cuda-dlopen \
+        --with-gdrcopy=/opt/gdrcopy \
+        --enable-gdrcopy-dlopen \
+        --enable-shared \
+        --disable-static && \
+    make -j${NPROC} && \
+    make install && \
+    echo "/usr/local/libfabric/lib" > /etc/ld.so.conf.d/libfabric.conf && \
+    ldconfig && \
+    echo "✅ libfabric installed with EFA provider" && \
+    cd .. && rm -rf libfabric-*
+
+# Update environment for libfabric
+ENV LIBFABRIC_PATH="/usr/local/libfabric" \
+    LD_LIBRARY_PATH="/usr/local/libfabric/lib:${LD_LIBRARY_PATH}" \
+    LIBRARY_PATH="/usr/local/libfabric/lib:${LIBRARY_PATH}" \
+    CPATH="/usr/local/libfabric/include:${CPATH}" \
+    PKG_CONFIG_PATH="/usr/local/libfabric/lib/pkgconfig:${PKG_CONFIG_PATH}" \
+    PATH="/usr/local/libfabric/bin:${PATH}"
+
+##################################
+### Stage D: Service Mesh ########
+##################################
+
+FROM ml-deps AS service-mesh-deps
+
+ARG ETCD_VERSION=3.5.1
+ARG NATS_VERSION=2.10.24
+ARG CPPRESTSDK_VERSION=2.10.19
+ARG AWS_SDK_VERSION=1.11.581
+ARG ETCD_CPP_VERSION=0.15.4
+ARG NPROC
+
+#===========================================================================
+# Build Service Mesh Dependencies for Dynamo
+#===========================================================================
+
+# Install additional dependencies for service mesh
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        libboost-all-dev \
+        libssl-dev \
+        libprotobuf-dev \
+        protobuf-compiler \
+        libgrpc++-dev \
+        libgrpc-dev \
+        protobuf-compiler-grpc \
+        libcurl4-openssl-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+# 1. Build cpprestsdk (C++ REST SDK) with fix for newer compilers
+# Reference: https://github.com/microsoft/cpprestsdk/issues/1526
+RUN cd /tmp && \
+    echo "=== Building cpprestsdk ===" && \
+    git clone https://github.com/microsoft/cpprestsdk.git && \
+    cd cpprestsdk && \
+    cp Release/src/http/common/http_helpers.cpp Release/src/http/common/http_helpers.cpp.bak && \
+    sed -i 's/char buffer\[9\]/char buffer[17]/g' Release/src/http/common/http_helpers.cpp && \
+    mkdir build && cd build && \
+    cmake .. -DCPPREST_EXCLUDE_WEBSOCKETS=ON && \
+    make -j${NPROC} && \
+    make install && \
+    ldconfig && \
+    echo "✅ cpprestsdk installed" && \
+    cd /tmp && rm -rf cpprestsdk
+
+# 2. Install ETCD server (pre-built binary with TLS disabled for socket fallback)
+RUN cd /tmp && \
+    echo "=== Installing ETCD v${ETCD_VERSION} ===" && \
+    ETCD_VER=v${ETCD_VERSION} && \
+    wget -q https://github.com/etcd-io/etcd/releases/download/${ETCD_VER}/etcd-${ETCD_VER}-linux-amd64.tar.gz && \
+    tar xzf etcd-${ETCD_VER}-linux-amd64.tar.gz && \
+    mv etcd-${ETCD_VER}-linux-amd64/etcd* /usr/local/bin/ && \
+    echo "✅ ETCD installed" && \
+    rm -rf etcd-${ETCD_VER}-linux-amd64*
+
+# 3. Build gflags (Google commandline flags) - required by etcd-cpp-apiv3
+RUN cd /tmp && \
+    echo "=== Building gflags ===" && \
+    git clone https://github.com/gflags/gflags.git && \
+    cd gflags && \
+    mkdir build && cd build && \
+    cmake .. -DBUILD_SHARED_LIBS=ON && \
+    make -j${NPROC} && \
+    make install && \
+    echo "✅ gflags installed" && \
+    rm -rf /tmp/gflags
+
+# 4. Build ETCD C++ client with fix for cpprestsdk dependency
+# Reference: https://github.com/etcd-cpp-apiv3/etcd-cpp-apiv3/issues/123
+RUN cd /tmp && \
+    echo "=== Building ETCD C++ Client v${ETCD_CPP_VERSION} ===" && \
+    git clone --depth 1 -b v${ETCD_CPP_VERSION} https://github.com/etcd-cpp-apiv3/etcd-cpp-apiv3.git && \
+    cd etcd-cpp-apiv3 && \
+    sed -i '/^find_dependency(cpprestsdk)$/d' etcd-cpp-api-config.in.cmake && \
+    mkdir build && cd build && \
+    cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local && \
+    make -j${NPROC} && \
+    make install && \
+    echo "✅ ETCD C++ client installed" && \
+    rm -rf /tmp/etcd-cpp-apiv3
+
+# 5. Build AWS SDK C++ (for S3 support)
+RUN cd /tmp && \
+    echo "=== Building AWS SDK C++ v${AWS_SDK_VERSION} ===" && \
+    git clone --recurse-submodules --depth 1 --shallow-submodules \
+        https://github.com/aws/aws-sdk-cpp.git --branch ${AWS_SDK_VERSION} && \
+    mkdir aws_sdk_build && cd aws_sdk_build && \
+    cmake ../aws-sdk-cpp/ \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DBUILD_ONLY="s3" \
+        -DENABLE_TESTING=OFF \
+        -DCMAKE_INSTALL_PREFIX=/usr/local && \
+    make -j${NPROC} && \
+    make install && \
+    echo "✅ AWS SDK C++ installed" && \
+    rm -rf /tmp/aws-sdk-cpp /tmp/aws_sdk_build
+
+# 6. Install NATS server (pre-built binary)
+RUN cd /tmp && \
+    echo "=== Installing NATS v${NATS_VERSION} ===" && \
+    wget --tries=3 --waitretry=5 --timeout=30 \
+        https://github.com/nats-io/nats-server/releases/download/v${NATS_VERSION}/nats-server-v${NATS_VERSION}-linux-amd64.tar.gz && \
+    tar xzf nats-server-v${NATS_VERSION}-linux-amd64.tar.gz && \
+    mv nats-server-v${NATS_VERSION}-linux-amd64/nats-server /usr/bin/nats-server && \
+    chmod +x /usr/bin/nats-server && \
+    echo "✅ NATS installed" && \
+    cd /tmp && rm -rf nats-server-*
+
+# Verify installations
+RUN echo "=== Service Mesh Components Installed ===" && \
+    echo "  - cpprestsdk: $(pkg-config --modversion cpprestsdk 2>/dev/null || echo 'installed')" && \
+    echo "  - gflags: $(pkg-config --modversion gflags 2>/dev/null || echo 'installed')" && \
+    echo "  - ETCD: $(etcd --version 2>&1 | head -1)" && \
+    echo "  - ETCD C++ client: $(ls /usr/local/lib/libetcd-cpp-api.so 2>/dev/null && echo 'installed' || echo 'not found')" && \
+    echo "  - AWS SDK C++ (s3): $(ls /usr/local/lib/libaws-cpp-sdk-s3.so 2>/dev/null && echo 'installed' || echo 'not found')" && \
+    echo "  - NATS: $(nats-server --version 2>&1)"
+
+##################################
+########## Stage E: UCX ##########
+##################################
+
+FROM service-mesh-deps AS ucx-deps
+
+ARG UCX_VERSION
+ARG NPROC
+
+# Verify EFA is available before building UCX
+RUN echo "=== Pre-UCX EFA Verification ===" && \
+    ls -lh /opt/amazon/efa/lib/ && \
+    ls -lh /opt/amazon/efa/include/
+
+#===========================================================================
+# UCX - Unified Communication X with EFA support
+#===========================================================================
+RUN cd /tmp && \
+    echo "=== Building UCX ${UCX_VERSION} with EFA + CUDA + GDRCopy ===" && \
+    rm -rf /usr/local/ucx /opt/hpcx/ucx /usr/lib/ucx && \
+    git clone https://github.com/openucx/ucx.git && \
+    cd ucx && \
+    git checkout ${UCX_VERSION} && \
+    ./autogen.sh && \
+    ./configure \
+        --prefix=/usr/local/ucx \
+        --enable-shared \
+        --disable-static \
+        --disable-doxygen-doc \
+        --enable-optimizations \
+        --enable-cma \
+        --enable-devel-headers \
+        --enable-mt \
+        --with-cuda=${CUDA_HOME} \
+        --with-gdrcopy=/opt/gdrcopy \
+        --with-verbs \
+        --with-dm \
+        --with-efa=/opt/amazon/efa && \
+    make -j${NPROC} && \
+    make -j${NPROC} install-strip && \
+    echo "/usr/local/ucx/lib" > /etc/ld.so.conf.d/ucx.conf && \
+    echo "/usr/local/ucx/lib/ucx" >> /etc/ld.so.conf.d/ucx.conf && \
+    ldconfig && \
+    echo "✅ UCX installed" && \
+    cd .. && rm -rf ucx
+
+# Update environment for UCX
+ENV UCX_PATH="/usr/local/ucx" \
+    LD_LIBRARY_PATH="/usr/local/ucx/lib:/usr/local/ucx/lib/ucx:${LD_LIBRARY_PATH}" \
+    LIBRARY_PATH="/usr/local/ucx/lib:${LIBRARY_PATH}" \
+    CPATH="/usr/local/ucx/include:${CPATH}" \
+    PKG_CONFIG_PATH="/usr/local/ucx/lib/pkgconfig:${PKG_CONFIG_PATH}" \
+    PATH="/usr/local/ucx/bin:${PATH}"
+
+# Verify UCX can see EFA and CUDA
+RUN echo "=== UCX Capability Check ===" && \
+    ucx_info -v && \
+    echo "✅ UCX verification complete"
+
+##################################
+########## Stage E: NIXL #########
+##################################
+
+FROM ucx-deps AS nixl
+
+ARG NIXL_VERSION
+ARG ARCH_ALT
+ARG PYTHON_VERSION
+ARG NPROC
+
+# Install Rust toolchain (required for NIXL)
+ENV RUSTUP_HOME=/usr/local/rustup \
+    CARGO_HOME=/usr/local/cargo \
+    PATH=/usr/local/cargo/bin:$PATH \
+    RUST_VERSION=1.90.0 \
+    RUSTARCH=${ARCH_ALT}-unknown-linux-gnu
+
+RUN wget --tries=3 --waitretry=5 \
+    "https://static.rust-lang.org/rustup/archive/1.28.1/${RUSTARCH}/rustup-init" && \
+    chmod +x rustup-init && \
+    ./rustup-init -y --no-modify-path --profile minimal --default-toolchain $RUST_VERSION --default-host ${RUSTARCH} && \
+    rm rustup-init && \
+    chmod -R a+w $RUSTUP_HOME $CARGO_HOME
+
+# Install Python package manager (uv)
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+#===========================================================================
+# NIXL - NVIDIA Inter-node Communication Library
+#===========================================================================
+ENV NIXL_SRC_DIR=/opt/nixl \
+    NIXL_PREFIX=/opt/nvidia/nvda_nixl \
+    NIXL_LIB_DIR=/opt/nvidia/nvda_nixl/lib/${ARCH_ALT}-linux-gnu \
+    NIXL_PLUGIN_DIR=/opt/nvidia/nvda_nixl/lib/${ARCH_ALT}-linux-gnu/plugins
+
+RUN echo "=== Building NIXL ${NIXL_VERSION} ===" && \
+    git clone --depth 1 --branch ${NIXL_VERSION} "https://github.com/ai-dynamo/nixl.git" ${NIXL_SRC_DIR} && \
+    cd ${NIXL_SRC_DIR} && \
+    if [ "$ARCH" = "arm64" ]; then \
+        nixl_build_args="-Ddisable_gds_backend=true"; \
+    else \
+        nixl_build_args=""; \
+    fi && \
+    echo "=== Temporarily hiding ETCD to prevent auto-detection ===" && \
+    mkdir -p /tmp/etcd_backup/{lib,pkgconfig,cmake,include,bin,share} && \
+    mv /usr/local/lib/libetcd-cpp-api.* /tmp/etcd_backup/lib/ 2>/dev/null || true && \
+    mv /usr/local/lib/pkgconfig/etcd-cpp-api.pc /tmp/etcd_backup/pkgconfig/ 2>/dev/null || true && \
+    mv /usr/local/lib/cmake/etcd-cpp-api /tmp/etcd_backup/cmake/ 2>/dev/null || true && \
+    mv /usr/local/include/etcd /tmp/etcd_backup/include/ 2>/dev/null || true && \
+    mv /usr/local/bin/etcd* /tmp/etcd_backup/bin/ 2>/dev/null || true && \
+    mv /usr/local/share/etcd-cpp-api /tmp/etcd_backup/share/ 2>/dev/null || true && \
+    ldconfig && \
+    pkg-config --list-all | grep -i etcd || echo "✓ ETCD hidden from pkg-config" && \
+    echo "=== Building NIXL (ETCD hidden to avoid compilation issues) ===" && \
+    rm -rf build/ && \
+    meson setup build/ --buildtype=release --prefix=${NIXL_PREFIX} ${nixl_build_args} && \
+    ninja -C build/ -j${NPROC} && \
+    ninja -C build/ install && \
+    echo "=== Restoring ETCD ===" && \
+    mv /tmp/etcd_backup/lib/* /usr/local/lib/ 2>/dev/null || true && \
+    mv /tmp/etcd_backup/pkgconfig/* /usr/local/lib/pkgconfig/ 2>/dev/null || true && \
+    mv /tmp/etcd_backup/cmake/* /usr/local/lib/cmake/ 2>/dev/null || true && \
+    mv /tmp/etcd_backup/include/* /usr/local/include/ 2>/dev/null || true && \
+    mv /tmp/etcd_backup/share/* /usr/local/share/ 2>/dev/null || true && \
+    mv /tmp/etcd_backup/bin/* /usr/local/bin/ 2>/dev/null || true && \
+    rm -rf /tmp/etcd_backup && \
+    echo "${NIXL_LIB_DIR}" > /etc/ld.so.conf.d/nixl.conf && \
+    echo "${NIXL_PLUGIN_DIR}" >> /etc/ld.so.conf.d/nixl.conf && \
+    ldconfig && \
+    echo "✅ NIXL installed"
+
+# Create Python virtual environment and build NIXL wheel
+ENV VIRTUAL_ENV=/opt/nixl/.venv
+RUN mkdir -p ${VIRTUAL_ENV} && \
+    uv venv ${VIRTUAL_ENV} --python ${PYTHON_VERSION} && \
+    . ${VIRTUAL_ENV}/bin/activate && \
+    cd ${NIXL_SRC_DIR} && \
+    echo "=== Hiding ETCD for Python wheel build ===" && \
+    mkdir -p /tmp/etcd_backup_wheel/{lib,pkgconfig,cmake,include,bin,share} && \
+    mv /usr/local/lib/libetcd-cpp-api.* /tmp/etcd_backup_wheel/lib/ 2>/dev/null || true && \
+    mv /usr/local/lib/pkgconfig/etcd-cpp-api.pc /tmp/etcd_backup_wheel/pkgconfig/ 2>/dev/null || true && \
+    mv /usr/local/lib/cmake/etcd-cpp-api /tmp/etcd_backup_wheel/cmake/ 2>/dev/null || true && \
+    mv /usr/local/include/etcd /tmp/etcd_backup_wheel/include/ 2>/dev/null || true && \
+    mv /usr/local/bin/etcd* /tmp/etcd_backup_wheel/bin/ 2>/dev/null || true && \
+    mv /usr/local/share/etcd-cpp-api /tmp/etcd_backup_wheel/share/ 2>/dev/null || true && \
+    ldconfig && \
+    if [ "$ARCH" = "arm64" ]; then \
+        uv build . --out-dir /opt/wheels \
+            --config-settings=setup-args="-Ddisable_gds_backend=true"; \
+    else \
+        uv build . --out-dir /opt/wheels; \
+    fi && \
+    echo "=== Restoring ETCD after Python wheel build ===" && \
+    mv /tmp/etcd_backup_wheel/lib/* /usr/local/lib/ 2>/dev/null || true && \
+    mv /tmp/etcd_backup_wheel/pkgconfig/* /usr/local/lib/pkgconfig/ 2>/dev/null || true && \
+    mv /tmp/etcd_backup_wheel/cmake/* /usr/local/lib/cmake/ 2>/dev/null || true && \
+    mv /tmp/etcd_backup_wheel/include/* /usr/local/include/ 2>/dev/null || true && \
+    mv /tmp/etcd_backup_wheel/share/* /usr/local/share/ 2>/dev/null || true && \
+    mv /tmp/etcd_backup_wheel/bin/* /usr/local/bin/ 2>/dev/null || true && \
+    rm -rf /tmp/etcd_backup_wheel && \
+    ldconfig && \
+    echo "✅ NIXL Python wheel built"
+
+# Update environment for NIXL
+ENV LD_LIBRARY_PATH="${NIXL_LIB_DIR}:${NIXL_PLUGIN_DIR}:${LD_LIBRARY_PATH}" \
+    PATH="${NIXL_PREFIX}/bin:${PATH}"
+
+##################################
+########## Stage F: NCCL #########
+##################################
+
+FROM nixl AS nccl-stage
+
+ARG INSTALL_NCCL
+ARG NCCL_VERSION
+ARG AWS_OFI_NCCL_VERSION
+ARG NPROC
+ARG CUDA_ARCH
+
+#===========================================================================
+# NCCL - NVIDIA Collective Communications Library
+#===========================================================================
+RUN if [ "${INSTALL_NCCL}" = "1" ]; then \
+        echo "=== Building NCCL v${NCCL_VERSION} for SM${CUDA_ARCH} ===" && \
+        cd /tmp && \
+        git clone --depth 1 --branch v${NCCL_VERSION} https://github.com/NVIDIA/nccl.git && \
+        cd nccl && \
+        make -j${NPROC} src.build \
+            CUDA_HOME=${CUDA_HOME} \
+            NVCC_GENCODE="-gencode=arch=compute_${CUDA_ARCH},code=sm_${CUDA_ARCH}" && \
+        make install PREFIX=/usr/local && \
+        echo "/usr/local/lib" > /etc/ld.so.conf.d/nccl.conf && \
+        ldconfig && \
+        echo "✅ NCCL installed" && \
+        cd .. && rm -rf nccl; \
+    else \
+        echo "⚠️  NCCL installation skipped (INSTALL_NCCL=${INSTALL_NCCL})"; \
+    fi
+
+#===========================================================================
+# aws-ofi-nccl - AWS Libfabric plugin for NCCL
+#===========================================================================
+RUN if [ "${INSTALL_NCCL}" = "1" ]; then \
+        echo "=== Building aws-ofi-nccl ${AWS_OFI_NCCL_VERSION} ===" && \
+        cd /tmp && \
+        git clone --depth 1 --branch ${AWS_OFI_NCCL_VERSION} https://github.com/aws/aws-ofi-nccl.git && \
+        cd aws-ofi-nccl && \
+        ./autogen.sh && \
+        ./configure \
+            --prefix=/opt/aws-ofi-nccl \
+            --with-libfabric=/usr/local/libfabric \
+            --with-cuda=${CUDA_HOME} \
+            --enable-platform-aws && \
+        make -j${NPROC} && \
+        make install && \
+        echo "/opt/aws-ofi-nccl/lib" > /etc/ld.so.conf.d/aws-ofi-nccl.conf && \
+        ldconfig && \
+        echo "✅ aws-ofi-nccl installed" && \
+        cd .. && rm -rf aws-ofi-nccl; \
+    else \
+        echo "⚠️  aws-ofi-nccl installation skipped (INSTALL_NCCL=${INSTALL_NCCL})"; \
+    fi
+
+# Update environment for NCCL (if installed)
+ENV NCCL_HOME="${INSTALL_NCCL:+/usr/local}" \
+    AWS_OFI_NCCL_HOME="${INSTALL_NCCL:+/opt/aws-ofi-nccl}" \
+    LD_LIBRARY_PATH="${INSTALL_NCCL:+/usr/local/lib:/opt/aws-ofi-nccl/lib:}${LD_LIBRARY_PATH}"
+
+##################################
+########## Stage G: Final ########
+##################################
+
+FROM nccl-stage AS final
+
+ARG INSTALL_NVSHMEM
+ARG NVSHMEM_VERSION
+ARG NPROC
+ARG CUDA_ARCH
+ARG CUDA_ARCH_NAME
+
+# Create validation and bench directories
+RUN mkdir -p /opt/validate /opt/bench /opt/build-configs
+
+#===========================================================================
+# NVSHMEM (Optional)
+#===========================================================================
+RUN if [ "${INSTALL_NVSHMEM}" = "1" ]; then \
+        echo "=== Installing NVSHMEM ${NVSHMEM_VERSION} ===" && \
+        cd /tmp && \
+        wget --tries=3 https://developer.download.nvidia.com/compute/redist/nvshmem/${NVSHMEM_VERSION}/source/nvshmem_src_${NVSHMEM_VERSION}-0.txz && \
+        tar xf nvshmem_src_${NVSHMEM_VERSION}-0.txz && \
+        cd nvshmem_src_${NVSHMEM_VERSION}-0 && \
+        make -j${NPROC} \
+            CUDA_HOME=${CUDA_HOME} \
+            NVSHMEM_PREFIX=/usr/local/nvshmem \
+            NVSHMEM_USE_GDRCOPY=1 \
+            NVSHMEM_GDRCOPY_HOME=/opt/gdrcopy \
+            NVSHMEM_UCX_HOME=/usr/local/ucx \
+            install && \
+        echo "/usr/local/nvshmem/lib" > /etc/ld.so.conf.d/nvshmem.conf && \
+        ldconfig && \
+        echo "✅ NVSHMEM installed" && \
+        cd .. && rm -rf nvshmem_*; \
+    else \
+        echo "⚠️  NVSHMEM installation skipped (INSTALL_NVSHMEM=${INSTALL_NVSHMEM})"; \
+    fi
+
+# Update environment for NVSHMEM (if installed)
+ENV NVSHMEM_HOME="${INSTALL_NVSHMEM:+/usr/local/nvshmem}" \
+    LD_LIBRARY_PATH="${INSTALL_NVSHMEM:+/usr/local/nvshmem/lib:}${LD_LIBRARY_PATH}" \
+    PATH="${INSTALL_NVSHMEM:+/usr/local/nvshmem/bin:}${PATH}"
+
+# Symlink libfabric binaries
+RUN ln -sf /usr/local/libfabric/bin/* /usr/local/bin/ && \
+    echo "✅ libfabric binaries symlinked to /usr/local/bin"
+
+# CRITICAL FIX: Remove HPC-X if it exists (shouldn't, but safety check)
+RUN rm -rf /opt/hpcx && \
+    rm -f /etc/ld.so.conf.d/hpcx.conf && \
+    echo "✅ HPC-X removal verified"
+
+# CRITICAL FIX: Remove EFA installer libfabric (conflicts with custom build)
+RUN rm -rf /opt/amazon/efa/lib/libfabric* && \
+    rm -f /opt/amazon/efa/lib/pkgconfig/libfabric.pc && \
+    echo "✅ EFA installer libfabric removed to prevent conflicts"
+
+# CRITICAL FIX: Create proper library symlinks
+RUN ln -sf /usr/local/libfabric/lib/libfabric.so* /usr/local/lib/ && \
+    echo "✅ Custom libfabric symlinked to /usr/local/lib"
+
+# CRITICAL FIX: Configure ldconfig with absolute priority
+RUN echo "/usr/local/lib" > /etc/ld.so.conf.d/00-custom-libs.conf && \
+    echo "/usr/local/libfabric/lib" >> /etc/ld.so.conf.d/00-custom-libs.conf && \
+    echo "/usr/local/ucx/lib" >> /etc/ld.so.conf.d/00-custom-libs.conf && \
+    echo "/usr/local/ucx/lib/ucx" >> /etc/ld.so.conf.d/00-custom-libs.conf && \
+    ldconfig && \
+    echo "✅ ldconfig priority configured"
+
+# Override LD_LIBRARY_PATH with correct priority (CUSTOM LIBS FIRST)
+ENV LD_LIBRARY_PATH="\
+/usr/local/lib:\
+/usr/local/libfabric/lib:\
+/usr/local/ucx/lib:\
+/usr/local/ucx/lib/ucx:\
+/opt/gdrcopy/lib64:\
+${NIXL_LIB_DIR}:\
+${NIXL_PLUGIN_DIR}:\
+${INSTALL_NCCL:+/usr/local/lib:/opt/aws-ofi-nccl/lib:}\
+${INSTALL_NVSHMEM:+/usr/local/nvshmem/lib:}\
+/usr/local/cuda/lib64"
+
+# GPU+EFA optimization environment variables
+ENV NCCL_NET="AWS Libfabric" \
+    NCCL_PROTO="simple" \
+    NCCL_ALGO="Ring,Tree" \
+    NCCL_DEBUG="INFO" \
+    NCCL_DEBUG_SUBSYS="INIT,NET" \
+    FI_PROVIDER="efa" \
+    FI_EFA_USE_DEVICE_RDMA="1" \
+    FI_EFA_FORK_SAFE="1" \
+    UCX_TLS="tcp,cuda_copy,cuda_ipc" \
+    UCX_NET_DEVICES="all" \
+    CUDAARCHS="${CUDA_ARCH}" \
+    CUDA_ARCH_NAME="${CUDA_ARCH_NAME}"
+
+# Persist build version information for env-info.sh
+ARG GDRCOPY_VERSION
+ARG UCX_VERSION
+ARG LIBFABRIC_VERSION
+ARG EFA_INSTALLER_VERSION
+ARG PMIX_VERSION=4.2.6
+ARG NIXL_VERSION
+ARG NCCL_VERSION
+ARG AWS_OFI_NCCL_VERSION
+ARG NVSHMEM_VERSION
+ARG ETCD_VERSION=3.5.1
+ARG ETCD_CPP_VERSION=0.15.4
+ARG AWS_SDK_VERSION=1.11.581
+ARG NATS_VERSION=2.10.24
+ARG CPPRESTSDK_VERSION=2.10.0
+
+ENV GDRCOPY_VERSION="${GDRCOPY_VERSION}" \
+    UCX_REF="${UCX_VERSION}" \
+    LIBFABRIC_VERSION="${LIBFABRIC_VERSION}" \
+    EFA_INSTALLER_VERSION="${EFA_INSTALLER_VERSION}" \
+    PMIX_VERSION="${PMIX_VERSION}" \
+    NIXL_REF="${NIXL_VERSION}" \
+    NCCL_VERSION="${NCCL_VERSION}" \
+    AWS_OFI_NCCL_VERSION="${AWS_OFI_NCCL_VERSION}" \
+    NVSHMEM_VERSION="${NVSHMEM_VERSION}" \
+    ETCD_VERSION="${ETCD_VERSION}" \
+    ETCD_CPP_VERSION="${ETCD_CPP_VERSION}" \
+    AWS_SDK_VERSION="${AWS_SDK_VERSION}" \
+    NATS_VERSION="${NATS_VERSION}" \
+    CPPRESTSDK_VERSION="${CPPRESTSDK_VERSION}" \
+    RUST_VERSION="1.86.0"
+
+# Create summary of installed components
+RUN echo "=== Dynamo+NIXL Container Build Summary ===" > /opt/BUILD_SUMMARY.txt && \
+    echo "Build Date: $(date)" >> /opt/BUILD_SUMMARY.txt && \
+    echo "" >> /opt/BUILD_SUMMARY.txt && \
+    echo "Core Components:" >> /opt/BUILD_SUMMARY.txt && \
+    echo "  - EFA: $(ls -1 /opt/amazon/efa/lib/libefa.so* 2>/dev/null | head -1 || echo 'Not found')" >> /opt/BUILD_SUMMARY.txt && \
+    echo "  - libfabric: $(pkg-config --modversion libfabric 2>/dev/null || echo 'Unknown')" >> /opt/BUILD_SUMMARY.txt && \
+    echo "  - UCX: $(pkg-config --modversion ucx 2>/dev/null || echo 'Unknown')" >> /opt/BUILD_SUMMARY.txt && \
+    echo "  - GDRCopy: v${GDRCOPY_VERSION}" >> /opt/BUILD_SUMMARY.txt && \
+    echo "  - NIXL: ${NIXL_VERSION}" >> /opt/BUILD_SUMMARY.txt && \
+    echo "" >> /opt/BUILD_SUMMARY.txt && \
+    echo "Service Mesh:" >> /opt/BUILD_SUMMARY.txt && \
+    echo "  - cpprestsdk: $(pkg-config --modversion cpprestsdk 2>/dev/null || echo 'Not found')" >> /opt/BUILD_SUMMARY.txt && \
+    echo "  - gflags: $(pkg-config --modversion gflags 2>/dev/null || echo 'Not found')" >> /opt/BUILD_SUMMARY.txt && \
+    echo "  - ETCD: $(etcd --version 2>&1 | head -1 | cut -d' ' -f3 || echo 'Not found')" >> /opt/BUILD_SUMMARY.txt && \
+    echo "  - ETCD C++ Client: $(if [ -f /usr/local/lib/libetcd-cpp-api.so ]; then echo 'Installed'; else echo 'Not found'; fi)" >> /opt/BUILD_SUMMARY.txt && \
+    echo "  - AWS SDK C++ (s3): $(if [ -f /usr/local/lib/libaws-cpp-sdk-s3.so ]; then echo 'Installed'; else echo 'Not found'; fi)" >> /opt/BUILD_SUMMARY.txt && \
+    echo "  - NATS: $(nats-server --version 2>&1 | awk '{print $3}' || echo 'Not found')" >> /opt/BUILD_SUMMARY.txt && \
+    echo "" >> /opt/BUILD_SUMMARY.txt && \
+    echo "Optional Components:" >> /opt/BUILD_SUMMARY.txt && \
+    echo "  - NCCL: $(if [ -f /usr/local/lib/libnccl.so ]; then echo 'Installed'; else echo 'Not installed'; fi)" >> /opt/BUILD_SUMMARY.txt && \
+    echo "  - aws-ofi-nccl: $(if [ -f /opt/aws-ofi-nccl/lib/libnccl-net.so ]; then echo 'Installed'; else echo 'Not installed'; fi)" >> /opt/BUILD_SUMMARY.txt && \
+    echo "  - NVSHMEM: $(if [ '${INSTALL_NVSHMEM}' = '1' ]; then echo 'Installed'; else echo 'Not installed'; fi)" >> /opt/BUILD_SUMMARY.txt && \
+    cat /opt/BUILD_SUMMARY.txt
+
+WORKDIR /workspace
+
+# Copy utility scripts
+COPY scripts/efa-test.sh /usr/local/bin/efa-test
+COPY scripts/nixlbench-test.sh /usr/local/bin/nixlbench-test
+COPY scripts/env-info.sh /usr/local/bin/env-info
+COPY scripts/validate-build.sh /usr/local/bin/validate-build
+
+RUN chmod +x /usr/local/bin/efa-test \
+             /usr/local/bin/nixlbench-test \
+             /usr/local/bin/env-info \
+             /usr/local/bin/validate-build
+
+# Display build summary
+RUN echo "" && \
+    echo "════════════════════════════════════════════════════════════════════════════" && \
+    cat /opt/BUILD_SUMMARY.txt && \
+    echo "════════════════════════════════════════════════════════════════════════════" && \
+    echo ""
+
+# Run comprehensive build-time validation
+RUN validate-build
+
+CMD ["/bin/bash"]

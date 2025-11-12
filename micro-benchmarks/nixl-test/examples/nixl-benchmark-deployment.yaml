@@ -1,0 +1,65 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nixl-benchmark
+  namespace: default
+spec:
+  replicas: 2  # Two pods for initiator and target
+  selector:
+    matchLabels:
+      app: nixl-benchmark
+  template:
+    metadata:
+      labels:
+        app: nixl-benchmark
+    spec:
+      hostNetwork: true
+      hostIPC: true
+      containers:
+      - name: nixl-test
+        image: 058264135704.dkr.ecr.us-east-2.amazonaws.com/nixl-aligned:0.7.1-bench
+        command: ["/bin/bash", "-c", "sleep infinity"]
+        env:
+        - name: NIXL_ETCD_ENDPOINTS
+          value: "http://etcd.default:2379"
+        - name: NIXL_ETCD_NAMESPACE
+          value: "/nixl/agents"
+        - name: FI_PROVIDER
+          value: "efa"
+        - name: NCCL_DEBUG
+          value: "INFO"
+        resources:
+          requests:
+            nvidia.com/gpu: 8  # All 8 GPUs
+            vpc.amazonaws.com/efa: 1
+          limits:
+            nvidia.com/gpu: 8
+            vpc.amazonaws.com/efa: 1
+        securityContext:
+          privileged: true
+          capabilities:
+            add: ["IPC_LOCK", "SYS_ADMIN"]
+        volumeMounts:
+        - name: dev-infiniband
+          mountPath: /dev/infiniband
+        - name: sys
+          mountPath: /sys
+      volumes:
+      - name: dev-infiniband
+        hostPath:
+          path: /dev/infiniband
+      - name: sys
+        hostPath:
+          path: /sys
+      # Anti-affinity to ensure pods run on different nodes
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - nixl-benchmark
+            topologyKey: kubernetes.io/hostname

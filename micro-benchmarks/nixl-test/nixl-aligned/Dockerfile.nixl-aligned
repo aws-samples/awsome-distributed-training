@@ -1,0 +1,500 @@
+# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Aligned NIXL Build - Combining official ai-dynamo/nixl with AWS EFA support
+#
+# This Dockerfile aligns with official NIXL 0.7.1 while adding:
+# - AWS EFA driver support
+# - GDRCopy for GPU-direct
+# - Optional NCCL builds
+#
+# Key alignment points:
+# - libfabric v1.21.0 built to /usr/local (not /opt/amazon/efa)
+# - NIXL explicitly configured with -Dlibfabric_path=/usr/local
+# - Uses cuda-dl-base instead of pytorch base
+# - Python environment managed with uv
+# - Includes DOCA for GPUNetIO backend
+
+##################################
+########## Build Arguments #######
+##################################
+
+ARG BASE_IMAGE="nvcr.io/nvidia/cuda-dl-base"
+ARG BASE_IMAGE_TAG="25.06-cuda12.9-devel-ubuntu24.04"
+ARG OS="ubuntu24"
+
+FROM ${BASE_IMAGE}:${BASE_IMAGE_TAG}
+
+# Architecture and system
+ARG OS
+ARG ARCH="x86_64"
+ARG DEFAULT_PYTHON_VERSION="3.12"
+ARG NPROC
+
+# Component versions (aligned with official NIXL)
+ARG NIXL_VERSION="0.7.1"
+ARG UCX_VERSION="v1.19.0"
+ARG LIBFABRIC_VERSION="v1.21.0"
+ARG RUST_VERSION="1.86.0"
+
+# Installation paths (aligned with official NIXL)
+ARG LIBFABRIC_INSTALL_PATH="/usr/local"
+ARG UCX_PREFIX="/usr"
+ARG UCX_PLUGIN_DIR="${UCX_PREFIX}/lib/ucx"
+ARG NIXL_PREFIX="/usr/local/nixl"
+ARG NIXL_PLUGIN_DIR="${NIXL_PREFIX}/lib/${ARCH}-linux-gnu/plugins"
+
+# Additional components (our additions for AWS/EFA)
+ARG EFA_VERSION="1.43.3"
+ARG GDRCOPY_VERSION="2.4.1"
+ARG NCCL_VERSION="2.23.4-1"
+ARG AWS_OFI_NCCL_VERSION="v1.12.0-aws"
+
+# Build flags
+ARG INSTALL_NCCL="0"
+ARG WHL_DEFAULT_PYTHON_VERSIONS="3.12"
+
+LABEL maintainer="NIXL Team"
+LABEL description="Aligned NIXL 0.7.1 + AWS EFA support"
+
+##################################
+########## System Setup ##########
+##################################
+
+# Install core build dependencies
+RUN apt-get update -y && \
+    apt-get install -y ubuntu-keyring && \
+    apt-get update -y && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y \
+    # Build tools
+    ninja-build \
+    libclang-dev \
+    cmake \
+    autotools-dev \
+    automake \
+    libtool \
+    build-essential \
+    clang \
+    flex \
+    # Libraries
+    libgflags-dev \
+    libgrpc-dev \
+    libgrpc++-dev \
+    libprotobuf-dev \
+    protobuf-compiler-grpc \
+    libcpprest-dev \
+    libaio-dev \
+    liburing-dev \
+    libz-dev \
+    libhwloc-dev \
+    libnuma-dev \
+    # Python
+    python${DEFAULT_PYTHON_VERSION}-dev \
+    # Networking/RDMA
+    libibverbs-dev \
+    rdma-core \
+    ibverbs-utils \
+    libibumad-dev \
+    librdmacm-dev \
+    ibverbs-providers \
+    # ETCD
+    etcd-server \
+    etcd-client \
+    # AWS SDK dependencies
+    libcurl4-openssl-dev \
+    libssl-dev \
+    uuid-dev \
+    zlib1g-dev \
+    # Testing
+    libgtest-dev \
+    # Utilities
+    hwloc \
+    curl \
+    wget \
+    git \
+    ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+##################################
+########## DOCA (GPUNetIO) #######
+##################################
+
+# Add DOCA repository and install packages for GPUNetIO backend
+RUN ARCH_SUFFIX=$(if [ "${ARCH}" = "aarch64" ]; then echo "arm64"; else echo "amd64"; fi) && \
+    MELLANOX_OS="$(. /etc/lsb-release; echo ${DISTRIB_ID}${DISTRIB_RELEASE} | tr A-Z a-z | tr -d .)" && \
+    wget --tries=3 --waitretry=5 --no-verbose \
+        https://www.mellanox.com/downloads/DOCA/DOCA_v3.1.0/host/doca-host_3.1.0-091000-25.07-${MELLANOX_OS}_${ARCH_SUFFIX}.deb \
+        -O /tmp/doca-host.deb && \
+    dpkg -i /tmp/doca-host.deb && \
+    rm /tmp/doca-host.deb && \
+    apt-get update && \
+    apt-get upgrade -y && \
+    apt-get install -y --no-install-recommends \
+        doca-sdk-gpunetio \
+        libdoca-sdk-gpunetio-dev \
+        libdoca-sdk-verbs-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+# Force reinstall of RDMA packages from DOCA repository
+# This fixes broken libibverbs-dev which may lead to lack of Infiniband support
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
+    apt-get install -y --reinstall \
+        libibverbs-dev \
+        rdma-core \
+        ibverbs-utils \
+        libibumad-dev \
+        libnuma-dev \
+        librdmacm-dev \
+        ibverbs-providers && \
+    rm -rf /var/lib/apt/lists/*
+
+##################################
+########## AWS EFA Drivers #######
+##################################
+
+# Install AWS EFA drivers (for kernel modules)
+# Note: We build libfabric from source, but need EFA drivers
+WORKDIR /opt/build
+RUN curl -O https://efa-installer.amazonaws.com/aws-efa-installer-${EFA_VERSION}.tar.gz && \
+    tar -xf aws-efa-installer-${EFA_VERSION}.tar.gz && \
+    cd aws-efa-installer && \
+    # Install only EFA drivers, skip libfabric (we build it ourselves)
+    ./efa_installer.sh -y --skip-libfabric --skip-limit-conf && \
+    cd .. && \
+    rm -rf aws-efa-installer* && \
+    echo "✅ AWS EFA drivers installed"
+
+##################################
+########## Dependencies ##########
+##################################
+
+WORKDIR /opt/build
+
+# Build etcd-cpp-apiv3
+RUN git clone --depth 1 https://github.com/etcd-cpp-apiv3/etcd-cpp-apiv3.git && \
+    cd etcd-cpp-apiv3 && \
+    sed -i '/^find_dependency(cpprestsdk)$/d' etcd-cpp-api-config.in.cmake && \
+    mkdir build && cd build && \
+    cmake .. -DBUILD_ETCD_CORE_ONLY=ON -DCMAKE_BUILD_TYPE=Release && \
+    make -j${NPROC:-$(nproc)} && \
+    make install && \
+    cd ../.. && rm -rf etcd-cpp-apiv3 && \
+    echo "✅ etcd-cpp-apiv3 built"
+
+# Build AWS SDK (for S3 backend)
+RUN git clone --recurse-submodules --depth 1 --shallow-submodules \
+        https://github.com/aws/aws-sdk-cpp.git --branch 1.11.581 && \
+    mkdir aws_sdk_build && cd aws_sdk_build && \
+    cmake ../aws-sdk-cpp/ \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DBUILD_ONLY="s3" \
+        -DENABLE_TESTING=OFF \
+        -DCMAKE_INSTALL_PREFIX=/usr/local && \
+    make -j${NPROC:-$(nproc)} && \
+    make install && \
+    cd .. && rm -rf aws-sdk-cpp aws_sdk_build && \
+    echo "✅ AWS SDK built"
+
+# Build gusli (NVIDIA storage library)
+RUN git clone https://github.com/nvidia/gusli.git && \
+    cd gusli && \
+    make all BUILD_RELEASE=1 BUILD_FOR_UNITEST=0 VERBOSE=1 ALLOW_USE_URING=0 && \
+    cd .. && \
+    echo "✅ gusli built"
+
+##################################
+########## Python Setup ##########
+##################################
+
+# Install uv (fast Python package installer)
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+# Install Rust toolchain (required for NIXL)
+ENV RUSTUP_HOME=/usr/local/rustup \
+    CARGO_HOME=/usr/local/cargo \
+    PATH=/usr/local/cargo/bin:$PATH \
+    RUST_VERSION=${RUST_VERSION} \
+    RUSTARCH=${ARCH}-unknown-linux-gnu
+
+RUN wget --tries=3 --waitretry=5 \
+    "https://static.rust-lang.org/rustup/archive/1.28.1/${RUSTARCH}/rustup-init" \
+    "https://static.rust-lang.org/rustup/archive/1.28.1/${RUSTARCH}/rustup-init.sha256" && \
+    sha256sum -c rustup-init.sha256 && \
+    chmod +x rustup-init && \
+    ./rustup-init -y --no-modify-path --profile minimal \
+        --default-toolchain ${RUST_VERSION} --default-host ${RUSTARCH} && \
+    rm rustup-init* && \
+    chmod -R a+w $RUSTUP_HOME $CARGO_HOME && \
+    echo "✅ Rust ${RUST_VERSION} installed"
+
+# Configure uv and create Python virtual environment
+ENV UV_CACHE_DIR=/opt/build/.cache/uv \
+    UV_NO_BUILD_ISOLATION=1 \
+    UV_NO_SYNC=1 \
+    VIRTUAL_ENV=/opt/venv
+
+RUN mkdir -p $UV_CACHE_DIR && \
+    rm -rf $VIRTUAL_ENV && \
+    uv venv $VIRTUAL_ENV --python $DEFAULT_PYTHON_VERSION && \
+    echo "✅ Python ${DEFAULT_PYTHON_VERSION} venv created"
+
+# Activate virtual environment
+ENV PATH="${VIRTUAL_ENV}/bin:$PATH"
+
+# Install Python build dependencies
+RUN uv pip install --upgrade \
+    meson \
+    meson-python \
+    pybind11 \
+    patchelf \
+    pyYAML \
+    click \
+    tabulate \
+    auditwheel \
+    tomlkit && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends pybind11-dev && \
+    rm -rf /var/lib/apt/lists/* && \
+    echo "✅ Python build dependencies installed"
+
+# Install PyTorch
+RUN export UV_INDEX="https://download.pytorch.org/whl/cu$(echo $CUDA_VERSION | cut -d. -f1,2 | tr -d .)" && \
+    uv pip install torch torchvision torchaudio && \
+    echo "✅ PyTorch installed"
+
+##################################
+########## GDRCopy ##############
+##################################
+
+RUN git clone --depth 1 --branch v${GDRCOPY_VERSION} https://github.com/NVIDIA/gdrcopy.git && \
+    cd gdrcopy && \
+    make PREFIX=/usr/local -j${NPROC:-$(nproc)} && \
+    make PREFIX=/usr/local install && \
+    cd .. && rm -rf gdrcopy && \
+    echo "✅ GDRCopy ${GDRCOPY_VERSION} installed"
+
+##################################
+########## UCX ###################
+##################################
+
+# Remove any existing UCX installations
+RUN rm -rf /usr/lib/ucx /opt/hpcx/ucx
+
+# Build UCX from source
+RUN git clone https://github.com/openucx/ucx.git /opt/build/ucx && \
+    cd /opt/build/ucx && \
+    git checkout ${UCX_VERSION} && \
+    ./autogen.sh && \
+    ./configure \
+        --prefix=${UCX_PREFIX} \
+        --enable-shared \
+        --disable-static \
+        --disable-doxygen-doc \
+        --enable-optimizations \
+        --enable-cma \
+        --enable-devel-headers \
+        --with-cuda=/usr/local/cuda \
+        --with-verbs \
+        --with-dm \
+        --with-gdrcopy=/usr/local \
+        --with-efa \
+        --enable-mt && \
+    make -j${NPROC:-$(nproc)} && \
+    make install-strip && \
+    ldconfig && \
+    cd .. && rm -rf ucx && \
+    echo "✅ UCX ${UCX_VERSION} installed to ${UCX_PREFIX}"
+
+# Install gtest-parallel for testing
+RUN git clone --depth 1 https://github.com/google/gtest-parallel.git /tmp/gtest-parallel && \
+    mkdir -p /usr/local/bin && \
+    cp /tmp/gtest-parallel/gtest-parallel /tmp/gtest-parallel/gtest_parallel.py /usr/local/bin/ && \
+    rm -rf /tmp/gtest-parallel && \
+    echo "✅ gtest-parallel installed"
+
+##################################
+########## libfabric #############
+##################################
+
+# CRITICAL: Build libfabric from source to /usr/local (not /opt/amazon/efa)
+# This is the key fix for NIXL segfault issue
+RUN wget --tries=3 --waitretry=5 --timeout=30 --read-timeout=60 \
+    "https://github.com/ofiwg/libfabric/releases/download/${LIBFABRIC_VERSION}/libfabric-${LIBFABRIC_VERSION#v}.tar.bz2" \
+    -O /opt/build/libfabric.tar.bz2 && \
+    cd /opt/build && \
+    tar xjf libfabric.tar.bz2 && \
+    rm libfabric.tar.bz2 && \
+    cd libfabric-* && \
+    ./configure \
+        --prefix="${LIBFABRIC_INSTALL_PATH}" \
+        --disable-verbs \
+        --disable-psm3 \
+        --disable-opx \
+        --disable-usnic \
+        --disable-rstream \
+        --enable-efa \
+        --with-cuda=/usr/local/cuda \
+        --enable-cuda-dlopen \
+        --with-gdrcopy \
+        --enable-gdrcopy-dlopen && \
+    make -j${NPROC:-$(nproc)} && \
+    make install && \
+    ldconfig && \
+    cd .. && rm -rf libfabric-* && \
+    echo "✅ libfabric ${LIBFABRIC_VERSION} installed to ${LIBFABRIC_INSTALL_PATH}"
+
+# Verify libfabric installation
+RUN fi_info -p efa || echo "⚠️ Warning: EFA provider not available (may need hardware)"
+
+##################################
+########## NIXL ##################
+##################################
+
+WORKDIR /workspace/nixl
+
+# Clone NIXL repository
+RUN git clone --depth 1 --branch ${NIXL_VERSION} \
+    https://github.com/ai-dynamo/nixl.git /workspace/nixl && \
+    echo "✅ NIXL ${NIXL_VERSION} source cloned"
+
+# Set library path for build
+ENV LD_LIBRARY_PATH=/usr/local/lib:${LIBFABRIC_INSTALL_PATH}/lib:${LD_LIBRARY_PATH}
+
+# CRITICAL: Build NIXL with explicit libfabric path
+# This is the fix for segfault issue mentioned by friend
+ENV NIXL_PREFIX=${NIXL_PREFIX}
+RUN rm -rf build && \
+    mkdir build && \
+    meson setup \
+        -Dlibfabric_path=${LIBFABRIC_INSTALL_PATH} \
+        build/ \
+        --prefix=${NIXL_PREFIX} && \
+    cd build && \
+    ninja -j${NPROC:-$(nproc)} && \
+    ninja install && \
+    echo "✅ NIXL built with libfabric_path=${LIBFABRIC_INSTALL_PATH}"
+
+# Build nixlbench (NIXL benchmark tool)
+RUN cd benchmark/nixlbench && \
+    rm -rf build && \
+    mkdir build && \
+    meson setup build/ \
+        --prefix=/usr/local \
+        -Dnixl_path=${NIXL_PREFIX} \
+        -Dcudapath_inc=/usr/local/cuda/include \
+        -Dcudapath_lib=/usr/local/cuda/lib64 \
+        -Detcd_inc_path=/usr/local/include \
+        -Detcd_lib_path=/usr/local/lib && \
+    cd build && \
+    ninja -j${NPROC:-$(nproc)} && \
+    ninja install && \
+    echo "✅ nixlbench built and installed to /usr/local/bin"
+
+# Configure dynamic linker
+RUN echo "${NIXL_PREFIX}/lib/${ARCH}-linux-gnu" > /etc/ld.so.conf.d/nixl.conf && \
+    echo "${NIXL_PLUGIN_DIR}" >> /etc/ld.so.conf.d/nixl.conf && \
+    ldconfig
+
+# Build Rust bindings
+RUN cd src/bindings/rust && \
+    cargo build --release --locked && \
+    echo "✅ NIXL Rust bindings built"
+
+# Build Python wheel
+RUN export PATH=$VIRTUAL_ENV/bin:$PATH && \
+    mkdir -p dist && \
+    ./contrib/build-wheel.sh \
+        --python-version ${DEFAULT_PYTHON_VERSION} \
+        --platform manylinux_2_39_${ARCH} \
+        --ucx-plugins-dir ${UCX_PLUGIN_DIR} \
+        --nixl-plugins-dir ${NIXL_PLUGIN_DIR} \
+        --output-dir /workspace/nixl/dist && \
+    echo "✅ NIXL wheel built"
+
+# Install NIXL wheels
+RUN cp build/src/bindings/python/nixl-meta/nixl-*.whl dist/ && \
+    uv pip install dist/nixl*cp${DEFAULT_PYTHON_VERSION//./}*.whl dist/nixl-*-none-any.whl && \
+    echo "✅ NIXL wheels installed"
+
+# Verify NIXL installation
+RUN python -c "import nixl; print(f'NIXL version: {nixl.__version__}')" && \
+    echo "✅ NIXL Python import successful"
+
+# Verify libfabric linkage (critical check)
+RUN echo "Checking NIXL libfabric linkage:" && \
+    ldd ${NIXL_PREFIX}/lib/${ARCH}-linux-gnu/plugins/libnixl_libfabric.so | grep libfabric && \
+    echo "✅ NIXL linked to correct libfabric"
+
+##################################
+########## Optional NCCL #########
+##################################
+
+# Build NCCL from source (optional)
+RUN if [ "$INSTALL_NCCL" = "1" ]; then \
+        git clone --depth 1 --branch v${NCCL_VERSION} \
+            https://github.com/NVIDIA/nccl.git /opt/build/nccl && \
+        cd /opt/build/nccl && \
+        make -j${NPROC:-$(nproc)} src.build && \
+        make install && \
+        cd .. && rm -rf nccl && \
+        echo "✅ NCCL ${NCCL_VERSION} installed"; \
+    else \
+        echo "⏭️ Skipping NCCL build (INSTALL_NCCL=0)"; \
+    fi
+
+# Build AWS OFI NCCL plugin (optional)
+RUN if [ "$INSTALL_NCCL" = "1" ]; then \
+        git clone --depth 1 --branch ${AWS_OFI_NCCL_VERSION} \
+            https://github.com/aws/aws-ofi-nccl.git /opt/build/aws-ofi-nccl && \
+        cd /opt/build/aws-ofi-nccl && \
+        ./autogen.sh && \
+        ./configure --with-libfabric=/usr/local \
+                    --with-cuda=/usr/local/cuda \
+                    --with-mpi=/usr/local && \
+        make -j${NPROC:-$(nproc)} && \
+        make install && \
+        cd .. && rm -rf aws-ofi-nccl && \
+        echo "✅ AWS OFI NCCL plugin installed"; \
+    else \
+        echo "⏭️ Skipping AWS OFI NCCL plugin (INSTALL_NCCL=0)"; \
+    fi
+
+##################################
+########## Final Setup ###########
+##################################
+
+# Set environment variables
+ENV LD_LIBRARY_PATH=/usr/local/lib:${NIXL_PREFIX}/lib/${ARCH}-linux-gnu:${LIBFABRIC_INSTALL_PATH}/lib:/usr/local/cuda/lib64:${LD_LIBRARY_PATH} \
+    PATH=/usr/local/bin:${NIXL_PREFIX}/bin:${VIRTUAL_ENV}/bin:$PATH \
+    PYTHONPATH=${NIXL_PREFIX}/lib/python${DEFAULT_PYTHON_VERSION}/site-packages:${PYTHONPATH}
+
+# Cleanup
+RUN rm -rf /opt/build/* /tmp/* /var/tmp/* && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /workspace
+
+# Add validation script
+COPY <<EOF /usr/local/bin/validate-nixl
+#!/bin/bash
+set -e
+echo "=== NIXL Validation ==="
+echo ""
+echo "1. Python import:"
+python -c "import nixl; print(f'   ✅ NIXL {nixl.__version__}')"
+echo ""
+echo "2. libfabric linkage:"
+ldd /usr/local/nixl/lib/x86_64-linux-gnu/plugins/libnixl_libfabric.so | grep libfabric | head -1 || echo "   ❌ No libfabric link found"
+echo ""
+echo "3. EFA devices:"
+ibv_devices | head -5 || echo "   ⚠️ No IB devices (may need hardware)"
+echo ""
+echo "4. UCX info:"
+ucx_info -v | grep -E "Version|Configured" | head -3
+echo ""
+echo "=== Validation Complete ==="
+EOF
+RUN chmod +x /usr/local/bin/validate-nixl
+
+CMD ["/bin/bash"]

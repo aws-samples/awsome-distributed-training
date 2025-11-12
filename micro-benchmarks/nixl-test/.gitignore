@@ -1,0 +1,42 @@
+# Build artifacts
+*.log
+*.tmp
+build/
+dist/
+*.egg-info/
+
+# Docker
+.dockerignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+.env
+
+# Temporary files
+tmp/
+temp/
+*.backup
+
+# Local workspace files
+.claude/
+.cursor/
+.vscode/settings.json
+.idea/workspace.xml
+.mailmap

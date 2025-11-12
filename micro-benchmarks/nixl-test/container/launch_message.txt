@@ -1,0 +1,23 @@
+# ═══════════════════════════════════════════════════════════════
+# 
+#  Dynamo + NIXL Container for H100+EFA
+# 
+# ═══════════════════════════════════════════════════════════════
+# 
+# This container includes:
+#   ✅ NIXL 0.6.0 - GPU-initiated networking
+#   ✅ vLLM 0.10.2 - High-performance inference
+#   ✅ UCX with EFA support
+#   ✅ Custom libfabric 2.3.0 with GDRCopy
+#   ✅ H100 optimizations (SM 9.0)
+# 
+# Quick Start:
+#   nixl-validate       - Validate NIXL installation
+#   efa-test           - Test EFA connectivity
+#   vllm serve <model> - Start vLLM server
+# 
+# Documentation:
+#   https://docs.nvidia.com/ai-dynamo/
+#   https://github.com/ai-dynamo/nixl
+# 
+# ═══════════════════════════════════════════════════════════════
