@@ -18,6 +18,11 @@ variable "fsx_lustre_mount_name" {
   type        = string
 }
 
+variable "fsx_openzfs_dns_name" {
+  description = "DNS name of the FSx OpenZFS file system"
+  type        = string
+}
+
 variable "lifecycle_scripts_path" {
   description = "Path to lifecycle scripts directory"
   type        = string

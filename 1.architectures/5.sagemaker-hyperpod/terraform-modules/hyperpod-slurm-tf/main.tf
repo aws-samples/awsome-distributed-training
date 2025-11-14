@@ -11,6 +11,9 @@ locals {
   sagemaker_iam_role_name = var.create_sagemaker_iam_role_module ? module.sagemaker_iam_role[0].sagemaker_iam_role_name : var.existing_sagemaker_iam_role_name
   fsx_lustre_dns_name = var.create_fsx_lustre_module ? module.fsx_lustre[0].fsx_lustre_dns_name : var.existing_fsx_lustre_dns_name
   fsx_lustre_mount_name = var.create_fsx_lustre_module ? module.fsx_lustre[0].fsx_lustre_mount_name : var.existing_fsx_lustre_mount_name
+  fsx_openzfs_dns_name = var.create_fsx_openzfs_module ? module.fsx_openzfs[0].fsx_openzfs_dns_name : var.existing_fsx_openzfs_dns_name
+  # For Multi-AZ, use provided subnet IDs; for Single-AZ, use single private subnet
+  fsx_openzfs_subnet_ids = var.fsx_openzfs_deployment_type == "MULTI_AZ_1" ? var.fsx_openzfs_subnet_ids : []
 }
 
 module "vpc" {
@@ -72,16 +75,31 @@ module "fsx_lustre" {
   lustre_version       = var.fsx_lustre_version
 }
 
+module "fsx_openzfs" {
+  count  = var.create_fsx_openzfs_module ? 1 : 0
+  source = "./modules/fsx_openzfs"
+
+  resource_name_prefix = var.resource_name_prefix
+  private_subnet_id    = local.private_subnet_id
+  private_subnet_ids   = local.fsx_openzfs_subnet_ids
+  security_group_id    = local.security_group_id
+  storage_capacity     = var.fsx_openzfs_storage_capacity
+  throughput_capacity  = var.fsx_openzfs_throughput_capacity
+  compression_type     = var.fsx_openzfs_compression_type
+  deployment_type      = var.fsx_openzfs_deployment_type
+}
+
 module "lifecycle_script" {
   count  = var.create_lifecycle_script_module ? 1 : 0
   source = "./modules/lifecycle_script"
 
-  resource_name_prefix    = var.resource_name_prefix
-  s3_bucket_name         = local.s3_bucket_name
-  fsx_lustre_dns_name    = local.fsx_lustre_dns_name
-  fsx_lustre_mount_name  = local.fsx_lustre_mount_name
-  lifecycle_scripts_path = var.lifecycle_scripts_path
-  instance_groups        = var.instance_groups
+  resource_name_prefix     = var.resource_name_prefix
+  s3_bucket_name           = local.s3_bucket_name
+  fsx_lustre_dns_name      = local.fsx_lustre_dns_name
+  fsx_lustre_mount_name    = local.fsx_lustre_mount_name
+  fsx_openzfs_dns_name     = local.fsx_openzfs_dns_name
+  lifecycle_scripts_path   = var.lifecycle_scripts_path
+  instance_groups          = var.instance_groups
 }
 
 module "sagemaker_iam_role" {
@@ -103,6 +121,7 @@ module "hyperpod_cluster" {
     module.s3_bucket,
     module.s3_endpoint,
     module.fsx_lustre,
+    module.fsx_openzfs,
     module.lifecycle_script,
     module.sagemaker_iam_role
   ]
