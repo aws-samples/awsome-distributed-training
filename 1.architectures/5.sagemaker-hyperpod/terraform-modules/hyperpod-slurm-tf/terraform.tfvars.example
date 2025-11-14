@@ -42,6 +42,13 @@ fsx_lustre_throughput_per_unit = 250
 fsx_lustre_compression_type = "LZ4"
 fsx_lustre_version = "2.15"
 
+# OpenZFS Configuration
+fsx_openzfs_storage_capacity = 64  # Varies by region
+fsx_openzfs_throughput_capacity = 64 # Varies by region
+fsx_openzfs_compression_type = "ZSTD"
+fsx_openzfs_deployment_type = "SINGLE_AZ_1"  # Options: SINGLE_AZ_1, SINGLE_AZ_HA_1, MULTI_AZ_1
+# fsx_openzfs_subnet_ids = ["subnet-12345", "subnet-67890"]  # Required for MULTI_AZ_1 (different AZs)
+
 # Module Control - Set to false to use existing resources
 create_vpc_module = true
 create_private_subnet_module = true
@@ -49,6 +56,7 @@ create_security_group_module = true
 create_s3_bucket_module = true
 create_s3_endpoint_module = true
 create_fsx_lustre_module = true
+create_fsx_openzfs_module = false
 create_lifecycle_script_module = true
 create_sagemaker_iam_role_module = true
 create_hyperpod_module = true
@@ -59,3 +67,6 @@ create_hyperpod_module = true
 # existing_security_group_id = "sg-1234567890abcdef0"
 # existing_s3_bucket_name = "my-existing-bucket"
 # existing_sagemaker_iam_role_name = "my-existing-role"
+
+# Lifecycle Scripts Configuration
+lifecycle_scripts_path = "../../LifecycleScripts/base-config"

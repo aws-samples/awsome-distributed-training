@@ -43,6 +43,16 @@ output "fsx_lustre_id" {
   value       = var.create_fsx_lustre_module ? module.fsx_lustre[0].fsx_lustre_id : ""
 }
 
+output "fsx_openzfs_dns_name" {
+  description = "DNS name of the FSx OpenZFS file system"
+  value       = local.fsx_openzfs_dns_name
+}
+
+output "fsx_openzfs_id" {
+  description = "ID of the FSx OpenZFS file system"
+  value       = var.create_fsx_openzfs_module ? module.fsx_openzfs[0].fsx_openzfs_id : ""
+}
+
 output "hyperpod_cluster_name" {
   description = "Name of the HyperPod cluster"
   value       = var.create_hyperpod_module ? module.hyperpod_cluster[0].hyperpod_cluster_name : ""

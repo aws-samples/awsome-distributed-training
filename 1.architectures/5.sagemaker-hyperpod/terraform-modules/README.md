@@ -8,6 +8,7 @@ The Terraform modules create:
 - VPC with public and private subnets
 - Security groups configured for EFA communication
 - FSx for Lustre file system
+- Optional (FSx OpenZFS file system)
 - S3 bucket for lifecycle scripts
 - IAM roles and policies
 - SageMaker HyperPod cluster with Slurm orchestration
@@ -101,12 +102,25 @@ existing_vpc_id = "vpc-1234567890abcdef0"
 existing_private_subnet_id = "subnet-1234567890abcdef0"
 existing_security_group_id = "sg-1234567890abcdef0"
 ```
+## OpenZFS
+FSx OpenZFS provides NFS-based shared storage suitable for user home directories and general-purpose file sharing. FSx OpenZFS provides NFS-based shared storage suitable for user home directories and general-purpose file sharing.
 
+To enable FSx OpenZFS (refer to `terraform.tfvars.example`), add to your `terraform.tfvars`:
+
+```hcl
+create_fsx_openzfs_module = true
+fsx_openzfs_storage_capacity = 64
+fsx_openzfs_throughput_capacity = 64
+fsx_openzfs_compression_type = "ZSTD"
+```
+Then set ```enable_fsx_openzfs = True ``` in ```../../LifecycleScripts/base-config/config.py``` to mount the file system during the lifecycle scripts execution. 
+    
 ## Modules
 
 - **vpc**: Creates VPC with public/private subnets, IGW, NAT Gateway
 - **security_group**: EFA-enabled security group for HyperPod
 - **fsx_lustre**: High-performance Lustre file system
+- **fsx_openzfs**: OpenZFS file system for home directory
 - **s3_bucket**: Storage for lifecycle scripts
 - **sagemaker_iam_role**: IAM role with required permissions
 - **lifecycle_script**: Uploads and configures Slurm lifecycle scripts
@@ -118,6 +132,7 @@ The modules automatically upload the base Slurm configuration from `../../Lifecy
 
 - Configure Slurm scheduler
 - Mount FSx Lustre file system
+- Mount FSx OpenZFS file system if specified
 - Install Docker, Enroot, and Pyxis
 - Set up user accounts and permissions
 
