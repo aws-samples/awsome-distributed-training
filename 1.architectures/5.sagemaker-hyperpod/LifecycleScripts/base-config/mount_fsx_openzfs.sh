@@ -79,11 +79,13 @@ mount_fs()
     local max_attempts=5
     local attempt=1
     local delay=5
+    local test_file="$OPENZFS_MOUNT_POINT/test_file_$(hostname)"
 
     echo "[INFO] Ensuring $OPENZFS_MOUNT_POINT directory exists..."
     ansible localhost -b -m ansible.builtin.file -a "path=$OPENZFS_MOUNT_POINT state=directory" || true
 
     echo "[INFO] Mounting FSx OpenZFS on $OPENZFS_MOUNT_POINT..."
+    echo "[INFO] Using test file: $test_file"
 
     while (( attempt <= max_attempts )); do
         echo "============================"
@@ -107,13 +109,13 @@ mount_fs()
         ls -la "$OPENZFS_MOUNT_POINT" >/dev/null 2>&1 || true
 
         echo "[STEP] Testing file access (touch)..."
-        if ! ansible localhost -b -m ansible.builtin.file -a "path=$OPENZFS_MOUNT_POINT/test_file state=touch"; then
+        if ! ansible localhost -b -m ansible.builtin.file -a "path=$test_file state=touch"; then
             echo "[WARN] Touch failed — retrying in $delay seconds"
             sleep "$delay"; ((attempt++)); continue
         fi
 
         echo "[STEP] Testing file access (delete)..."
-        if ! ansible localhost -b -m ansible.builtin.file -a "path=$OPENZFS_MOUNT_POINT/test_file state=absent"; then
+        if ! ansible localhost -b -m ansible.builtin.file -a "path=$test_file state=absent"; then
             echo "[WARN] Delete failed — retrying in $delay seconds"
             sleep "$delay"; ((attempt++)); continue
         fi
