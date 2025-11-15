@@ -2,6 +2,11 @@ data "aws_partition" "current" {}
 data "aws_region" "current" {}
 data "aws_caller_identity" "current" {}
 
+# Add delay to allow IAM role propagation
+resource "time_sleep" "wait_for_iam_role" {
+  create_duration = "30s"
+}
+
 locals {
   # Create configurations for each instance group
   instance_groups_list = [
@@ -29,6 +34,8 @@ locals {
 }
 
 resource "awscc_sagemaker_cluster" "hyperpod_cluster" {
+  depends_on = [time_sleep.wait_for_iam_role]
+  
   cluster_name = var.hyperpod_cluster_name
   
   instance_groups = local.instance_groups_list
