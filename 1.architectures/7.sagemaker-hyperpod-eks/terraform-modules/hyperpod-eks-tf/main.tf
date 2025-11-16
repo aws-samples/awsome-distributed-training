@@ -148,16 +148,17 @@ module "hyperpod_cluster" {
     module.sagemaker_iam_role
   ]
 
-  resource_name_prefix       = var.resource_name_prefix
-  hyperpod_cluster_name      = var.hyperpod_cluster_name
-  node_recovery              = var.node_recovery
-  node_provisioning_mode     = var.node_provisioning_mode
-  instance_groups            = var.instance_groups
-  restricted_instance_groups = var.restricted_instance_groups
-  private_subnet_id          = local.private_subnet_id
-  security_group_id          = local.security_group_id
-  eks_cluster_name           = local.eks_cluster_name
-  s3_bucket_name             = local.s3_bucket_name
-  sagemaker_iam_role_name    = local.sagemaker_iam_role_name
-  rig_mode                   = local.rig_mode
+  resource_name_prefix         = var.resource_name_prefix
+  hyperpod_cluster_name        = var.hyperpod_cluster_name
+  auto_node_recovery           = var.auto_node_recovery
+  instance_groups              = var.instance_groups
+  restricted_instance_groups   = var.restricted_instance_groups
+  private_subnet_id            = local.private_subnet_id
+  security_group_id            = local.security_group_id
+  eks_cluster_name             = local.eks_cluster_name
+  s3_bucket_name               = local.s3_bucket_name
+  sagemaker_iam_role_name      = local.sagemaker_iam_role_name
+  rig_mode                     = local.rig_mode
+  karpenter_autoscaling        = var.karpenter_autoscaling
+  continuous_provisioning_mode = var.continuous_provisioning_mode
 }

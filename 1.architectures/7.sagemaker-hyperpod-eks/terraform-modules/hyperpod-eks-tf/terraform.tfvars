@@ -50,10 +50,10 @@ namespace                = "kube-system"
 helm_release_name        = "hyperpod-dependencies"
 
 # HyperPod Cluster Module Variables
-create_hyperpod_module = true
-hyperpod_cluster_name  = "ml-cluster"
-node_recovery          = "Automatic"
-node_provisioning_mode = "Continuous"
+create_hyperpod_module       = true
+hyperpod_cluster_name        = "ml-cluster"
+auto_node_recovery           = true
+continuous_provisioning_mode = true
 
 # For the instance_groups variable, you'll need to define specific groups. Here's an example:
 instance_groups = {

@@ -83,15 +83,20 @@ resource "awscc_sagemaker_cluster" "hyperpod_cluster" {
 
   restricted_instance_groups = length(local.restricted_instance_groups_list) > 0 ? local.restricted_instance_groups_list : null
 
-  node_provisioning_mode = var.rig_mode ? null : var.node_provisioning_mode
+  node_provisioning_mode = var.rig_mode ? null : var.continuous_provisioning_mode ? "Continuous" : null
 
-  node_recovery = var.node_recovery
+  node_recovery = var.auto_node_recovery ? "Automatic" : null
 
   orchestrator = {
     eks = {
       cluster_arn = "arn:${data.aws_partition.current.partition}:eks:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:cluster/${var.eks_cluster_name}"
     }
   }
+
+  auto_scaling = var.rig_mode ? null : var.karpenter_autoscaling ? {
+    auto_scaler_type = "Karpenter"
+    mode = "Enable"
+  } : null 
 
   vpc_config = {
     security_group_ids = [var.security_group_id]
