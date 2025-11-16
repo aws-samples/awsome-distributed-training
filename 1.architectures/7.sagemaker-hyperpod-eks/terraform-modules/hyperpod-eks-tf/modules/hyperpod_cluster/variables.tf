@@ -86,3 +86,8 @@ variable "s3_bucket_name" {
   description = "The name of the S3 bucket used to store the cluster lifecycle scripts"
   type        = string
 }
+
+variable "rig_mode" {
+  description = "Whether restricted instance groups are configured"
+  type        = bool
+}

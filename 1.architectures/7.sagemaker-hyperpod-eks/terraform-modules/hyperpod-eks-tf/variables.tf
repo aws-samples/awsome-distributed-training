@@ -199,6 +199,89 @@ variable "helm_release_name" {
   default     = "hyperpod-dependencies"
 }
 
+variable "helm_repo_revision" {
+  description = "Git revision for normal mode"
+  type        = string
+  default     = "c5275ddbbca58164d1f5bd3a2811e0fc952f7ff4"
+}
+
+variable "helm_repo_revision_rig" {
+  description = "Git revision for RIG mode"
+  type        = string
+  default     = "c00832cd40698943b61e53802114658a61ba45f4"
+}
+
+variable "enable_gpu_operator" {
+  description = "Whether to enable the GPU operator"
+  type        = bool
+  default     = false
+}
+
+variable "enable_mlflow" {
+  description = "Whether to enable the MLFlow"
+  type        = bool
+  default     = true
+}
+
+variable "enable_kubeflow_training_operators" {
+  description = "Whether to enable the Kubeflow training operators"
+  type        = bool
+  default     = true
+}
+
+variable "enable_cluster_role_and_bindings" {
+  description = "Whether to enable the cluster role and bindings"
+  type        = bool
+  default     = true
+}
+variable "enable_namespaced_role_and_bindings" {
+  description = "Whether to enable the namespaced role and bindings"
+  type        = bool
+  default     = true
+}
+
+variable "enable_nvidia_device_plugin" {
+  description = "Whether to enable the NVIDIA device plugin"
+  type        = bool
+  default     = true
+}
+
+variable "enable_neuron_device_plugin" {
+  description = "Whether to enable the Neuron device plugin"
+  type        = bool
+  default     = true
+}
+
+variable "enable_mpi_operator" {
+  description = "Whether to enable the MPI operator"
+  type        = bool
+  default     = true
+}
+
+variable "enable_deep_health_check" {
+  description = "Whether to enable the deep health check"
+  type        = bool
+  default     = true
+}
+
+variable "enable_job_auto_restart" {
+  description = "Whether to enable the job auto restart"
+  type        = bool
+  default     = true
+}
+
+variable "enable_hyperpod_patching" {
+  description = "Whether to enable the hyperpod patching"
+  type        = bool
+  default     = true
+}
+
+variable "rig_script_path" {
+  description = "The path to the RIG script"
+  type        = string
+  default     = "helm_chart/install_rig_dependencies.sh"
+}
+
 # HyperPod Cluster Module Variables
 variable "create_hyperpod_module" {
   description = "Whether to create HyperPod cluster module"
