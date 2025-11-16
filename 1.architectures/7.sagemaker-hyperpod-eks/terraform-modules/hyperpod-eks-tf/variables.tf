@@ -174,6 +174,36 @@ variable "existing_sagemaker_iam_role_name" {
   default     = ""
 }
 
+variable "rig_input_s3_bucket" {
+  description = "The name of the RIG input S3 bucket"
+  type        = string
+  default     = null 
+}
+
+variable "rig_output_s3_bucket" {
+  description = "The name of the RIG output S3 bucket"
+  type        = string
+  default     = null
+}
+
+variable "gated_access" {
+  description = "Whether to include gated access permissions"
+  type        = bool
+  default     = true
+}
+
+variable "rig_rft_lambda_access" {
+  description = "Whether to include Lambda access permissions for RFT"
+  type        = bool 
+  default     = true
+}
+
+variable "rig_rft_sqs_access" {
+    description = "Whether to include SQS access permissions for RFT"
+  type        = bool 
+  default     = true
+}
+
 # Helm Chart Module Variables
 variable "create_helm_chart_module" {
   description = "Whether to create Helm chart module"

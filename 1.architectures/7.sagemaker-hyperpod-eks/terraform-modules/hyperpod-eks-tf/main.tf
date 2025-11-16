@@ -92,8 +92,18 @@ module "sagemaker_iam_role" {
   count  = var.create_sagemaker_iam_role_module ? 1 : 0
   source = "./modules/sagemaker_iam_role"
 
-  resource_name_prefix = var.resource_name_prefix
-  s3_bucket_name       = local.s3_bucket_name
+  resource_name_prefix  = var.resource_name_prefix
+  s3_bucket_name        = local.s3_bucket_name
+  rig_input_s3_bucket   = var.rig_input_s3_bucket
+  rig_output_s3_bucket  = var.rig_output_s3_bucket
+  eks_cluster_name      = local.eks_cluster_name
+  security_group_id     = local.security_group_id
+  private_subnet_id     = local.private_subnet_id
+  vpc_id                = local.vpc_id
+  rig_mode              = local.rig_mode
+  gated_access          = var.gated_access
+  rig_rft_lambda_access = var.rig_rft_lambda_access
+  rig_rft_sqs_access    = var.rig_rft_sqs_access
 }
 
 module "helm_chart" {
