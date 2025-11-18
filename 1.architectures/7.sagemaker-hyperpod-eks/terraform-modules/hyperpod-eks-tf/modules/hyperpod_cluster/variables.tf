@@ -87,3 +87,8 @@ variable "karpenter_autoscaling" {
   description = "Whether to enable Karpenter autoscaling"
   type        = bool
 }
+
+variable "karpenter_role_arn" {
+  description = "ARN of the Karpenter IAM role"
+  type        = string
+}

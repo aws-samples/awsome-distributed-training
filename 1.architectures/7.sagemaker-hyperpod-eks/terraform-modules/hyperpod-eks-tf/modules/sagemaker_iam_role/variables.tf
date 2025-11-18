@@ -64,3 +64,8 @@ variable "rig_rft_sqs_access" {
     description = "Whether to include SQS access permissions for RFT"
   type        = bool 
 }
+
+variable "karpenter_autoscaling" {
+  description = "Whether to enable Karpenter autoscaling"
+  type        = bool
+}

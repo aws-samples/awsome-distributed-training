@@ -296,3 +296,87 @@ resource "aws_iam_role_policy_attachment" "sagemaker_sg_policy_attachment" {
   role       = aws_iam_role.sagemaker_execution_role.name
   policy_arn = aws_iam_policy.sg_policy.arn
 }
+
+# Cluster IAM Role for Karpenter Autoscaling
+resource "aws_iam_role" "karpenter_role" {
+  count = !var.rig_mode && var.karpenter_autoscaling ? 1 : 0
+  name = "${var.resource_name_prefix}-SMHP-Karpenter-Role-${data.aws_region.current.id}"
+  path = "/"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Service = "hyperpod.sagemaker.amazonaws.com"
+        }
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+
+  tags = var.tags
+}
+
+# Karpenter Custom IAM Policy
+resource "aws_iam_policy" "karpenter_policy" {
+  count = !var.rig_mode && var.karpenter_autoscaling ? 1 : 0
+  name = "${var.resource_name_prefix}-SMHP-Karpenter-Policy-${data.aws_region.current.id}"
+  path = "/"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+     {
+        Effect = "Allow"
+        Action = [
+          "sagemaker:BatchAddClusterNodes",
+          "sagemaker:BatchDeleteClusterNodes"
+        ]
+        Resource = "arn:aws:sagemaker:*:*:cluster/*"
+        Condition = {
+          StringEquals = {
+            "aws:ResourceAccount" = "$${aws:PrincipalAccount}"
+          }
+        }
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "kms:CreateGrant",
+          "kms:DescribeKey"
+        ]
+        Resource = "arn:aws:kms:*:*:key/*"
+        Condition = {
+          StringLike = {
+            "kms:ViaService" = "sagemaker.*.amazonaws.com"
+          }
+          Bool = {
+            "kms:GrantIsForAWSResource" = "true"
+          }
+          "ForAllValues:StringEquals" = {
+            "kms:GrantOperations" = [
+              "CreateGrant",
+              "Decrypt",
+              "DescribeKey",
+              "GenerateDataKeyWithoutPlaintext",
+              "ReEncryptTo",
+              "ReEncryptFrom",
+              "RetireGrant"
+            ]
+          }
+        }
+      }
+    ]
+  })
+
+  tags = var.tags
+}
+
+# Attach Custom IAM Policy to the IAM Role
+resource "aws_iam_role_policy_attachment" "karpenter_policy_attachment" {
+  count = !var.rig_mode && var.karpenter_autoscaling ? 1 : 0
+  role       = aws_iam_role.karpenter_role.name
+  policy_arn = aws_iam_policy.karpenter_policy.arn
+}

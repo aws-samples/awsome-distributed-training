@@ -17,6 +17,7 @@ locals {
   sagemaker_iam_role_name = var.create_sagemaker_iam_role_module ? module.sagemaker_iam_role[0].sagemaker_iam_role_name : var.existing_sagemaker_iam_role_name
   deploy_hyperpod         = var.create_hyperpod_module && !(var.create_eks_module && !var.create_helm_chart_module)
   rig_mode                = length(var.restricted_instance_groups) > 0
+  karpenter_role_arn      = var.create_sagemaker_iam_role_module && length(module.sagemaker_iam_role[0].karpenter_role_arn) > 0 ? module.sagemaker_iam_role[0].karpenter_role_arn[0] : null
 }
 
 module "vpc" {
@@ -104,6 +105,7 @@ module "sagemaker_iam_role" {
   gated_access          = var.gated_access
   rig_rft_lambda_access = var.rig_rft_lambda_access
   rig_rft_sqs_access    = var.rig_rft_sqs_access
+  karpenter_autoscaling = var.karpenter_autoscaling
 }
 
 module "helm_chart" {
@@ -161,4 +163,5 @@ module "hyperpod_cluster" {
   rig_mode                     = local.rig_mode
   karpenter_autoscaling        = var.karpenter_autoscaling
   continuous_provisioning_mode = var.continuous_provisioning_mode
+  karpenter_role_arn           = local.karpenter_role_arn 
 }

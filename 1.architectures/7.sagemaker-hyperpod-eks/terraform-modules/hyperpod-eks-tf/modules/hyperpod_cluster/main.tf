@@ -98,6 +98,8 @@ resource "awscc_sagemaker_cluster" "hyperpod_cluster" {
     mode = "Enable"
   } : null 
 
+  cluster_role = !var.rig_mode && var.karpenter_autoscaling ? var.karpenter_role_arn : null
+
   vpc_config = {
     security_group_ids = [var.security_group_id]
     subnets           = [var.private_subnet_id]
