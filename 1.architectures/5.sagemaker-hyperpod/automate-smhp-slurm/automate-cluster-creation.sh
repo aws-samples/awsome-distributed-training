@@ -995,7 +995,11 @@ configure_cluster_users() {
                         read -p "Hit ENTER once step is complete: "
                         
                         echo -e "\n3. Change the Linux shell profile."
-                        echo -e "   It should have '/bin/bash -c 'export HOME=/fsx/\$(whoami) && cd \${HOME} && exec /bin/bash' in its first and only line"
+                        if [[ "$ENABLE_FSX_OPENZFS" == "true" ]]; then
+                            echo -e "   It should have '/bin/bash -c 'export HOME=/home/\$(whoami) && cd \${HOME} && exec /bin/bash' in its first and only line"
+                        else
+                            echo -e "   It should have '/bin/bash -c 'export HOME=/fsx/\$(whoami) && cd \${HOME} && exec /bin/bash' in its first and only line"
+                        fi
                         read -p "Hit ENTER once you've added this line in: "
                         
                         echo -e "\n${GREEN}✅ SSM Run As support configured successfully${NC}"
