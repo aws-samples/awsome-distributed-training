@@ -131,7 +131,7 @@ module "helm_chart" {
   enable_job_auto_restart             = var.enable_job_auto_restart
   enable_hyperpod_patching            = var.enable_hyperpod_patching
   rig_script_path                     = var.rig_script_path
-  rig_mode                            = locals.rig_mode
+  rig_mode                            = local.rig_mode
 }
 
 module "hyperpod_cluster" {

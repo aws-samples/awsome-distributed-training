@@ -2,7 +2,7 @@ data "aws_region" "current" {}
 data "aws_caller_identity" "current" {}
 
 locals {
-  arn_slug = "${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}"
+  arn_slug = "${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}"
   eks_cluster_arn = "arn:aws:eks:${local.arn_slug}:cluster/${var.eks_cluster_name}"
   ec2_arn_prefix = "arn:aws:ec2:${local.arn_slug}"
 }
@@ -56,8 +56,8 @@ resource "aws_iam_policy" "eks_cni_policy" {
         Action = [
           "ec2:DescribeInstances",
           "ec2:DescribeTags",
-          "DescribeNetworkInterfaces",
-          "DescribeInstanceTypes",
+          "ec2:DescribeNetworkInterfaces",
+          "ec2:DescribeInstanceTypes",
           "ec2:DescribeSubnets",
         ]
         Resource = "*"

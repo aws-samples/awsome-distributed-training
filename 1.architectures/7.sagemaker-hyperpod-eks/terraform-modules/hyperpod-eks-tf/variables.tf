@@ -95,7 +95,7 @@ variable "create_eks_module" {
 variable "kubernetes_version" {
   description = "The Kubernetes version to use for the EKS cluster"
   type        = string
-  default     = "1.31"
+  default     = "1.32"
 }
 
 variable "eks_cluster_name" {
@@ -232,13 +232,13 @@ variable "helm_release_name" {
 variable "helm_repo_revision" {
   description = "Git revision for normal mode"
   type        = string
-  default     = "c5275ddbbca58164d1f5bd3a2811e0fc952f7ff4"
+  default     = "c00832cd40698943b61e53802114658a61ba45f4"
 }
 
 variable "helm_repo_revision_rig" {
   description = "Git revision for RIG mode"
   type        = string
-  default     = "c00832cd40698943b61e53802114658a61ba45f4"
+  default     = "c5275ddbbca58164d1f5bd3a2811e0fc952f7ff4"
 }
 
 variable "enable_gpu_operator" {

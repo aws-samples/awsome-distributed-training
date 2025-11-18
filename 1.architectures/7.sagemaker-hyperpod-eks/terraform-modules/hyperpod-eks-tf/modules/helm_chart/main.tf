@@ -19,14 +19,17 @@ resource "null_resource" "run_rig_script" {
   
   provisioner "local-exec" {
     command = <<-EOT
-      aws eks update-kubeconfig --region ${data.aws_region.current.name} --name ${var.eks_cluster_name}
+      aws eks update-kubeconfig --region ${data.aws_region.current.id} --name ${var.eks_cluster_name}
       cd /tmp/helm-repo/${local.rig_script_dir}
       chmod +x ${local.rig_script_filename}
       echo "y" | ./${local.rig_script_filename}
     EOT
   }
   
-  depends_on = [helm_release.hyperpod]
+  depends_on = [
+    helm_release.hyperpod,
+    null_resource.git_checkout
+  ]
   
   triggers = {
     revision = local.revision
@@ -35,11 +38,15 @@ resource "null_resource" "run_rig_script" {
 
 resource "null_resource" "git_checkout" {
   provisioner "local-exec" {
-    command = "cd /tmp/helm-repo && git checkout ${local.revision}"
+    command = <<-EOT
+      cd /tmp/helm-repo
+      git reset --hard HEAD
+      git clean -fd
+      git checkout ${local.revision}
+    EOT
   }
-  
   triggers = {
-    revision = local.revision
+    always_run = timestamp()
   }
 }
 
@@ -62,9 +69,10 @@ resource "helm_release" "hyperpod" {
   chart      = "/tmp/helm-repo/${var.helm_repo_path}"
   namespace  = var.namespace
   dependency_update = true
+  wait = false
 
-  values = fileexists("/tmp/helm-repo/${var.helm_repo_path}/regional-values/values-${data.aws_region.current.name}.yaml") ? [
-    file("/tmp/helm-repo/${var.helm_repo_path}/regional-values/values-${data.aws_region.current.name}.yaml")
+  values = fileexists("/tmp/helm-repo/${var.helm_repo_path}/regional-values/values-${data.aws_region.current.id}.yaml") ? [
+    file("/tmp/helm-repo/${var.helm_repo_path}/regional-values/values-${data.aws_region.current.id}.yaml")
   ] : []
 
   set = [
