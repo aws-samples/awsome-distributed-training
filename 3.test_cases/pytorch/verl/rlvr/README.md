@@ -12,7 +12,21 @@ This repository provides a complete setup for running reinforcement learning fro
 
 ## Getting started
 
-From here on out, we will assume you have an EKS cluster with GPU nodes (e.g., p5en.48xlarge).
+### Prerequisites
+
+**Cluster**:
+From here on out, we will assume you have an EKS cluster with GPU nodes (e.g., p5en.48xlarge). This example can be run on an EKS or HyperPod EKS cluster. 
+
+This example was tested on 4 p5en.48xlarge nodes (8xH200 GPUs each). If you are using different node types, modify the cluster environment variables in `env_vars`. Feel free to change the model type/size, and training parameters to accomodate smaller or larger node types. 
+
+**Storage**:
+- This examples uses a FSx for Lustre file system that mounts to the pods via a pvc called `fsx-claim`. We store the dataset, as well as model checkpoints here. Feel free to substitute this claim with your own. 
+
+**Versions**:
+The example was tested on versions:
+- EKS: 1.33
+- KubeRay: 1.4.2
+- VERL: v0.6.1
 
 ### Clone this repo
 ```bash
@@ -25,6 +39,9 @@ This repository contains the verl framework and scripts needed for RLVR training
 
 ```bash
 git clone https://github.com/volcengine/verl.git
+cd verl
+git checkout v0.6.1
+cd ..
 ```
 
 ### Create RayCluster
@@ -36,8 +53,12 @@ Install KubeRay operator to manage Ray clusters on Kubernetes:
 
 Configure your cluster settings (AWS region, cluster name, GPU counts, model paths):
 ```bash
+# Copy the example file and customize it with your values
+cp setup/env_vars.example setup/env_vars
 vim setup/env_vars
 ```
+
+> **Important**: The `env_vars` file contains sensitive information like your HuggingFace token, AWS account details, and cluster IDs. This file is gitignored to prevent accidentally committing credentials. Always use `env_vars.example` as your template.
 
 Load the environment variables into your shell session:
 ```bash

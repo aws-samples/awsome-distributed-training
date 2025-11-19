@@ -111,7 +111,9 @@ RUN pip install \
 
 # Clone and install VERL
 WORKDIR /workspace
-RUN git clone https://github.com/volcengine/verl.git
+RUN git clone https://github.com/volcengine/verl.git && \
+    cd verl && \
+    git checkout v0.6.1
 WORKDIR /workspace/verl
 
 # Install VERL in development mode

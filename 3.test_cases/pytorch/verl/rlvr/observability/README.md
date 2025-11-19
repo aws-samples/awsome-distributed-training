@@ -102,5 +102,4 @@ The configs will persist as long as you don't modify the ObservabilityConfig res
 Results:
 ## Dashboard Preview
 
-![Ray Dashboard](img/ray-dashboard.png)
-
+![Ray Dashboard](../img/ray-dashboard.png)

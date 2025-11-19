@@ -19,7 +19,7 @@ spec:
     template:
       spec:
         nodeSelector:
-          node.kubernetes.io/instance-type: "p5en.48xlarge"
+          node.kubernetes.io/instance-type: ${INSTANCE_TYPE}
           sagemaker.amazonaws.com/node-health-status: Schedulable
         securityContext:
           runAsUser: 0
@@ -108,7 +108,7 @@ spec:
     template:
       spec:
         nodeSelector:
-          node.kubernetes.io/instance-type: "p5en.48xlarge"
+          node.kubernetes.io/instance-type: ${INSTANCE_TYPE}
           sagemaker.amazonaws.com/node-health-status: Schedulable
         securityContext:
           runAsUser: 0
