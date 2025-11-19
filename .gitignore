@@ -120,6 +120,10 @@ ENV/
 env.bak/
 venv.bak/
 
+# User-specific environment variables (keep .example files)
+**/env_vars
+!**/env_vars.example
+
 # IDE
 .c9/
 .idea/
