@@ -32,7 +32,7 @@ create_s3_bucket_module = true
 existing_s3_bucket_name = ""
 
 # S3 Endpoint Module Variables
-create_s3_endpoint_module       = true
+create_vpc_endpoints_module     = true
 existing_private_route_table_id = ""
 
 # Lifecycle Script Module Variables

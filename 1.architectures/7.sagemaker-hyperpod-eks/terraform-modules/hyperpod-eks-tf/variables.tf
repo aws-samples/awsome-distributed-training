@@ -136,8 +136,8 @@ variable "existing_s3_bucket_name" {
 }
 
 # S3 Endpoint Module Variables
-variable "create_s3_endpoint_module" {
-  description = "Whether to create S3 endpoint module"
+variable "create_vpc_endpoints_module" {
+  description = "Whether to create VPC endpoints module"
   type        = bool
   default     = true
 }

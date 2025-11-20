@@ -58,14 +58,14 @@ module "eks_cluster" {
   count  = var.create_eks_module ? 1 : 0
   source = "./modules/eks_cluster"
 
-  resource_name_prefix     = var.resource_name_prefix
-  vpc_id                   = local.vpc_id
-  eks_cluster_name         = var.eks_cluster_name
-  kubernetes_version       = var.kubernetes_version
-  security_group_id        = local.security_group_id
-  private_subnet_cidrs     = local.eks_private_subnet_cidrs
-  nat_gateway_id           = local.nat_gateway_id
-  private_route_table_id   = local.private_route_table_id
+  resource_name_prefix   = var.resource_name_prefix
+  vpc_id                 = local.vpc_id
+  eks_cluster_name       = var.eks_cluster_name
+  kubernetes_version     = var.kubernetes_version
+  security_group_id      = local.security_group_id
+  private_subnet_cidrs   = local.eks_private_subnet_cidrs
+  nat_gateway_id         = local.nat_gateway_id
+  private_route_table_id = local.private_route_table_id
 }
 
 module "s3_bucket" {
@@ -75,12 +75,23 @@ module "s3_bucket" {
   resource_name_prefix = var.resource_name_prefix
 }
 
-module "s3_endpoint" {
-  count  = var.create_s3_endpoint_module ? 1 : 0
-  source = "./modules/s3_endpoint"
+module "vpc_endpoints" {
+  count  = var.create_vpc_endpoints_module ? 1 : 0
+  source = "./modules/vpc_endpoints"
+
+    depends_on = [
+      module.private_subnet, 
+      module.security_group
+    ]
 
   vpc_id                 = local.vpc_id
   private_route_table_id = local.private_route_table_id
+  private_subnet_id      = local.private_subnet_id
+  security_group_id      = local.security_group_id
+  rig_mode               = local.rig_mode
+  rig_rft_lambda_access  = var.rig_rft_lambda_access
+  rig_rft_sqs_access     = var.rig_rft_sqs_access
+  
 }
 
 module "lifecycle_script" {
@@ -148,7 +159,7 @@ module "hyperpod_cluster" {
     module.private_subnet,
     module.security_group,
     module.s3_bucket,
-    module.s3_endpoint,
+    module.vpc_endpoints,
     module.sagemaker_iam_role
   ]
 
