@@ -122,12 +122,6 @@ variable "eks_private_subnet_2_cidr" {
   default     = "10.192.8.0/28"
 }
 
-variable "eks_private_node_subnet_cidr" {
-  description = "The IP range (CIDR notation) for the EKS private node subnet"
-  type        = string
-  default     = "10.192.9.0/24"
-}
-
 # S3 Bucket Module Variables
 variable "create_s3_bucket_module" {
   description = "Whether to create S3 bucket module"

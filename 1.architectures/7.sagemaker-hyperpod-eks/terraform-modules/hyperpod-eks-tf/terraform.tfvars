@@ -25,7 +25,6 @@ kubernetes_version           = "1.31"
 eks_cluster_name             = "sagemaker-hyperpod-eks-cluster"
 eks_private_subnet_1_cidr    = "10.192.7.0/28"
 eks_private_subnet_2_cidr    = "10.192.8.0/28"
-eks_private_node_subnet_cidr = "10.192.9.0/24"
 existing_eks_cluster_name    = ""
 
 # S3 Bucket Module Variables

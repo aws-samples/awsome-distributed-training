@@ -377,6 +377,6 @@ resource "aws_iam_policy" "karpenter_policy" {
 # Attach Custom IAM Policy to the IAM Role
 resource "aws_iam_role_policy_attachment" "karpenter_policy_attachment" {
   count = !var.rig_mode && var.karpenter_autoscaling ? 1 : 0
-  role       = aws_iam_role.karpenter_role.name
-  policy_arn = aws_iam_policy.karpenter_policy.arn
+  role       = aws_iam_role.karpenter_role[0].name
+  policy_arn = aws_iam_policy.karpenter_policy[0].arn
 }

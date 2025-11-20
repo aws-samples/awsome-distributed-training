@@ -62,6 +62,10 @@ locals {
             size_in_gi_b = config.fsxl_size_in_gi_b
            }
         }
+        override_vpc_config = {
+          security_group_ids = [var.security_group_id]
+          subnets = [var.private_subnet_id]
+        }
       },
       # Only include on_start_deep_health_checks if at least one check is enabled
       config.enable_stress_check || config.enable_connectivity_check ? {
