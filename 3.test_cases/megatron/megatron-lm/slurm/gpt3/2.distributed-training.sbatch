@@ -108,9 +108,5 @@ srun ${AUTO_RESUME} -l "${ARGS[@]}" python -m torch.distributed.run "${TORCHRUN_
         --adam-beta1 0.9 \
         --adam-beta2 0.95 \
         --init-method-std 0.006 \
-        --wandb-name "gpt" \
-        --wandb-project "megatron-lm" \
-        --wandb-entity "gpt-entity" \
         --fp16 \
         --recompute-activations \
-        --tp-comm-overlap 
