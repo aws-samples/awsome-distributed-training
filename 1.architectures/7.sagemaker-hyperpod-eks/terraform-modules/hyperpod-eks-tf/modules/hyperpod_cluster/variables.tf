@@ -10,24 +10,15 @@ variable "hyperpod_cluster_name" {
   default     = "ml-cluster"
 }
 
-variable "node_recovery" {
-  description = "Specifies whether to enable or disable the automatic node recovery feature"
-  type        = string
-  default     = "Automatic"
-  validation {
-    condition     = contains(["Automatic", "None"], var.node_recovery)
-    error_message = "Node recovery must be either 'Automatic' or 'None'"
-  }
+variable "auto_node_recovery" {
+  description = "Whether to enable or disable the automatic node recovery feature"
+  type        = bool
+  default     = true
 }
 
-variable "node_provisioning_mode" { 
-  description = "Determines the scaling strategy for the SageMaker HyperPod cluster. When set to 'Continuous', enables continuous scaling which dynamically manages node provisioning. Set to null to disable continuous provisioning and use standard scaling approach."
-  type        = string
-  default     = "Continuous"
-  validation {
-    condition     = var.node_provisioning_mode == null || var.node_provisioning_mode == "Continuous"
-    error_message = "Node provisioning mode must be either 'Continuous' or null"
-  }
+variable "continuous_provisioning_mode" {
+  description = "whether to enable continuous node provisioning mode"
+  type        = bool 
 }
 
 variable "instance_groups" {
@@ -84,5 +75,20 @@ variable "eks_cluster_name" {
 
 variable "s3_bucket_name" {
   description = "The name of the S3 bucket used to store the cluster lifecycle scripts"
+  type        = string
+}
+
+variable "rig_mode" {
+  description = "Whether restricted instance groups are configured"
+  type        = bool
+}
+
+variable "karpenter_autoscaling" {
+  description = "Whether to enable Karpenter autoscaling"
+  type        = bool
+}
+
+variable "karpenter_role_arn" {
+  description = "ARN of the Karpenter IAM role"
   type        = string
 }

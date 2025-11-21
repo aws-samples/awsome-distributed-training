@@ -74,10 +74,22 @@ output "s3_bucket_arn" {
   value       = var.create_s3_bucket_module ? module.s3_bucket[0].s3_bucket_arn : (var.existing_s3_bucket_name != "" ? data.aws_s3_bucket.existing_s3_bucket[0].arn : null)
 }
 
-# S3 Endpoint Outputs
-output "s3_endpoint_id" {
+# S3 VPC Endpoints Outputs
+output "s3_vpc_endpoint_id" {
   description = "ID of the S3 VPC endpoint"
-  value       = var.create_s3_endpoint_module ? module.s3_endpoint[0].vpc_endpoint_id : null
+  value       = var.create_vpc_endpoints_module ? module.vpc_endpoints[0].s3_vpc_endpoint_id : null
+}
+
+# Lambda VPC Endpoint Outputs
+output "lambda_vpc_endpoint_id" {
+  description = "ID of the Lambda VPC endpoint"
+  value       = var.create_vpc_endpoints_module ? module.vpc_endpoints[0].lambda_vpc_endpoint_id : null
+}
+
+# SQS VPC Endpoint Outputs
+output "sqs_vpc_endpoint_id" {
+  description = "ID of the SQS VPC endpoint"
+  value       = var.create_vpc_endpoints_module ? module.vpc_endpoints[0].sqs_vpc_endpoint_id : null
 }
 
 # SageMaker IAM Role Outputs

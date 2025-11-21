@@ -25,7 +25,6 @@ kubernetes_version           = "1.31"
 eks_cluster_name             = "sagemaker-hyperpod-eks-cluster"
 eks_private_subnet_1_cidr    = "10.192.7.0/28"
 eks_private_subnet_2_cidr    = "10.192.8.0/28"
-eks_private_node_subnet_cidr = "10.192.9.0/24"
 existing_eks_cluster_name    = ""
 
 # S3 Bucket Module Variables
@@ -33,7 +32,7 @@ create_s3_bucket_module = true
 existing_s3_bucket_name = ""
 
 # S3 Endpoint Module Variables
-create_s3_endpoint_module       = true
+create_vpc_endpoints_module     = true
 existing_private_route_table_id = ""
 
 # Lifecycle Script Module Variables
@@ -50,10 +49,10 @@ namespace                = "kube-system"
 helm_release_name        = "hyperpod-dependencies"
 
 # HyperPod Cluster Module Variables
-create_hyperpod_module = true
-hyperpod_cluster_name  = "ml-cluster"
-node_recovery          = "Automatic"
-node_provisioning_mode = "Continuous"
+create_hyperpod_module       = true
+hyperpod_cluster_name        = "ml-cluster"
+auto_node_recovery           = true
+continuous_provisioning_mode = true
 
 # For the instance_groups variable, you'll need to define specific groups. Here's an example:
 instance_groups = {
