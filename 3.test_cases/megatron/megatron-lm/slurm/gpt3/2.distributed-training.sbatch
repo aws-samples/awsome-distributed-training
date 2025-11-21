@@ -28,7 +28,10 @@ set -ex;
 : "${SEQ_LENGTH:=2048}"
 : "${MAX_POSITION_EMBEDDINGS:=2048}"
 : "${MICRO_BATCH_SIZE:=1}"
-: "${GLOBAL_BATCH_SIZE:=288}"
+
+# set GBS dynamically
+NODES=${SLURM_JOB_NUM_NODES}
+: "${GLOBAL_BATCH_SIZE:=$((288 * NODES / 2))}"
 
 # default variables for Enroot
 : "${IMAGE:=$(pwd)/megatron-training.sqsh}"
