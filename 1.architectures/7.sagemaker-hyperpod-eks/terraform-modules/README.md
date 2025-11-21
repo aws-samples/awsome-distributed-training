@@ -78,6 +78,68 @@ instance_groups = {
 EOL
 ```
 ---
+#### Creating a Restricted Instance Group (RIG) for Nova Model Customization
+
+As a prerequisite, you will need to identify or create input and output S3 buckets to reference in your deployment (represented as `my-tf-rig-test-input-bucket` and `my-tf-rig-test-output-bucket` in the following examples). 
+
+To create new S3 buckets, you can execute commands like the following example using the AWS CLI: 
+```bash
+aws s3 mb s3://my-tf-rig-test-input-bucket --region us-east-1
+
+aws s3 mb s3://my-tf-rig-test-output-bucket --region us-east-1
+```
+S3 bucket names must be globally unique. 
+
+You will also need to have [yq](https://pypi.org/project/yq/) installed so that a bash script that modifies CoreDNS and VPC NCI deployments can execute properly. 
+
+For Nova model customization using Restricted Instance Groups (RIG), you can use the example configuration in [`rig_custom.tfvars`](./hyperpod-eks-tf/rig_custom.tfvars). This file demonstrates how to configure restricted instance groups with the necessary S3 buckets and instance specifications.
+
+If you wish to create a new `rig_custom.tfvars` file, you execute a command like the following example with your specific configuration: 
+
+```bash 
+cat > rig_custom.tfvars << EOL 
+kubernetes_version = "1.32"
+eks_cluster_name = "tf-eks-cluster-rig"
+hyperpod_cluster_name = "tf-hp-cluster-rig"
+resource_name_prefix = "tf-eks-test-rig"
+aws_region = "us-east-1"
+availability_zone_id  = "use1-az6"
+rig_input_s3_bucket = "my-tf-rig-test-input-bucket"
+rig_output_s3_bucket = "my-tf-rig-test-output-bucket"
+instance_groups = {}
+restricted_instance_groups = {
+   rig-1 = {
+        instance_type = "ml.p5.48xlarge",
+        instance_count = 2, 
+        ebs_volume_size_in_gb = 850,
+        threads_per_core = 2, 
+        enable_stress_check = false,
+        enable_connectivity_check = false,
+        fsxl_per_unit_storage_throughput = 250,
+        fsxl_size_in_gi_b = 4800
+   }
+}
+EOL
+```
+RIG mode (`local.rig_mode = true` set in [main.tf](./hyperpod-eks-tf/main.tf)) is automatic when `restricted_instance_groups` are defined, enabling Nova model customization with the following changes: 
+- VPC Endpoints: Lambda and SQS interface endpoints are added for reinforcement fine-tuning (RFT) with integrations for your custom reward service hosted outside of the RIG. These endpoints are enabled in RIG mode by default so that you can easily transition from continuous pre-training (CPT) or supervised fine-tuning (SFT) to RFT without making infrastructure changes, but they can be disabled by setting `rig_rft_lambda_access` and `rig_rft_sqs_access` to false. 
+- IAM Execution Role Permissions: The execution role associated wit the HyperPod nodes is expanded to include read permission to your input S3 bucket and write permissions to your output S3 bucket. Access to SQS and Lambda resources with ARN patterns `arn:aws:lambda:*:*:function:*SageMaker*` and `arn:aws:sqs:*:*:*SageMaker*` are also conditionally added if `rig_rft_lambda_access` and `rig_rft_sqs_access` are true (default). 
+- Helm Charts: A specific Helm revision is checked out and used for RIG support. After Helm chart instillation, a bash script is used to modify CoreDNS and VPC NCI deployments (be sure to have [yq](https://pypi.org/project/yq/) installed for this). 
+- HyperPod Cluster: Continuous provisioning mode and Karpenter autoscaling are disabled automatically. 
+
+Please note that the following addons are NOT currently supported on HyperPod with RIGs: 
+- HyperPod Task Governance 
+- HyperPod Observability
+- HyperPod Training Operator
+- HyperPod Inference Operator
+
+Do not attempt to install these addons later using the console. 
+
+Deploying a HyperPod cluster with a combination of standard instance groups and RIGs is also not currently supported, so be sure to specify `instance_groups = {}` in your configuration. 
+
+Once you have your `rig_custom.tfvars` file is created, you can proceed to deployment. 
+
+---
 
 ## Deployment 
 First, clone the [HyperPod Helm charts GitHub repository](https://github.com/aws/sagemaker-hyperpod-cli/tree/main/helm_chart) to locally stage the dependencies Helm chart.  
@@ -98,6 +160,10 @@ If you created a `custom.tfvars` file, plan using the `-var-file` flag:
 ```bash 
 terraform plan -var-file=custom.tfvars
 ```
+Or for RIG deployments:
+```bash
+terraform plan -var-file=rig_custom.tfvars
+```
 Run `terraform apply` to execute the proposed changes outlined in the Terraform plan, creating, updating, or deleting infrastructure resources according to your configuration, and updating the state to reflect the new infrastructure setup.
 
 ```bash 
@@ -106,6 +172,10 @@ terraform apply
 If you created a `custom.tfvars` file, apply using the `-var-file` flag: 
 ```bash
 terraform apply  -var-file=custom.tfvars
+```
+Or for RIG deployments: 
+```bash
+terraform apply -var-file=rig_custom.tfvars
 ```
 When prompted to confirm, type `yes` and press enter.
 
@@ -147,7 +217,10 @@ If you created a `custom.tfvars` file, plan using the `-var-file` flag:
 ```bash
 terraform plan -destroy -var-file=custom.tfvars
 ```
-
+Or for RIG deployments:
+```bash
+terraform plan -destroy -var-file=rig_custom.tfvars
+```
 Once you've validated the changes, you can proceed to destroy the resources: 
 ```bash 
 terraform destroy
@@ -155,4 +228,8 @@ terraform destroy
 If you created a `custom.tfvars` file, destroy using the `-var-file` flag: 
 ```bash
 terraform destroy -var-file=custom.tfvars
+```
+Or for RIG deployments: 
+```bash
+terraform destroy -var-file=rig_custom.tfvars
 ```

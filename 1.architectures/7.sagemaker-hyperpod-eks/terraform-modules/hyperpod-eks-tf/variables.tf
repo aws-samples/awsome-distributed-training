@@ -95,7 +95,7 @@ variable "create_eks_module" {
 variable "kubernetes_version" {
   description = "The Kubernetes version to use for the EKS cluster"
   type        = string
-  default     = "1.31"
+  default     = "1.32"
 }
 
 variable "eks_cluster_name" {
@@ -122,12 +122,6 @@ variable "eks_private_subnet_2_cidr" {
   default     = "10.192.8.0/28"
 }
 
-variable "eks_private_node_subnet_cidr" {
-  description = "The IP range (CIDR notation) for the EKS private node subnet"
-  type        = string
-  default     = "10.192.9.0/24"
-}
-
 # S3 Bucket Module Variables
 variable "create_s3_bucket_module" {
   description = "Whether to create S3 bucket module"
@@ -142,8 +136,8 @@ variable "existing_s3_bucket_name" {
 }
 
 # S3 Endpoint Module Variables
-variable "create_s3_endpoint_module" {
-  description = "Whether to create S3 endpoint module"
+variable "create_vpc_endpoints_module" {
+  description = "Whether to create VPC endpoints module"
   type        = bool
   default     = true
 }
@@ -174,6 +168,36 @@ variable "existing_sagemaker_iam_role_name" {
   default     = ""
 }
 
+variable "rig_input_s3_bucket" {
+  description = "The name of the RIG input S3 bucket"
+  type        = string
+  default     = null 
+}
+
+variable "rig_output_s3_bucket" {
+  description = "The name of the RIG output S3 bucket"
+  type        = string
+  default     = null
+}
+
+variable "gated_access" {
+  description = "Whether to include gated access permissions"
+  type        = bool
+  default     = true
+}
+
+variable "rig_rft_lambda_access" {
+  description = "Whether to include Lambda access permissions for RFT"
+  type        = bool 
+  default     = true
+}
+
+variable "rig_rft_sqs_access" {
+    description = "Whether to include SQS access permissions for RFT"
+  type        = bool 
+  default     = true
+}
+
 # Helm Chart Module Variables
 variable "create_helm_chart_module" {
   description = "Whether to create Helm chart module"
@@ -199,6 +223,89 @@ variable "helm_release_name" {
   default     = "hyperpod-dependencies"
 }
 
+variable "helm_repo_revision" {
+  description = "Git revision for normal mode"
+  type        = string
+  default     = "c00832cd40698943b61e53802114658a61ba45f4"
+}
+
+variable "helm_repo_revision_rig" {
+  description = "Git revision for RIG mode"
+  type        = string
+  default     = "c5275ddbbca58164d1f5bd3a2811e0fc952f7ff4"
+}
+
+variable "enable_gpu_operator" {
+  description = "Whether to enable the GPU operator"
+  type        = bool
+  default     = false
+}
+
+variable "enable_mlflow" {
+  description = "Whether to enable the MLFlow"
+  type        = bool
+  default     = true
+}
+
+variable "enable_kubeflow_training_operators" {
+  description = "Whether to enable the Kubeflow training operators"
+  type        = bool
+  default     = true
+}
+
+variable "enable_cluster_role_and_bindings" {
+  description = "Whether to enable the cluster role and bindings"
+  type        = bool
+  default     = true
+}
+variable "enable_namespaced_role_and_bindings" {
+  description = "Whether to enable the namespaced role and bindings"
+  type        = bool
+  default     = true
+}
+
+variable "enable_nvidia_device_plugin" {
+  description = "Whether to enable the NVIDIA device plugin"
+  type        = bool
+  default     = true
+}
+
+variable "enable_neuron_device_plugin" {
+  description = "Whether to enable the Neuron device plugin"
+  type        = bool
+  default     = true
+}
+
+variable "enable_mpi_operator" {
+  description = "Whether to enable the MPI operator"
+  type        = bool
+  default     = true
+}
+
+variable "enable_deep_health_check" {
+  description = "Whether to enable the deep health check"
+  type        = bool
+  default     = true
+}
+
+variable "enable_job_auto_restart" {
+  description = "Whether to enable the job auto restart"
+  type        = bool
+  default     = true
+}
+
+variable "enable_hyperpod_patching" {
+  description = "Whether to enable the hyperpod patching"
+  type        = bool
+  default     = true
+}
+
+variable "rig_script_path" {
+  description = "The path to the RIG script"
+  type        = string
+  default     = "helm_chart/install_rig_dependencies.sh"
+}
+
 # HyperPod Cluster Module Variables
 variable "create_hyperpod_module" {
   description = "Whether to create HyperPod cluster module"
@@ -212,24 +319,22 @@ variable "hyperpod_cluster_name" {
   default     = "ml-cluster"
 }
 
-variable "node_recovery" {
-  description = "Specifies whether to enable or disable the automatic node recovery feature"
-  type        = string
-  default     = "Automatic"
-  validation {
-    condition     = contains(["Automatic", "None"], var.node_recovery)
-    error_message = "Node recovery must be either 'Automatic' or 'None'"
-  }
+variable "auto_node_recovery" {
+  description = "Whether to enable or disable the automatic node recovery feature"
+  type        = bool
+  default     = true
 }
 
-variable "node_provisioning_mode" { 
-  description = "Determines the scaling strategy for the SageMaker HyperPod cluster. When set to 'Continuous', enables continuous scaling which dynamically manages node provisioning. Set to null to disable continuous provisioning and use standard scaling approach."
-  type        = string
-  default     = "Continuous"
-  validation {
-    condition     = var.node_provisioning_mode == null || var.node_provisioning_mode == "Continuous"
-    error_message = "Node provisioning mode must be either 'Continuous' or null"
-  }
+variable "continuous_provisioning_mode" {
+  description = "whether to enable continuous node provisioning mode"
+  type        = bool 
+  default     = true
+}
+
+variable "karpenter_autoscaling" {
+  description = "Whether to enable Karpenter autoscaling"
+  type        = bool
+  default     = false
 }
 
 variable "instance_groups" {
