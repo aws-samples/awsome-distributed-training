@@ -180,14 +180,18 @@ resource "aws_iam_policy" "rig_policy" {
       var.rig_rft_lambda_access ? [
         {
           Effect = "Allow"
-          Action =  "lambda:*"
+          Action =  "lambda:InvokeFunction"
           Resource = "arn:aws:lambda:*:*:function:*SageMaker*"
         }
       ] : [],
       var.rig_rft_sqs_access ? [
         {
           Effect = "Allow"
-          Action = "sqs:*"
+          Action = [
+            "sqs:SendMessage",
+            "sqs:ReceiveMessage",
+            "sqs:DeleteMessage"
+          ]
           Resource = "arn:aws:sqs:*:*:*SageMaker*"
         }
       ] : [],
