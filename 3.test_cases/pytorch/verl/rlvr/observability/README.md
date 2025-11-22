@@ -1,31 +1,41 @@
-# Ray Observability for HyperPod EKS
+# Ray Observability for HyperPod
 
-Set up Ray metrics monitoring using your existing Amazon Managed Prometheus and Grafana.
+Set up Ray metrics monitoring using HyperPod's observability stack with Amazon Managed Prometheus and Grafana.
+
+## Overview
+
+To integrate Ray metrics into the HyperPod Observability stack, we use the `customServiceScrapeTargets` feature in the ObservabilityConfig CRD.
+
+## Prerequisites
+
+1. HyperPod observability stack is installed (check with `kubectl get deployment -n hyperpod-observability`)
+2. Ray cluster is deployed with metrics port exposed (8080)
+3. Environment variables are set in `setup/env_vars`
 
 ## Setup
 
-### 1. Update OTEL Collector to Scrape Ray Metrics
+### 1. Add Ray Metrics to ObservabilityConfig
+
+Run the provided script to add Ray metrics scraping to the HyperPod ObservabilityConfig:
 
 ```bash
-# Load environment variables
-source setup/env_vars
-
-# Apply OTEL config with Ray scrape jobs
-envsubst < observability/otel-collector-config-updated.yaml | kubectl apply -f -
-
-# Restart collector to pick up new config
-kubectl rollout restart deployment hyperpod-observability-central-collector -n hyperpod-observability
-kubectl rollout status deployment hyperpod-observability-central-collector -n hyperpod-observability
+./observability/add-ray-metrics.sh
 ```
 
-### 2. Deploy RayCluster with Grafana/Prometheus Config
+This patches the ObservabilityConfig CRD to add your Ray cluster's head service as a custom scrape target. The operator will automatically update the OTEL collector configuration.
 
-Your `setup/raycluster.yaml` already includes the necessary Grafana/Prometheus environment variables.
+**What it does:**
+- Adds `customServiceScrapeTargets` to the ObservabilityConfig
+- Configures scraping of Ray head service on port 8080
+- Won't be overwritten by the operator's reconciliation loop
+
+### 2. Restart OTEL Collector (Optional)
+
+To speed up the configuration update (otherwise it takes ~10 minutes):
 
 ```bash
-# Apply RayCluster (if not already running)
-source setup/env_vars
-envsubst < raycluster-observability.yaml | kubectl apply -f -
+kubectl rollout restart deployment hyperpod-observability-central-collector -n hyperpod-observability
+kubectl rollout status deployment hyperpod-observability-central-collector -n hyperpod-observability
 ```
 
 ### 3. Download Grafana Dashboards
@@ -63,12 +73,15 @@ To import:
 ## Verify It's Working
 
 ```bash
-# Check OTEL collector is scraping Ray (should see ray-head-metrics and ray-worker-metrics)
-kubectl logs -n hyperpod-observability deployment/hyperpod-observability-central-collector --tail=50 | grep ray
+# Check that custom scrape target was added
+kubectl get observabilityconfig hyperpod-observability -n hyperpod-observability -o yaml | grep -A 5 customServiceScrapeTargets
 
-# Check Ray metrics endpoint is responding
-HEAD_POD=$(kubectl get pods --selector ray.io/node-type=head,ray.io/cluster=rayml-efa -o jsonpath='{.items[0].metadata.name}')
-kubectl exec $HEAD_POD -- curl -s http://localhost:8080 | head -n 20
+# Verify Ray metrics endpoint is responding
+HEAD_POD=$(kubectl get pods -l ray.io/node-type=head -o jsonpath='{.items[0].metadata.name}')
+kubectl exec $HEAD_POD -- curl -s http://localhost:8080/metrics | head -n 20
+
+# Check OTEL collector picked up the config
+kubectl logs -n hyperpod-observability deployment/hyperpod-observability-central-collector --tail=100 | grep "custom-scrape-target"
 ```
 
 Wait 2-3 minutes for metrics to flow to AMP, then check your Grafana dashboards.
@@ -78,28 +91,30 @@ Wait 2-3 minutes for metrics to flow to AMP, then check your Grafana dashboards.
 **No metrics in Grafana?**
 - Wait 2-3 minutes for data to propagate
 - Check time range in Grafana (set to "Last 15 minutes")
-- Verify "Cluster" dropdown shows `rayml-efa`
-- Check OTEL collector logs for errors
+- Verify the Ray cluster name in the "Cluster" dropdown
+- Confirm Ray metrics endpoint is responding (see verification steps above)
 
-**OTEL collector not scraping Ray?**
-- Verify the collector restarted: `kubectl get pods -n hyperpod-observability`
-- Check for scrape errors: `kubectl logs -n hyperpod-observability deployment/hyperpod-observability-central-collector --tail=100`
+**Need to update the Ray service target?**
+Edit the script `observability/add-ray-metrics.sh` to change the service name, then re-run it.
 
-**Ray scrape configs disappeared?**
-
-HyperPod's ObservabilityConfig controller manages the OTEL collector ConfigMap. If you update the ObservabilityConfig (e.g., change scrape intervals), it will regenerate the ConfigMap and remove your Ray scrape configs.
-
-If this happens, simply reapply:
+**Want to scrape multiple Ray clusters?**
+You can add multiple entries to `customServiceScrapeTargets`. Edit the ObservabilityConfig:
 ```bash
-source setup/env_vars
-envsubst < observability/otel-collector-config-updated.yaml | kubectl apply -f -
-kubectl rollout restart deployment hyperpod-observability-central-collector -n hyperpod-observability
+kubectl edit observabilityconfig hyperpod-observability -n hyperpod-observability
 ```
 
-The configs will persist as long as you don't modify the ObservabilityConfig resource.
+Add additional targets under `spec.customServiceScrapeTargets`:
+```yaml
+customServiceScrapeTargets:
+  - target: "cluster1-head-svc.default.svc.cluster.local:8080"
+    metricsPath: "/metrics"
+    scrapeInterval: 30
+  - target: "cluster2-head-svc.default.svc.cluster.local:8080"
+    metricsPath: "/metrics"
+    scrapeInterval: 30
+```
 
-
-Results:
 ## Dashboard Preview
 
-![Ray Dashboard](../img/ray-dashboard.png)
+![Ray Dashboard](img/ray-dashboard.png)
+
