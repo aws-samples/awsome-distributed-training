@@ -86,7 +86,7 @@ resource "aws_iam_policy" "sagemaker_execution_policy" {
 
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
+    Statement = concat([
       {
         Effect = "Allow"
         Action = [
@@ -132,7 +132,9 @@ resource "aws_iam_policy" "sagemaker_execution_policy" {
           "eks-auth:AssumeRoleForPodIdentity"
         ]
         Resource = local.eks_cluster_arn
-      },
+      }
+    ],
+    !var.rig_mode ? [
       {
         Effect = "Allow"
         Action = [
@@ -144,7 +146,7 @@ resource "aws_iam_policy" "sagemaker_execution_policy" {
           "arn:aws:s3:::${var.s3_bucket_name}/*"
         ]
       }
-    ]
+    ] : [])
   })
 
   tags = var.tags

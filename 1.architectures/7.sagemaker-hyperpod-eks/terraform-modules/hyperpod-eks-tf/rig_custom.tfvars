@@ -6,7 +6,6 @@ aws_region = "us-east-1"
 availability_zone_id  = "use1-az6"
 rig_input_s3_bucket = "my-tf-rig-test-input-bucket"
 rig_output_s3_bucket = "my-tf-rig-test-output-bucket"
-instance_groups = {}
 restricted_instance_groups = {
    rig-1 = {
         instance_type = "ml.p5.48xlarge",
