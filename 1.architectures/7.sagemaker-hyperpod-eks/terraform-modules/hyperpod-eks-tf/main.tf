@@ -13,8 +13,7 @@ locals {
   vpc_id                   = var.create_vpc_module ? module.vpc[0].vpc_id : var.existing_vpc_id
   private_subnet_id        = var.create_private_subnet_module ? module.private_subnet[0].private_subnet_id : var.existing_private_subnet_id
   security_group_id        = var.create_security_group_module ? module.security_group[0].security_group_id : var.existing_security_group_id
-  which_s3_bucket_name     = var.create_s3_bucket_module ? module.s3_bucket[0].s3_bucket_name : var.existing_s3_bucket_name
-  s3_bucket_name           = !local.rig_mode ? local.which_s3_bucket_name : null
+  s3_bucket_name           = !local.rig_mode ? (var.create_s3_bucket_module ? module.s3_bucket[0].s3_bucket_name : var.existing_s3_bucket_name) : null
   eks_cluster_name         = var.create_eks_module ? module.eks_cluster[0].eks_cluster_name : var.existing_eks_cluster_name
   sagemaker_iam_role_name  = var.create_sagemaker_iam_role_module ? module.sagemaker_iam_role[0].sagemaker_iam_role_name : var.existing_sagemaker_iam_role_name
   deploy_hyperpod          = var.create_hyperpod_module && !(var.create_eks_module && !var.create_helm_chart_module)
