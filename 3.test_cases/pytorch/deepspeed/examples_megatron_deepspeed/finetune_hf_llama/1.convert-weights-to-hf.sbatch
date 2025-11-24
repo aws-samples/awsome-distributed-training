@@ -4,9 +4,9 @@
 #SBATCH --output=logs/%x_%j.out # logfile for stdout/stderr
 #SBATCH --nodes 1
 
-: "${APPS_PATH:=/fsx/apps}"
-: "${IMAGE:=$APPS_PATH/deepspeed.sqsh}"
-: "${FSX_PATH:=/fsx}"
+: "${CONTAINER_PATH:=/fsxl/containers}"
+: "${IMAGE:=$CONTAINER_PATH/deepspeed.sqsh}"
+: "${FSX_PATH:=/fsxl}"
 : "${DATASET:=c4_subset}"
 : "${DATA_PATH:=$FSX_PATH/$DATASET}"
 : "${MODEL_PATH:=$FSX_PATH/deepspeed}"
@@ -15,7 +15,8 @@
 
 declare -a ARGS=(
     --container-image ${IMAGE}
-    --container-mounts /fsx
+    --container-mount-home
+    --container-mounts ${FSX_PATH}
 )
 
 srun -l "${ARGS[@]}" python3 ${PWD}/src/convert_llama_weights_to_hf.py \
