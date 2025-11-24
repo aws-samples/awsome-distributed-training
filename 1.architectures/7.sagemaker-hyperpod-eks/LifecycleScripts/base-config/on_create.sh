@@ -69,7 +69,7 @@ discard_unpacked_layers = true
 
 [plugins."io.containerd.grpc.v1.cri"]
 sandbox_image = "localhost/kubernetes/pause"
-enable_cdi = false
+enable_cdi = true
 
 [plugins."io.containerd.grpc.v1.cri".registry]
 config_path = "/etc/containerd/certs.d:/etc/docker/certs.d"
