@@ -1,4 +1,4 @@
-# rlvr-recipe
+# RLVR Recipe
 
 This repository provides a complete setup for running reinforcement learning from verifiable rewards (RLVR) on EKS clusters using Ray and verl. RLVR trains language models using verifiable rewards from math and coding tasks, where correctness can be automatically verified. The project uses verl, an efficient RL training framework from ByteDance, to run algorithms like GRPO (Group Relative Policy Optimization) and DAPO (Direct Advantage Policy Optimization) on distributed GPU clusters.
 

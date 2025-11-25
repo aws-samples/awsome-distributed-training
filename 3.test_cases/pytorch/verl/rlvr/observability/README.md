@@ -18,7 +18,7 @@ To integrate Ray metrics into the HyperPod Observability stack, we use the `cust
 
 > **Note:** The following script overwrites spec.customServiceScrapeTargets on the ObservabilityConfig. If you've manually added other scrape targets, either:
 > - add Ray targets manually instead of using the following script
-> - merge your additional customServiceScrapeTargets back into the ObservabilityConfig and re-run the script
+> - run the script then merge your additional customServiceScrapeTargets manually back into the ObservabilityConfig 
 
 Run the provided script to add Ray metrics scraping to the HyperPod ObservabilityConfig:
 
