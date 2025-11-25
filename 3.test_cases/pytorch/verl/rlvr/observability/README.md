@@ -1,4 +1,4 @@
-# Ray Observability for HyperPod
+# Ray Observability for HyperPod EKS
 
 Set up Ray metrics monitoring using HyperPod's observability stack with Amazon Managed Prometheus and Grafana.
 
@@ -15,6 +15,10 @@ To integrate Ray metrics into the HyperPod Observability stack, we use the `cust
 ## Setup
 
 ### 1. Add Ray Metrics to ObservabilityConfig
+
+> **Note:** The following script overwrites spec.customServiceScrapeTargets on the ObservabilityConfig. If you've manually added other scrape targets, either:
+> - add Ray targets manually instead of using the following script
+> - merge your additional customServiceScrapeTargets back into the ObservabilityConfig and re-run the script
 
 Run the provided script to add Ray metrics scraping to the HyperPod ObservabilityConfig:
 
