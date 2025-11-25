@@ -14,9 +14,18 @@ set -ex;
 ###### User Variables #####
 ###########################
 
-# Parallelism decomposition variables
-: "${TENSOR_PARALLEL:=4}"
-: "${PIPELINE_PARALLEL:=2}"
+# configure TP/PP/GBS based on node count
+if [ $NODES -le 4 ]; then
+    : "${TENSOR_PARALLEL:=4}"
+    : "${PIPELINE_PARALLEL:=2}"
+    : "${GLOBAL_BATCH_SIZE:=288}"
+elif [ $NODES -ge 8 ]; then
+    : "${TENSOR_PARALLEL:=8}"
+    : "${PIPELINE_PARALLEL:=4}"
+    TOTAL_GPUS=$((NODES * 8))
+    DATA_PARALLEL=$((TOTAL_GPUS / (TENSOR_PARALLEL * PIPELINE_PARALLEL)))
+    : "${GLOBAL_BATCH_SIZE:=$((DATA_PARALLEL * 576))}"
+fi
 
 # Model parameters, defaults to 39B model
 # Refer to page 8 of this paper on how to tune models parameters
@@ -24,11 +33,10 @@ set -ex;
 : "${NUM_LAYERS:=36}"
 : "${HIDDEN_SIZE:=4096}"
 : "${NUM_ATTENTION_HEADS:=32}"
-
 : "${SEQ_LENGTH:=2048}"
 : "${MAX_POSITION_EMBEDDINGS:=2048}"
 : "${MICRO_BATCH_SIZE:=1}"
-: "${GLOBAL_BATCH_SIZE:=288}"
+
 
 # default variables for Enroot
 : "${IMAGE:=$(pwd)/megatron-training.sqsh}"
