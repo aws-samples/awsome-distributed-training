@@ -84,13 +84,13 @@ As a prerequisite, you will need to identify or create input and output S3 bucke
 
 To create new S3 buckets, you can execute commands like the following example using the AWS CLI: 
 ```bash
-aws s3 mb s3://my-tf-rig-test-input-bucket --region us-east-1
+aws s3 mb s3://my-tf-rig-test-input-bucket --region us-east-1 # adjust region as needed
 
-aws s3 mb s3://my-tf-rig-test-output-bucket --region us-east-1
+aws s3 mb s3://my-tf-rig-test-output-bucket --region us-east-1 # adjust region as needed
 ```
 S3 bucket names must be globally unique. 
 
-You will also need to have [yq](https://pypi.org/project/yq/) installed so that a bash script that modifies CoreDNS and VPC NCI deployments can execute properly. 
+You will also need to have [yq](https://pypi.org/project/yq/) installed so that a bash script that modifies CoreDNS and VPC CNI deployments can execute properly. 
 
 For Nova model customization using Restricted Instance Groups (RIG), you can use the example configuration in [`rig_custom.tfvars`](./hyperpod-eks-tf/rig_custom.tfvars). This file demonstrates how to configure restricted instance groups with the necessary S3 buckets and instance specifications.
 
@@ -106,7 +106,6 @@ aws_region = "us-east-1"
 availability_zone_id  = "use1-az6"
 rig_input_s3_bucket = "my-tf-rig-test-input-bucket"
 rig_output_s3_bucket = "my-tf-rig-test-output-bucket"
-instance_groups = {}
 restricted_instance_groups = {
    rig-1 = {
         instance_type = "ml.p5.48xlarge",
@@ -122,10 +121,14 @@ restricted_instance_groups = {
 EOL
 ```
 RIG mode (`local.rig_mode = true` set in [main.tf](./hyperpod-eks-tf/main.tf)) is automatic when `restricted_instance_groups` are defined, enabling Nova model customization with the following changes: 
-- VPC Endpoints: Lambda and SQS interface endpoints are added for reinforcement fine-tuning (RFT) with integrations for your custom reward service hosted outside of the RIG. These endpoints are enabled in RIG mode by default so that you can easily transition from continuous pre-training (CPT) or supervised fine-tuning (SFT) to RFT without making infrastructure changes, but they can be disabled by setting `rig_rft_lambda_access` and `rig_rft_sqs_access` to false. 
-- IAM Execution Role Permissions: The execution role associated wit the HyperPod nodes is expanded to include read permission to your input S3 bucket and write permissions to your output S3 bucket. Access to SQS and Lambda resources with ARN patterns `arn:aws:lambda:*:*:function:*SageMaker*` and `arn:aws:sqs:*:*:*SageMaker*` are also conditionally added if `rig_rft_lambda_access` and `rig_rft_sqs_access` are true (default). 
-- Helm Charts: A specific Helm revision is checked out and used for RIG support. After Helm chart instillation, a bash script is used to modify CoreDNS and VPC NCI deployments (be sure to have [yq](https://pypi.org/project/yq/) installed for this). 
-- HyperPod Cluster: Continuous provisioning mode and Karpenter autoscaling are disabled automatically. 
+- **VPC Endpoints**: Lambda and SQS interface endpoints are added for reinforcement fine-tuning (RFT) with integrations for your custom reward service hosted outside of the RIG. These endpoints are enabled in RIG mode by default so that you can easily transition from continuous pre-training (CPT) or supervised fine-tuning (SFT) to RFT without making infrastructure changes, but they can be disabled by setting `rig_rft_lambda_access` and `rig_rft_sqs_access` to false. 
+- **IAM Execution Role Permissions**: The execution role associated with the HyperPod nodes is expanded to include read permission to your input S3 bucket and write permissions to your output S3 bucket. Access to SQS and Lambda resources with ARN patterns `arn:aws:lambda:*:*:function:*SageMaker*` and `arn:aws:sqs:*:*:*SageMaker*` are also conditionally added if `rig_rft_lambda_access` and `rig_rft_sqs_access` are true (default). 
+- **Helm Charts**: A specific Helm revision is checked out and used for RIG support. After Helm chart instillation, a bash script is used to modify CoreDNS and VPC NCI deployments (be sure to have [yq](https://pypi.org/project/yq/) installed for this). 
+- **HyperPod Cluster**: Continuous provisioning mode and Karpenter autoscaling are disabled automatically for RIG compatibility. Deploying a HyperPod cluster with a combination of standard instance groups and RIGs is also not currently supported, so `instance_groups` definitions are ignored when `restricted_instance_groups` are defined.
+- **FSx for Lustre**: For RIGs a service managed FSx for Lustre filesystem is created based on the specifications you provide in `fsxl_per_unit_storage_throughput` and `fsxl_size_in_gi_b`. 
+    - Valid values for `fsxl_per_unit_storage_throughput` are 125, 250, 500, or 1000 MBps/TiB. 
+    - Valid values for `fsxl_size_in_gi_b` start at 1200 GiB and go up in increments of 2400 GiB. 
+- **S3 Lifecycle Scripts**: Because RIGs do not leverage lifecycle scripts, the `s3_bucket` and `lifecycle_script` modules are also disabled in RIG mode. 
 
 Please note that the following addons are NOT currently supported on HyperPod with RIGs: 
 - HyperPod Task Governance 
@@ -134,8 +137,6 @@ Please note that the following addons are NOT currently supported on HyperPod wi
 - HyperPod Inference Operator
 
 Do not attempt to install these addons later using the console. 
-
-Deploying a HyperPod cluster with a combination of standard instance groups and RIGs is also not currently supported, so be sure to specify `instance_groups = {}` in your configuration. 
 
 Once you have your `rig_custom.tfvars` file is created, you can proceed to deployment. 
 

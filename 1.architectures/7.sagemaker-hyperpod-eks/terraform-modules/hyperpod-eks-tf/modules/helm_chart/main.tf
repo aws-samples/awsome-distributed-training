@@ -93,6 +93,10 @@ resource "helm_release" "hyperpod" {
       value = var.enable_namespaced_role_and_bindings
     },
     {
+      name = "team-role-and-bindings.enabled"
+      value = var.enable_team_role_and_bindings
+    },
+    {
       name  = "gpu-operator.enabled"
       value = var.enable_gpu_operator
     },
