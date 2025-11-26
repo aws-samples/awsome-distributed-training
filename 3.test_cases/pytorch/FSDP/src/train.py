@@ -10,6 +10,8 @@ from torch import optim
 import torch.distributed as dist
 import torch.utils.data
 
+from transformers import AutoModelForCausalLM
+
 from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 from torch.distributed.fsdp import MixedPrecision
 from torch.distributed.fsdp import ShardingStrategy
@@ -21,12 +23,10 @@ from model_utils.train_utils import (get_model_config,
                                    get_transformer_layer,
                                    apply_activation_checkpoint,
                                    get_param_groups_by_weight_decay,
-                                   get_logger,
                                    get_learning_rate_scheduler,
                                    create_streaming_dataloader)
 from model_utils.checkpoint import save_checkpoint, load_checkpoint
 from model_utils.arguments import parse_args
-
 
 import logging
 import sys
