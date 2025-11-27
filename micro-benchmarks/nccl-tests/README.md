@@ -38,7 +38,6 @@ The NCCL tests are packaged in a container.
 > |`CUDA_VERSION`         | `12.8.1`    |                                                                                             |
 > |`GDRCOPY_VERSION`      | `v2.5.1`    | [link](https://github.com/NVIDIA/gdrcopy)                                                   |
 > |`EFA_INSTALLER_VERSION`| `1.43.2`    | [link](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa-start.html#efa-start-enable) |
-> |`AWS_OFI_NCCL_VERSION` | `v1.16.3`   | [link](https://github.com/aws/aws-ofi-nccl)                                                 |
 > |`NCCL_VERSION`         | `v2.27.7-1` | [link](https://github.com/NVIDIA/nccl)                                                      |
 > |`NCCL_TESTS_VERSION`   | `v2.16.9`   | [link](https://github.com/NVIDIA/nccl-tests)                                                |
 
@@ -47,10 +46,9 @@ You must pick each version of the library and set them as variables before proce
 ```bash
 GDRCOPY_VERSION=v2.5.1
 EFA_INSTALLER_VERSION=1.43.2
-AWS_OFI_NCCL_VERSION=v1.16.3
 NCCL_VERSION=v2.27.7-1
 NCCL_TESTS_VERSION=v2.16.9
-TAG="efa${EFA_INSTALLER_VERSION}-ofi${AWS_OFI_NCCL_VERSION}-nccl${NCCL_VERSION}-tests${NCCL_TESTS_VERSION}"
+TAG="efa${EFA_INSTALLER_VERSION}-nccl${NCCL_VERSION}-tests${NCCL_TESTS_VERSION}"
 CONTAINER_IMAGE_NAME_TAG="nccl-tests:${TAG}"
 ```
 
@@ -62,7 +60,6 @@ If you wish to build the containar image by yourself, follow this section. Alter
    ```bash
    docker build -f nccl-tests.Dockerfile \
           --build-arg="EFA_INSTALLER_VERSION=${EFA_INSTALLER_VERSION}" \
-          --build-arg="AWS_OFI_NCCL_VERSION=${AWS_OFI_NCCL_VERSION}" \
           --build-arg="NCCL_VERSION=${NCCL_VERSION}" \
           --build-arg="NCCL_TESTS_VERSION=${NCCL_TESTS_VERSION}" \
           -t ${CONTAINER_IMAGE_NAME_TAG} \
@@ -262,7 +259,7 @@ To change the type of collective to test, modify the line with `srun` in the fil
    kubectl logs -f $(kubectl get pods | grep launcher | cut -d ' ' -f 1)
    ```
 
-   The following is an example exerpt from the logs of a NCCL all_reduce_perf test, executed on a cluster with two p5.48xlarge instances (using EFA_INSTALLER_VERSION=1.28.0, AWS_OFI_NCCL_VERSION=v1.7.3-aws, NCCL_TESTS_VERSION=master, ARG NCCL_VERSION=2.18.5):
+   The following is an example exerpt from the logs of a NCCL all_reduce_perf test, executed on a cluster with two p5.48xlarge instances (using EFA_INSTALLER_VERSION=1.28.0, NCCL_TESTS_VERSION=master, ARG NCCL_VERSION=2.18.5):
 
    ```log
    [1,0]<stdout>:#                                                              out-of-place                       in-place          
