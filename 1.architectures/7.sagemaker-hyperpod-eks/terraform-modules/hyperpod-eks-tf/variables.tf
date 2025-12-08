@@ -244,7 +244,7 @@ variable "enable_gpu_operator" {
 variable "enable_mlflow" {
   description = "Whether to enable the MLFlow"
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "enable_kubeflow_training_operators" {
@@ -253,15 +253,23 @@ variable "enable_kubeflow_training_operators" {
   default     = true
 }
 
+# task governance helm chart values
 variable "enable_cluster_role_and_bindings" {
   description = "Whether to enable the cluster role and bindings"
   type        = bool
-  default     = true
+  default     = false
 }
+
 variable "enable_namespaced_role_and_bindings" {
   description = "Whether to enable the namespaced role and bindings"
   type        = bool
-  default     = true
+  default     = false
+}
+
+variable "enable_team_role_and_bindings" {
+  description = "Whether to enable the team role and binding"
+  type        = bool
+  default     = false
 }
 
 variable "enable_nvidia_device_plugin" {
