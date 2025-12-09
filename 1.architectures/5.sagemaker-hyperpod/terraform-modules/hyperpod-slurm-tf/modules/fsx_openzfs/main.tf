@@ -29,7 +29,7 @@ resource "aws_fsx_openzfs_file_system" "main" {
     nfs_exports {
       client_configurations {
         clients = "*"
-        options = ["rw", "crossmnt"]
+        options = ["rw", "no_root_squash", "crossmnt"]
       }
     }
   }
