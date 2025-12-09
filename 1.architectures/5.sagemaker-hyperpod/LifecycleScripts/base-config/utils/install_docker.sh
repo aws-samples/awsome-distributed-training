@@ -44,7 +44,7 @@ sudo apt-get install -y --allow-downgrades -o DPkg::Lock::Timeout=120 nvidia-con
 # Lock nvidia-container-toolkit version
 sudo apt-mark hold nvidia-container-toolkit nvidia-container-toolkit-base libnvidia-container-tools libnvidia-container1
 
-# Print NV_COTNAINER_TLK_VERSIONS to logs 
+# Print NV_COTNAINER_TLK_VERSIONS to logs
 echo "Expected NV_TLK_VERSION: ${NVIDIA_CONTAINER_TLK_VERSION}"
 echo "Installed NV_TLK_VERSION: $(dpkg -l nvidia-container-toolkit | awk '/nvidia-container-toolkit/ {print $3}')"
 
@@ -66,6 +66,9 @@ EOL
     sed -i \
         's|^\[Service\]$|[Service]\nEnvironment="DOCKER_TMPDIR=/opt/sagemaker/docker/tmp"|' \
         /usr/lib/systemd/system/docker.service
+    sed -i \
+        's|root = "/var/lib/containerd"|root = "/opt/sagemaker/docker/containerd"|g' \
+        /etc/containerd/config.toml
 elif [[ $(mount | grep /opt/dlami/nvme) ]]; then
     cat <<EOL >> /etc/docker/daemon.json
 {
@@ -76,6 +79,9 @@ EOL
     sed -i \
         's|^\[Service\]$|[Service]\nEnvironment="DOCKER_TMPDIR=/opt/dlami/nvme/docker/tmp"|' \
         /usr/lib/systemd/system/docker.service
+    sed -i \
+        's|root = "/var/lib/containerd"|root = "/opt/dlami/nvme/docker/containerd"|g' \
+        /etc/containerd/config.toml
 fi
 
 systemctl daemon-reload
