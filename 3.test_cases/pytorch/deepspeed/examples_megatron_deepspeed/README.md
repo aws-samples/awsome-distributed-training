@@ -6,8 +6,8 @@
 You need to follow steps in `../README.md` to prepare AWS-optimized DeepSpeed container. Also, set the following environment variables to run the test cases:
 
 ```bash
-export APPS_PATH=/fsx/apps
-export ENROOT_IMAGE=$APPS_PATH/deepspeed.sqsh
+export CONTAINER_PATH=/fsxl/containers
+export ENROOT_IMAGE=$CONTAINER_PATH/deepspeed.sqsh
 export FSX_PATH=/fsx
 export MODEL_PATH=$FSX_PATH/deepspeed
 export TEST_CASE_PATH=${HOME}/18.deepspeed  # where you copy the test case or set to your test case path
