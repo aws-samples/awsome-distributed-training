@@ -1,0 +1,4 @@
+*.sqsh
+nvshmem*
+*.out
+*.err
