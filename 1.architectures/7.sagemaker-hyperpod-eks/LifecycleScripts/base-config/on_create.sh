@@ -13,7 +13,7 @@ logger() {
 logger "[start] on_create.sh"
 
 if ! bash ./on_create_main.sh >> "$LOG_FILE" 2>&1; then
-  logger "[error] on_create_main.sh failed, waiting 60 seconds before exit"
+  logger "[error] on_create_main.sh failed, waiting 60 seconds before exit, to make sure logs are uploaded"
   sync
   sleep 60
   logger "[stop] on_create.sh with error"
