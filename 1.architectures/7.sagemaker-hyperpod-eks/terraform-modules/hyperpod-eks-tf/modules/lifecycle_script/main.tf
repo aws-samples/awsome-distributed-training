@@ -1,10 +1,12 @@
-data "http" "script" {
-  url = var.script_url
+data "http" "scripts" {
+  for_each = toset(var.script_urls)
+  url      = each.value
 }
 
-resource "aws_s3_object" "script" {
+resource "aws_s3_object" "scripts" {
+  for_each     = data.http.scripts
   bucket       = var.s3_bucket_name
-  key          = "on_create.sh"
-  content      = data.http.script.response_body
+  key          = basename(each.value.url)
+  content      = each.value.response_body
   content_type = "text/x-sh"
 }
