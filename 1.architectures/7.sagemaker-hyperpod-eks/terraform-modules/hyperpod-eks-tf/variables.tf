@@ -376,3 +376,164 @@ variable "restricted_instance_groups" {
   }))
   default = {}
 }
+
+# Observability Module Variables
+variable "create_observability_module" {
+  description = "Whether to create observability module"
+  type        = bool
+  default     = false
+}
+
+variable "create_grafana_workspace" {
+  description = "Specify whether to create new grafana workspace"
+  type        = bool
+  default     = false
+}
+
+variable "create_prometheus_workspace" {
+  description = "Specify whether to create new prometheus workspace"
+  type        = bool
+  default     = false
+}
+
+variable "prometheus_workspace_id" {
+  description = "The ID of the existing Amazon Managed Service for Prometheus (AMP) workspace"
+  type        = string
+  default     = ""
+}
+
+variable "prometheus_workspace_arn" {
+  description = "The ARN of the existing Amazon Managed Service for Prometheus (AMP) workspace"
+  type        = string
+  default     = ""
+}
+
+variable "prometheus_workspace_endpoint" {
+  description = "The Endpoint of the existing Amazon Managed Service for Prometheus (AMP) workspace"
+  type        = string
+  default     = ""
+}
+
+variable "create_hyperpod_observability_role" {
+  description = "Specify whether to create new role for Hyperpod Observability AddOn"
+  type        = bool
+  default     = false
+}
+
+variable "hyperpod_observability_role_arn" {
+  description = "The role to be used with Hyperpod Observability AddOn"
+  type        = string
+  default     = ""
+}
+
+variable "create_grafana_role" {
+  description = "Specify whether to create new role for Hyperpod Observability Grafana Custom Resources"
+  type        = bool
+  default     = false
+}
+
+variable "grafana_role" {
+  description = "The role to be used with Hyperpod Observability Grafana Custom Resources"
+  type        = string
+  default     = ""
+}
+
+variable "grafana_workspace_name" {
+  description = "Name of the Grafana workspace"
+  type        = string
+  default     = ""
+}
+
+variable "grafana_workspace_arn" {
+  description = "ARN of existing Grafana workspace"
+  type        = string
+  default     = ""
+}
+
+variable "grafana_workspace_role_arn" {
+  description = "ARN of the IAM role for Grafana workspace"
+  type        = string
+  default     = ""
+}
+
+variable "grafana_service_account_name" {
+  description = "Name of the service account"
+  type        = string
+  default     = ""
+}
+
+variable "training_metric_level" {
+  description = "Level of training metrics"
+  type        = string
+  default     = "BASIC"
+  validation {
+    condition = contains(["BASIC", "ADVANCED"], var.training_metric_level)
+    error_message = "Training metric level must be one of: BASIC, ADVANCED."
+  }
+}
+
+variable "task_governance_metric_level" {
+  description = "Level of task governance metrics"
+  type        = string
+  default     = "DISABLED"
+  validation {
+    condition = contains(["DISABLED", "ADVANCED"], var.task_governance_metric_level)
+    error_message = "Task governance metric level must be one of: DISABLED, ADVANCED."
+  }
+}
+
+variable "scaling_metric_level" {
+  description = "Level of scaling metrics"
+  type        = string
+  default     = "DISABLED"
+  validation {
+    condition = contains(["DISABLED", "ADVANCED"], var.scaling_metric_level)
+    error_message = "Scaling metric level must be one of: DISABLED, ADVANCED."
+  }
+}
+
+variable "cluster_metric_level" {
+  description = "Level of cluster metrics"
+  type        = string
+  default     = "BASIC"
+  validation {
+    condition = contains(["BASIC", "ADVANCED"], var.cluster_metric_level)
+    error_message = "Cluster metric level must be one of: BASIC, ADVANCED."
+  }
+}
+
+variable "node_metric_level" {
+  description = "Level of node metrics"
+  type        = string
+  default     = "BASIC"
+  validation {
+    condition = contains(["BASIC", "ADVANCED"], var.node_metric_level)
+    error_message = "Node metric level must be one of: BASIC, ADVANCED."
+  }
+}
+
+variable "network_metric_level" {
+  description = "Level of network metrics"
+  type        = string
+  default     = "DISABLED"
+  validation {
+    condition = contains(["DISABLED", "ADVANCED"], var.network_metric_level)
+    error_message = "Network metric level must be one of: DISABLED, ADVANCED."
+  }
+}
+
+variable "accelerated_compute_metric_level" {
+  description = "Level of accelerated compute metrics"
+  type        = string
+  default     = "BASIC"
+  validation {
+    condition = contains(["BASIC", "ADVANCED"], var.accelerated_compute_metric_level)
+    error_message = "Accelerated compute metric level must be one of: BASIC, ADVANCED."
+  }
+}
+
+variable "logging_enabled" {
+  description = "Enable logging"
+  type        = bool
+  default     = false
+}

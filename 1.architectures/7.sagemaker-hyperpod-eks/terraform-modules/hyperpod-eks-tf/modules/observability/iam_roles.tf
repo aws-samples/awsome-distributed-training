@@ -1,13 +1,9 @@
-### TODO: define HyperPodObservabilityAddonRole and GrafanaWorkspaceRole here
-data "aws_caller_identity" "current" {}
-data "aws_region" "current" {}
-
 # HyperPod Observability AddOn Role
 resource "aws_iam_role" "hyperpod_observability_addon" {
   count = var.create_hyperpod_observability_role ? 1 : 0
 
-  name               = "${var.resource_name_prefix}-AddOn"
-  path               = "/service-role/"
+  name                 = "${var.resource_name_prefix}-AddOn"
+  path                 = "/service-role/"
   max_session_duration = 3600
 
   assume_role_policy = jsonencode({
@@ -32,44 +28,48 @@ resource "aws_iam_role" "hyperpod_observability_addon" {
       }
     ]
   })
+}
 
-  inline_policy {
-    name = "${var.resource_name_prefix}-OnPol"
-    policy = jsonencode({
-      Version = "2012-10-17"
-      Statement = [
-        {
-          Sid    = "PrometheusAccess"
-          Effect = "Allow"
-          Action = [
-            "aps:RemoteWrite"
-          ]
-          Resource = "arn:aws:aps:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:workspace/*"
-        },
-        {
-          Sid    = "CloudwatchLogsAccess"
-          Effect = "Allow"
-          Action = [
-            "logs:CreateLogGroup",
-            "logs:CreateLogStream",
-            "logs:DescribeLogGroups",
-            "logs:DescribeLogStreams",
-            "logs:PutLogEvents",
-            "logs:GetLogEvents",
-            "logs:FilterLogEvents",
-            "logs:GetLogRecord",
-            "logs:StartQuery",
-            "logs:StopQuery",
-            "logs:GetQueryResults"
-          ]
-          Resource = [
-            "arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:/aws/sagemaker/Clusters/*",
-            "arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:/aws/sagemaker/Clusters/*:log-stream:*"
-          ]
-        }
-      ]
-    })
-  }
+resource "aws_iam_role_policy" "hyperpod_observability_addon" {
+  count = var.create_hyperpod_observability_role ? 1 : 0
+
+  name = "${var.resource_name_prefix}-OnPol"
+  role = aws_iam_role.hyperpod_observability_addon[0].id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "PrometheusAccess"
+        Effect = "Allow"
+        Action = [
+          "aps:RemoteWrite"
+        ]
+        Resource = "arn:aws:aps:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:workspace/*"
+      },
+      {
+        Sid    = "CloudwatchLogsAccess"
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:DescribeLogGroups",
+          "logs:DescribeLogStreams",
+          "logs:PutLogEvents",
+          "logs:GetLogEvents",
+          "logs:FilterLogEvents",
+          "logs:GetLogRecord",
+          "logs:StartQuery",
+          "logs:StopQuery",
+          "logs:GetQueryResults"
+        ]
+        Resource = [
+          "arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:/aws/sagemaker/Clusters/*",
+          "arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:/aws/sagemaker/Clusters/*:log-stream:*"
+        ]
+      }
+    ]
+  })
 }
 
 # Grafana Workspace Role
@@ -97,108 +97,112 @@ resource "aws_iam_role" "grafana_workspace" {
       }
     ]
   })
+}
 
-  inline_policy {
-    name = "${var.resource_name_prefix}-GraPol"
-    policy = jsonencode({
-      Version = "2012-10-17"
-      Statement = [
-        {
-          Sid    = "AllowReadingMetricsFromCloudWatch"
-          Effect = "Allow"
-          Action = [
-            "cloudwatch:ListMetrics",
-            "cloudwatch:GetMetricStatistics",
-            "cloudwatch:GetMetricData",
-            "cloudwatch:DescribeAlarmsForMetric",
-            "cloudwatch:GetInsightRuleReport"
-          ]
-          Resource = "*"
-        },
-        {
-          Sid    = "AllowReadingAlarmsFromCloudWatch"
-          Effect = "Allow"
-          Action = [
-            "cloudwatch:DescribeAlarmHistory",
-            "cloudwatch:DescribeAlarms"
-          ]
-          Resource = "arn:aws:cloudwatch:*:*:alarm:*"
-        },
-        {
-          Sid    = "AllowReadingLogsFromCloudWatch"
-          Effect = "Allow"
-          Action = [
-            "logs:DescribeLogGroups",
-            "logs:StopQuery",
-            "logs:GetLogEvents"
-          ]
-          Resource = "*"
-        },
-        {
-          Sid    = "AllowQueryLogsFromCloudWatch"
-          Effect = "Allow"
-          Action = [
-            "logs:GetLogGroupFields",
-            "logs:StartQuery",
-            "logs:GetQueryResults",
-            "logs:GetLogEvents"
-          ]
-          Resource = [
-            "arn:aws:logs:*:*:log-group:*",
-            "arn:aws:logs:*:*:log-group:*:log-stream:*"
-          ]
-        },
-        {
-          Sid    = "AllowReadingTagsInstancesRegionsFromEC2"
-          Effect = "Allow"
-          Action = [
-            "ec2:DescribeTags",
-            "ec2:DescribeInstances",
-            "ec2:DescribeRegions"
-          ]
-          Resource = "*"
-        },
-        {
-          Sid      = "AllowReadingResourcesForTags"
-          Effect   = "Allow"
-          Action   = "tag:GetResources"
-          Resource = "*"
-        },
-        {
-          Sid    = "AllowListWorkspacesFromPrometheus"
-          Effect = "Allow"
-          Action = [
-            "aps:ListWorkspaces"
-          ]
-          Resource = "*"
-        },
-        {
-          Sid    = "AllowReadingMetricsFromPrometheus"
-          Effect = "Allow"
-          Action = [
-            "aps:DescribeWorkspace",
-            "aps:QueryMetrics",
-            "aps:GetLabels",
-            "aps:GetSeries",
-            "aps:GetMetricMetadata"
-          ]
-          Resource = "arn:aws:aps:*:*:workspace/*"
-        },
-        {
-          Sid    = "AllowReadingAlertsFromPrometheus"
-          Effect = "Allow"
-          Action = [
-            "aps:ListRules",
-            "aps:ListAlertManagerSilences",
-            "aps:ListAlertManagerAlerts",
-            "aps:GetAlertManagerStatus",
-            "aps:ListAlertManagerAlertGroups",
-            "aps:PutAlertManagerSilences",
-            "aps:DeleteAlertManagerSilence"
-          ]
-          Resource = "arn:aws:aps:*:*:workspace/*"
-        }
-      ]
-    })
-  }
+resource "aws_iam_role_policy" "grafana_workspace" {
+  count = var.create_grafana_role && local.is_amg_allowed ? 1 : 0
+
+  name = "${var.resource_name_prefix}-GraPol"
+  role = aws_iam_role.grafana_workspace[0].id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "AllowReadingMetricsFromCloudWatch"
+        Effect = "Allow"
+        Action = [
+          "cloudwatch:ListMetrics",
+          "cloudwatch:GetMetricStatistics",
+          "cloudwatch:GetMetricData",
+          "cloudwatch:DescribeAlarmsForMetric",
+          "cloudwatch:GetInsightRuleReport"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "AllowReadingAlarmsFromCloudWatch"
+        Effect = "Allow"
+        Action = [
+          "cloudwatch:DescribeAlarmHistory",
+          "cloudwatch:DescribeAlarms"
+        ]
+        Resource = "arn:aws:cloudwatch:*:*:alarm:*"
+      },
+      {
+        Sid    = "AllowReadingLogsFromCloudWatch"
+        Effect = "Allow"
+        Action = [
+          "logs:DescribeLogGroups",
+          "logs:StopQuery",
+          "logs:GetLogEvents"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "AllowQueryLogsFromCloudWatch"
+        Effect = "Allow"
+        Action = [
+          "logs:GetLogGroupFields",
+          "logs:StartQuery",
+          "logs:GetQueryResults",
+          "logs:GetLogEvents"
+        ]
+        Resource = [
+          "arn:aws:logs:*:*:log-group:*",
+          "arn:aws:logs:*:*:log-group:*:log-stream:*"
+        ]
+      },
+      {
+        Sid    = "AllowReadingTagsInstancesRegionsFromEC2"
+        Effect = "Allow"
+        Action = [
+          "ec2:DescribeTags",
+          "ec2:DescribeInstances",
+          "ec2:DescribeRegions"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid      = "AllowReadingResourcesForTags"
+        Effect   = "Allow"
+        Action   = "tag:GetResources"
+        Resource = "*"
+      },
+      {
+        Sid    = "AllowListWorkspacesFromPrometheus"
+        Effect = "Allow"
+        Action = [
+          "aps:ListWorkspaces"
+        ]
+        Resource = "*"
+      },
+      {
+        Sid    = "AllowReadingMetricsFromPrometheus"
+        Effect = "Allow"
+        Action = [
+          "aps:DescribeWorkspace",
+          "aps:QueryMetrics",
+          "aps:GetLabels",
+          "aps:GetSeries",
+          "aps:GetMetricMetadata"
+        ]
+        Resource = "arn:aws:aps:*:*:workspace/*"
+      },
+      {
+        Sid    = "AllowReadingAlertsFromPrometheus"
+        Effect = "Allow"
+        Action = [
+          "aps:ListRules",
+          "aps:ListAlertManagerSilences",
+          "aps:ListAlertManagerAlerts",
+          "aps:GetAlertManagerStatus",
+          "aps:ListAlertManagerAlertGroups",
+          "aps:PutAlertManagerSilences",
+          "aps:DeleteAlertManagerSilence"
+        ]
+        Resource = "arn:aws:aps:*:*:workspace/*"
+      }
+    ]
+  })
 }

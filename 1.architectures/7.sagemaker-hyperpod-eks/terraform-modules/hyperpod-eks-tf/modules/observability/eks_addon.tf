@@ -5,7 +5,7 @@ resource "aws_eks_addon" "hyperpod_observability" {
   
   configuration_values = jsonencode({
     ampWorkspace = {
-      prometheusEndpoint = "https://aps-workspaces.${var.region}.amazonaws.com/workspaces/${local.prometheus_workspace_id}"
+      prometheusEndpoint = "https://aps-workspaces.${data.aws_region.current.name}.amazonaws.com/workspaces/${local.prometheus_workspace_id}"
       arn               = local.prometheus_workspace_arn
     }
     metricsProvider = {
@@ -42,10 +42,10 @@ resource "aws_eks_addon" "hyperpod_observability" {
         scrapeInterval = 30
       }
     }
-    amgWorkspace = var.create_grafana_workspace == "disabled" ? null : {
+    amgWorkspace = local.is_amg_allowed ? {
       workspaceName = local.grafana_workspace_name
       arn          = local.grafana_workspace_arn
-    }
+    } : null
     logging = {
       enabled = var.logging_enabled
     }
