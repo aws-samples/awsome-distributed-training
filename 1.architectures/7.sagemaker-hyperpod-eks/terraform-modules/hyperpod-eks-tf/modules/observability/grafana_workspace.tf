@@ -50,7 +50,7 @@ resource "grafana_data_source" "prometheus" {
   type = "prometheus"
   name = "prometheus"
   uid  = "prometheus"
-  url  = "https://aps-workspaces.${var.region}.amazonaws.com/workspaces/${var.prometheus_workspace_id}/api"
+  url  = "https://aps-workspaces.${data.aws_region.current.name}.amazonaws.com/workspaces/${var.prometheus_workspace_id}/api"
   
   json_data_encoded = jsonencode({
     authType        = "sigv4"
