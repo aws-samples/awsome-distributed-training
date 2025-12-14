@@ -180,3 +180,41 @@ module "hyperpod_cluster" {
   continuous_provisioning_mode = var.continuous_provisioning_mode
   karpenter_role_arn           = local.karpenter_role_arn 
 }
+
+module "observability" {
+  count  = var.create_observability_module ? 1 : 0
+  source = "./modules/observability"
+
+  depends_on = [
+    module.eks_cluster,
+    module.security_group,
+    module.private_subnet
+  ]
+
+  resource_name_prefix                 = var.resource_name_prefix
+  vpc_id                              = local.vpc_id
+  security_group_id                   = local.security_group_id
+  private_subnet_ids                  = [local.private_subnet_id]
+  eks_cluster_name                    = local.eks_cluster_name
+  create_grafana_workspace            = var.create_grafana_workspace
+  create_prometheus_workspace         = var.create_prometheus_workspace
+  prometheus_workspace_id             = var.prometheus_workspace_id
+  prometheus_workspace_arn            = var.prometheus_workspace_arn
+  prometheus_workspace_endpoint       = var.prometheus_workspace_endpoint
+  create_hyperpod_observability_role  = var.create_hyperpod_observability_role
+  hyperpod_observability_role_arn     = var.hyperpod_observability_role_arn
+  create_grafana_role                 = var.create_grafana_role
+  grafana_role                        = var.grafana_role
+  grafana_workspace_name              = var.grafana_workspace_name
+  grafana_workspace_arn               = var.grafana_workspace_arn
+  grafana_workspace_role_arn          = var.grafana_workspace_role_arn
+  grafana_service_account_name        = var.grafana_service_account_name
+  training_metric_level               = var.training_metric_level
+  task_governance_metric_level        = var.task_governance_metric_level
+  scaling_metric_level                = var.scaling_metric_level
+  cluster_metric_level                = var.cluster_metric_level
+  node_metric_level                   = var.node_metric_level
+  network_metric_level                = var.network_metric_level
+  accelerated_compute_metric_level    = var.accelerated_compute_metric_level
+  logging_enabled                     = var.logging_enabled
+}
