@@ -50,9 +50,14 @@ variable "security_group_id" {
   type        = string
 }
 
-variable "private_subnet_id" {
-  description = "The ID of an private subnet used"
-  type        = string
+# variable "private_subnet_id" {
+#   description = "The ID of an private subnet used"
+#   type        = string
+# }
+
+variable "private_subnet_ids" {
+  description = "List of private subnet IDs"
+  type        = list(string)
 }
 
 variable "rig_rft_lambda_access" {

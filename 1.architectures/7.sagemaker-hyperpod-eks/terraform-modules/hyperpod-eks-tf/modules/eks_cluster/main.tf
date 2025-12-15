@@ -26,11 +26,33 @@ resource "aws_subnet" "private" {
   }
 }
 
+resource "aws_route_table" "eks_private" {
+  count  = length(var.private_subnet_cidrs)
+  vpc_id = data.aws_vpc.selected.id
+
+  tags = {
+    Name = "${var.resource_name_prefix}-EKS-Private-RT-${count.index + 1}"
+  }
+}
+
 resource "aws_route_table_association" "private" {
   count          = length(aws_subnet.private)
   subnet_id      = aws_subnet.private[count.index].id
-  route_table_id = var.private_route_table_id
+  route_table_id = aws_route_table.eks_private[count.index].id
 }
+
+resource "aws_route" "eks_nat_gateway" {
+  count                  = length(aws_route_table.eks_private)
+  route_table_id         = aws_route_table.eks_private[count.index].id
+  destination_cidr_block = "0.0.0.0/0"
+  nat_gateway_id         = var.nat_gateway_id
+}
+
+# resource "aws_route_table_association" "private" {
+#   count          = length(aws_subnet.private)
+#   subnet_id      = aws_subnet.private[count.index].id
+#   route_table_id = var.private_route_table_id
+# }
 
 resource "aws_iam_role" "eks_cluster_role" {
   name = "${var.resource_name_prefix}-cluster-role"

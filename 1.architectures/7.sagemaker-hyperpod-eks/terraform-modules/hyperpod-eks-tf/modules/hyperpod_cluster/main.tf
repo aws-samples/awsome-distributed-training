@@ -1,8 +1,18 @@
 data "aws_partition" "current" {}
 data "aws_region" "current" {}
 data "aws_caller_identity" "current" {}
+data "aws_subnet" "private" {
+  for_each = toset(var.private_subnet_ids)
+  id       = each.value
+}
 
 locals {
+  # Create AZ to subnet lookup map
+  az_to_subnet = {
+    for subnet_id in var.private_subnet_ids :
+    data.aws_subnet.private[subnet_id].availability_zone_id => subnet_id
+  }
+
   # Create configurations for each instance group
   instance_groups_list = [
     for name, config in var.instance_groups : merge(
@@ -24,6 +34,11 @@ locals {
         life_cycle_config = {
           on_create     = config.lifecycle_script
           source_s3_uri = "s3://${var.s3_bucket_name}"
+        }
+        # Target specific subnet based on AZ using lookup map
+        override_vpc_config = {
+          security_group_ids = [var.security_group_id]
+          subnets = [local.az_to_subnet[config.availability_zone_id]]
         }
       },
       # Only include on_start_deep_health_checks if at least one check is enabled
@@ -62,9 +77,10 @@ locals {
             size_in_gi_b = config.fsxl_size_in_gi_b
            }
         }
+        # Target specific subnet based on AZ using lookup map
         override_vpc_config = {
           security_group_ids = [var.security_group_id]
-          subnets = [var.private_subnet_id]
+          subnets = [local.az_to_subnet[config.availability_zone_id]]
         }
       },
       # Only include on_start_deep_health_checks if at least one check is enabled
@@ -106,6 +122,6 @@ resource "awscc_sagemaker_cluster" "hyperpod_cluster" {
 
   vpc_config = {
     security_group_ids = [var.security_group_id]
-    subnets           = [var.private_subnet_id]
+    subnets            = var.private_subnet_ids
   }
 }

@@ -31,6 +31,7 @@ variable "instance_groups" {
     enable_stress_check       = bool
     enable_connectivity_check = bool
     lifecycle_script          = string
+    availability_zone_id      = string
     image_id                  = optional(string)
     training_plan_arn         = optional(string)
   }))
@@ -48,6 +49,7 @@ variable "restricted_instance_groups" {
     enable_connectivity_check        = bool
     fsxl_per_unit_storage_throughput = number
     fsxl_size_in_gi_b                = number
+    availability_zone_id             = string
     training_plan_arn                = optional(string)
   }))
   default = {}
@@ -58,9 +60,9 @@ variable "sagemaker_iam_role_name" {
   type        = string
 }
 
-variable "private_subnet_id" {
-  description = "The Id of the private subnet for HyperPod cross-account ENIs"
-  type        = string
+variable "private_subnet_ids" {
+  description = "List of private subnet IDs for HyperPod cluster"
+  type        = list(string)
 }
 
 variable "security_group_id" {
