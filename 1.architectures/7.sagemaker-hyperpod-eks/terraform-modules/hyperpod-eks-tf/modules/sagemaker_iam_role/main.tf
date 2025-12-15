@@ -257,7 +257,7 @@ resource "aws_iam_policy" "subnet_policy" {
           "ec2:UnassignPrivateIpAddresses"
         ]
         Resource = [
-          "${local.ec2_arn_prefix}:subnet/${var.private_subnet_id}"
+          for subnet_id in var.private_subnet_ids : "${local.ec2_arn_prefix}:subnet/${subnet_id}"
         ]
       }
     ]
