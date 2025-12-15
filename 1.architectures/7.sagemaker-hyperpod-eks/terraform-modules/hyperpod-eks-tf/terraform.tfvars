@@ -10,8 +10,7 @@ existing_vpc_id      = ""
 
 # Private Subnet Module Variables
 create_private_subnet_module = true
-availability_zone_id         = "usw2-az2"
-private_subnet_cidr          = "10.1.0.0/16"
+private_subnet_cidrs          = ["10.1.0.0/16", "10.2.0.0/16", "10.3.0.0/16", "10.4.0.0/16", "10.5.0.0/16"]
 existing_nat_gateway_id      = ""
 existing_private_subnet_id   = ""
 
@@ -59,6 +58,7 @@ instance_groups = {
   instance-group-1 = {
     instance_type             = "ml.g5.8xlarge"
     instance_count            = 8
+    availability_zone_id         = "usw2-az2"
     ebs_volume_size_in_gb     = 100
     threads_per_core          = 2
     enable_stress_check       = true

@@ -48,16 +48,10 @@ variable "create_private_subnet_module" {
   default     = true
 }
 
-variable "availability_zone_id" {
-  description = "The Availability Zone Id for private subnet"
-  type        = string
-  default     = "usw2-az2"
-}
-
-variable "private_subnet_cidr" {
-  description = "The IP range (CIDR notation) for the private subnet"
-  type        = string
-  default     = "10.1.0.0/16"
+variable "private_subnet_cidrs" {
+  description = "List of CIDR blocks for HyperPod private subnets (up to 5 AZs)"
+  type        = list(string)
+  default     = ["10.1.0.0/16", "10.2.0.0/16", "10.3.0.0/16", "10.4.0.0/16", "10.5.0.0/16"]
 }
 
 variable "existing_nat_gateway_id" {
@@ -355,6 +349,7 @@ variable "instance_groups" {
     enable_stress_check       = bool
     enable_connectivity_check = bool
     lifecycle_script          = string
+    availability_zone_id      = string
     image_id                  = optional(string)
     training_plan_arn         = optional(string)
   }))
@@ -372,6 +367,7 @@ variable "restricted_instance_groups" {
     enable_connectivity_check        = bool
     fsxl_per_unit_storage_throughput = number
     fsxl_size_in_gi_b                = number
+    availability_zone_id             = string
     training_plan_arn                = optional(string)
   }))
   default = {}

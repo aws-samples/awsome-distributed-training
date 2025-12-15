@@ -11,7 +11,7 @@ data "aws_s3_bucket" "existing_s3_bucket" {
 locals {
   rig_mode                 = length(var.restricted_instance_groups) > 0
   vpc_id                   = var.create_vpc_module ? module.vpc[0].vpc_id : var.existing_vpc_id
-  private_subnet_id        = var.create_private_subnet_module ? module.private_subnet[0].private_subnet_id : var.existing_private_subnet_id
+  private_subnet_ids       = var.create_private_subnet_module ? module.private_subnet[0].private_subnet_ids : var.existing_private_subnet_ids
   security_group_id        = var.create_security_group_module ? module.security_group[0].security_group_id : var.existing_security_group_id
   s3_bucket_name           = !local.rig_mode ? (var.create_s3_bucket_module ? module.s3_bucket[0].s3_bucket_name : var.existing_s3_bucket_name) : null
   eks_cluster_name         = var.create_eks_module ? module.eks_cluster[0].eks_cluster_name : var.existing_eks_cluster_name
@@ -19,7 +19,7 @@ locals {
   deploy_hyperpod          = var.create_hyperpod_module && !(var.create_eks_module && !var.create_helm_chart_module)
   karpenter_role_arn       = var.create_sagemaker_iam_role_module && length(module.sagemaker_iam_role[0].karpenter_role_arn) > 0 ? module.sagemaker_iam_role[0].karpenter_role_arn[0] : null
   nat_gateway_id           = var.create_vpc_module ? module.vpc[0].nat_gateway_1_id : var.existing_nat_gateway_id
-  private_route_table_id   = var.create_private_subnet_module ? module.private_subnet[0].private_route_table_id : var.existing_private_route_table_id
+  private_route_table_ids  = var.create_private_subnet_module ? module.private_subnet[0].private_route_table_ids : var.existing_private_route_table_ids
   eks_private_subnet_cidrs = [var.eks_private_subnet_1_cidr, var.eks_private_subnet_2_cidr]
   instance_groups          = !local.rig_mode ? var.instance_groups : {}
 }
@@ -40,8 +40,7 @@ module "private_subnet" {
 
   resource_name_prefix = var.resource_name_prefix
   vpc_id               = local.vpc_id
-  availability_zone_id = var.availability_zone_id
-  private_subnet_cidr  = var.private_subnet_cidr
+  private_subnet_cidrs = var.private_subnet_cidrs
   nat_gateway_id       = local.nat_gateway_id
 }
 
@@ -59,14 +58,13 @@ module "eks_cluster" {
   count  = var.create_eks_module ? 1 : 0
   source = "./modules/eks_cluster"
 
-  resource_name_prefix   = var.resource_name_prefix
-  vpc_id                 = local.vpc_id
-  eks_cluster_name       = var.eks_cluster_name
-  kubernetes_version     = var.kubernetes_version
-  security_group_id      = local.security_group_id
-  private_subnet_cidrs   = local.eks_private_subnet_cidrs
-  nat_gateway_id         = local.nat_gateway_id
-  private_route_table_id = local.private_route_table_id
+  resource_name_prefix = var.resource_name_prefix
+  vpc_id               = local.vpc_id
+  eks_cluster_name     = var.eks_cluster_name
+  kubernetes_version   = var.kubernetes_version
+  security_group_id    = local.security_group_id
+  private_subnet_cidrs = local.eks_private_subnet_cidrs
+  nat_gateway_id       = local.nat_gateway_id
 }
 
 module "s3_bucket" {
@@ -80,18 +78,18 @@ module "vpc_endpoints" {
   count  = var.create_vpc_endpoints_module ? 1 : 0
   source = "./modules/vpc_endpoints"
 
-    depends_on = [
+  depends_on = [
       module.private_subnet, 
       module.security_group
-    ]
-
-  vpc_id                 = local.vpc_id
-  private_route_table_id = local.private_route_table_id
-  private_subnet_id      = local.private_subnet_id
-  security_group_id      = local.security_group_id
-  rig_mode               = local.rig_mode
-  rig_rft_lambda_access  = var.rig_rft_lambda_access
-  rig_rft_sqs_access     = var.rig_rft_sqs_access
+  ]
+  resource_name_prefix    = var.resource_name_prefix
+  vpc_id                  = local.vpc_id
+  private_route_table_ids = local.private_route_table_ids
+  private_subnet_ids      = local.private_subnet_ids
+  security_group_id       = local.security_group_id
+  rig_mode                = local.rig_mode
+  rig_rft_lambda_access   = var.rig_rft_lambda_access
+  rig_rft_sqs_access      = var.rig_rft_sqs_access
   
 }
 
@@ -113,7 +111,7 @@ module "sagemaker_iam_role" {
   rig_output_s3_bucket  = var.rig_output_s3_bucket
   eks_cluster_name      = local.eks_cluster_name
   security_group_id     = local.security_group_id
-  private_subnet_id     = local.private_subnet_id
+  private_subnet_ids    = local.private_subnet_ids
   vpc_id                = local.vpc_id
   rig_mode              = local.rig_mode
   gated_access          = var.gated_access
@@ -170,7 +168,7 @@ module "hyperpod_cluster" {
   auto_node_recovery           = var.auto_node_recovery
   instance_groups              = local.instance_groups
   restricted_instance_groups   = var.restricted_instance_groups
-  private_subnet_id            = local.private_subnet_id
+  private_subnet_ids           = local.private_subnet_ids
   security_group_id            = local.security_group_id
   eks_cluster_name             = local.eks_cluster_name
   s3_bucket_name               = local.s3_bucket_name
@@ -191,30 +189,30 @@ module "observability" {
     module.private_subnet
   ]
 
-  resource_name_prefix                 = var.resource_name_prefix
-  vpc_id                              = local.vpc_id
-  security_group_id                   = local.security_group_id
-  private_subnet_ids                  = [local.private_subnet_id]
-  eks_cluster_name                    = local.eks_cluster_name
-  create_grafana_workspace            = var.create_grafana_workspace
-  create_prometheus_workspace         = var.create_prometheus_workspace
-  prometheus_workspace_id             = var.prometheus_workspace_id
-  prometheus_workspace_arn            = var.prometheus_workspace_arn
-  prometheus_workspace_endpoint       = var.prometheus_workspace_endpoint
-  create_hyperpod_observability_role  = var.create_hyperpod_observability_role
-  hyperpod_observability_role_arn     = var.hyperpod_observability_role_arn
-  create_grafana_role                 = var.create_grafana_role
-  grafana_role                        = var.grafana_role
-  grafana_workspace_name              = var.grafana_workspace_name
-  grafana_workspace_arn               = var.grafana_workspace_arn
-  grafana_workspace_role_arn          = var.grafana_workspace_role_arn
-  grafana_service_account_name        = var.grafana_service_account_name
-  training_metric_level               = var.training_metric_level
-  task_governance_metric_level        = var.task_governance_metric_level
-  scaling_metric_level                = var.scaling_metric_level
-  cluster_metric_level                = var.cluster_metric_level
-  node_metric_level                   = var.node_metric_level
-  network_metric_level                = var.network_metric_level
-  accelerated_compute_metric_level    = var.accelerated_compute_metric_level
-  logging_enabled                     = var.logging_enabled
+  resource_name_prefix               = var.resource_name_prefix
+  vpc_id                             = local.vpc_id
+  security_group_id                  = local.security_group_id
+  private_subnet_ids                 = local.private_subnet_ids
+  eks_cluster_name                   = local.eks_cluster_name
+  create_grafana_workspace           = var.create_grafana_workspace
+  create_prometheus_workspace        = var.create_prometheus_workspace
+  prometheus_workspace_id            = var.prometheus_workspace_id
+  prometheus_workspace_arn           = var.prometheus_workspace_arn
+  prometheus_workspace_endpoint      = var.prometheus_workspace_endpoint
+  create_hyperpod_observability_role = var.create_hyperpod_observability_role
+  hyperpod_observability_role_arn    = var.hyperpod_observability_role_arn
+  create_grafana_role                = var.create_grafana_role
+  grafana_role                       = var.grafana_role
+  grafana_workspace_name             = var.grafana_workspace_name
+  grafana_workspace_arn              = var.grafana_workspace_arn
+  grafana_workspace_role_arn         = var.grafana_workspace_role_arn
+  grafana_service_account_name       = var.grafana_service_account_name
+  training_metric_level              = var.training_metric_level
+  task_governance_metric_level       = var.task_governance_metric_level
+  scaling_metric_level               = var.scaling_metric_level
+  cluster_metric_level               = var.cluster_metric_level
+  node_metric_level                  = var.node_metric_level
+  network_metric_level               = var.network_metric_level
+  accelerated_compute_metric_level   = var.accelerated_compute_metric_level
+  logging_enabled                    = var.logging_enabled
 }
