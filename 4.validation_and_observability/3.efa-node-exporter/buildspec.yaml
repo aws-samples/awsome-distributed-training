@@ -34,4 +34,3 @@ phases:
       - docker image tag ${REPO_URI}:${TAG} public.ecr.aws/hpc-cloud/${ECR_REPOSITORY_NAME}:latest
       - docker push public.ecr.aws/hpc-cloud/${ECR_REPOSITORY_NAME}:${TAG}
       - docker push public.ecr.aws/hpc-cloud/${ECR_REPOSITORY_NAME}:latest
-
