@@ -75,7 +75,6 @@ EOL
     fi
     sudo sed -i \
         -e 's|^#\\?root *=.*|root = "/opt/sagemaker/docker/containerd"|' \
-        -e 's|^#\\?state *=.*|state = "/run/containerd"|' \
         /etc/containerd/config.toml
 elif [[ $(mount | grep /opt/dlami/nvme) ]]; then
     cat <<EOL >> /etc/docker/daemon.json
@@ -94,7 +93,6 @@ EOL
     fi
     sudo sed -i \
         -e 's|^#\\?root *=.*|root = "/opt/dlami/nvme/docker/containerd"|' \
-        -e 's|^#\\?state *=.*|state = "/run/containerd"|' \
         /etc/containerd/config.toml
 fi
 
