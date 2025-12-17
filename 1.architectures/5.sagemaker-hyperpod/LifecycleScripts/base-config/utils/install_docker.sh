@@ -44,7 +44,7 @@ sudo apt-get install -y --allow-downgrades -o DPkg::Lock::Timeout=120 nvidia-con
 # Lock nvidia-container-toolkit version
 sudo apt-mark hold nvidia-container-toolkit nvidia-container-toolkit-base libnvidia-container-tools libnvidia-container1
 
-# Print NV_COTNAINER_TLK_VERSIONS to logs
+# Print NV_COTNAINER_TLK_VERSIONS to logs 
 echo "Expected NV_TLK_VERSION: ${NVIDIA_CONTAINER_TLK_VERSION}"
 echo "Installed NV_TLK_VERSION: $(dpkg -l nvidia-container-toolkit | awk '/nvidia-container-toolkit/ {print $3}')"
 
@@ -56,6 +56,8 @@ sudo usermod -aG docker ubuntu
 # See: https://github.com/aws-samples/awsome-distributed-training/issues/127
 #
 # Docker workdir doesn't like Lustre. Tried with storage driver overlay2, fuse-overlayfs, & vfs.
+# Also, containerd ships with a commented root in its default config; we need to ensure an
+# uncommented root that points to the fast local volume.
 if [[ $(mount | grep /opt/sagemaker) ]]; then
     cat <<EOL >> /etc/docker/daemon.json
 {
@@ -66,8 +68,14 @@ EOL
     sed -i \
         's|^\[Service\]$|[Service]\nEnvironment="DOCKER_TMPDIR=/opt/sagemaker/docker/tmp"|' \
         /usr/lib/systemd/system/docker.service
-    sed -i \
-        's|root = "/var/lib/containerd"|root = "/opt/sagemaker/docker/containerd"|g' \
+
+    # Ensure containerd config exists and point its root to /opt/sagemaker
+    if [[ ! -f /etc/containerd/config.toml ]]; then
+        containerd config default | sudo tee /etc/containerd/config.toml >/dev/null
+    fi
+    sudo sed -i \
+        -e 's|^#\\?root *=.*|root = "/opt/sagemaker/docker/containerd"|' \
+        -e 's|^#\\?state *=.*|state = "/run/containerd"|' \
         /etc/containerd/config.toml
 elif [[ $(mount | grep /opt/dlami/nvme) ]]; then
     cat <<EOL >> /etc/docker/daemon.json
@@ -79,10 +87,17 @@ EOL
     sed -i \
         's|^\[Service\]$|[Service]\nEnvironment="DOCKER_TMPDIR=/opt/dlami/nvme/docker/tmp"|' \
         /usr/lib/systemd/system/docker.service
-    sed -i \
-        's|root = "/var/lib/containerd"|root = "/opt/dlami/nvme/docker/containerd"|g' \
+
+    # Ensure containerd config exists and point its root to /opt/dlami/nvme
+    if [[ ! -f /etc/containerd/config.toml ]]; then
+        containerd config default | sudo tee /etc/containerd/config.toml >/dev/null
+    fi
+    sudo sed -i \
+        -e 's|^#\\?root *=.*|root = "/opt/dlami/nvme/docker/containerd"|' \
+        -e 's|^#\\?state *=.*|state = "/run/containerd"|' \
         /etc/containerd/config.toml
 fi
 
 systemctl daemon-reload
+systemctl restart containerd
 systemctl restart docker
