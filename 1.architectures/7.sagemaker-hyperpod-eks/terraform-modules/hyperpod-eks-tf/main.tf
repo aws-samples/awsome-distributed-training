@@ -22,6 +22,7 @@ locals {
   private_route_table_ids  = var.create_private_subnet_module ? module.private_subnet[0].private_route_table_ids : var.existing_private_route_table_ids
   eks_private_subnet_cidrs = [var.eks_private_subnet_1_cidr, var.eks_private_subnet_2_cidr]
   instance_groups          = !local.rig_mode ? var.instance_groups : {}
+  enable_cert_manager      = !local.rig_mode && (var.create_hyperpod_training_operator_module || var.create_hyperpod_inference_operator_module) 
 }
 
 module "vpc" {
@@ -65,6 +66,7 @@ module "eks_cluster" {
   security_group_id    = local.security_group_id
   private_subnet_cidrs = local.eks_private_subnet_cidrs
   nat_gateway_id       = local.nat_gateway_id
+  
 }
 
 module "s3_bucket" {
@@ -144,7 +146,7 @@ module "helm_chart" {
   enable_mpi_operator                 = var.enable_mpi_operator
   enable_deep_health_check            = var.enable_deep_health_check
   enable_job_auto_restart             = var.enable_job_auto_restart
-  enable_hyperpod_patching            = var.enable_hyperpod_patching
+  enable_hyperpod_patching            = var.enable_hyperpod_patching 
   rig_script_path                     = var.rig_script_path
   rig_mode                            = local.rig_mode
 }
@@ -216,3 +218,18 @@ module "observability" {
   accelerated_compute_metric_level   = var.accelerated_compute_metric_level
   logging_enabled                    = var.logging_enabled
 }
+
+module "hyperpod_training_operator" {
+  count  = var.create_hyperpod_training_operator_module ? 1 : 0
+  source = "./modules/hyperpod_training_operator"
+
+  resource_name_prefix = var.resource_name_prefix
+  eks_cluster_name     = local.eks_cluster_name
+
+  depends_on = [
+    module.eks_cluster,
+    module.helm_chart, 
+    module.hyperpod_cluster
+  ]
+}
+

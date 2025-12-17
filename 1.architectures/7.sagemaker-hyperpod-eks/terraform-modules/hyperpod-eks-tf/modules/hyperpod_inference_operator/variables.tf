@@ -1,0 +1,48 @@
+variable "resource_name_prefix" {
+  description = "Prefix to be used for all resources"
+  type        = string
+}
+
+variable "eks_cluster_name" {
+  description = "Name of the EKS cluster"
+  type        = string
+}
+
+variable "vpc_id" {
+  description = "VPC ID used by the EKS cluster"
+  type        = string
+}
+
+variable "hyperpod_cluster_arn" {
+  description = "ARN of the HyperPod cluster"
+  type        = string
+}
+
+variable "access_logs_bucket_name" {
+  description = "Name of the S3 bucket for access logs"
+  type        = string
+}
+
+variable "namespace" {
+  description = "Kubernetes namespace for deployment"
+  type        = string
+  default     = "kube-system"
+}
+
+variable "helm_release_name" {
+  description = "The name of the Helm release"
+  type        = string
+  default     = "hyperpod-inference-operator"
+}
+
+variable "helm_repo_revision" {
+  description = "Git revision for normal mode"
+  type        = string
+  default     = "36140e35b61615b5dd1e411ff555092769150998"
+}
+
+variable "helm_repo_path" {
+  description = "The path to the HyperPod Helm chart in the Helm repo"
+  type        = string
+  default     = "helm_chart/HyperPodHelmChart/charts/inference-operator"
+}

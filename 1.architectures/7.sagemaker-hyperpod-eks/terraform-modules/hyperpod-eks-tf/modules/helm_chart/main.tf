@@ -127,6 +127,10 @@ resource "helm_release" "hyperpod" {
     {
       name = "hyperpod-patching.enabled"
       value = var.enable_hyperpod_patching
+    }, 
+    {
+      name  = "cert-manager.enabled"
+      value = "false"
     }
   ]
   depends_on = [
