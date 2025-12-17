@@ -205,16 +205,22 @@ variable "helm_repo_path" {
   default     = "helm_chart/HyperPodHelmChart"
 }
 
-variable "namespace" {
-  description = "The Kubernetes namespace"
+variable "helm_repo_path_hpio" {
+  description = "The path to the HyperPod Inference Operator Helm chart"
   type        = string
-  default     = "kube-system"
+  default     = "helm_chart/HyperPodHelmChart/charts/inference-operator"
 }
 
 variable "helm_release_name" {
   description = "The name of the Helm release"
   type        = string
   default     = "hyperpod-dependencies"
+}
+
+variable "helm_release_name_hpio" {
+  description = "The name of the Helm release for the HyperPod Inference Operator"
+  type        = string
+  default     = "hyperpod-inference-operator"
 }
 
 variable "helm_repo_revision" {
@@ -227,6 +233,18 @@ variable "helm_repo_revision_rig" {
   description = "Git revision for RIG mode"
   type        = string
   default     = "c5275ddbbca58164d1f5bd3a2811e0fc952f7ff4"
+}
+
+variable "helm_repo_revision_hpio" {
+  description = "Git revision for the HyperPod Inference Operator"
+  type        = string
+  default     = "36140e35b61615b5dd1e411ff555092769150998"
+}
+
+variable "namespace" {
+  description = "The Kubernetes namespace"
+  type        = string
+  default     = "kube-system"
 }
 
 variable "enable_gpu_operator" {
@@ -534,9 +552,16 @@ variable "logging_enabled" {
   default     = false
 }
 
+# HyperPod Task Governance
+variable "enable_hyperpod_task_governance" {
+  description = "Whether to enable HyperPod Task Governance add-on"
+  type        = bool
+  default     = false
+}
+
 # HyperPod Training Operator
-variable "create_hyperpod_training_operator_module" {
-  description = "Whether to create HyperPod Training Operator module"
+variable "enable_hyperpod_training_operator" {
+  description = "Whether to enable HyperPod Training Operator"
   type        = bool
   default     = false
 }

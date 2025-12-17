@@ -35,7 +35,14 @@ variable "nat_gateway_id" {
   type        = string
 }
 
-# variable "private_route_table_id" {
-#   description = "ID of the private route table"
-#   type        = string
-# }
+variable "enable_cert_manager" {
+  description = "Whether to install cert-manager EKS add-on"
+  type        = bool
+  default     = false
+}
+
+variable "cert_manager_version" {
+  description = "Version of the cert-manager EKS add-on"
+  type        = string
+  default     = "v1.18.2-eksbuild.2"
+}
