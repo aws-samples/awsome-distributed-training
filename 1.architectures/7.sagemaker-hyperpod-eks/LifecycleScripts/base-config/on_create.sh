@@ -10,54 +10,69 @@ logger() {
   echo "$@" | tee -a "$LOG_FILE"
 }
 
-logger "[start] on_create.sh"
+# Main logic wrapped in a function
+main() {
+  # Configuration: Choose disk for containerd and kubelet
+  # Options: "/opt/sagemaker" or "/opt/dlami/nvme"
 
-# Wait for /opt/sagemaker to be mounted (max 60s)
-for i in {1..12}; do
-  if mount | grep -q "/opt/sagemaker"; then
-    logger "/opt/sagemaker is mounted"
-    break
-  else
-    logger "Waiting for /opt/sagemaker to be mounted..."
-    sleep 5
-  fi
-done
+  DISK_FOR_CONTAINERD_KUBELET="/opt/sagemaker"
+  #DISK_FOR_CONTAINERD_KUBELET="/opt/dlami/nvme"
 
-if mount | grep -q "/opt/sagemaker"; then
-  logger "Found secondary EBS volume. Setting containerd data root to /opt/sagemaker/containerd/data-root"
+  echo "Disk for containerd and kubelet: $DISK_FOR_CONTAINERD_KUBELET"
 
-  # Detect OS version reliably
-  source /etc/os-release
-  os_version="$VERSION_ID"
-  logger "Detected OS version: $os_version"
-
-  if [[ "$os_version" == "2" ]]; then
-    # Amazon Linux 2 logic
-    CONFIG_FILE="/etc/eks/containerd/containerd-config.toml"
-    if [[ -f "$CONFIG_FILE" ]]; then
-      logger "Amazon Linux 2 detected. Modifying $CONFIG_FILE using sed"
-      sed -i -e "/^[# ]*root\s*=/c\root = \"/opt/sagemaker/containerd/data-root\"" "$CONFIG_FILE"
+  # Wait for disk to be mounted (max 60s)
+  for i in {1..12}; do
+    if mount | grep -q "$DISK_FOR_CONTAINERD_KUBELET"; then
+      echo "$DISK_FOR_CONTAINERD_KUBELET is mounted"
+      break
     else
-      logger "Amazon Linux 2 detected, but $CONFIG_FILE not found!"
+      echo "Waiting for $DISK_FOR_CONTAINERD_KUBELET to be mounted..."
+      sleep 5
     fi
+  done
 
-  elif [[ "$os_version" == "2023" ]]; then
-    # Amazon Linux 2023 logic (systemd override with custom config)
-    logger "Amazon Linux 2023 detected. Creating custom containerd config and systemd override"
 
-    # Clean up old containerd data to avoid AL2->AL23 compatibility issues
-    if [[ -d "/opt/sagemaker/containerd/data-root" ]]; then
-      logger "Removing existing containerd data-root to prevent AL2/AL23 incompatibility"
-      rm -rf /opt/sagemaker/containerd/data-root
-    fi
+  # Dump the status of containerd.service and kubelet.service
+  echo "Dumping the status of containerd.service and kubelet.service"
+  systemctl status containerd.service --no-pager || true
+  systemctl status kubelet.service --no-pager || true
 
-    # Create custom containerd config directory
-    mkdir -p /opt/sagemaker/containerd
 
-    # Create complete custom containerd config
-    cat <<EOF | tee /opt/sagemaker/containerd/config.toml
+  if mount | grep -q "$DISK_FOR_CONTAINERD_KUBELET"; then
+    echo "Setting containerd data root to $DISK_FOR_CONTAINERD_KUBELET/containerd/data-root"
+
+    # Detect OS version reliably
+    source /etc/os-release
+    os_version="$VERSION_ID"
+    echo "Detected OS version: $os_version"
+
+    if [[ "$os_version" == "2" ]]; then
+      # Amazon Linux 2 logic
+      CONFIG_FILE="/etc/eks/containerd/containerd-config.toml"
+      if [[ -f "$CONFIG_FILE" ]]; then
+        echo "Amazon Linux 2 detected. Modifying $CONFIG_FILE using sed"
+        sed -i -e "/^[# ]*root\s*=/c\root = \"$DISK_FOR_CONTAINERD_KUBELET/containerd/data-root\"" "$CONFIG_FILE"
+      else
+        echo "Amazon Linux 2 detected, but $CONFIG_FILE not found!"
+      fi
+
+    elif [[ "$os_version" == "2023" ]]; then
+      # Amazon Linux 2023 logic (systemd override with custom config)
+      echo "Amazon Linux 2023 detected. Creating custom containerd config and systemd override"
+
+      # Clean up old containerd data to avoid AL2->AL23 compatibility issues
+      if [[ -d "$DISK_FOR_CONTAINERD_KUBELET/containerd/data-root" ]]; then
+        echo "Removing existing containerd data-root to prevent AL2/AL23 incompatibility"
+        rm -rf "$DISK_FOR_CONTAINERD_KUBELET/containerd/data-root"
+      fi
+
+      # Create custom containerd config directory
+      mkdir -p "$DISK_FOR_CONTAINERD_KUBELET/containerd"
+
+      # Create complete custom containerd config
+      cat <<EOF | tee "$DISK_FOR_CONTAINERD_KUBELET/containerd/config.toml"
 version = 2
-root = "/opt/sagemaker/containerd/data-root"
+root = "$DISK_FOR_CONTAINERD_KUBELET/containerd/data-root"
 state = "/run/containerd"
 
 [grpc]
@@ -87,27 +102,50 @@ bin_dir = "/opt/cni/bin"
 conf_dir = "/etc/cni/net.d"
 EOF
 
-    # Create systemd override
-    mkdir -p /etc/systemd/system/containerd.service.d
+      # Create systemd override
+      mkdir -p /etc/systemd/system/containerd.service.d
 
-    cat <<EOF | tee /etc/systemd/system/containerd.service.d/override.conf
+      cat <<EOF | tee /etc/systemd/system/containerd.service.d/override.conf
 [Service]
-Environment="CONTAINERD_CONFIG=/opt/sagemaker/containerd/config.toml"
+Environment="CONTAINERD_CONFIG=$DISK_FOR_CONTAINERD_KUBELET/containerd/config.toml"
 ExecStart=
 ExecStart=/usr/bin/containerd --config \$CONTAINERD_CONFIG
 EOF
 
-    systemctl daemon-reload
+      systemctl daemon-reload
 
-    cp -a /var/lib/containerd /opt/sagemaker/containerd/data-root
+      cp -a /var/lib/containerd "$DISK_FOR_CONTAINERD_KUBELET/containerd/data-root"
+
+    else
+      echo "Unsupported OS version: $os_version. Skipping containerd configuration."
+    fi
+
+    echo "Creating symbolic link from /var/lib/kubelet to $DISK_FOR_CONTAINERD_KUBELET/kubelet"
+    mkdir -p "$DISK_FOR_CONTAINERD_KUBELET/kubelet"
+    if [ "$(ls -A /var/lib/kubelet 2>/dev/null)" ]; then
+      mv /var/lib/kubelet/* "$DISK_FOR_CONTAINERD_KUBELET/kubelet/"
+    else
+      echo "/var/lib/kubelet is empty, skipping file move"
+    fi
+    rmdir /var/lib/kubelet
+    ln -s "$DISK_FOR_CONTAINERD_KUBELET/kubelet" /var/lib/
 
   else
-    logger "Unsupported OS version: $os_version. Skipping containerd configuration."
+    echo "$DISK_FOR_CONTAINERD_KUBELET not mounted. Skipping containerd configuration"
   fi
 
-else
-  logger "/opt/sagemaker not mounted. Skipping containerd configuration"
+  echo "no more steps to run"
+}
+
+# Execute main logic with redirection and error handling
+logger "[start] on_create.sh"
+
+if ! main >> "$LOG_FILE" 2>&1; then
+  logger "[error] on_create_main.sh failed, waiting 60 seconds before exit, to make sure logs are uploaded"
+  sync
+  sleep 60
+  logger "[stop] on_create.sh with error"
+  exit 1
 fi
 
-logger "no more steps to run"
 logger "[stop] on_create.sh"
