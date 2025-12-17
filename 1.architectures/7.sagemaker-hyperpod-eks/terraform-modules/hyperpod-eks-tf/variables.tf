@@ -60,10 +60,10 @@ variable "existing_nat_gateway_id" {
   default     = ""
 }
 
-variable "existing_private_subnet_id" {
-  description = "The ID of an existing private subnet"
-  type        = string
-  default     = ""
+variable "existing_private_subnet_ids" {
+  description = "List of existing private subnet IDs"
+  type        = list(string)
+  default     = []
 }
 
 # Security Group Module Variables
@@ -136,10 +136,10 @@ variable "create_vpc_endpoints_module" {
   default     = true
 }
 
-variable "existing_private_route_table_id" {
-  description = "The ID of an existing private route table"
-  type        = string
-  default     = ""
+variable "existing_private_route_table_ids" {
+  description = "List of existing private route table IDs"
+  type        = list(string)
+  default     = []
 }
 
 # Lifecycle Script Module Variables
@@ -220,7 +220,7 @@ variable "helm_release_name" {
 variable "helm_repo_revision" {
   description = "Git revision for normal mode"
   type        = string
-  default     = "c00832cd40698943b61e53802114658a61ba45f4"
+  default     = "0e32919013e957dc9bd2051bca645a4d60df9e8e"
 }
 
 variable "helm_repo_revision_rig" {
@@ -530,6 +530,20 @@ variable "accelerated_compute_metric_level" {
 
 variable "logging_enabled" {
   description = "Enable logging"
+  type        = bool
+  default     = false
+}
+
+# HyperPod Training Operator
+variable "create_hyperpod_training_operator_module" {
+  description = "Whether to create HyperPod Training Operator module"
+  type        = bool
+  default     = false
+}
+
+# HyperPod Inference Operator
+variable "create_hyperpod_inference_operator_module" {
+  description = "Whether to create HyperPod Inference Operator module"
   type        = bool
   default     = false
 }
