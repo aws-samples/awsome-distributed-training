@@ -10,7 +10,7 @@ existing_vpc_id      = ""
 
 # Private Subnet Module Variables
 create_private_subnet_module = true
-private_subnet_cidrs          = ["10.1.0.0/16", "10.2.0.0/16", "10.3.0.0/16", "10.4.0.0/16", "10.5.0.0/16"]
+private_subnet_cidrs          = ["10.1.0.0/16", "10.2.0.0/16", "10.3.0.0/16", "10.4.0.0/16"]
 existing_nat_gateway_id      = ""
 existing_private_subnet_ids   = []
 

@@ -7,8 +7,4 @@ resource "aws_prometheus_workspace" "hyperpod" {
   tags = {
     SageMaker = "true"
   }
-
-  lifecycle {
-    prevent_destroy = true
-  }
 }

@@ -1,4 +1,4 @@
-resource "kubernetes_namespace" "keda" {
+resource "kubernetes_namespace_v1" "keda" {
   metadata {
     name = "keda"
   }
@@ -42,7 +42,7 @@ resource "helm_release" "inference_operator" {
   set  = [
     {
         name  = "region"
-        value = data.aws_region.current.name
+        value = data.aws_region.current.region
     },
     {
         name  = "eksClusterName"
@@ -74,7 +74,7 @@ resource "helm_release" "inference_operator" {
     },
     {
         name  = "alb.region"
-        value = data.aws_region.current.name
+        value = data.aws_region.current.region
     },
     {
         name  = "alb.clusterName"
@@ -101,8 +101,8 @@ resource "helm_release" "inference_operator" {
   depends_on = [
     null_resource.git_checkout,
     null_resource.add_helm_repos,
-    kubernetes_namespace.keda,
-    kubernetes_service_account.alb_controller,
-    kubernetes_service_account.s3_csi
+    kubernetes_namespace_v1.keda,
+    kubernetes_service_account_v1.alb_controller,
+    kubernetes_service_account_v1.s3_csi
   ]
 }

@@ -44,19 +44,9 @@ output "hpto_addon_arn" {
   value       = var.enable_training_operator ? aws_eks_addon.hpto_addon[0].arn : null
 }
 
-output "hpto_addon_status" {
-  description = "Status of the HPTO addon"
-  value       = var.enable_training_operator ? aws_eks_addon.hpto_addon[0].status : null
-}
-
 output "task_governance_addon_arn" {
   description = "ARN of the task governance addon"
   value       = var.enable_task_governance ? aws_eks_addon.task_governance[0].arn : null
-}
-
-output "task_governance_addon_status" {
-  description = "Status of the task governance addon"
-  value       = var.enable_task_governance ? aws_eks_addon.task_governance[0].status : null
 }
 
 output "nodes_ready" {

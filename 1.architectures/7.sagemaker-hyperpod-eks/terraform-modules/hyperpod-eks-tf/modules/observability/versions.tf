@@ -4,11 +4,11 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = ">= 4.0.0"
+      version = ">= 6.27.0"
     }
     grafana = {
       source = "grafana/grafana"
-      version = "~> 2.0"
+      version = ">= 2.0.0"
     }
     http = {
       source = "hashicorp/http"

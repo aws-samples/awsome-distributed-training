@@ -65,6 +65,12 @@ variable "private_subnet_ids" {
   type        = list(string)
 }
 
+variable "az_to_subnet_map" {
+  description = "Map of availability zone IDs to subnet IDs"
+  type        = map(string)
+  default     = {}
+}
+
 variable "security_group_id" {
   description = "The Id of your cluster security group"
   type        = string
@@ -113,3 +119,14 @@ variable "wait_for_nodes" {
   default     = false
 }
 
+variable "enable_cert_manager" {
+  description = "Whether to install cert-manager EKS add-on"
+  type        = bool
+  default     = false
+}
+
+variable "cert_manager_version" {
+  description = "Version of the cert-manager EKS add-on"
+  type        = string
+  default     = "v1.18.2-eksbuild.2"
+}

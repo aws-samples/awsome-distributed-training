@@ -99,6 +99,7 @@ resource "aws_eks_cluster" "cluster" {
   ]
 }
 
+# These EKS addons can become active before nodes are available  
 resource "aws_eks_addon" "vpc_cni" {
   cluster_name      = aws_eks_cluster.cluster.name
   addon_name        = "vpc-cni"
@@ -120,6 +121,7 @@ resource "aws_eks_addon" "pod_identity" {
   resolve_conflicts_on_update = "OVERWRITE"
 }
 
+# This EKS addons will remain degraded until nodes are available
 # Add CoreDNS using AWS CLI so that Terraform doesn't wait for it to be active
 resource "null_resource" "coredns_addon" {
   provisioner "local-exec" {
@@ -129,64 +131,3 @@ resource "null_resource" "coredns_addon" {
   depends_on = [aws_eks_cluster.cluster]
 }
 
-resource "aws_eks_addon" "cert_manager" {
-  count         = var.enable_cert_manager ? 1 : 0
-  cluster_name  = aws_eks_cluster.cluster.name
-  addon_name    = "cert-manager"
-  addon_version = var.cert_manager_version
-
-  resolve_conflicts_on_create = "OVERWRITE"
-  resolve_conflicts_on_update = "OVERWRITE"
-  
-  configuration_values = jsonencode({
-    replicaCount = 1
-    tolerations = [
-      {
-        operator = "Exists"
-        effect   = "NoSchedule"
-      },
-      {
-        operator = "Exists"
-        effect   = "NoExecute"
-      },
-      {
-        operator = "Exists"
-        effect   = "PreferNoSchedule"
-      }
-    ]
-    webhook = {
-      replicaCount = 1
-      tolerations = [
-        {
-          operator = "Exists"
-          effect   = "NoSchedule"
-        },
-        {
-          operator = "Exists"
-          effect   = "NoExecute"
-        },
-        {
-          operator = "Exists"
-          effect   = "PreferNoSchedule"
-        }
-      ]
-    }
-    cainjector = {
-      replicaCount = 1
-      tolerations = [
-        {
-          operator = "Exists"
-          effect   = "NoSchedule"
-        },
-        {
-          operator = "Exists"
-          effect   = "NoExecute"
-        },
-        {
-          operator = "Exists"
-          effect   = "PreferNoSchedule"
-        }
-      ]
-    }
-  })
-}

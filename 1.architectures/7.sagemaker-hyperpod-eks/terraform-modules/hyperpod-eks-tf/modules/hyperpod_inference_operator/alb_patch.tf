@@ -1,7 +1,7 @@
 resource "null_resource" "patch_alb_deployment" {
   provisioner "local-exec" {
     command = <<-EOT
-      aws eks update-kubeconfig --region ${data.aws_region.current.name} --name ${var.eks_cluster_name}
+      aws eks update-kubeconfig --region ${data.aws_region.current.region} --name ${var.eks_cluster_name}
       
       for i in {1..20}; do
         if kubectl get deployment hyperpod-inference-operator-alb -n kube-system >/dev/null 2>&1; then

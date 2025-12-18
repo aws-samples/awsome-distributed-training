@@ -20,7 +20,7 @@ resource "aws_iam_role" "hyperpod_observability_addon" {
         Condition = {
           StringEquals = {
             "aws:SourceAccount" = data.aws_caller_identity.current.account_id
-            "aws:SourceArn"     = "arn:aws:eks:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:cluster/${var.eks_cluster_name}"
+            "aws:SourceArn"     = "arn:aws:eks:${var.aws_region}:${data.aws_caller_identity.current.account_id}:cluster/${var.eks_cluster_name}"
           }
         }
       }
@@ -41,7 +41,7 @@ resource "aws_iam_role_policy" "hyperpod_observability_addon" {
         Action = [
           "aps:RemoteWrite"
         ]
-        Resource = "arn:aws:aps:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:workspace/*"
+        Resource = "arn:aws:aps:${var.aws_region}:${data.aws_caller_identity.current.account_id}:workspace/*"
       },
       {
         Sid    = "CloudwatchLogsAccess"
@@ -60,8 +60,8 @@ resource "aws_iam_role_policy" "hyperpod_observability_addon" {
           "logs:GetQueryResults"
         ]
         Resource = [
-          "arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:/aws/sagemaker/Clusters/*",
-          "arn:aws:logs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:log-group:/aws/sagemaker/Clusters/*:log-stream:*"
+          "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/sagemaker/Clusters/*",
+          "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/sagemaker/Clusters/*:log-stream:*"
         ]
       }
     ]

@@ -6,8 +6,8 @@ resource "aws_grafana_workspace" "hyperpod" {
   name                     = "${var.resource_name_prefix}-amgws"
   account_access_type      = "CURRENT_ACCOUNT"
   authentication_providers = ["AWS_SSO"]
-  permission_type         = "CUSTOMER_MANAGED"
-  role_arn               = aws_iam_role.grafana_workspace[0].arn
+  permission_type          = "CUSTOMER_MANAGED"
+  role_arn                 = aws_iam_role.grafana_workspace[0].arn
   
   configuration = jsonencode({
     unifiedAlerting = { enabled = true }
@@ -47,8 +47,8 @@ resource "grafana_data_source" "cloudwatch" {
   json_data_encoded = jsonencode({
     authType        = "sigv4"
     sigV4Auth       = true
-    sigV4Region     = data.aws_region.current.name
-    defaultRegion   = data.aws_region.current.name
+    sigV4Region     = var.aws_region
+    defaultRegion   = var.aws_region
     httpMethod      = "POST"
     sigV4AuthType   = "ec2_iam_role"
   })
@@ -60,13 +60,13 @@ resource "grafana_data_source" "prometheus" {
   type = "prometheus"
   name = "prometheus"
   uid  = "prometheus"
-  url  = "https://aps-workspaces.${data.aws_region.current.name}.amazonaws.com/workspaces/${local.prometheus_workspace_id}"
+  url  = "https://aps-workspaces.${var.aws_region}.amazonaws.com/workspaces/${local.prometheus_workspace_id}"
   
   json_data_encoded = jsonencode({
     authType        = "sigv4"
     sigV4Auth       = true
-    sigV4Region     = data.aws_region.current.name
-    defaultRegion   = data.aws_region.current.name
+    sigV4Region     = var.aws_region
+    defaultRegion   = var.aws_region
     httpMethod      = "POST"
     sigV4AuthType   = "ec2_iam_role"
   })
