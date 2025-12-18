@@ -41,6 +41,70 @@ resource "aws_eks_pod_identity_association" "hpto_pod_identity" {
   role_arn        = aws_iam_role.hpto_role[0].arn
 }
 
+# EKS Addon for Cert Manager (required for HPTO and HPIO)
+resource "aws_eks_addon" "cert_manager" {
+  count         = var.enable_cert_manager ? 1 : 0
+  cluster_name  = var.eks_cluster_name
+  addon_name    = "cert-manager"
+  addon_version = var.cert_manager_version
+
+  resolve_conflicts_on_create = "OVERWRITE"
+  resolve_conflicts_on_update = "OVERWRITE"
+  
+  configuration_values = jsonencode({
+    replicaCount = 1
+    tolerations = [
+      {
+        operator = "Exists"
+        effect   = "NoSchedule"
+      },
+      {
+        operator = "Exists"
+        effect   = "NoExecute"
+      },
+      {
+        operator = "Exists"
+        effect   = "PreferNoSchedule"
+      }
+    ]
+    webhook = {
+      replicaCount = 1
+      tolerations = [
+        {
+          operator = "Exists"
+          effect   = "NoSchedule"
+        },
+        {
+          operator = "Exists"
+          effect   = "NoExecute"
+        },
+        {
+          operator = "Exists"
+          effect   = "PreferNoSchedule"
+        }
+      ]
+    }
+    cainjector = {
+      replicaCount = 1
+      tolerations = [
+        {
+          operator = "Exists"
+          effect   = "NoSchedule"
+        },
+        {
+          operator = "Exists"
+          effect   = "NoExecute"
+        },
+        {
+          operator = "Exists"
+          effect   = "PreferNoSchedule"
+        }
+      ]
+    }
+  })
+  depends_on = [null_resource.wait_for_hyperpod_nodes]
+}
+
 # EKS Addon for HPTO
 resource "aws_eks_addon" "hpto_addon" {
   count = var.enable_training_operator ? 1 : 0
@@ -49,7 +113,10 @@ resource "aws_eks_addon" "hpto_addon" {
   addon_name               = "amazon-sagemaker-hyperpod-training-operator"
   resolve_conflicts_on_create = "OVERWRITE"
 
-  depends_on = [aws_eks_pod_identity_association.hpto_pod_identity]
+  depends_on = [
+    aws_eks_pod_identity_association.hpto_pod_identity,
+    aws_eks_addon.cert_manager
+  ]
 }
 
 # EKS Addon for Task Governance

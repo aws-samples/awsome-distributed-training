@@ -1,17 +1,10 @@
 data "aws_partition" "current" {}
 data "aws_region" "current" {}
 data "aws_caller_identity" "current" {}
-data "aws_subnet" "private" {
-  for_each = toset(var.private_subnet_ids)
-  id       = each.value
-}
 
 locals {
-  # Create AZ to subnet lookup map
-  az_to_subnet = {
-    for subnet_id in var.private_subnet_ids :
-    data.aws_subnet.private[subnet_id].availability_zone_id => subnet_id
-  }
+  # AZ to subnet lookup map
+  az_to_subnet = var.az_to_subnet_map
 
   # Create configurations for each instance group
   instance_groups_list = [
@@ -132,7 +125,7 @@ resource "null_resource" "wait_for_hyperpod_nodes" {
   
   provisioner "local-exec" {
     command = <<-EOT
-      aws eks update-kubeconfig --region ${data.aws_region.current.name} --name ${var.eks_cluster_name}
+      aws eks update-kubeconfig --region ${data.aws_region.current.region} --name ${var.eks_cluster_name}
       
       echo "Waiting for HyperPod nodes to join EKS cluster..."
       for i in {1..60}; do

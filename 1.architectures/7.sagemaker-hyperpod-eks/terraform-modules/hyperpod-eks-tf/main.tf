@@ -1,3 +1,5 @@
+data "aws_region" "current" {}
+
 data "aws_eks_cluster" "existing_eks_cluster" {
   count = var.create_eks_module ? 0 : 1
   name  = var.existing_eks_cluster_name
@@ -19,6 +21,7 @@ locals {
   nat_gateway_id           = var.create_vpc_module ? module.vpc[0].nat_gateway_1_id : var.existing_nat_gateway_id
   private_route_table_ids  = var.create_private_subnet_module ? module.private_subnet[0].private_route_table_ids : var.existing_private_route_table_ids
   eks_private_subnet_cidrs = [var.eks_private_subnet_1_cidr, var.eks_private_subnet_2_cidr]
+  enable_guardduty_cleanup = var.enable_guardduty_cleanup && (var.create_vpc_module || var.create_private_subnet_module || var.create_eks_module)
 
   # Disabled feature set for RIGs
   rig_mode                    = length(var.restricted_instance_groups) > 0
@@ -75,7 +78,6 @@ module "eks_cluster" {
   security_group_id    = local.security_group_id
   private_subnet_cidrs = local.eks_private_subnet_cidrs
   nat_gateway_id       = local.nat_gateway_id
-  enable_cert_manager  = local.enable_cert_manager
 }
 
 module "s3_bucket" {
@@ -170,6 +172,7 @@ module "hyperpod_cluster" {
   instance_groups              = local.instance_groups
   restricted_instance_groups   = var.restricted_instance_groups
   private_subnet_ids           = local.private_subnet_ids
+  az_to_subnet_map             = module.private_subnet[0].az_to_subnet_map
   security_group_id            = local.security_group_id
   eks_cluster_name             = local.eks_cluster_name
   s3_bucket_name               = local.s3_bucket_name
@@ -180,7 +183,8 @@ module "hyperpod_cluster" {
   karpenter_role_arn           = local.karpenter_role_arn 
   enable_task_governance       = local.enable_task_governance
   enable_training_operator     = local.enable_training_operator
-  wait_for_nodes               = local.wait_for_nodes 
+  wait_for_nodes               = local.wait_for_nodes
+  enable_cert_manager          = local.enable_cert_manager
 
   depends_on = [
     module.helm_chart,
@@ -197,43 +201,67 @@ module "observability" {
   count  = local.create_observability_module ? 1 : 0
   source = "./modules/observability"
 
-  resource_name_prefix               = var.resource_name_prefix
-  vpc_id                             = local.vpc_id
-  security_group_id                  = local.security_group_id
-  private_subnet_ids                 = local.private_subnet_ids
-  eks_cluster_name                   = local.eks_cluster_name
-  create_grafana_workspace           = var.create_grafana_workspace
-  create_prometheus_workspace        = var.create_prometheus_workspace
-  prometheus_workspace_id            = var.existing_prometheus_workspace_id
-  grafana_workspace_id               = var.existing_grafana_workspace_id
-  prometheus_workspace_name          = var.prometheus_workspace_name
-  grafana_workspace_name             = var.grafana_workspace_name
-  training_metric_level              = var.training_metric_level
-  task_governance_metric_level       = var.task_governance_metric_level
-  scaling_metric_level               = var.scaling_metric_level
-  cluster_metric_level               = var.cluster_metric_level
-  node_metric_level                  = var.node_metric_level
-  network_metric_level               = var.network_metric_level
-  accelerated_compute_metric_level   = var.accelerated_compute_metric_level
-  logging_enabled                    = var.logging_enabled
+  aws_region                           = data.aws_region.current.region
+  resource_name_prefix                 = var.resource_name_prefix
+  vpc_id                               = local.vpc_id
+  security_group_id                    = local.security_group_id
+  private_subnet_ids                   = local.private_subnet_ids
+  eks_cluster_name                     = local.eks_cluster_name
+  create_grafana_workspace             = var.create_grafana_workspace
+  create_prometheus_workspace          = var.create_prometheus_workspace
+  prometheus_workspace_id              = var.existing_prometheus_workspace_id
+  grafana_workspace_id                 = var.existing_grafana_workspace_id
+  prometheus_workspace_name            = var.prometheus_workspace_name
+  grafana_workspace_name               = var.grafana_workspace_name
+  training_metric_level                = var.training_metric_level
+  task_governance_metric_level         = var.task_governance_metric_level
+  scaling_metric_level                 = var.scaling_metric_level
+  cluster_metric_level                 = var.cluster_metric_level
+  node_metric_level                    = var.node_metric_level
+  network_metric_level                 = var.network_metric_level
+  accelerated_compute_metric_level     = var.accelerated_compute_metric_level
+  logging_enabled                      = var.logging_enabled
 
-  depends_on = [module.hyperpod_cluster[0].nodes_ready]
+  depends_on = [module.hyperpod_cluster]
 }
 
 module "hyperpod_inference_operator" {
   count  = local.create_inference_operator ? 1 : 0
   source = "./modules/hyperpod_inference_operator"
 
-  resource_name_prefix = var.resource_name_prefix
-  helm_repo_path       = var.helm_repo_path_hpio
-  helm_release_name    = var.helm_release_name_hpio
-  helm_repo_revision   = var.helm_repo_revision_hpio
-  namespace            = var.namespace
-  eks_cluster_name     = local.eks_cluster_name
-  vpc_id               = local.vpc_id
-  hyperpod_cluster_arn = module.hyperpod_cluster[0].cluster_arn
+  resource_name_prefix    = var.resource_name_prefix
+  helm_repo_path          = var.helm_repo_path_hpio
+  helm_release_name       = var.helm_release_name_hpio
+  helm_repo_revision      = var.helm_repo_revision_hpio
+  namespace               = var.namespace
+  eks_cluster_name        = local.eks_cluster_name
+  vpc_id                  = local.vpc_id
+  hyperpod_cluster_arn    = module.hyperpod_cluster[0].hyperpod_cluster_arn
   access_logs_bucket_name = module.s3_bucket[0].s3_logs_bucket_name
 
-  depends_on = [module.hyperpod_cluster[0].nodes_ready]
+  depends_on = [module.hyperpod_cluster]
 }
+
+# GuardDuty VPC endpoint cleanup
+resource "null_resource" "guardduty_cleanup" {
+  count = local.enable_guardduty_cleanup ? 1 : 0
+
+  # capture values in apply time to use in destroy time
+  triggers = {
+    vpc_id = local.vpc_id
+    region = data.aws_region.current.region
+  }
+
+  provisioner "local-exec" {
+    when = destroy
+    command = "${path.module}/scripts/guardduty-cleanup.sh ${self.triggers.region} ${self.triggers.vpc_id}"
+  }
+
+  depends_on = [
+    module.vpc,
+    module.private_subnet,
+    module.eks_cluster
+  ]
+}
+
 
