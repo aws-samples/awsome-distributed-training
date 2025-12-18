@@ -6,7 +6,7 @@ aws_region = "us-west-2"
 instance_groups = {
     accelerated-instance-group-1 = {
         instance_type = "ml.c5.2xlarge",
-        instance_count = 1,
+        instance_count = 2,
         availability_zone_id  = "usw2-az2",
         ebs_volume_size_in_gb = 100,
         threads_per_core = 1,
@@ -15,3 +15,8 @@ instance_groups = {
         lifecycle_script = "on_create.sh"
     }
 }
+create_observability_module = true
+logging_enabled = true
+enable_task_governance = true
+enable_hyperpod_training_operator = true
+create_hyperpod_inference_operator_module = true

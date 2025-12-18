@@ -1,4 +1,4 @@
-# TLS Certificates S3 Bucket
+
 resource "aws_s3_bucket" "tls_certificates" {
   bucket = "${var.resource_name_prefix}-tls-${random_string.bucket_suffix.result}"
 }

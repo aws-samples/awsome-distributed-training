@@ -5,8 +5,8 @@ resource "aws_eks_addon" "hyperpod_observability" {
   
   configuration_values = jsonencode({
     ampWorkspace = {
-      prometheusEndpoint = "https://aps-workspaces.${data.aws_region.current.name}.amazonaws.com/workspaces/${local.prometheus_workspace_id}"
-      arn               = local.prometheus_workspace_arn
+      prometheusEndpoint = local.prometheus_workspace_endpoint
+      arn                = local.prometheus_workspace_arn
     }
     metricsProvider = {
       trainingMetrics = {

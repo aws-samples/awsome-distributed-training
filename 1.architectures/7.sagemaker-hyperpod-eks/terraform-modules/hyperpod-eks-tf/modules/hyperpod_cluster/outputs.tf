@@ -58,3 +58,8 @@ output "task_governance_addon_status" {
   description = "Status of the task governance addon"
   value       = var.enable_task_governance ? aws_eks_addon.task_governance[0].status : null
 }
+
+output "nodes_ready" {
+  description = "Indicates HyperPod nodes are ready"
+  value       = var.enable_task_governance || var.enable_training_operator || var.wait_for_nodes ? null_resource.wait_for_hyperpod_nodes[0].id : null
+}

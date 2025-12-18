@@ -398,84 +398,45 @@ variable "create_observability_module" {
   default     = false
 }
 
-variable "create_grafana_workspace" {
-  description = "Specify whether to create new grafana workspace"
-  type        = bool
-  default     = false
-}
-
+# AMP variables
 variable "create_prometheus_workspace" {
-  description = "Specify whether to create new prometheus workspace"
+  description = "Specify whether to create a new Amazon Managed Service for Prometheus (AMP) workspace"
   type        = bool
-  default     = false
+  default     = true
 }
 
-variable "prometheus_workspace_id" {
+variable "existing_prometheus_workspace_id" {
   description = "The ID of the existing Amazon Managed Service for Prometheus (AMP) workspace"
   type        = string
   default     = ""
 }
 
-variable "prometheus_workspace_arn" {
-  description = "The ARN of the existing Amazon Managed Service for Prometheus (AMP) workspace"
+variable "prometheus_workspace_name" {
+  description = "(Optional) Name of the new Amazon Managed Service for Prometheus (AMP) workspace"
   type        = string
   default     = ""
 }
 
-variable "prometheus_workspace_endpoint" {
-  description = "The Endpoint of the existing Amazon Managed Service for Prometheus (AMP) workspace"
-  type        = string
-  default     = ""
-}
-
-variable "create_hyperpod_observability_role" {
-  description = "Specify whether to create new role for Hyperpod Observability AddOn"
+# AMG variables
+variable "create_grafana_workspace" {
+  description = "Specify whether to create a new Amazon Managed Grafana (AMG) workspace"
   type        = bool
-  default     = false
+  default     = true
 }
 
-variable "hyperpod_observability_role_arn" {
-  description = "The role to be used with Hyperpod Observability AddOn"
-  type        = string
-  default     = ""
-}
-
-variable "create_grafana_role" {
-  description = "Specify whether to create new role for Hyperpod Observability Grafana Custom Resources"
-  type        = bool
-  default     = false
-}
-
-variable "grafana_role" {
-  description = "The role to be used with Hyperpod Observability Grafana Custom Resources"
+variable "existing_grafana_workspace_id" {
+  description = "The ID of the existing Amazon Managed Grafana (AMG) workspace"
   type        = string
   default     = ""
 }
 
 variable "grafana_workspace_name" {
-  description = "Name of the Grafana workspace"
+  description = "(Optional) Name of the new Amazon Managed Grafana (AMG) workspace"
   type        = string
   default     = ""
 }
 
-variable "grafana_workspace_arn" {
-  description = "ARN of existing Grafana workspace"
-  type        = string
-  default     = ""
-}
-
-variable "grafana_workspace_role_arn" {
-  description = "ARN of the IAM role for Grafana workspace"
-  type        = string
-  default     = ""
-}
-
-variable "grafana_service_account_name" {
-  description = "Name of the service account"
-  type        = string
-  default     = ""
-}
-
+# Metrics levels
 variable "training_metric_level" {
   description = "Level of training metrics"
   type        = string
@@ -553,8 +514,8 @@ variable "logging_enabled" {
 }
 
 # HyperPod Task Governance
-variable "enable_hyperpod_task_governance" {
-  description = "Whether to enable HyperPod Task Governance add-on"
+variable "enable_task_governance" {
+  description = "Whether to enable Task Governance"
   type        = bool
   default     = false
 }

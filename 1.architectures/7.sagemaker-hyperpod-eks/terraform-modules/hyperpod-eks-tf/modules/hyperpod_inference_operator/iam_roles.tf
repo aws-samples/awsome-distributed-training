@@ -1,4 +1,4 @@
-# IAM Roles
+
 resource "aws_iam_role" "inference_operator" {
   name = "${var.resource_name_prefix}IORole"
   path = "/"

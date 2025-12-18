@@ -1,11 +1,13 @@
 
 # Grafana workspace 
 resource "aws_grafana_workspace" "hyperpod" {
-  name                     = var.grafana_workspace_name
+  count = local.is_amg_allowed && var.create_grafana_workspace ? 1 : 0
+
+  name                     = "${var.resource_name_prefix}-amgws"
   account_access_type      = "CURRENT_ACCOUNT"
   authentication_providers = ["AWS_SSO"]
   permission_type         = "CUSTOMER_MANAGED"
-  role_arn               = var.grafana_workspace_role_arn
+  role_arn               = aws_iam_role.grafana_workspace[0].arn
   
   configuration = jsonencode({
     unifiedAlerting = { enabled = true }
@@ -18,20 +20,26 @@ resource "aws_grafana_workspace" "hyperpod" {
 
 # Service account and token 
 resource "aws_grafana_workspace_service_account" "hyperpod" {
-  name         = var.grafana_service_account_name
+  count = local.is_amg_allowed ? 1 : 0
+
+  name         = "${var.resource_name_prefix}-amgws-sa"
   grafana_role = "ADMIN"
-  workspace_id = aws_grafana_workspace.hyperpod.id
+  workspace_id = local.grafana_workspace_id
 }
 
 resource "aws_grafana_workspace_service_account_token" "hyperpod" {
-  name               = "${var.grafana_service_account_name}-token"
-  service_account_id = aws_grafana_workspace_service_account.hyperpod.id
+  count = local.is_amg_allowed ? 1 : 0
+
+  name               = "${var.resource_name_prefix}-amgws-sa-token"
+  service_account_id = aws_grafana_workspace_service_account.hyperpod[0].id
   seconds_to_live    = 1500
-  workspace_id       = aws_grafana_workspace.hyperpod.id
+  workspace_id       = local.grafana_workspace_id
 }
 
 # Data sources
 resource "grafana_data_source" "cloudwatch" {
+  count = local.is_amg_allowed ? 1 : 0
+
   type = "cloudwatch"
   name = "cloudwatch"
   uid  = "cloudwatch"
@@ -39,36 +47,40 @@ resource "grafana_data_source" "cloudwatch" {
   json_data_encoded = jsonencode({
     authType        = "sigv4"
     sigV4Auth       = true
-    sigV4Region     = data.aws_region.current.id
-    defaultRegion   = data.aws_region.current.id
+    sigV4Region     = data.aws_region.current.name
+    defaultRegion   = data.aws_region.current.name
     httpMethod      = "POST"
     sigV4AuthType   = "ec2_iam_role"
   })
 }
 
 resource "grafana_data_source" "prometheus" {
+  count        = local.is_amg_allowed ? 1 : 0
+
   type = "prometheus"
   name = "prometheus"
   uid  = "prometheus"
-  url  = "https://aps-workspaces.${data.aws_region.current.name}.amazonaws.com/workspaces/${var.prometheus_workspace_id}/api"
+  url  = "https://aps-workspaces.${data.aws_region.current.name}.amazonaws.com/workspaces/${local.prometheus_workspace_id}"
   
   json_data_encoded = jsonencode({
     authType        = "sigv4"
     sigV4Auth       = true
-    sigV4Region     = data.aws_region.current.id
-    defaultRegion   = data.aws_region.current.id
+    sigV4Region     = data.aws_region.current.name
+    defaultRegion   = data.aws_region.current.name
     httpMethod      = "POST"
     sigV4AuthType   = "ec2_iam_role"
   })
 }
 
 resource "grafana_folder" "alerts" {
+  count = local.is_amg_allowed ? 1 : 0
+
   title = "Sagemaker Hyperpod Alerts"
   uid   = "aws-sm-hp-observability-rules"
 }
 
 resource "grafana_dashboard" "hyperpod_dashboards" {
-  for_each = local.dashboard_uids
+  for_each = local.is_amg_allowed ? local.dashboard_uids : {}
   
   config_json = replace(
     local.dashboard_configs[each.key],
@@ -78,8 +90,10 @@ resource "grafana_dashboard" "hyperpod_dashboards" {
 }
 
 resource "grafana_rule_group" "hyperpod_alerts" {
+  count = local.is_amg_allowed ? 1 : 0
+
   name             = "sagemaker_hyperpod_alerts"
-  folder_uid       = grafana_folder.alerts.uid
+  folder_uid       = grafana_folder.alerts[0].uid
   interval_seconds = 300
   
   dynamic "rule" {
@@ -101,7 +115,7 @@ resource "grafana_rule_group" "hyperpod_alerts" {
           from = 600
           to   = 0
         }
-        datasource_uid = grafana_data_source.prometheus.uid
+        datasource_uid = grafana_data_source.prometheus[0].uid
         model = jsonencode({
           refId        = "A"
           expr         = rule.value.expr

@@ -41,19 +41,6 @@ resource "aws_route_table_association" "private" {
   route_table_id = aws_route_table.eks_private[count.index].id
 }
 
-resource "aws_route" "eks_nat_gateway" {
-  count                  = length(aws_route_table.eks_private)
-  route_table_id         = aws_route_table.eks_private[count.index].id
-  destination_cidr_block = "0.0.0.0/0"
-  nat_gateway_id         = var.nat_gateway_id
-}
-
-# resource "aws_route_table_association" "private" {
-#   count          = length(aws_subnet.private)
-#   subnet_id      = aws_subnet.private[count.index].id
-#   route_table_id = var.private_route_table_id
-# }
-
 resource "aws_iam_role" "eks_cluster_role" {
   name = "${var.resource_name_prefix}-cluster-role"
 
@@ -142,3 +129,64 @@ resource "null_resource" "coredns_addon" {
   depends_on = [aws_eks_cluster.cluster]
 }
 
+resource "aws_eks_addon" "cert_manager" {
+  count         = var.enable_cert_manager ? 1 : 0
+  cluster_name  = aws_eks_cluster.cluster.name
+  addon_name    = "cert-manager"
+  addon_version = var.cert_manager_version
+
+  resolve_conflicts_on_create = "OVERWRITE"
+  resolve_conflicts_on_update = "OVERWRITE"
+  
+  configuration_values = jsonencode({
+    replicaCount = 1
+    tolerations = [
+      {
+        operator = "Exists"
+        effect   = "NoSchedule"
+      },
+      {
+        operator = "Exists"
+        effect   = "NoExecute"
+      },
+      {
+        operator = "Exists"
+        effect   = "PreferNoSchedule"
+      }
+    ]
+    webhook = {
+      replicaCount = 1
+      tolerations = [
+        {
+          operator = "Exists"
+          effect   = "NoSchedule"
+        },
+        {
+          operator = "Exists"
+          effect   = "NoExecute"
+        },
+        {
+          operator = "Exists"
+          effect   = "PreferNoSchedule"
+        }
+      ]
+    }
+    cainjector = {
+      replicaCount = 1
+      tolerations = [
+        {
+          operator = "Exists"
+          effect   = "NoSchedule"
+        },
+        {
+          operator = "Exists"
+          effect   = "NoExecute"
+        },
+        {
+          operator = "Exists"
+          effect   = "PreferNoSchedule"
+        }
+      ]
+    }
+  })
+}

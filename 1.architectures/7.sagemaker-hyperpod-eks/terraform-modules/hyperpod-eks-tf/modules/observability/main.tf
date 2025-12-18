@@ -3,7 +3,28 @@ data "aws_region" "current" {}
 data "aws_caller_identity" "current" {}
 
 locals {
+  # URL prefix to pull alert rules and dashboard templates from 
   github_base_url = "https://raw.githubusercontent.com/aws/sagemaker-hyperpod-cluster-setup/refs/heads/main/eks/cloudformation/resources/grafana-lambda-function/lambda_function"
+  use_existing_prometheus_workspace = !var.create_prometheus_workspace && var.prometheus_workspace_id != ""
+  use_existing_grafana_workspace = !var.create_grafana_workspace && var.grafana_workspace_id != ""
+
+  amg_allowed_regions = [
+    "us-east-1", "us-east-2", "us-west-2",
+    "ap-northeast-1", "ap-northeast-2", "ap-southeast-1", "ap-southeast-2",
+    "ca-central-1", "eu-central-1", "eu-west-1", "eu-west-2"
+  ]
+  
+  is_amg_allowed = contains(local.amg_allowed_regions, data.aws_region.current.name)
+}
+
+data "aws_prometheus_workspace" "existing" {
+  count        = local.use_existing_prometheus_workspace ? 1 : 0
+  workspace_id = var.prometheus_workspace_id
+}
+
+data "aws_grafana_workspace" "existing" {
+  count        = local.is_amg_allowed && local.use_existing_grafana_workspace ? 1 : 0
+  workspace_id = var.grafana_workspace_id
 }
 
 # Fetch alert rules from GitHub
@@ -33,14 +54,6 @@ data "http" "tasks_dashboard" {
 }
 
 locals {
-  amg_allowed_regions = [
-    "us-east-1", "us-east-2", "us-west-2",
-    "ap-northeast-1", "ap-northeast-2", "ap-southeast-1", "ap-southeast-2",
-    "ca-central-1", "eu-central-1", "eu-west-1", "eu-west-2"
-  ]
-  
-  is_amg_allowed = contains(local.amg_allowed_regions, data.aws_region.current.name) && var.create_grafana_workspace != "disabled"
-
   dashboard_uids = {
     cluster   = "aws-sm-hp-observability-cluster-v1_0"
     efa       = "aws-sm-hp-observability-efa-v1_0"
@@ -60,15 +73,18 @@ locals {
   alert_rules = yamldecode(data.http.alert_rules.response_body).groups[0].rules
 
   # Prometheus workspace values
-  prometheus_workspace_id  = var.create_prometheus_workspace ? aws_prometheus_workspace.hyperpod[0].workspace_id : var.prometheus_workspace_id
-  prometheus_workspace_arn = var.create_prometheus_workspace ? aws_prometheus_workspace.hyperpod[0].arn : var.prometheus_workspace_arn
+  prometheus_workspace_name     = local.use_existing_prometheus_workspace ? data.aws_prometheus_workspace.existing[0].alias : coalesce(var.prometheus_workspace_name, "${var.resource_name_prefix}-ampws")
+  prometheus_workspace_id       = local.use_existing_prometheus_workspace ? var.prometheus_workspace_id : aws_prometheus_workspace.hyperpod[0].id
+  prometheus_workspace_endpoint = local.use_existing_prometheus_workspace ? data.aws_prometheus_workspace.existing[0].prometheus_endpoint : aws_prometheus_workspace.hyperpod[0].prometheus_endpoint
+  prometheus_workspace_arn      = local.use_existing_prometheus_workspace ? data.aws_prometheus_workspace.existing[0].arn : aws_prometheus_workspace.hyperpod[0].arn
 
   # Grafana workspace values
-  grafana_workspace_name = var.create_grafana_workspace == "true" ? aws_grafana_workspace.hyperpod[0].name : var.grafana_workspace_name
-  grafana_workspace_arn  = var.create_grafana_workspace == "true" ? aws_grafana_workspace.hyperpod[0].arn : var.grafana_workspace_arn
+  grafana_workspace_name     = local.is_amg_allowed ? (local.use_existing_grafana_workspace ? data.aws_grafana_workspace.existing[0].name : coalesce(var.grafana_workspace_name, "${var.resource_name_prefix}-amgws") ) : null
+  grafana_workspace_id       = local.is_amg_allowed ? (local.use_existing_grafana_workspace ? var.grafana_workspace_id : aws_grafana_workspace.hyperpod[0].id) : null
+  grafana_workspace_endpoint = local.is_amg_allowed ? (local.use_existing_grafana_workspace ? data.aws_grafana_workspace.existing[0].endpoint : aws_grafana_workspace.hyperpod[0].endpoint) : null
+  grafana_workspace_arn      = local.is_amg_allowed ? (local.use_existing_grafana_workspace ? data.aws_grafana_workspace.existing[0].arn : aws_grafana_workspace.hyperpod[0].arn) : null
+  
 
   # Observability role
-  observability_role_arn = var.create_hyperpod_observability_role ? aws_iam_role.hyperpod_observability[0].arn : var.hyperpod_observability_role_arn
-
-  
+  observability_role_arn = aws_iam_role.hyperpod_observability_addon.arn
 }

@@ -125,3 +125,29 @@ resource "awscc_sagemaker_cluster" "hyperpod_cluster" {
     subnets            = var.private_subnet_ids
   }
 }
+
+# Wait for HyperPod nodes to be ready when Task Governance, HPTO, HPIO, or Observability are enabled
+resource "null_resource" "wait_for_hyperpod_nodes" {
+  count = var.enable_task_governance || var.enable_training_operator || var.wait_for_nodes ? 1 : 0
+  
+  provisioner "local-exec" {
+    command = <<-EOT
+      aws eks update-kubeconfig --region ${data.aws_region.current.name} --name ${var.eks_cluster_name}
+      
+      echo "Waiting for HyperPod nodes to join EKS cluster..."
+      for i in {1..60}; do
+        node_count=$(kubectl get nodes -l sagemaker.amazonaws.com/cluster-name=${var.hyperpod_cluster_name} --no-headers 2>/dev/null | wc -l)
+        if [ "$node_count" -gt 0 ]; then
+          echo "Found $node_count HyperPod nodes in EKS cluster"
+          exit 0
+        fi
+        echo "No HyperPod nodes found yet, waiting... ($i/60)"
+        sleep 30
+      done
+      echo "Timeout: No HyperPod nodes found after 30 minutes"
+      exit 1
+    EOT
+  }
+  
+  depends_on = [awscc_sagemaker_cluster.hyperpod_cluster]
+}

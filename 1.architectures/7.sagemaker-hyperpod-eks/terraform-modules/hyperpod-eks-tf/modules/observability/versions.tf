@@ -15,8 +15,3 @@ terraform {
     }
   }
 }
-
-provider "grafana" {
-  url  = aws_grafana_workspace.hyperpod.endpoint
-  auth = aws_grafana_workspace_service_account_token.hyperpod.key
-}
