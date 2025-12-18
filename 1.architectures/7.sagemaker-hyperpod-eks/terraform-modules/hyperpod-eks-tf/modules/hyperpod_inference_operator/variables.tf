@@ -36,13 +36,12 @@ variable "helm_release_name" {
 }
 
 variable "helm_repo_revision" {
-  description = "Git revision for normal mode"
+  description = "Git revision for the HyperPod Inference Operator"
   type        = string
-  default     = "36140e35b61615b5dd1e411ff555092769150998"
 }
 
 variable "helm_repo_path" {
-  description = "The path to the HyperPod Helm chart in the Helm repo"
+  description = "The path to the HyperPod Inference Operator Helm chart"
   type        = string
   default     = "helm_chart/HyperPodHelmChart/charts/inference-operator"
 }

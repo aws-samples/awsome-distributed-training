@@ -26,7 +26,8 @@ resource "aws_iam_role" "hpto_role" {
 # IAM Policy for HPTO
 resource "aws_iam_role_policy_attachment" "hpto-policy" {
   count = var.enable_training_operator ? 1 : 0
-  role       = aws_iam_role.role.hpto_role
+
+  role       = aws_iam_role.hpto_role[0].name
   policy_arn = "arn:aws:iam::aws:policy/AmazonSageMakerHyperPodTrainingOperatorAccess"
 }
 
@@ -37,7 +38,7 @@ resource "aws_eks_pod_identity_association" "hpto_pod_identity" {
   cluster_name    = var.eks_cluster_name
   namespace       = "aws-hyperpod"
   service_account = "hp-training-operator-controller-manager"
-  role_arn        = aws_iam_role.hpto_role.arn
+  role_arn        = aws_iam_role.hpto_role[0].arn
 }
 
 # EKS Addon for HPTO
@@ -53,12 +54,12 @@ resource "aws_eks_addon" "hpto_addon" {
 
 # EKS Addon for Task Governance
 resource "aws_eks_addon" "task_governance" {
-  count        = var.enable_task_governance ? 1 : 0
+  count = var.enable_task_governance ? 1 : 0
 
   cluster_name = var.eks_cluster_name
   addon_name   = "amazon-sagemaker-hyperpod-taskgovernance"
   resolve_conflicts_on_create = "OVERWRITE"
   resolve_conflicts_on_update = "OVERWRITE"
 
-  depends_on = [null_resource.wait_for_hyperpod_nodes]
+  depends_on = [null_resource.wait_for_hyperpod_nodes[0]]
 }

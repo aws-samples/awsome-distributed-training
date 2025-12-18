@@ -1,7 +1,5 @@
 # HyperPod Observability AddOn Role
 resource "aws_iam_role" "hyperpod_observability_addon" {
-  count = var.create_hyperpod_observability_role ? 1 : 0
-
   name                 = "${var.resource_name_prefix}-AddOn"
   path                 = "/service-role/"
   max_session_duration = 3600
@@ -31,10 +29,8 @@ resource "aws_iam_role" "hyperpod_observability_addon" {
 }
 
 resource "aws_iam_role_policy" "hyperpod_observability_addon" {
-  count = var.create_hyperpod_observability_role ? 1 : 0
-
   name = "${var.resource_name_prefix}-OnPol"
-  role = aws_iam_role.hyperpod_observability_addon[0].id
+  role = aws_iam_role.hyperpod_observability_addon.id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -74,7 +70,7 @@ resource "aws_iam_role_policy" "hyperpod_observability_addon" {
 
 # Grafana Workspace Role
 resource "aws_iam_role" "grafana_workspace" {
-  count = var.create_grafana_role && local.is_amg_allowed ? 1 : 0
+  count = local.is_amg_allowed && var.create_grafana_workspace ? 1 : 0
 
   name = "${var.resource_name_prefix}-GraAcc"
   path = "/service-role/"
@@ -100,7 +96,7 @@ resource "aws_iam_role" "grafana_workspace" {
 }
 
 resource "aws_iam_role_policy" "grafana_workspace" {
-  count = var.create_grafana_role && local.is_amg_allowed ? 1 : 0
+  count = local.is_amg_allowed && var.create_grafana_workspace ? 1 : 0
 
   name = "${var.resource_name_prefix}-GraPol"
   role = aws_iam_role.grafana_workspace[0].id

@@ -27,3 +27,8 @@ provider "kubernetes" {
     command     = "aws"
   }
 }
+
+provider "grafana" {
+  url  = local.create_observability_module ? module.observability[0].grafana_workspace_endpoint : null
+  auth = local.create_observability_module ? module.observability[0].grafana_service_account_token : null
+}

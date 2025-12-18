@@ -12,7 +12,7 @@ existing_vpc_id      = ""
 create_private_subnet_module = true
 private_subnet_cidrs          = ["10.1.0.0/16", "10.2.0.0/16", "10.3.0.0/16", "10.4.0.0/16", "10.5.0.0/16"]
 existing_nat_gateway_id      = ""
-existing_private_subnet_id   = ""
+existing_private_subnet_ids   = []
 
 # Security Group Module Variables
 create_security_group_module = true
@@ -32,7 +32,7 @@ existing_s3_bucket_name = ""
 
 # S3 Endpoint Module Variables
 create_vpc_endpoints_module     = true
-existing_private_route_table_id = ""
+existing_private_route_table_ids = []
 
 # Lifecycle Script Module Variables
 create_lifecycle_script_module = true
@@ -58,7 +58,7 @@ instance_groups = {
   instance-group-1 = {
     instance_type             = "ml.g5.8xlarge"
     instance_count            = 8
-    availability_zone_id         = "usw2-az2"
+    availability_zone_id      = "usw2-az2"
     ebs_volume_size_in_gb     = 100
     threads_per_core          = 2
     enable_stress_check       = true

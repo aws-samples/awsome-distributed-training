@@ -23,11 +23,6 @@ output "nat_gateway_1_id" {
   value       = aws_nat_gateway.nat_1.id
 }
 
-# output "nat_gateway_2_id" {
-#   description = "The ID of the second NAT Gateway"
-#   value       = aws_nat_gateway.nat_2.id
-# }
-
 output "internet_gateway_id" {
   description = "The ID of the Internet Gateway"
   value       = aws_internet_gateway.main.id
@@ -42,11 +37,6 @@ output "nat_gateway_1_eip" {
   description = "The Elastic IP address of the first NAT Gateway"
   value       = aws_eip.nat_1.public_ip
 }
-
-# output "nat_gateway_2_eip" {
-#   description = "The Elastic IP address of the second NAT Gateway"
-#   value       = aws_eip.nat_2.public_ip
-# }
 
 output "availability_zones" {
   description = "List of availability zones used in the VPC"

@@ -2,7 +2,7 @@
 resource "aws_prometheus_workspace" "hyperpod" {
   count = var.create_prometheus_workspace ? 1 : 0
 
-  alias = "${var.resource_name_prefix}-ampws"
+  alias = local.prometheus_workspace_name
 
   tags = {
     SageMaker = "true"

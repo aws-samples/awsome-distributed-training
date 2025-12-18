@@ -178,8 +178,8 @@ module "hyperpod_cluster" {
   karpenter_autoscaling        = var.karpenter_autoscaling
   continuous_provisioning_mode = var.continuous_provisioning_mode
   karpenter_role_arn           = local.karpenter_role_arn 
-  enable_task_governance       = var.enable_task_governance
-  enable_training_operator     = var.enable_hyperpod_training_operator
+  enable_task_governance       = local.enable_task_governance
+  enable_training_operator     = local.enable_training_operator
   wait_for_nodes               = local.wait_for_nodes 
 
   depends_on = [
@@ -204,17 +204,10 @@ module "observability" {
   eks_cluster_name                   = local.eks_cluster_name
   create_grafana_workspace           = var.create_grafana_workspace
   create_prometheus_workspace        = var.create_prometheus_workspace
-  prometheus_workspace_id            = var.prometheus_workspace_id
-  prometheus_workspace_arn           = var.prometheus_workspace_arn
-  prometheus_workspace_endpoint      = var.prometheus_workspace_endpoint
-  create_hyperpod_observability_role = var.create_hyperpod_observability_role
-  hyperpod_observability_role_arn    = var.hyperpod_observability_role_arn
-  create_grafana_role                = var.create_grafana_role
-  grafana_role                       = var.grafana_role
+  prometheus_workspace_id            = var.existing_prometheus_workspace_id
+  grafana_workspace_id               = var.existing_grafana_workspace_id
+  prometheus_workspace_name          = var.prometheus_workspace_name
   grafana_workspace_name             = var.grafana_workspace_name
-  grafana_workspace_arn              = var.grafana_workspace_arn
-  grafana_workspace_role_arn         = var.grafana_workspace_role_arn
-  grafana_service_account_name       = var.grafana_service_account_name
   training_metric_level              = var.training_metric_level
   task_governance_metric_level       = var.task_governance_metric_level
   scaling_metric_level               = var.scaling_metric_level

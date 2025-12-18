@@ -25,6 +25,7 @@ resource "aws_s3_bucket_public_access_block" "access_logs_pab" {
   restrict_public_buckets = true
 }
 
+# LCS bucket
 resource "aws_s3_bucket" "bucket" {
   bucket = "${var.resource_name_prefix}-bucket-${data.aws_caller_identity.current.account_id}-${data.aws_region.current.id}"
 }
@@ -39,6 +40,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "bucket_encryption
   }
 }
 
+# write access logs for CLS bucket to Access logs bucket 
 resource "aws_s3_bucket_logging" "bucket_logging" {
   bucket = aws_s3_bucket.bucket.id
 
