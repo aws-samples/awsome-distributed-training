@@ -4,12 +4,6 @@ resource "kubernetes_namespace" "keda" {
   }
 }
 
-resource "kubernetes_namespace" "cert_manager" {
-  metadata {
-    name = "cert-manager"
-  }
-}
-
 resource "null_resource" "git_checkout" {
   provisioner "local-exec" {
     command = <<-EOT
@@ -105,6 +99,9 @@ resource "helm_release" "inference_operator" {
   ]
 
   depends_on = [
+    null_resource.git_checkout,
+    null_resource.add_helm_repos,
+    kubernetes_namespace.keda,
     kubernetes_service_account.alb_controller,
     kubernetes_service_account.s3_csi
   ]
