@@ -27,7 +27,7 @@ fi
 # Construct the full image name
 FULL_IMAGE="${REGISTRY}${IMAGE}:${TAG}"
 
-# Generate kustomization.yaml with configMapGenerator and replacements
+# Generate kustomization.yaml with one inline strategic merge patch (all fields)
 cat > "${KUSTOMIZATION_FILE}" <<EOF
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
@@ -35,98 +35,73 @@ kind: Kustomization
 resources:
 - raycluster.yaml
 
-configMapGenerator:
-- name: cluster-config
-  literals:
-  - INSTANCE_TYPE=${INSTANCE_TYPE}
-  - IMAGE=${FULL_IMAGE}
-  - HF_TOKEN=${HF_TOKEN}
-  - NUM_NODES=${NUM_NODES}
-  - NUM_GPU_PER_NODE=${NUM_GPU_PER_NODE}
-  - NUM_EFA_PER_NODE=${NUM_EFA_PER_NODE}
-
-replacements:
-# Replace instance type in head and worker pods
-- source:
-    kind: ConfigMap
-    name: cluster-config
-    fieldPath: data.INSTANCE_TYPE
-  targets:
-  - select:
-      kind: RayCluster
-    fieldPaths:
-    - spec.headGroupSpec.template.spec.nodeSelector.node\\.kubernetes\\.io/instance-type
-    - spec.workerGroupSpecs.0.template.spec.nodeSelector.node\\.kubernetes\\.io/instance-type
-
-# Replace image in head and worker pods
-- source:
-    kind: ConfigMap
-    name: cluster-config
-    fieldPath: data.IMAGE
-  targets:
-  - select:
-      kind: RayCluster
-    fieldPaths:
-    - spec.headGroupSpec.template.spec.containers.0.image
-    - spec.workerGroupSpecs.0.template.spec.containers.0.image
-
-# Replace HF_TOKEN in head and worker pods
-- source:
-    kind: ConfigMap
-    name: cluster-config
-    fieldPath: data.HF_TOKEN
-  targets:
-  - select:
-      kind: RayCluster
-    fieldPaths:
-    - spec.headGroupSpec.template.spec.containers.0.env.[name=HF_TOKEN].value
-    - spec.workerGroupSpecs.0.template.spec.containers.0.env.[name=HF_TOKEN].value
-
-# Replace number of nodes (replicas)
-- source:
-    kind: ConfigMap
-    name: cluster-config
-    fieldPath: data.NUM_NODES
-  targets:
-  - select:
-      kind: RayCluster
-    fieldPaths:
-    - spec.workerGroupSpecs.0.replicas
-
-# Replace num-gpus in rayStartParams
-- source:
-    kind: ConfigMap
-    name: cluster-config
-    fieldPath: data.NUM_GPU_PER_NODE
-  targets:
-  - select:
-      kind: RayCluster
-    fieldPaths:
-    - spec.workerGroupSpecs.0.rayStartParams.num-gpus
-
-# Replace GPU resources in worker pods
-- source:
-    kind: ConfigMap
-    name: cluster-config
-    fieldPath: data.NUM_GPU_PER_NODE
-  targets:
-  - select:
-      kind: RayCluster
-    fieldPaths:
-    - spec.workerGroupSpecs.0.template.spec.containers.0.resources.limits.nvidia\\.com/gpu
-    - spec.workerGroupSpecs.0.template.spec.containers.0.resources.requests.nvidia\\.com/gpu
-
-# Replace EFA resources in worker pods
-- source:
-    kind: ConfigMap
-    name: cluster-config
-    fieldPath: data.NUM_EFA_PER_NODE
-  targets:
-  - select:
-      kind: RayCluster
-    fieldPaths:
-    - spec.workerGroupSpecs.0.template.spec.containers.0.resources.limits.vpc\\.amazonaws\\.com/efa
-    - spec.workerGroupSpecs.0.template.spec.containers.0.resources.requests.vpc\\.amazonaws\\.com/efa
+# Use a single inline strategic merge patch for all replacements
+patches:
+- target:
+    kind: RayCluster
+  patch: |-
+    apiVersion: ray.io/v1
+    kind: RayCluster
+    metadata:
+      name: rayml-efa
+    spec:
+      headGroupSpec:
+        template:
+          spec:
+            nodeSelector:
+              node.kubernetes.io/instance-type: ${INSTANCE_TYPE}
+            containers:
+            - name: ray-head
+              image: ${FULL_IMAGE}
+              env:
+              - name: HF_TOKEN
+                value: ${HF_TOKEN}
+              volumeMounts:
+              - name: fsx-storage
+                mountPath: /fsx
+              - name: ray-logs
+                mountPath: /tmp/ray
+            volumes:
+            - name: ray-logs
+              emptyDir: {}
+            - name: fsx-storage
+              persistentVolumeClaim:
+                claimName: fsx-claim
+      workerGroupSpecs:
+      - groupName: gpu-group
+        replicas: ${NUM_NODES}
+        minReplicas: 1
+        maxReplicas: 10
+        rayStartParams:
+          num-gpus: "${NUM_GPU_PER_NODE}"
+        template:
+          spec:
+            nodeSelector:
+              node.kubernetes.io/instance-type: ${INSTANCE_TYPE}
+            containers:
+            - name: ray-worker
+              image: ${FULL_IMAGE}
+              env:
+              - name: HF_TOKEN
+                value: ${HF_TOKEN}
+              resources:
+                limits:
+                  nvidia.com/gpu: ${NUM_GPU_PER_NODE}
+                  vpc.amazonaws.com/efa: ${NUM_EFA_PER_NODE}
+                requests:
+                  nvidia.com/gpu: ${NUM_GPU_PER_NODE}
+                  vpc.amazonaws.com/efa: ${NUM_EFA_PER_NODE}
+              volumeMounts:
+              - name: fsx-storage
+                mountPath: /fsx
+              - name: ray-logs
+                mountPath: /tmp/ray
+            volumes:
+            - name: ray-logs
+              emptyDir: {}
+            - name: fsx-storage
+              persistentVolumeClaim:
+                claimName: fsx-claim
 EOF
 
 echo "Generated ${KUSTOMIZATION_FILE} successfully"

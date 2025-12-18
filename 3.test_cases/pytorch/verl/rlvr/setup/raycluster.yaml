@@ -19,7 +19,7 @@ spec:
     template:
       spec:
         nodeSelector:
-          node.kubernetes.io/instance-type: ${INSTANCE_TYPE}
+          node.kubernetes.io/instance-type: PLACEHOLDER_INSTANCE_TYPE
           sagemaker.amazonaws.com/node-health-status: Schedulable
         securityContext:
           runAsUser: 0
@@ -27,7 +27,7 @@ spec:
           fsGroup: 0
         containers:
         - name: ray-head
-          image: ${REGISTRY}${IMAGE}:${TAG}     ## IMAGE: Here you may choose which image your head pod will run
+          image: PLACEHOLDER_IMAGE     ## IMAGE: Here you may choose which image your head pod will run
           env:                                ## ENV: Here is where you can send stuff to the head pod
             ## PROMETHEUS AND GRAFANA - AWS MANAGED SERVICES
             - name: RAY_GRAFANA_IFRAME_HOST
@@ -54,7 +54,7 @@ spec:
             - name: TORCH_NCCL_ASYNC_ERROR_HANDLING
               value: "1"
             - name: HF_TOKEN
-              value: ${HF_TOKEN}
+              value: PLACEHOLDER_HF_TOKEN
           lifecycle:
             preStop:
               exec:
@@ -96,19 +96,19 @@ spec:
           #     type: DirectoryOrCreate
   workerGroupSpecs:
   # the pod replicas in this group typed worker
-  - replicas: $NUM_NODES                                    ## REPLICAS: How many worker pods you want 
+  - replicas: PLACEHOLDER_NUM_NODES                                    ## REPLICAS: How many worker pods you want 
     minReplicas: 1
     maxReplicas: 10
     # logical group name, for this called small-group, also can be functional
     groupName: gpu-group
     rayStartParams:
-      num-gpus: "$NUM_GPU_PER_NODE"
+      num-gpus: "PLACEHOLDER_NUM_GPU_PER_NODE"
       metrics-export-port: '8080'  # Explicitly set metrics port for workers
     #pod template
     template:
       spec:
         nodeSelector:
-          node.kubernetes.io/instance-type: ${INSTANCE_TYPE}
+          node.kubernetes.io/instance-type: PLACEHOLDER_INSTANCE_TYPE
           sagemaker.amazonaws.com/node-health-status: Schedulable
         securityContext:
           runAsUser: 0
@@ -116,7 +116,7 @@ spec:
           fsGroup: 0
         containers:
         - name: ray-worker
-          image: ${REGISTRY}${IMAGE}:${TAG}             ## IMAGE: Here you may choose which image your head node will run
+          image: PLACEHOLDER_IMAGE             ## IMAGE: Here you may choose which image your head node will run
           env:
             - name: FI_PROVIDER
               value: "efa"
@@ -135,7 +135,7 @@ spec:
             - name: TORCH_NCCL_ASYNC_ERROR_HANDLING
               value: "1"
             - name: HF_TOKEN
-              value: ${HF_TOKEN}
+              value: PLACEHOLDER_HF_TOKEN
           lifecycle:
             preStop:
               exec:
@@ -144,13 +144,13 @@ spec:
             limits:                                    ## LIMITS: Set resource limits for your worker pods
               cpu: 16
               memory: 200Gi
-              nvidia.com/gpu: $NUM_GPU_PER_NODE
-              vpc.amazonaws.com/efa: $NUM_EFA_PER_NODE
+              nvidia.com/gpu: PLACEHOLDER_NUM_GPU_PER_NODE
+              vpc.amazonaws.com/efa: PLACEHOLDER_NUM_EFA_PER_NODE
             requests:                                    ## REQUESTS: Set resource requests for your worker pods
               cpu: 16
               memory: 200Gi
-              nvidia.com/gpu: $NUM_GPU_PER_NODE
-              vpc.amazonaws.com/efa: $NUM_EFA_PER_NODE
+              nvidia.com/gpu: PLACEHOLDER_NUM_GPU_PER_NODE
+              vpc.amazonaws.com/efa: PLACEHOLDER_NUM_EFA_PER_NODE
           ports:
           - containerPort: 8080
             name: metrics
