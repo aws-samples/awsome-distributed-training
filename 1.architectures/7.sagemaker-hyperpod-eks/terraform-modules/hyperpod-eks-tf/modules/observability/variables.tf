@@ -1,3 +1,8 @@
+variable "aws_region" {
+  description = "AWS region"
+  type        = string
+}
+
 variable "resource_name_prefix" {
   description = "Prefix to be used for all resources created by this module"
   type        = string
@@ -110,3 +115,4 @@ variable "logging_enabled" {
   type        = bool
   default     = false
 }
+

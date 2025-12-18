@@ -51,7 +51,7 @@ variable "create_private_subnet_module" {
 variable "private_subnet_cidrs" {
   description = "List of CIDR blocks for HyperPod private subnets (up to 5 AZs)"
   type        = list(string)
-  default     = ["10.1.0.0/16", "10.2.0.0/16", "10.3.0.0/16", "10.4.0.0/16", "10.5.0.0/16"]
+  default     = ["10.1.0.0/16", "10.2.0.0/16", "10.3.0.0/16", "10.4.0.0/16"]
 }
 
 variable "existing_nat_gateway_id" {
@@ -530,6 +530,13 @@ variable "enable_hyperpod_training_operator" {
 # HyperPod Inference Operator
 variable "create_hyperpod_inference_operator_module" {
   description = "Whether to create HyperPod Inference Operator module"
+  type        = bool
+  default     = false
+}
+
+# GuardDuty VPC endpoint cleanup
+variable "enable_guardduty_cleanup" {
+  description = "Enable automatic cleanup of GuardDuty VPC endpoints during destroy"
   type        = bool
   default     = false
 }

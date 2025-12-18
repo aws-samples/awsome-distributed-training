@@ -76,7 +76,7 @@ resource "aws_iam_role_policy" "inference_operator_policy" {
         Resource = "*"
         Condition = {
           StringEquals = {
-            "aws:RequestedRegion" = data.aws_region.current.name
+            "aws:RequestedRegion" = data.aws_region.current.region
           }
         }
       },
@@ -102,11 +102,11 @@ resource "aws_iam_role_policy" "inference_operator_policy" {
           "sagemaker:AddTags"
         ]
         Resource = [
-          "arn:aws:sagemaker:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:*/*"
+          "arn:aws:sagemaker:${data.aws_region.current.region}:${data.aws_caller_identity.current.account_id}:*/*"
         ]
         Condition = {
           StringEquals = {
-            "aws:RequestedRegion" = data.aws_region.current.name
+            "aws:RequestedRegion" = data.aws_region.current.region
             "aws:ResourceAccount" = data.aws_caller_identity.current.account_id
           }
         }
@@ -225,8 +225,8 @@ resource "aws_iam_role_policy" "gated_policy" {
         Effect = "Allow"
         Action = ["sagemaker:CreateHubContentPresignedUrls"]
         Resource = [
-          "arn:aws:sagemaker:${data.aws_region.current.name}:aws:hub/SageMakerPublicHub",
-          "arn:aws:sagemaker:${data.aws_region.current.name}:aws:hub-content/SageMakerPublicHub/*/*"
+          "arn:aws:sagemaker:${data.aws_region.current.region}:aws:hub/SageMakerPublicHub",
+          "arn:aws:sagemaker:${data.aws_region.current.region}:aws:hub-content/SageMakerPublicHub/*/*"
         ]
       }
     ]

@@ -11,7 +11,7 @@ variable "vpc_id" {
 variable "private_subnet_cidrs" {
   description = "The IP range (CIDR notation) for the private subnet"
   type        = list(string)
-  default     = ["10.1.0.0/16", "10.2.0.0/16", "10.3.0.0/16", "10.4.0.0/16", "10.5.0.0/16"]
+  default     = ["10.1.0.0/16", "10.2.0.0/16", "10.3.0.0/16", "10.4.0.0/16"]
 }
 
 variable "nat_gateway_id" {

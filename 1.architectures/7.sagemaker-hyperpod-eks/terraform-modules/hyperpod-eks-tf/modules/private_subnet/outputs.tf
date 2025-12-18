@@ -23,3 +23,10 @@ output "additional_cidr_association_ids" {
   value       = aws_vpc_ipv4_cidr_block_association.additional_cidr[*].id
 }
 
+output "az_to_subnet_map" {
+  description = "Map of availability zone IDs to subnet IDs"
+  value = zipmap(
+    aws_subnet.private[*].availability_zone_id,
+    aws_subnet.private[*].id
+  )
+}
