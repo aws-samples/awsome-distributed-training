@@ -70,19 +70,21 @@ locals {
 
   alert_rules = yamldecode(data.http.alert_rules.response_body).groups[0].rules
 
+  # Timestamp for unique workspace names
+  timestamp_suffix = formatdate("YYYYMMDD'T'HHmmss", timestamp())
+
   # Prometheus workspace values
-  prometheus_workspace_name     = local.use_existing_prometheus_workspace ? data.aws_prometheus_workspace.existing[0].alias : coalesce(var.prometheus_workspace_name, "${var.resource_name_prefix}-ampws")
+  prometheus_workspace_name     = local.use_existing_prometheus_workspace ? data.aws_prometheus_workspace.existing[0].alias : coalesce(var.prometheus_workspace_name, "hyperpod-prometheus-workspace-${local.timestamp_suffix}")
   prometheus_workspace_id       = local.use_existing_prometheus_workspace ? var.prometheus_workspace_id : aws_prometheus_workspace.hyperpod[0].id
-  prometheus_workspace_endpoint = local.use_existing_prometheus_workspace ? data.aws_prometheus_workspace.existing[0].prometheus_endpoint : aws_prometheus_workspace.hyperpod[0].prometheus_endpoint
+  prometheus_workspace_endpoint = trimsuffix(local.use_existing_prometheus_workspace ? data.aws_prometheus_workspace.existing[0].prometheus_endpoint : aws_prometheus_workspace.hyperpod[0].prometheus_endpoint, "/")
   prometheus_workspace_arn      = local.use_existing_prometheus_workspace ? data.aws_prometheus_workspace.existing[0].arn : aws_prometheus_workspace.hyperpod[0].arn
 
   # Grafana workspace values
-  grafana_workspace_name     = local.is_amg_allowed ? (local.use_existing_grafana_workspace ? data.aws_grafana_workspace.existing[0].name : coalesce(var.grafana_workspace_name, "${var.resource_name_prefix}-amgws") ) : null
+  grafana_workspace_name     = local.is_amg_allowed ? (local.use_existing_grafana_workspace ? data.aws_grafana_workspace.existing[0].name : coalesce(var.grafana_workspace_name, "hyperpod-grafana-workspace-${local.timestamp_suffix}") ) : null
   grafana_workspace_id       = local.is_amg_allowed ? (local.use_existing_grafana_workspace ? var.grafana_workspace_id : aws_grafana_workspace.hyperpod[0].id) : null
   grafana_workspace_endpoint = local.is_amg_allowed ? (local.use_existing_grafana_workspace ? data.aws_grafana_workspace.existing[0].endpoint : aws_grafana_workspace.hyperpod[0].endpoint) : null
   grafana_workspace_arn      = local.is_amg_allowed ? (local.use_existing_grafana_workspace ? data.aws_grafana_workspace.existing[0].arn : aws_grafana_workspace.hyperpod[0].arn) : null
   
-
   # Observability role
   observability_role_arn = aws_iam_role.hyperpod_observability_addon.arn
 }
