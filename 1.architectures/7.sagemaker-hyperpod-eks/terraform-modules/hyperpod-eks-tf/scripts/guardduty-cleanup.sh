@@ -19,17 +19,17 @@ if [ -n "$ENDPOINTS" ]; then
     --filters "Name=vpc-id,Values=$2" "Name=service-name,Values=*guardduty*" \
     --query 'VpcEndpoints[].Groups[].GroupId' --output text 2>/dev/null || echo "")
   
+  echo "Deleting GuardDuty VPC endpoints..."
+  for endpoint in $ENDPOINTS; do
+    echo "Deleting endpoint: $endpoint"
+    aws ec2 delete-vpc-endpoints --region $1 --vpc-endpoint-ids $endpoint 2>/dev/null || true
+  done
+
   if [ -n "$SG_IDS" ]; then
     echo "Found security groups: $SG_IDS"
   else
     echo "No security groups found for GuardDuty endpoints"
   fi
-  
-  echo "Deleting GuardDuty VPC endpoints..."
-  for endpoint in $ENDPOINTS; do
-    echo "Deleting endpoint: $endpoint"
-    aws ec2 delete-vpc-endpoint --region $1 --vpc-endpoint-id $endpoint 2>/dev/null || true
-  done
   
   if [ -n "$SG_IDS" ]; then
     echo "Waiting for ENIs to be deleted..."

@@ -101,17 +101,17 @@ variable "karpenter_role_arn" {
   type        = string
 }
 
-variable "enable_task_governance" {
-  description = "Whether to install task governance EKS add-on"
-  type        = bool
-  default     = false
-}
+# variable "enable_task_governance" {
+#   description = "Whether to install task governance EKS add-on"
+#   type        = bool
+#   default     = false
+# }
 
-variable "enable_training_operator" {
-  description = "Whether to install the HyperPod training operator"
-  type        = bool
-  default     = false
-}
+# variable "enable_training_operator" {
+#   description = "Whether to install the HyperPod training operator"
+#   type        = bool
+#   default     = false
+# }
 
 variable "wait_for_nodes" {
   description = "Whether to wait for HyperPod nodes (needed by external modules)"

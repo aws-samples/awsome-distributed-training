@@ -3,7 +3,7 @@
 resource "aws_grafana_workspace" "hyperpod" {
   count = local.is_amg_allowed && var.create_grafana_workspace ? 1 : 0
 
-  name                     = "${var.resource_name_prefix}-amgws"
+  name                     = local.grafana_workspace_name 
   account_access_type      = "CURRENT_ACCOUNT"
   authentication_providers = ["AWS_SSO"]
   permission_type          = "CUSTOMER_MANAGED"
@@ -31,7 +31,7 @@ resource "aws_grafana_workspace_service_account_token" "hyperpod" {
   count = local.is_amg_allowed ? 1 : 0
 
   name               = "${var.resource_name_prefix}-amgws-sa-token"
-  service_account_id = aws_grafana_workspace_service_account.hyperpod[0].id
+  service_account_id = aws_grafana_workspace_service_account.hyperpod[0].service_account_id
   seconds_to_live    = 1500
   workspace_id       = local.grafana_workspace_id
 }
