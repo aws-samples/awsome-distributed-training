@@ -238,7 +238,7 @@ variable "helm_repo_revision_rig" {
 variable "helm_repo_revision_hpio" {
   description = "Git revision for the HyperPod Inference Operator"
   type        = string
-  default     = "36140e35b61615b5dd1e411ff555092769150998"
+  default     = "170bf1598143946f2d0023bb13d0f1f6195d26ed"
 }
 
 variable "namespace" {

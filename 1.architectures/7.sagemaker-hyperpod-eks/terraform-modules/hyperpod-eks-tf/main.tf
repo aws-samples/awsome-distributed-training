@@ -30,7 +30,7 @@ locals {
   s3_bucket_name              = !local.rig_mode ? (var.create_s3_bucket_module ? module.s3_bucket[0].s3_bucket_name : var.existing_s3_bucket_name) : null
   create_lifecycle_script     = !local.rig_mode && var.create_lifecycle_script_module
   enable_cert_manager         = !local.rig_mode && (var.enable_hyperpod_training_operator || var.create_hyperpod_inference_operator_module) 
-  wait_for_nodes              = !local.rig_mode && (var.create_hyperpod_inference_operator_module || var.create_observability_module)
+  wait_for_nodes              = !local.rig_mode && (var.enable_hyperpod_training_operator || var.create_hyperpod_inference_operator_module || var.create_observability_module || var.enable_task_governance)
   enable_task_governance      = !local.rig_mode && var.enable_task_governance
   enable_training_operator    = !local.rig_mode && var.enable_hyperpod_training_operator
   create_observability_module = !local.rig_mode && var.create_observability_module
@@ -181,8 +181,8 @@ module "hyperpod_cluster" {
   karpenter_autoscaling        = var.karpenter_autoscaling
   continuous_provisioning_mode = var.continuous_provisioning_mode
   karpenter_role_arn           = local.karpenter_role_arn 
-  enable_task_governance       = local.enable_task_governance
-  enable_training_operator     = local.enable_training_operator
+  # enable_task_governance       = local.enable_task_governance
+  # enable_training_operator     = local.enable_training_operator
   wait_for_nodes               = local.wait_for_nodes
   enable_cert_manager          = local.enable_cert_manager
 
@@ -196,6 +196,42 @@ module "hyperpod_cluster" {
     module.sagemaker_iam_role
   ]
  }
+
+module "task_governance" {
+  count  = local.enable_task_governance ? 1 : 0
+  source = "./modules/task_governance"
+  
+  eks_cluster_name     = var.eks_cluster_name
+
+  depends_on = [module.hyperpod_cluster]
+}
+
+ module "hyperpod_training_operator" {
+  count  = local.enable_training_operator ? 1 : 0
+  source = "./modules/hyperpod_training_operator"
+  
+  resource_name_prefix = var.resource_name_prefix
+  eks_cluster_name     = var.eks_cluster_name
+
+  depends_on = [module.hyperpod_cluster]
+}
+
+module "hyperpod_inference_operator" {
+  count  = local.create_inference_operator ? 1 : 0
+  source = "./modules/hyperpod_inference_operator"
+
+  resource_name_prefix    = var.resource_name_prefix
+  helm_repo_path          = var.helm_repo_path_hpio
+  helm_release_name       = var.helm_release_name_hpio
+  helm_repo_revision      = var.helm_repo_revision_hpio
+  namespace               = var.namespace
+  eks_cluster_name        = local.eks_cluster_name
+  vpc_id                  = local.vpc_id
+  hyperpod_cluster_arn    = module.hyperpod_cluster[0].hyperpod_cluster_arn
+  access_logs_bucket_name = module.s3_bucket[0].s3_logs_bucket_name
+
+  depends_on = [module.hyperpod_cluster]
+}
 
 module "observability" {
   count  = local.create_observability_module ? 1 : 0
@@ -221,23 +257,6 @@ module "observability" {
   network_metric_level                 = var.network_metric_level
   accelerated_compute_metric_level     = var.accelerated_compute_metric_level
   logging_enabled                      = var.logging_enabled
-
-  depends_on = [module.hyperpod_cluster]
-}
-
-module "hyperpod_inference_operator" {
-  count  = local.create_inference_operator ? 1 : 0
-  source = "./modules/hyperpod_inference_operator"
-
-  resource_name_prefix    = var.resource_name_prefix
-  helm_repo_path          = var.helm_repo_path_hpio
-  helm_release_name       = var.helm_release_name_hpio
-  helm_repo_revision      = var.helm_repo_revision_hpio
-  namespace               = var.namespace
-  eks_cluster_name        = local.eks_cluster_name
-  vpc_id                  = local.vpc_id
-  hyperpod_cluster_arn    = module.hyperpod_cluster[0].hyperpod_cluster_arn
-  access_logs_bucket_name = module.s3_bucket[0].s3_logs_bucket_name
 
   depends_on = [module.hyperpod_cluster]
 }
