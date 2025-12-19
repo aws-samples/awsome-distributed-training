@@ -87,7 +87,7 @@ resource "awscc_sagemaker_cluster" "hyperpod_cluster" {
 
   restricted_instance_groups = length(local.restricted_instance_groups_list) > 0 ? local.restricted_instance_groups_list : null
 
-  node_provisioning_mode = var.rig_mode ? null : var.continuous_provisioning_mode ? "Continuous" : null
+  node_provisioning_mode = !var.rig_mode && var.continuous_provisioning_mode ? "Continuous" : null
 
   node_recovery = var.auto_node_recovery ? "Automatic" : null
 
