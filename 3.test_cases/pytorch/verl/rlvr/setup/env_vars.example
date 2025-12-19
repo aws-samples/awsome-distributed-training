@@ -15,12 +15,12 @@ export NUM_EFA_PER_NODE=16
 
 # Ray configs
 export MODEL_NAME="Qwen3-8B"
-export MODEL_PATH="Qwen/Qwen3-8B" # Set this to load model from HuggingFace
+export MODEL_PATH="/Qwen/Qwen3-VL-235B-A22B-Instruct" # Set this to load model from HuggingFace
 export RAY_DATA_HOME="/fsx/verl" # Shared storage path for checkpoints and data
 export VERL_HOME="fsx/verl"
 export RAY_DASHBOARD_PORT=8265 # Local port for Ray dashboard (forwarded from cluster)
-export RAY_ADDRESS="http://localhost:${RAY_DASHBOARD_PORT}"
-export WORKING_DIR="$(pwd)/verl"
+export RAY_ADDRESS="ray://rayml-efa-head-svc.default.svc.cluster.local:10001"
+export WORKING_DIR="/workspace/verl"
 
 # Job Env Vars (using NUM_NODES for consistency)
 export HF_TOKEN=<your-huggingface-token>

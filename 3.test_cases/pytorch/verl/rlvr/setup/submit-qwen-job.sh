@@ -30,12 +30,12 @@ TRAIN_FILE_DEFAULT="/fsx/verl/data/geo3k/train.parquet"
 TEST_FILE_DEFAULT="/fsx/verl/data/geo3k/test.parquet"
 TRAIN_FILE="${TRAIN_FILE:-$TRAIN_FILE_DEFAULT}"
 TEST_FILE="${TEST_FILE:-$TEST_FILE_DEFAULT}"
-MODEL_PATH="${MODEL_PATH:-Qwen/Qwen3-VL-235B-A22B-Instruct}"
+MODEL_PATH=/fsx/verl/models/Qwen3-VL-235B-A22B-Instruct #"${MODEL_PATH:-Qwen/Qwen3-VL-235B-A22B-Instruct}"
 ENGINE="${ENGINE:-vllm}"
 GEN_TP="${GEN_TP:-16}"
-CP="${CP:-2}"
+CP="${CP:-1}"
 TP="${TP:-1}"
-PP="${PP:-8}"
+PP="${PP:-4}"
 EP="${EP:-8}"
 ETP="${ETP:-1}"
 
@@ -72,6 +72,8 @@ spec:
           value: ${TRAIN_FILE}
         - name: TEST_FILE
           value: ${TEST_FILE}
+        - name: NCCL_DEBUG
+          value: "INFO"
         command:
         - /bin/bash
         - -lc
