@@ -29,6 +29,11 @@ variable "eks_cluster_name" {
   type        = string
 }
 
+variable "eks_cluster_arn" {
+  description = "The ARN of the EKS cluster"
+  type        = string
+}
+
 # AMP variables
 variable "create_prometheus_workspace" {
   description = "Specify whether to create a new Amazon Managed Service for Prometheus (AMP) workspace"

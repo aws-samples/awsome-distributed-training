@@ -15,6 +15,7 @@ locals {
   private_subnet_ids       = var.create_private_subnet_module ? module.private_subnet[0].private_subnet_ids : var.existing_private_subnet_ids
   security_group_id        = var.create_security_group_module ? module.security_group[0].security_group_id : var.existing_security_group_id
   eks_cluster_name         = var.create_eks_module ? module.eks_cluster[0].eks_cluster_name : var.existing_eks_cluster_name
+  eks_cluster_arn          = var.create_eks_module ? module.eks_cluster[0].eks_cluster_arn : data.aws_eks_cluster.existing_eks_cluster[0].arn
   sagemaker_iam_role_name  = var.create_sagemaker_iam_role_module ? module.sagemaker_iam_role[0].sagemaker_iam_role_name : var.existing_sagemaker_iam_role_name
   deploy_hyperpod          = var.create_hyperpod_module && !(var.create_eks_module && !var.create_helm_chart_module)
   karpenter_role_arn       = var.create_sagemaker_iam_role_module && length(module.sagemaker_iam_role[0].karpenter_role_arn) > 0 ? module.sagemaker_iam_role[0].karpenter_role_arn[0] : null
@@ -122,7 +123,8 @@ module "sagemaker_iam_role" {
   s3_bucket_name        = local.s3_bucket_name
   rig_input_s3_bucket   = var.rig_input_s3_bucket
   rig_output_s3_bucket  = var.rig_output_s3_bucket
-  eks_cluster_name      = local.eks_cluster_name
+  # eks_cluster_name      = local.eks_cluster_name
+  eks_cluster_arn       = local.eks_cluster_arn
   security_group_id     = local.security_group_id
   private_subnet_ids    = local.private_subnet_ids
   vpc_id                = local.vpc_id
@@ -175,14 +177,13 @@ module "hyperpod_cluster" {
   az_to_subnet_map             = module.private_subnet[0].az_to_subnet_map
   security_group_id            = local.security_group_id
   eks_cluster_name             = local.eks_cluster_name
+  eks_cluster_arn              = local.eks_cluster_arn
   s3_bucket_name               = local.s3_bucket_name
   sagemaker_iam_role_name      = local.sagemaker_iam_role_name
   rig_mode                     = local.rig_mode
   karpenter_autoscaling        = var.karpenter_autoscaling
   continuous_provisioning_mode = var.continuous_provisioning_mode
   karpenter_role_arn           = local.karpenter_role_arn 
-  # enable_task_governance       = local.enable_task_governance
-  # enable_training_operator     = local.enable_training_operator
   wait_for_nodes               = local.wait_for_nodes
   enable_cert_manager          = local.enable_cert_manager
 
@@ -243,6 +244,7 @@ module "observability" {
   security_group_id                    = local.security_group_id
   private_subnet_ids                   = local.private_subnet_ids
   eks_cluster_name                     = local.eks_cluster_name
+  eks_cluster_arn                      = local.eks_cluster_arn
   create_grafana_workspace             = var.create_grafana_workspace
   create_prometheus_workspace          = var.create_prometheus_workspace
   prometheus_workspace_id              = var.existing_prometheus_workspace_id
