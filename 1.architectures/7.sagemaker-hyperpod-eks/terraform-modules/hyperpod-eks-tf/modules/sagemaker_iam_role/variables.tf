@@ -35,8 +35,13 @@ variable "gated_access" {
   type        = bool
 }
 
-variable "eks_cluster_name" {
-  description = "Name of the EKS cluster"
+# variable "eks_cluster_name" {
+#   description = "Name of the EKS cluster"
+#   type        = string
+# }
+
+variable "eks_cluster_arn" {
+  description = "The ARN of the EKS cluster"
   type        = string
 }
 
@@ -49,11 +54,6 @@ variable "security_group_id" {
   description = "The ID of the security group used"
   type        = string
 }
-
-# variable "private_subnet_id" {
-#   description = "The ID of an private subnet used"
-#   type        = string
-# }
 
 variable "private_subnet_ids" {
   description = "List of private subnet IDs"

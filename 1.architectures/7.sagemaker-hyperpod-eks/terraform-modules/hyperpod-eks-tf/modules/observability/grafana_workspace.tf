@@ -32,7 +32,7 @@ resource "aws_grafana_workspace_service_account_token" "hyperpod" {
 
   name               = "${var.resource_name_prefix}-amgws-sa-token"
   service_account_id = aws_grafana_workspace_service_account.hyperpod[0].service_account_id
-  seconds_to_live    = 1500
+  seconds_to_live    = 2592000
   workspace_id       = local.grafana_workspace_id
 }
 
@@ -57,7 +57,8 @@ resource "grafana_data_source" "cloudwatch" {
 resource "grafana_data_source" "prometheus" {
   count        = local.is_amg_allowed ? 1 : 0
 
-  type = "prometheus"
+  type = "grafana-amazonprometheus-datasource"
+  # type = "prometheus"
   name = "prometheus"
   uid  = "prometheus"
   url  = "https://aps-workspaces.${var.aws_region}.amazonaws.com/workspaces/${local.prometheus_workspace_id}"
@@ -103,7 +104,7 @@ resource "grafana_rule_group" "hyperpod_alerts" {
       condition      = "A"
       no_data_state  = "OK"
       exec_err_state = "Error"
-      for            = rule.value.for != null ? rule.value.for : "0m"
+      for            = try(rule.value.for, "5m")
       
       annotations = rule.value.annotations
       labels      = rule.value.labels

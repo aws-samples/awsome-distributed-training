@@ -23,33 +23,3 @@ output "hyperpod_cluster_status" {
   value       = awscc_sagemaker_cluster.hyperpod_cluster.cluster_status
 
 }
-
-# output "hpto_iam_role_arn" {
-#   description = "ARN of the HPTO IAM role"
-#   value       = var.enable_training_operator ? aws_iam_role.hpto_role[0].arn : null
-# }
-
-# output "hpto_iam_role_name" {
-#   description = "Name of the HPTO IAM role"
-#   value       = var.enable_training_operator ? aws_iam_role.hpto_role[0].name : null
-# }
-
-# output "hpto_pod_identity_association_arn" {
-#   description = "ARN of the HPTO Pod Identity Association"
-#   value       = var.enable_training_operator ? aws_eks_pod_identity_association.hpto_pod_identity[0].association_arn : null
-# }
-
-# output "hpto_addon_arn" {
-#   description = "ARN of the HPTO addon"
-#   value       = var.enable_training_operator ? aws_eks_addon.hpto_addon[0].arn : null
-# }
-
-# output "task_governance_addon_arn" {
-#   description = "ARN of the task governance addon"
-#   value       = var.enable_task_governance ? aws_eks_addon.task_governance[0].arn : null
-# }
-
-# output "nodes_ready" {
-#   description = "Indicates HyperPod nodes are ready"
-#   value       = var.wait_for_nodes ? null_resource.wait_for_hyperpod_nodes[0].id : null
-# }

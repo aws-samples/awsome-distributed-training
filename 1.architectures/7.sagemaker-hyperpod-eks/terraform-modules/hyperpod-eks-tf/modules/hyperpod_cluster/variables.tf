@@ -10,6 +10,11 @@ variable "hyperpod_cluster_name" {
   default     = "ml-cluster"
 }
 
+variable "eks_cluster_arn" {
+  description = "The ARN of the EKS cluster"
+  type        = string
+}
+
 variable "auto_node_recovery" {
   description = "Whether to enable or disable the automatic node recovery feature"
   type        = bool
@@ -100,18 +105,6 @@ variable "karpenter_role_arn" {
   description = "ARN of the Karpenter IAM role"
   type        = string
 }
-
-# variable "enable_task_governance" {
-#   description = "Whether to install task governance EKS add-on"
-#   type        = bool
-#   default     = false
-# }
-
-# variable "enable_training_operator" {
-#   description = "Whether to install the HyperPod training operator"
-#   type        = bool
-#   default     = false
-# }
 
 variable "wait_for_nodes" {
   description = "Whether to wait for HyperPod nodes (needed by external modules)"

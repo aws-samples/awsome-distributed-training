@@ -20,7 +20,7 @@ resource "aws_iam_role" "hyperpod_observability_addon" {
         Condition = {
           StringEquals = {
             "aws:SourceAccount" = data.aws_caller_identity.current.account_id
-            "aws:SourceArn"     = "arn:aws:eks:${var.aws_region}:${data.aws_caller_identity.current.account_id}:cluster/${var.eks_cluster_name}"
+            "aws:SourceArn"     = "${var.eks_cluster_arn}"
           }
         }
       }
