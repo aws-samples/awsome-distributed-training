@@ -4,6 +4,11 @@ variable "resource_name_prefix" {
   default     = "sagemaker-hyperpod-eks"
 }
 
+variable "aws_region" {
+  description = "AWS region"
+  type        = string
+}
+
 variable "vpc_id" {
   description = "The ID of the VPC where endpoints will be created"
   type        = string
