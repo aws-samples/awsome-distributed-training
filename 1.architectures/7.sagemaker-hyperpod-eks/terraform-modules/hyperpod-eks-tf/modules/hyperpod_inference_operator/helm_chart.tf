@@ -18,20 +18,6 @@ resource "null_resource" "git_checkout" {
   }
 }
 
-resource "null_resource" "add_helm_repos" {
-  provisioner "local-exec" {
-    command = <<-EOT
-      helm repo add nvidia https://nvidia.github.io/k8s-device-plugin
-      helm repo add eks https://aws.github.io/eks-charts/
-      helm repo update
-    EOT
-  }
-  
-  triggers = {
-    always_run = timestamp()
-  }
-}
-
 resource "helm_release" "inference_operator" {
   name       = var.helm_release_name
   chart      = "/tmp/helm-repo/${var.helm_repo_path}"
@@ -100,9 +86,23 @@ resource "helm_release" "inference_operator" {
 
   depends_on = [
     null_resource.git_checkout,
-    null_resource.add_helm_repos,
     kubernetes_namespace_v1.keda,
     kubernetes_service_account_v1.alb_controller,
     kubernetes_service_account_v1.s3_csi
   ]
+}
+
+resource "null_resource" "git_cleanup" {
+  provisioner "local-exec" {
+    command = <<-EOT
+      cd /tmp/helm-repo
+      git checkout main
+    EOT
+  }
+  
+  depends_on = [helm_release.inference_operator]
+  
+  triggers = {
+    always_run = timestamp()
+  }
 }

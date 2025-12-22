@@ -126,3 +126,12 @@ resource "awscc_sagemaker_cluster" "hyperpod_cluster" {
   ]
 }
 
+# Wait for HyperPod nodes and Pod Identity Agent
+resource "null_resource" "wait_for_hyperpod_nodes" {
+  count = var.wait_for_nodes ? 1 : 0
+  
+  provisioner "local-exec" {
+    command = "${path.module}/../../scripts/wait-for-hyperpod-nodes.sh ${data.aws_region.current.region} ${var.eks_cluster_name} ${var.hyperpod_cluster_name}"
+  }
+  depends_on = [awscc_sagemaker_cluster.hyperpod_cluster]
+}

@@ -1,13 +1,3 @@
-# Wait for HyperPod nodes and Pod Identity Agent
-resource "null_resource" "wait_for_hyperpod_nodes" {
-  count = var.wait_for_nodes ? 1 : 0
-  
-  provisioner "local-exec" {
-    command = "${path.module}/../../scripts/wait-for-hyperpod-nodes.sh ${data.aws_region.current.region} ${var.eks_cluster_name} ${var.hyperpod_cluster_name}"
-  }
-  depends_on = [awscc_sagemaker_cluster.hyperpod_cluster]
-}
-
 # EKS Addon for Cert Manager (required for HPTO and HPIO)
 resource "aws_eks_addon" "cert_manager" {
   count         = var.enable_cert_manager ? 1 : 0
@@ -77,7 +67,15 @@ resource "null_resource" "wait_for_cert_manager" {
   count = var.enable_cert_manager ? 1 : 0
   
   provisioner "local-exec" {
-    command = "${path.module}/../../scripts/wait-for-cert-manager.sh ${data.aws_region.current.region} ${var.eks_cluster_name}"
+    # command = "${path.module}/../../scripts/wait-for-cert-manager.sh ${data.aws_region.current.region} ${var.eks_cluster_name}"
+    command = <<-EOT
+      aws eks update-kubeconfig --region ${data.aws_region.current.region} --name ${var.eks_cluster_name}
+      echo "Waiting for cert-manager deployments to be ready..."
+      kubectl wait --for=condition=available deployment/cert-manager -n cert-manager --timeout=300s
+      kubectl wait --for=condition=available deployment/cert-manager-cainjector -n cert-manager --timeout=300s
+      kubectl wait --for=condition=available deployment/cert-manager-webhook -n cert-manager --timeout=300s
+      echo "All cert-manager deployments are ready"
+    EOT
   }
   
   depends_on = [aws_eks_addon.cert_manager]

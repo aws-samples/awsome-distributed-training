@@ -1,5 +1,4 @@
 data "aws_region" "current" {}
-data "aws_caller_identity" "current" {}
 
 data "aws_vpc" "selected" {
   id = var.vpc_id
@@ -125,9 +124,8 @@ resource "aws_eks_addon" "pod_identity" {
 # Add CoreDNS using AWS CLI so that Terraform doesn't wait for it to be active
 resource "null_resource" "coredns_addon" {
   provisioner "local-exec" {
-    command = "aws eks create-addon --region ${data.aws_region.current.id} --cluster-name ${aws_eks_cluster.cluster.name} --addon-name coredns"
+    command = "aws eks create-addon --region ${data.aws_region.current.region} --cluster-name ${aws_eks_cluster.cluster.name} --addon-name coredns"
   }
   
   depends_on = [aws_eks_cluster.cluster]
 }
-

@@ -9,11 +9,6 @@ variable "vpc_id" {
   type        = string
 }
 
-# variable "private_route_table_id" {
-#   description = "The Id of your private route table"
-#   type        = string
-# }
-
 variable "private_route_table_ids" {
   description = "List of private route table IDs for HyperPod subnets"
   type        = list(string)
@@ -24,11 +19,6 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
-
-# variable "private_subnet_id" {
-#   description = "The Id of the private subnet for HyperPod cross-account ENIs"
-#   type        = string
-# }
 
 variable "private_subnet_ids" {
   description = "List of private subnet IDs for HyperPod subnets"

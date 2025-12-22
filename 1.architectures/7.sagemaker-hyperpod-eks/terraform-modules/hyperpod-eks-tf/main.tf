@@ -10,32 +10,51 @@ data "aws_s3_bucket" "existing_s3_bucket" {
   bucket = var.existing_s3_bucket_name
 }
 
-locals {
+# Get subnet info when using existing subnets
+data "aws_subnet" "existing_private_subnets" {
+  count = var.create_private_subnet_module ? 0 : length(var.existing_private_subnet_ids)
+  id    = var.existing_private_subnet_ids[count.index]
+}
+
+locals { 
+  # Generate az_to_subnet_map for existing subnets
+  az_to_subnet_map = var.create_private_subnet_module ? module.private_subnet[0].az_to_subnet_map : zipmap(data.aws_subnet.existing_private_subnets[*].availability_zone_id,data.aws_subnet.existing_private_subnets[*].id)
+
   vpc_id                   = var.create_vpc_module ? module.vpc[0].vpc_id : var.existing_vpc_id
   private_subnet_ids       = var.create_private_subnet_module ? module.private_subnet[0].private_subnet_ids : var.existing_private_subnet_ids
   security_group_id        = var.create_security_group_module ? module.security_group[0].security_group_id : var.existing_security_group_id
   eks_cluster_name         = var.create_eks_module ? module.eks_cluster[0].eks_cluster_name : var.existing_eks_cluster_name
   eks_cluster_arn          = var.create_eks_module ? module.eks_cluster[0].eks_cluster_arn : data.aws_eks_cluster.existing_eks_cluster[0].arn
   sagemaker_iam_role_name  = var.create_sagemaker_iam_role_module ? module.sagemaker_iam_role[0].sagemaker_iam_role_name : var.existing_sagemaker_iam_role_name
-  deploy_hyperpod          = var.create_hyperpod_module && !(var.create_eks_module && !var.create_helm_chart_module)
+  create_hyperpod_module   = var.create_hyperpod_module && !(var.create_eks_module && !var.create_helm_chart_module)
   karpenter_role_arn       = var.create_sagemaker_iam_role_module && length(module.sagemaker_iam_role[0].karpenter_role_arn) > 0 ? module.sagemaker_iam_role[0].karpenter_role_arn[0] : null
   nat_gateway_id           = var.create_vpc_module ? module.vpc[0].nat_gateway_1_id : var.existing_nat_gateway_id
   private_route_table_ids  = var.create_private_subnet_module ? module.private_subnet[0].private_route_table_ids : var.existing_private_route_table_ids
   eks_private_subnet_cidrs = [var.eks_private_subnet_1_cidr, var.eks_private_subnet_2_cidr]
   enable_guardduty_cleanup = var.enable_guardduty_cleanup && (var.create_vpc_module || var.create_private_subnet_module || var.create_eks_module)
 
+  # Features that require waiting for nodes
+  features_requiring_nodes = [
+    var.create_hyperpod_training_operator_module,
+    var.create_hyperpod_inference_operator_module,
+    var.create_observability_module,
+    var.create_task_governance_module,
+    var.create_fsx_module
+  ]
+  
   # Disabled feature set for RIGs
-  rig_mode                    = length(var.restricted_instance_groups) > 0
-  instance_groups             = !local.rig_mode ? var.instance_groups : {}
-  create_s3_bucket_module     = !local.rig_mode && var.create_s3_bucket_module
-  s3_bucket_name              = !local.rig_mode ? (var.create_s3_bucket_module ? module.s3_bucket[0].s3_bucket_name : var.existing_s3_bucket_name) : null
-  create_lifecycle_script     = !local.rig_mode && var.create_lifecycle_script_module
-  enable_cert_manager         = !local.rig_mode && (var.enable_hyperpod_training_operator || var.create_hyperpod_inference_operator_module) 
-  wait_for_nodes              = !local.rig_mode && (var.enable_hyperpod_training_operator || var.create_hyperpod_inference_operator_module || var.create_observability_module || var.enable_task_governance)
-  enable_task_governance      = !local.rig_mode && var.enable_task_governance
-  enable_training_operator    = !local.rig_mode && var.enable_hyperpod_training_operator
-  create_observability_module = !local.rig_mode && var.create_observability_module
-  create_inference_operator   = !local.rig_mode && var.create_hyperpod_inference_operator_module
+  rig_mode                                  = length(var.restricted_instance_groups) > 0
+  instance_groups                           = !local.rig_mode ? var.instance_groups : {}
+  create_s3_bucket_module                   = !local.rig_mode && var.create_s3_bucket_module
+  s3_bucket_name                            = !local.rig_mode ? (var.create_s3_bucket_module ? module.s3_bucket[0].s3_bucket_name : var.existing_s3_bucket_name) : null
+  create_lifecycle_script_module            = !local.rig_mode && var.create_lifecycle_script_module
+  enable_cert_manager                       = !local.rig_mode && (var.create_hyperpod_training_operator_module || var.create_hyperpod_inference_operator_module) 
+  wait_for_nodes                            = !local.rig_mode && anytrue(local.features_requiring_nodes)
+  create_fsx_module                         = !local.rig_mode ? var.create_fsx_module : false
+  create_task_governance_module             = !local.rig_mode && var.create_task_governance_module
+  create_hyperpod_training_operator_module  = !local.rig_mode && var.create_hyperpod_training_operator_module
+  create_observability_module               = !local.rig_mode && var.create_observability_module
+  create_hyperpod_inference_operator_module = !local.rig_mode && var.create_hyperpod_inference_operator_module
 }
 
 module "vpc" {
@@ -108,7 +127,7 @@ module "vpc_endpoints" {
 }
 
 module "lifecycle_script" {
-  count  = local.create_lifecycle_script ? 1 : 0
+  count  = local.create_lifecycle_script_module ? 1 : 0
   source = "./modules/lifecycle_script"
 
   resource_name_prefix = var.resource_name_prefix
@@ -123,7 +142,6 @@ module "sagemaker_iam_role" {
   s3_bucket_name        = local.s3_bucket_name
   rig_input_s3_bucket   = var.rig_input_s3_bucket
   rig_output_s3_bucket  = var.rig_output_s3_bucket
-  # eks_cluster_name      = local.eks_cluster_name
   eks_cluster_arn       = local.eks_cluster_arn
   security_group_id     = local.security_group_id
   private_subnet_ids    = local.private_subnet_ids
@@ -165,7 +183,7 @@ module "helm_chart" {
 }
 
 module "hyperpod_cluster" {
-  count  = local.deploy_hyperpod ? 1 : 0
+  count  = local.create_hyperpod_module ? 1 : 0
   source = "./modules/hyperpod_cluster"
 
   resource_name_prefix         = var.resource_name_prefix
@@ -174,7 +192,7 @@ module "hyperpod_cluster" {
   instance_groups              = local.instance_groups
   restricted_instance_groups   = var.restricted_instance_groups
   private_subnet_ids           = local.private_subnet_ids
-  az_to_subnet_map             = module.private_subnet[0].az_to_subnet_map
+  az_to_subnet_map             = local.az_to_subnet_map
   security_group_id            = local.security_group_id
   eks_cluster_name             = local.eks_cluster_name
   eks_cluster_arn              = local.eks_cluster_arn
@@ -198,8 +216,27 @@ module "hyperpod_cluster" {
   ]
  }
 
+module "fsx_lustre" {
+  count  = local.create_fsx_module ? 1 : 0
+  source = "./modules/fsx_lustre"
+
+  resource_name_prefix       = var.resource_name_prefix
+  eks_cluster_name           = local.eks_cluster_name
+  subnet_id                  = module.hyperpod_cluster[0].primary_subnet_id
+  security_group_id          = local.security_group_id
+  create_new_filesystem      = var.create_new_fsx_filesystem
+  storage_capacity           = var.fsx_storage_capacity
+  throughput                 = var.fsx_throughput
+  data_compression_type      = var.fsx_data_compression_type
+  file_system_type_version   = var.fsx_file_system_type_version
+  inference_operator_enabled = local.create_hyperpod_inference_operator_module
+  
+  depends_on = [module.hyperpod_cluster]
+}
+
+
 module "task_governance" {
-  count  = local.enable_task_governance ? 1 : 0
+  count  = local.create_task_governance_module ? 1 : 0
   source = "./modules/task_governance"
   
   eks_cluster_name     = var.eks_cluster_name
@@ -208,7 +245,7 @@ module "task_governance" {
 }
 
  module "hyperpod_training_operator" {
-  count  = local.enable_training_operator ? 1 : 0
+  count  = local.create_hyperpod_training_operator_module ? 1 : 0
   source = "./modules/hyperpod_training_operator"
   
   resource_name_prefix = var.resource_name_prefix
@@ -218,7 +255,7 @@ module "task_governance" {
 }
 
 module "hyperpod_inference_operator" {
-  count  = local.create_inference_operator ? 1 : 0
+  count  = local.create_hyperpod_inference_operator_module ? 1 : 0
   source = "./modules/hyperpod_inference_operator"
 
   resource_name_prefix    = var.resource_name_prefix
@@ -238,7 +275,6 @@ module "observability" {
   count  = local.create_observability_module ? 1 : 0
   source = "./modules/observability"
 
-  aws_region                           = data.aws_region.current.region
   resource_name_prefix                 = var.resource_name_prefix
   vpc_id                               = local.vpc_id
   security_group_id                    = local.security_group_id
