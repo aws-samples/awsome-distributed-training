@@ -67,7 +67,6 @@ resource "null_resource" "wait_for_cert_manager" {
   count = var.enable_cert_manager ? 1 : 0
   
   provisioner "local-exec" {
-    # command = "${path.module}/../../scripts/wait-for-cert-manager.sh ${data.aws_region.current.region} ${var.eks_cluster_name}"
     command = <<-EOT
       aws eks update-kubeconfig --region ${data.aws_region.current.region} --name ${var.eks_cluster_name}
       echo "Waiting for cert-manager deployments to be ready..."

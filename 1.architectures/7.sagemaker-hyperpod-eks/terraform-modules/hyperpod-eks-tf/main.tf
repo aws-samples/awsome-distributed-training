@@ -275,6 +275,8 @@ module "observability" {
   count  = local.create_observability_module ? 1 : 0
   source = "./modules/observability"
 
+  # requires direct reference to region to determine if Grafana is allowed at plan time 
+  aws_region                           = var.aws_region
   resource_name_prefix                 = var.resource_name_prefix
   vpc_id                               = local.vpc_id
   security_group_id                    = local.security_group_id
