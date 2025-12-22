@@ -23,3 +23,10 @@ output "hyperpod_cluster_status" {
   value       = awscc_sagemaker_cluster.hyperpod_cluster.cluster_status
 
 }
+
+output "primary_subnet_id" {
+  description = "Subnet ID used by the first instance group"
+  value = length(var.instance_groups) > 0 ? local.az_to_subnet[values(var.instance_groups)[0].availability_zone_id] : (
+    length(var.restricted_instance_groups) > 0 ? local.az_to_subnet[values(var.restricted_instance_groups)[0].availability_zone_id] : null
+  )
+}

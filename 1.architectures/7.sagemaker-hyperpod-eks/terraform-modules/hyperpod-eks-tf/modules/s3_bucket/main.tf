@@ -3,7 +3,7 @@ data "aws_caller_identity" "current" {}
 
 # Access logs bucket
 resource "aws_s3_bucket" "access_logs_bucket" {
-  bucket = "${var.resource_name_prefix}-logs-${data.aws_caller_identity.current.account_id}-${data.aws_region.current.id}"
+  bucket = "${var.resource_name_prefix}-logs-${data.aws_caller_identity.current.account_id}-${data.aws_region.current.region}"
 }
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "access_logs_encryption" {
@@ -27,7 +27,7 @@ resource "aws_s3_bucket_public_access_block" "access_logs_pab" {
 
 # LCS bucket
 resource "aws_s3_bucket" "bucket" {
-  bucket = "${var.resource_name_prefix}-bucket-${data.aws_caller_identity.current.account_id}-${data.aws_region.current.id}"
+  bucket = "${var.resource_name_prefix}-bucket-${data.aws_caller_identity.current.account_id}-${data.aws_region.current.region}"
 }
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "bucket_encryption" {

@@ -1,3 +1,4 @@
+data "aws_region" "current" {}
 data "aws_caller_identity" "current" {}
 
 locals {
@@ -12,7 +13,7 @@ locals {
     "ca-central-1", "eu-central-1", "eu-west-1", "eu-west-2"
   ]
   
-  is_amg_allowed = contains(local.amg_allowed_regions, var.aws_region)
+  is_amg_allowed = contains(local.amg_allowed_regions, data.aws_region.current.region)
 }
 
 data "aws_prometheus_workspace" "existing" {

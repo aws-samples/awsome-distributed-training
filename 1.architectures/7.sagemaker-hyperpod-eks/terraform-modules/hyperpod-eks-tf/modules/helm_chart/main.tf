@@ -1,39 +1,9 @@
 data "aws_region" "current" {}
 
-# data "aws_eks_cluster" "cluster" {
-#   name = var.eks_cluster_name
-# }
-
-# data "aws_eks_cluster_auth" "cluster" {
-#   name = var.eks_cluster_name
-# }
-
 locals {
   revision = var.rig_mode ? var.helm_repo_revision_rig : var.helm_repo_revision
   rig_script_dir = var.rig_mode ? dirname(var.rig_script_path) : ""
   rig_script_filename = var.rig_mode ? basename(var.rig_script_path) : ""
-}
-
-resource "null_resource" "run_rig_script" {
-  count = var.rig_mode ? 1 : 0
-  
-  provisioner "local-exec" {
-    command = <<-EOT
-      aws eks update-kubeconfig --region ${data.aws_region.current.id} --name ${var.eks_cluster_name}
-      cd /tmp/helm-repo/${local.rig_script_dir}
-      chmod +x ${local.rig_script_filename}
-      echo "y" | ./${local.rig_script_filename}
-    EOT
-  }
-  
-  depends_on = [
-    helm_release.hyperpod,
-    null_resource.git_checkout
-  ]
-  
-  triggers = {
-    revision = local.revision
-  }
 }
 
 resource "null_resource" "git_checkout" {
@@ -71,8 +41,8 @@ resource "helm_release" "hyperpod" {
   dependency_update = true
   wait = false
 
-  values = fileexists("/tmp/helm-repo/${var.helm_repo_path}/regional-values/values-${data.aws_region.current.id}.yaml") ? [
-    file("/tmp/helm-repo/${var.helm_repo_path}/regional-values/values-${data.aws_region.current.id}.yaml")
+  values = fileexists("/tmp/helm-repo/${var.helm_repo_path}/regional-values/values-${data.aws_region.current.region}.yaml") ? [
+    file("/tmp/helm-repo/${var.helm_repo_path}/regional-values/values-${data.aws_region.current.region}.yaml")
   ] : []
 
   set = [
@@ -114,7 +84,7 @@ resource "helm_release" "hyperpod" {
     },
     {
       name  = "health-monitoring-agent.region", 
-      value = data.aws_region.current.id
+      value = data.aws_region.current.region
     },
     {
       name = "deep-health-check.enabled"
@@ -137,4 +107,41 @@ resource "helm_release" "hyperpod" {
     null_resource.add_helm_repos,
     null_resource.git_checkout
   ]
+}
+
+resource "null_resource" "run_rig_script" {
+  count = var.rig_mode ? 1 : 0
+  
+  provisioner "local-exec" {
+    command = <<-EOT
+      aws eks update-kubeconfig --region ${data.aws_region.current.region} --name ${var.eks_cluster_name}
+      cd /tmp/helm-repo/${local.rig_script_dir}
+      chmod +x ${local.rig_script_filename}
+      echo "y" | ./${local.rig_script_filename}
+    EOT
+  }
+  
+  depends_on = [helm_release.hyperpod]
+  
+  triggers = {
+    revision = local.revision
+  }
+}
+
+resource "null_resource" "git_cleanup" {
+  provisioner "local-exec" {
+    command = <<-EOT
+      cd /tmp/helm-repo
+      git checkout main
+    EOT
+  }
+  
+  depends_on = [
+    helm_release.hyperpod,
+    null_resource.run_rig_script
+  ]
+  
+  triggers = {
+    always_run = timestamp()
+  }
 }

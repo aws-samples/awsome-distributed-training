@@ -391,6 +391,47 @@ variable "restricted_instance_groups" {
   default = {}
 }
 
+# FSx for Lustre Module Variables
+variable "create_fsx_module" {
+  description = "Whether to create FSx for Lustre module"
+  type        = bool
+  default     = true
+}
+
+variable "create_new_fsx_filesystem" {
+  description = "Whether to create a new FSx filesystem via dynamic provisioning"
+  type        = bool
+  default     = false
+}
+
+variable "fsx_storage_capacity" {
+  description = "Storage capacity for FSx filesystem in GiB"
+  type        = number
+  default     = 1200
+}
+
+variable "fsx_throughput" {
+  description = "Per unit storage throughput for FSx filesystem"
+  type        = number
+  default     = 250
+}
+
+variable "fsx_data_compression_type" {
+  description = "Data compression type for FSx filesystem"
+  type        = string
+  default     = "LZ4"
+  validation {
+    condition     = contains(["NONE", "LZ4"], var.fsx_data_compression_type)
+    error_message = "Data compression type must be NONE or LZ4."
+  }
+}
+
+variable "fsx_file_system_type_version" {
+  description = "File system type version for FSx filesystem"
+  type        = string
+  default     = "2.15"
+}
+
 # Observability Module Variables
 variable "create_observability_module" {
   description = "Whether to create observability module"
@@ -514,14 +555,14 @@ variable "logging_enabled" {
 }
 
 # HyperPod Task Governance
-variable "enable_task_governance" {
+variable "create_task_governance_module" {
   description = "Whether to enable Task Governance"
   type        = bool
   default     = false
 }
 
 # HyperPod Training Operator
-variable "enable_hyperpod_training_operator" {
+variable "create_hyperpod_training_operator_module" {
   description = "Whether to enable HyperPod Training Operator"
   type        = bool
   default     = false

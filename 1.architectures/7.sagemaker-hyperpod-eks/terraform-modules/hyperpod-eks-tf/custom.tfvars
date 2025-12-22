@@ -17,7 +17,7 @@ instance_groups = {
 }
 create_observability_module = true
 logging_enabled = true
-enable_task_governance = true
-enable_hyperpod_training_operator = true
+create_task_governance_module = true
+create_hyperpod_training_operator_module = true
 create_hyperpod_inference_operator_module = true
 enable_guardduty_cleanup = true
