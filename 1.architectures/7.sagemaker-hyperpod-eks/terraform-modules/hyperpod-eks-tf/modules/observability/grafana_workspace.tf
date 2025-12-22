@@ -47,8 +47,8 @@ resource "grafana_data_source" "cloudwatch" {
   json_data_encoded = jsonencode({
     authType        = "sigv4"
     sigV4Auth       = true
-    sigV4Region     = var.aws_region
-    defaultRegion   = var.aws_region
+    sigV4Region     = data.aws_region.current.region
+    defaultRegion   = data.aws_region.current.region
     httpMethod      = "POST"
     sigV4AuthType   = "ec2_iam_role"
   })
@@ -57,17 +57,16 @@ resource "grafana_data_source" "cloudwatch" {
 resource "grafana_data_source" "prometheus" {
   count        = local.is_amg_allowed ? 1 : 0
 
-  type = "grafana-amazonprometheus-datasource"
-  # type = "prometheus"
+  type = "prometheus"
   name = "prometheus"
   uid  = "prometheus"
-  url  = "https://aps-workspaces.${var.aws_region}.amazonaws.com/workspaces/${local.prometheus_workspace_id}"
+  url  = "https://aps-workspaces.${data.aws_region.current.region}.amazonaws.com/workspaces/${local.prometheus_workspace_id}"
   
   json_data_encoded = jsonencode({
     authType        = "sigv4"
     sigV4Auth       = true
-    sigV4Region     = var.aws_region
-    defaultRegion   = var.aws_region
+    sigV4Region     = data.aws_region.current.region
+    defaultRegion   = data.aws_region.current.region
     httpMethod      = "POST"
     sigV4AuthType   = "ec2_iam_role"
   })
