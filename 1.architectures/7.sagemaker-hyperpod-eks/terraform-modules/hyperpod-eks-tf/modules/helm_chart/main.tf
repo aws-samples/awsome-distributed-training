@@ -17,8 +17,7 @@ resource "null_resource" "git_checkout" {
   }
 
   triggers = {
-    revision = local.revision
-    helm_release_id = helm_release.hyperpod.id
+    always_run = timestamp()
   }
 }
 
@@ -32,8 +31,7 @@ resource "null_resource" "add_helm_repos" {
   }
   
   triggers = {
-    revision = local.revision
-    helm_release_id = helm_release.hyperpod.id
+    always_run = timestamp()
   }
 }
 
@@ -128,7 +126,6 @@ resource "null_resource" "run_rig_script" {
   
   triggers = {
     revision = local.revision
-    helm_release_id = helm_release.hyperpod.id
  }
 }
 
@@ -146,7 +143,6 @@ resource "null_resource" "git_cleanup" {
   ]
   
   triggers = {
-    revision = local.revision
-    helm_release_id = helm_release.hyperpod.id
+    always_run = timestamp()
   }
 }
