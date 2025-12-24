@@ -15,8 +15,7 @@ resource "null_resource" "git_checkout" {
   }
 
   triggers = {
-    revision = var.helm_repo_revision
-    helm_release_id = helm_release.inference_operator.id
+    always_run = timestamp()
   }
 }
 
@@ -105,7 +104,6 @@ resource "null_resource" "git_cleanup" {
   depends_on = [helm_release.inference_operator]
   
   triggers = {
-    revision = var.helm_repo_revision
-    helm_release_id = helm_release.inference_operator.id
+    always_run = timestamp()
   }
 }
