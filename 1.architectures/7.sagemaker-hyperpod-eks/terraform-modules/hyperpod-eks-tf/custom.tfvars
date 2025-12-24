@@ -16,6 +16,7 @@ instance_groups = {
     }
 }
 create_observability_module = true
+network_metric_level = "ADVANCED"
 logging_enabled = true
 create_task_governance_module = true
 create_hyperpod_training_operator_module = true

@@ -19,6 +19,11 @@ resource "aws_iam_openid_connect_provider" "eks_oidc_provider" {
   thumbprint_list = [data.tls_certificate.eks_oidc_thumbprint.certificates[0].sha1_fingerprint]
   url             = local.oidc_provider_url
 
+  # ignore re-evaluation of data source after initial deployment
+  lifecycle {
+    ignore_changes = [url]
+  }
+
   tags = {
     Name = "${var.resource_name_prefix}-eks-oidc-provider"
   }

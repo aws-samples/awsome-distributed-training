@@ -13,6 +13,11 @@ resource "aws_grafana_workspace" "hyperpod" {
     unifiedAlerting = { enabled = true }
   })
 
+  # ignore timestamp_suffix changes in name after initial deployment
+  lifecycle {
+    ignore_changes = [name] 
+  }
+
   tags = {
     SageMaker = "true"
   }
@@ -87,6 +92,10 @@ resource "grafana_dashboard" "hyperpod_dashboards" {
     "$${datasource}",
     "prometheus"
   )
+  # ignore dashboard config changes from github after initial deployment
+  lifecycle {
+    ignore_changes = [config_json] 
+  }
 }
 
 resource "grafana_rule_group" "hyperpod_alerts" {

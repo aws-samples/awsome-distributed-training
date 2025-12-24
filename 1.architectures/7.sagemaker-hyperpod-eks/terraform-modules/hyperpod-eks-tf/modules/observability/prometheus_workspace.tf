@@ -4,6 +4,11 @@ resource "aws_prometheus_workspace" "hyperpod" {
 
   alias = local.prometheus_workspace_name
 
+  # ignore timestamp_suffix changes in alias after initial deployment
+  lifecycle {
+    ignore_changes = [alias] 
+  }
+
   tags = {
     SageMaker = "true"
   }
