@@ -13,8 +13,10 @@ resource "null_resource" "git_checkout" {
       git checkout ${var.helm_repo_revision}
     EOT
   }
+
   triggers = {
-    always_run = timestamp()
+    revision = var.helm_repo_revision
+    helm_release_id = helm_release.inference_operator.id
   }
 }
 
@@ -103,6 +105,7 @@ resource "null_resource" "git_cleanup" {
   depends_on = [helm_release.inference_operator]
   
   triggers = {
-    always_run = timestamp()
+    revision = var.helm_repo_revision
+    helm_release_id = helm_release.inference_operator.id
   }
 }
