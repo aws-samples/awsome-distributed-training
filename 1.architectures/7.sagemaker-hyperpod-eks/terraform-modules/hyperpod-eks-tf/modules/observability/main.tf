@@ -9,8 +9,8 @@ locals {
 
   amg_allowed_regions = [
     "us-east-1", "us-east-2", "us-west-2",
-    "ap-northeast-1", "ap-northeast-2", "ap-southeast-1", "ap-southeast-2",
-    "ca-central-1", "eu-central-1", "eu-west-1", "eu-west-2"
+    "ap-northeast-1", "ap-southeast-1", "ap-southeast-2",
+    "eu-central-1", "eu-west-1", "eu-west-2"
   ]
   # used in count, so requires direct reference to region at plan time
   is_amg_allowed = contains(local.amg_allowed_regions, var.aws_region)
@@ -61,7 +61,7 @@ locals {
     tasks     = "aws-sm-hp-observability-task-v1_0"
   }
 
-  dashboard_configs = {
+  dashboard_templates = {
     cluster   = data.http.cluster_dashboard.response_body
     efa       = data.http.efa_dashboard.response_body
     training  = data.http.training_dashboard.response_body
