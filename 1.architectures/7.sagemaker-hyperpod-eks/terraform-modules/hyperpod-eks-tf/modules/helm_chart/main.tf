@@ -133,6 +133,8 @@ resource "null_resource" "git_cleanup" {
   provisioner "local-exec" {
     command = <<-EOT
       cd /tmp/helm-repo
+      git reset --hard HEAD
+      git clean -fd
       git checkout main
     EOT
   }
