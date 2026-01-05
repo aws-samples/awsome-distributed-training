@@ -75,7 +75,7 @@ locals {
   timestamp_suffix = formatdate("YYYYMMDD'T'HHmmss", timestamp())
 
   # Prometheus workspace values
-  prometheus_workspace_name     = local.use_existing_prometheus_workspace ? data.aws_prometheus_workspace.existing[0].alias : coalesce(var.prometheus_workspace_name, "hyperpod-prometheus-workspace-${local.timestamp_suffix}")
+  prometheus_workspace_name     = local.use_existing_prometheus_workspace ? null : coalesce(var.prometheus_workspace_name, "hyperpod-prometheus-workspace-${local.timestamp_suffix}")
   prometheus_workspace_id       = local.use_existing_prometheus_workspace ? var.prometheus_workspace_id : aws_prometheus_workspace.hyperpod[0].id
   prometheus_workspace_endpoint = trimsuffix(local.use_existing_prometheus_workspace ? data.aws_prometheus_workspace.existing[0].prometheus_endpoint : aws_prometheus_workspace.hyperpod[0].prometheus_endpoint, "/")
   prometheus_workspace_arn      = local.use_existing_prometheus_workspace ? data.aws_prometheus_workspace.existing[0].arn : aws_prometheus_workspace.hyperpod[0].arn

@@ -11,7 +11,7 @@ resource "aws_vpc_endpoint" "grafana" {
   private_dns_enabled = true
 
   tags = {
-    Name      = "${var.resource_name_prefix}-gVpce"
+    Name      = "SageMaker"
     SageMaker = "true"
   }
 }
@@ -26,7 +26,7 @@ resource "aws_vpc_endpoint" "prometheus" {
   private_dns_enabled = true
 
   tags = {
-    Name      = "${var.resource_name_prefix}-pVpce"
+    Name      = "SageMaker"
     SageMaker = "true"
   }
 }
