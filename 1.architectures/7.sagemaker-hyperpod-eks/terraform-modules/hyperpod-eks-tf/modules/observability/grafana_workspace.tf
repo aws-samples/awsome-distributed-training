@@ -87,11 +87,17 @@ resource "grafana_folder" "alerts" {
 resource "grafana_dashboard" "hyperpod_dashboards" {
   for_each = local.is_amg_allowed ? local.dashboard_uids : {}
   
-  config_json = replace(
-    local.dashboard_configs[each.key],
-    "$${datasource}",
-    "prometheus"
+  config_json = jsonencode(
+    merge(
+      jsondecode(local.dashboard_templates[each.key]),
+      {
+        version = 1
+        uid     = each.value
+        id      = null
+      }
+    )
   )
+  
   # ignore dashboard config changes from github after initial deployment
   lifecycle {
     ignore_changes = [config_json] 
