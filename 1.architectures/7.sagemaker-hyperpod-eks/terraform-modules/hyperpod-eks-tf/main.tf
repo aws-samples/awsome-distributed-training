@@ -20,6 +20,15 @@ locals {
   # Generate az_to_subnet_map for existing subnets
   az_to_subnet_map = var.create_private_subnet_module ? module.private_subnet[0].az_to_subnet_map : zipmap(data.aws_subnet.existing_private_subnets[*].availability_zone_id,data.aws_subnet.existing_private_subnets[*].id)
 
+  # AMP allowed regions for observability
+  amp_allowed_regions = [
+    "us-east-1", "us-east-2", "us-west-2", "us-west-1",
+    "ap-south-1", "ap-northeast-1", "ap-southeast-1", "ap-southeast-2", "ap-southeast-3", "ap-southeast-4",
+    "eu-central-1", "eu-west-1", "eu-west-2", "eu-north-1", "eu-south-2",
+    "sa-east-1"
+  ]
+  is_amp_allowed = contains(local.amp_allowed_regions, var.aws_region)
+
   vpc_id                   = var.create_vpc_module ? module.vpc[0].vpc_id : var.existing_vpc_id
   private_subnet_ids       = var.create_private_subnet_module ? module.private_subnet[0].private_subnet_ids : var.existing_private_subnet_ids
   security_group_id        = var.create_security_group_module ? module.security_group[0].security_group_id : var.existing_security_group_id
@@ -272,7 +281,7 @@ module "hyperpod_inference_operator" {
 }
 
 module "observability" {
-  count  = local.create_observability_module ? 1 : 0
+  count  = local.create_observability_module && local.is_amp_allowed ? 1 : 0
   source = "./modules/observability"
 
   # requires direct reference to region to determine if Grafana is allowed at plan time 
