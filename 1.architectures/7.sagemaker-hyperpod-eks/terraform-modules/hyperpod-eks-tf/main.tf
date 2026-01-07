@@ -225,6 +225,15 @@ module "hyperpod_cluster" {
   ]
  }
 
+module "task_governance" {
+  count  = local.create_task_governance_module ? 1 : 0
+  source = "./modules/task_governance"
+  
+  eks_cluster_name     = var.eks_cluster_name
+
+  depends_on = [module.hyperpod_cluster]
+}
+
 module "fsx_lustre" {
   count  = local.create_fsx_module ? 1 : 0
   source = "./modules/fsx_lustre"
@@ -240,17 +249,10 @@ module "fsx_lustre" {
   file_system_type_version   = var.fsx_file_system_type_version
   inference_operator_enabled = local.create_hyperpod_inference_operator_module
   
-  depends_on = [module.hyperpod_cluster]
-}
-
-
-module "task_governance" {
-  count  = local.create_task_governance_module ? 1 : 0
-  source = "./modules/task_governance"
-  
-  eks_cluster_name     = var.eks_cluster_name
-
-  depends_on = [module.hyperpod_cluster]
+  depends_on = [
+    module.hyperpod_cluster,
+    module.task_governance
+  ]
 }
 
  module "hyperpod_training_operator" {
@@ -260,7 +262,10 @@ module "task_governance" {
   resource_name_prefix = var.resource_name_prefix
   eks_cluster_name     = var.eks_cluster_name
 
-  depends_on = [module.hyperpod_cluster]
+  depends_on = [
+    module.hyperpod_cluster,
+    module.task_governance
+  ]
 }
 
 module "hyperpod_inference_operator" {
@@ -277,7 +282,10 @@ module "hyperpod_inference_operator" {
   hyperpod_cluster_arn    = module.hyperpod_cluster[0].hyperpod_cluster_arn
   access_logs_bucket_name = module.s3_bucket[0].s3_logs_bucket_name
 
-  depends_on = [module.hyperpod_cluster]
+  depends_on = [
+    module.hyperpod_cluster,
+    module.task_governance
+  ]
 }
 
 module "observability" {
@@ -307,7 +315,10 @@ module "observability" {
   accelerated_compute_metric_level     = var.accelerated_compute_metric_level
   logging_enabled                      = var.logging_enabled
 
-  depends_on = [module.hyperpod_cluster]
+  depends_on = [
+    module.hyperpod_cluster,
+    module.task_governance
+  ]
 }
 
 # GuardDuty VPC endpoint cleanup
