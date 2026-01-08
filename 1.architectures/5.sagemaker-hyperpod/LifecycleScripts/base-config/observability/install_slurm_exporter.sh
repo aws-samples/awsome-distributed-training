@@ -20,6 +20,8 @@ if systemctl is-active --quiet slurmctld; then
     # Setting it only for this script & child processes.
     export HOME=$(pwd)
 
+    # Install SLURM exporter from source.
+    # slurm_exporter is licensed under GPLv3. See LICENSE_SLURM_EXPORTER.txt as well.
     echo "This was identified as the controller node because Slurmctld is running. Begining SLURM Exporter Installation"
     git clone -b v1.1.0 https://github.com/SckyzO/slurm_exporter.git
     cd slurm_exporter
