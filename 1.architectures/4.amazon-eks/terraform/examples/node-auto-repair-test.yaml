@@ -1,0 +1,197 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: node-health-test-script
+  namespace: default
+data:
+  test-script.sh: |
+    #!/bin/bash
+    echo "Node Auto-Repair Test Script"
+    echo "=============================="
+    
+    # Get current node information
+    NODE_NAME=$(kubectl get nodes --no-headers -o custom-columns=":metadata.name" | head -1)
+    echo "Testing with node: $NODE_NAME"
+    
+    # Check node health status
+    echo "Current node status:"
+    kubectl describe node $NODE_NAME | grep -A 5 "Conditions:"
+    
+    # Monitor node health over time
+    echo "Monitoring node health for 5 minutes..."
+    for i in {1..30}; do
+      echo "Check $i/30 at $(date)"
+      kubectl get nodes --no-headers | grep -v "Ready"
+      sleep 10
+    done
+    
+    echo "Node health monitoring complete"
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: node-auto-repair-test
+  namespace: default
+spec:
+  template:
+    spec:
+      serviceAccountName: default
+      containers:
+      - name: node-health-tester
+        image: bitnami/kubectl:latest
+        command:
+        - /bin/bash
+        - /scripts/test-script.sh
+        volumeMounts:
+        - name: test-script
+          mountPath: /scripts
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+      volumes:
+      - name: test-script
+        configMap:
+          name: node-health-test-script
+          defaultMode: 0755
+      restartPolicy: Never
+  backoffLimit: 1
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: node-health-monitor
+  namespace: default
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: node-health-monitor
+rules:
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["get", "list", "watch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: node-health-monitor
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: node-health-monitor
+subjects:
+- kind: ServiceAccount
+  name: node-health-monitor
+  namespace: default
+
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: node-health-monitor
+  namespace: default
+  labels:
+    app: node-health-monitor
+spec:
+  selector:
+    matchLabels:
+      app: node-health-monitor
+  template:
+    metadata:
+      labels:
+        app: node-health-monitor
+    spec:
+      serviceAccountName: node-health-monitor
+      hostNetwork: true
+      hostPID: true
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
+      - key: nvidia.com/gpu
+        effect: NoSchedule
+      containers:
+      - name: node-health-monitor
+        image: amazonlinux:latest
+        command:
+        - /bin/bash
+        - -c
+        - |
+          yum update -y
+          yum install -y procps-ng util-linux
+          
+          echo "Node Health Monitor Starting on $(hostname)"
+          echo "Node: $NODE_NAME"
+          echo "Namespace: $POD_NAMESPACE"
+          
+          while true; do
+            # Check system health
+            echo "=== Health Check at $(date) ==="
+            
+            # CPU and Memory usage
+            echo "CPU Usage:"
+            cat /proc/loadavg
+            
+            echo "Memory Usage:"
+            free -h
+            
+            # Disk usage
+            echo "Disk Usage:"
+            df -h | grep -E "(/$|/var|/tmp)"
+            
+            # Check for any hardware issues
+            echo "Checking dmesg for errors:"
+            dmesg | tail -10 | grep -i "error\|fail\|warning" || echo "No recent errors found"
+            
+            # GPU health check (if GPU node)
+            if command -v nvidia-smi &> /dev/null; then
+              echo "GPU Status:"
+              nvidia-smi --query-gpu=name,temperature.gpu,utilization.gpu,memory.used,memory.total --format=csv,noheader,nounits || echo "GPU check failed"
+            fi
+            
+            echo "Health check complete"
+            echo "=========================="
+            sleep 60
+          done
+        env:
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 100m
+            memory: 128Mi
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - name: proc
+          mountPath: /host/proc
+          readOnly: true
+        - name: sys
+          mountPath: /host/sys
+          readOnly: true
+      volumes:
+      - name: proc
+        hostPath:
+          path: /proc
+      - name: sys
+        hostPath:
+          path: /sys
