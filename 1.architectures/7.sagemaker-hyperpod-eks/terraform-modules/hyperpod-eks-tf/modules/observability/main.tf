@@ -3,7 +3,7 @@ data "aws_caller_identity" "current" {}
 
 locals {
   # URL prefix to pull alert rules and dashboard templates from 
-  github_base_url = "https://raw.githubusercontent.com/aws/sagemaker-hyperpod-cluster-setup/refs/heads/main/eks/cloudformation/resources/grafana-lambda-function/lambda_function"
+  github_base_url = "https://raw.githubusercontent.com/aws/sagemaker-hyperpod-cluster-setup/refs/heads/main/eks/cloudformation/resources/observability-assets-creation"
   use_existing_prometheus_workspace = !var.create_prometheus_workspace && var.prometheus_workspace_id != ""
   use_existing_grafana_workspace = !var.create_grafana_workspace && var.grafana_workspace_id != ""
 
@@ -28,7 +28,7 @@ data "aws_grafana_workspace" "existing" {
 
 # Fetch alert rules from GitHub
 data "http" "alert_rules" {
-  url = "${local.github_base_url}/rules/templates/alert-rules.yaml"
+  url = "${local.github_base_url}/alerts/alert-rules.yaml"
 }
 
 # Fetch dashboard templates from GitHub
@@ -53,20 +53,18 @@ data "http" "tasks_dashboard" {
 }
 
 locals {
-  dashboard_uids = {
-    cluster   = "aws-sm-hp-observability-cluster-v1_0"
-    efa       = "aws-sm-hp-observability-efa-v1_0"
-    training  = "aws-sm-hp-observability-training-v1_0"
-    inference = "aws-sm-hp-observability-inference-v1_0"
-    tasks     = "aws-sm-hp-observability-task-v1_0"
-  }
-
   dashboard_templates = {
     cluster   = data.http.cluster_dashboard.response_body
     efa       = data.http.efa_dashboard.response_body
     training  = data.http.training_dashboard.response_body
     inference = data.http.inference_dashboard.response_body
     tasks     = data.http.tasks_dashboard.response_body
+  }
+
+  # Extract dashboard content
+  dashboard_content = {
+    for key, template in local.dashboard_templates :
+    key => lookup(jsondecode(template), "dashboard", jsondecode(template))
   }
 
   alert_rules = yamldecode(data.http.alert_rules.response_body).groups[0].rules
