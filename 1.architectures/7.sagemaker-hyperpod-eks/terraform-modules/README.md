@@ -251,6 +251,12 @@ cd hyperpod-eks-tf
 terraform plan -destroy
 ```
 
+Before destroying resources, list state to exclude any resources from deletion
+```bash
+terraform state list
+terraform state rm < resource_to_preserve >
+```
+
 If you created a `custom.tfvars` file, plan using the `-var-file` flag: 
 ```bash
 terraform plan -destroy -var-file=custom.tfvars

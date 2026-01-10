@@ -84,24 +84,12 @@ resource "grafana_folder" "alerts" {
   uid   = "aws-sm-hp-observability-rules"
 }
 
+# Dashboard creation
 resource "grafana_dashboard" "hyperpod_dashboards" {
-  for_each = local.is_amg_allowed ? local.dashboard_uids : {}
+  for_each = local.is_amg_allowed ? local.dashboard_templates : {}
   
-  config_json = jsonencode(
-    merge(
-      jsondecode(local.dashboard_templates[each.key]),
-      {
-        version = 1
-        uid     = each.value
-        id      = null
-      }
-    )
-  )
-  
-  # ignore dashboard config changes from github after initial deployment
-  lifecycle {
-    ignore_changes = [config_json] 
-  }
+  config_json = jsonencode(local.dashboard_content[each.key])
+  overwrite = true
 }
 
 resource "grafana_rule_group" "hyperpod_alerts" {
