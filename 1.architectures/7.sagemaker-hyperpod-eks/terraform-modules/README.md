@@ -251,7 +251,7 @@ cd hyperpod-eks-tf
 terraform plan -destroy
 ```
 
-Before destroying resources, list state to exclude any resources from deletion
+Before destroying resources, list state to exclude any resources you wish to retain from deletion:
 ```bash
 terraform state list
 terraform state rm < resource_to_preserve >
