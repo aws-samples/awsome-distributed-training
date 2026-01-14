@@ -116,6 +116,13 @@ EOF
   fi
 
   logger "Creating symbolic link from /var/lib/kubelet to $DISK_FOR_CONTAINERD_KUBELET/kubelet"
+
+  # Clean up old kubelet data to avoid AL2->AL23 compatibility issues
+  if [[ -d "$DISK_FOR_CONTAINERD_KUBELET/kubelet" ]]; then
+    logger "Removing existing kubelet directory to prevent AL2/AL23 incompatibility"
+    rm -rf "$DISK_FOR_CONTAINERD_KUBELET/kubelet"
+  fi
+
   mkdir -p "$DISK_FOR_CONTAINERD_KUBELET/kubelet"
   if [ "$(ls -A /var/lib/kubelet 2>/dev/null)" ]; then
     mv /var/lib/kubelet/* "$DISK_FOR_CONTAINERD_KUBELET/kubelet/"
