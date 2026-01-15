@@ -34,9 +34,13 @@ resource "aws_iam_role_policy_attachment" "fsx_csi_driver_policy" {
 resource "aws_eks_addon" "fsx_lustre_csi_driver" {
   cluster_name             = var.eks_cluster_name
   addon_name               = "aws-fsx-csi-driver"
-  service_account_role_arn = aws_iam_role.fsx_csi_driver_role.arn
   resolve_conflicts_on_create = "OVERWRITE"
   resolve_conflicts_on_update = "OVERWRITE"
+
+  pod_identity_association {
+    role_arn        = aws_iam_role.fsx_csi_driver_role.arn
+    service_account = "fsx-csi-controller-sa"
+  }
 }
 
 # Wait for FSx CSI driver to be available (required for the HPIO and dynamic provisioning)
