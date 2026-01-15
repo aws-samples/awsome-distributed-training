@@ -1,7 +1,7 @@
-kubernetes_version = "1.33"
-eks_cluster_name = "natharno-tf-eks"
-hyperpod_cluster_name = "natharno-tf-hp"
-resource_name_prefix = "natharno-tf-hp"
+kubernetes_version = "1.32"
+eks_cluster_name = "tf-eks-cluster"
+hyperpod_cluster_name = "tf-hp-cluster"
+resource_name_prefix = "tf-eks-test"
 aws_region = "us-east-1"
 instance_groups = {
     accelerated-instance-group-1 = {
