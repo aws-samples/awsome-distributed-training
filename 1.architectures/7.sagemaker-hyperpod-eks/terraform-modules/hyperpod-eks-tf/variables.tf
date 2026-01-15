@@ -89,7 +89,7 @@ variable "create_eks_module" {
 variable "kubernetes_version" {
   description = "The Kubernetes version to use for the EKS cluster"
   type        = string
-  default     = "1.32"
+  default     = "1.33"
 }
 
 variable "eks_cluster_name" {
