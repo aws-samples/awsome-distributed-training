@@ -27,7 +27,7 @@ For example, if you want to reuse an existing VPC, set `create_vpc_module ` to `
 ### Using a `custom.tfvars` File 
 To modify your deployment details without having to open and edit the `terraform.tfvars` file directly, create a `custom.tfvars` file with your parameter overrides. 
 
-For example, the following `custom.tfvars` file would enable the creation of all new resources including a new EKS Cluster and a HyperPod instance group of 5 `ml.p5en.48xlarge` instances in `us-west-2`:
+For example, the following `custom.tfvars` file would enable the creation of all new resources including a new EKS Cluster and a HyperPod instance group of 5 `ml.p5en.48xlarge` instances in `us-west-2` using a [training plan](https://docs.aws.amazon.com/sagemaker/latest/dg/reserve-capacity-with-training-plans.html):
 
 ```bash
 cat > custom.tfvars << EOL 
@@ -46,6 +46,7 @@ instance_groups = {
         enable_stress_check = true,
         enable_connectivity_check = true,
         lifecycle_script = "on_create.sh"
+        training_plan_arn = arn:aws:sagemaker:us-west-2:123456789012:training-plan/training-plan-example
     }
 }
 EOL
@@ -76,6 +77,7 @@ instance_groups = {
         enable_stress_check = true,
         enable_connectivity_check = true,
         lifecycle_script = "on_create.sh"
+        training_plan_arn = arn:aws:sagemaker:us-west-2:123456789012:training-plan/training-plan-example
   }
 }
 EOL
@@ -153,6 +155,7 @@ restricted_instance_groups = {
         enable_connectivity_check = false,
         fsxl_per_unit_storage_throughput = 250,
         fsxl_size_in_gi_b = 4800
+        training_plan_arn = arn:aws:sagemaker:us-west-2:123456789012:training-plan/training-plan-example
    }
 }
 EOL

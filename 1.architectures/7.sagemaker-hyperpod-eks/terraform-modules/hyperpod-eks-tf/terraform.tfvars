@@ -20,7 +20,7 @@ existing_security_group_id   = ""
 
 # EKS Cluster Module Variables
 create_eks_module            = true
-kubernetes_version           = "1.31"
+kubernetes_version           = "1.33"
 eks_cluster_name             = "sagemaker-hyperpod-eks-cluster"
 eks_private_subnet_1_cidr    = "10.192.7.0/28"
 eks_private_subnet_2_cidr    = "10.192.8.0/28"
