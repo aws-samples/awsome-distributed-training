@@ -3,6 +3,9 @@ data "aws_region" "current" {}
 data "aws_caller_identity" "current" {}
 
 locals {
+  # AZ to subnet lookup map
+  az_to_subnet = var.az_to_subnet_map
+
   # Create configurations for each instance group
   instance_groups_list = [
     for name, config in var.instance_groups : merge(
@@ -24,6 +27,11 @@ locals {
         life_cycle_config = {
           on_create     = config.lifecycle_script
           source_s3_uri = "s3://${var.s3_bucket_name}"
+        }
+        # Target specific subnet based on AZ using lookup map
+        override_vpc_config = {
+          security_group_ids = [var.security_group_id]
+          subnets = [local.az_to_subnet[config.availability_zone_id]]
         }
       },
       # Only include on_start_deep_health_checks if at least one check is enabled
@@ -62,9 +70,10 @@ locals {
             size_in_gi_b = config.fsxl_size_in_gi_b
            }
         }
+        # Target specific subnet based on AZ using lookup map
         override_vpc_config = {
           security_group_ids = [var.security_group_id]
-          subnets = [var.private_subnet_id]
+          subnets = [local.az_to_subnet[config.availability_zone_id]]
         }
       },
       # Only include on_start_deep_health_checks if at least one check is enabled
@@ -93,7 +102,7 @@ resource "awscc_sagemaker_cluster" "hyperpod_cluster" {
 
   orchestrator = {
     eks = {
-      cluster_arn = "arn:${data.aws_partition.current.partition}:eks:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:cluster/${var.eks_cluster_name}"
+      cluster_arn = var.eks_cluster_arn
     }
   }
 
@@ -106,6 +115,23 @@ resource "awscc_sagemaker_cluster" "hyperpod_cluster" {
 
   vpc_config = {
     security_group_ids = [var.security_group_id]
-    subnets           = [var.private_subnet_id]
+    subnets            = var.private_subnet_ids
   }
+  
+  tags = [
+    {
+      key   = "SageMaker"
+      value = "true"
+    }
+  ]
+}
+
+# Wait for HyperPod nodes and Pod Identity Agent
+resource "null_resource" "wait_for_hyperpod_nodes" {
+  count = var.wait_for_nodes ? 1 : 0
+  
+  provisioner "local-exec" {
+    command = "${path.module}/../../scripts/wait-for-hyperpod-nodes.sh ${data.aws_region.current.region} ${var.eks_cluster_name} ${var.hyperpod_cluster_name}"
+  }
+  depends_on = [awscc_sagemaker_cluster.hyperpod_cluster]
 }

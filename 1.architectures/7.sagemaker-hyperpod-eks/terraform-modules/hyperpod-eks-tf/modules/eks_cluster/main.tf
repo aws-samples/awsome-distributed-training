@@ -1,5 +1,4 @@
 data "aws_region" "current" {}
-data "aws_caller_identity" "current" {}
 
 data "aws_vpc" "selected" {
   id = var.vpc_id
@@ -26,10 +25,19 @@ resource "aws_subnet" "private" {
   }
 }
 
+resource "aws_route_table" "eks_private" {
+  count  = length(var.private_subnet_cidrs)
+  vpc_id = data.aws_vpc.selected.id
+
+  tags = {
+    Name = "${var.resource_name_prefix}-EKS-Private-RT-${count.index + 1}"
+  }
+}
+
 resource "aws_route_table_association" "private" {
   count          = length(aws_subnet.private)
   subnet_id      = aws_subnet.private[count.index].id
-  route_table_id = var.private_route_table_id
+  route_table_id = aws_route_table.eks_private[count.index].id
 }
 
 resource "aws_iam_role" "eks_cluster_role" {
@@ -90,6 +98,7 @@ resource "aws_eks_cluster" "cluster" {
   ]
 }
 
+# These EKS addons can become active before nodes are available  
 resource "aws_eks_addon" "vpc_cni" {
   cluster_name      = aws_eks_cluster.cluster.name
   addon_name        = "vpc-cni"
@@ -111,12 +120,12 @@ resource "aws_eks_addon" "pod_identity" {
   resolve_conflicts_on_update = "OVERWRITE"
 }
 
+# This EKS addons will remain degraded until nodes are available
 # Add CoreDNS using AWS CLI so that Terraform doesn't wait for it to be active
 resource "null_resource" "coredns_addon" {
   provisioner "local-exec" {
-    command = "aws eks create-addon --region ${data.aws_region.current.id} --cluster-name ${aws_eks_cluster.cluster.name} --addon-name coredns"
+    command = "aws eks create-addon --region ${data.aws_region.current.region} --cluster-name ${aws_eks_cluster.cluster.name} --addon-name coredns"
   }
   
   depends_on = [aws_eks_cluster.cluster]
 }
-

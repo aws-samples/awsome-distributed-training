@@ -34,8 +34,3 @@ variable "nat_gateway_id" {
   description = "ID of the NAT gateway for the EKS cluster"
   type        = string
 }
-
-variable "private_route_table_id" {
-  description = "ID of the private route table"
-  type        = string
-}
