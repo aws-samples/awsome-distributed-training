@@ -27,14 +27,6 @@ resource "aws_iam_role_policy_attachment" "hpto-policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonSageMakerHyperPodTrainingOperatorAccess"
 }
 
-# # Pod Identity Association for HPTO
-# resource "aws_eks_pod_identity_association" "hpto_pod_identity" {
-#   cluster_name    = var.eks_cluster_name
-#   namespace       = "aws-hyperpod"
-#   service_account = "hp-training-operator-controller-manager"
-#   role_arn        = aws_iam_role.hpto_role.arn
-# }
-
 # EKS Addon for HPTO
 resource "aws_eks_addon" "hpto_addon" {
   cluster_name             = var.eks_cluster_name
