@@ -8,11 +8,6 @@ output "hpto_iam_role_name" {
   value       = aws_iam_role.hpto_role.name
 }
 
-# output "hpto_pod_identity_association_arn" {
-#   description = "ARN of the HPTO Pod Identity Association"
-#   value       = aws_eks_pod_identity_association.hpto_pod_identity.association_arn
-# }
-
 output "hpto_addon_arn" {
   description = "ARN of the HPTO addon"
   value       = aws_eks_addon.hpto_addon.arn
