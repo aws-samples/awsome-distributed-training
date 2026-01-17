@@ -21,3 +21,4 @@ if ! bash ./on_create_main.sh >> "$LOG_FILE" 2>&1; then
 fi
 
 logger "[stop] on_create.sh"
+#
