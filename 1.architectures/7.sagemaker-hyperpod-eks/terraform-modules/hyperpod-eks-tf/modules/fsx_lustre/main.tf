@@ -57,32 +57,65 @@ resource "null_resource" "wait_for_fsx_csi_driver" {
   depends_on = [aws_eks_addon.fsx_lustre_csi_driver]
 }
 
+# New FSxL filesystem 
+resource "aws_fsx_lustre_file_system" "fsx" {
+  count = var.create_new_filesystem ? 1 : 0
 
-# StorageClass for dynamic provisioning
-resource "kubernetes_storage_class_v1" "fsx_dynamic" {
+  storage_capacity            = var.storage_capacity
+  subnet_ids                  = [var.subnet_id]
+  security_group_ids          = [var.security_group_id]
+  deployment_type             = "PERSISTENT_2"
+  per_unit_storage_throughput = var.throughput
+  data_compression_type       = var.data_compression_type
+  file_system_type_version    = var.file_system_type_version
+
+  tags = {
+    Name = "${var.resource_name_prefix}-fsx"
+  }
+}
+
+# StorageClass for static provisioning with new FSxL filesystem
+resource "kubernetes_storage_class_v1" "fsx_sc" {
   count = var.create_new_filesystem ? 1 : 0
 
   metadata {
     name = "fsx-sc"
   }
   storage_provisioner = "fsx.csi.aws.com"
-  parameters = {
-    subnetId                     = var.subnet_id
-    securityGroupIds             = var.security_group_id
-    deploymentType              = "PERSISTENT_2"
-    automaticBackupRetentionDays = "0"
-    copyTagsToBackups           = "true"
-    perUnitStorageThroughput    = "${var.throughput}"
-    dataCompressionType         = var.data_compression_type
-    fileSystemTypeVersion       = var.file_system_type_version
-  }
-  mount_options = ["flock"]
-  
+
   depends_on = [null_resource.wait_for_fsx_csi_driver]
 }
 
-# Sample PVC that triggers FSx creation
-resource "kubernetes_persistent_volume_claim_v1" "fsx_sample" {
+# PersistentVolume for static provisioning with new FSxL filesystem
+resource "kubernetes_persistent_volume_v1" "fsx_pv" {
+  count = var.create_new_filesystem ? 1 : 0
+
+  metadata {
+    name = "fsx-pv"
+  }
+  spec {
+    capacity = {
+      storage = "${var.storage_capacity}Gi"
+    }
+    access_modes                     = ["ReadWriteMany"]
+    storage_class_name               = kubernetes_storage_class_v1.fsx_sc[0].metadata[0].name
+    persistent_volume_reclaim_policy = "Retain"
+    persistent_volume_source {
+      csi {
+        driver        = "fsx.csi.aws.com"
+        volume_handle = aws_fsx_lustre_file_system.fsx[0].id
+        volume_attributes = {
+          dnsname   = aws_fsx_lustre_file_system.fsx[0].dns_name
+          mountname = aws_fsx_lustre_file_system.fsx[0].mount_name
+        }
+      }
+    }
+  }
+}
+
+
+# PersistentVolumeClaim for static provisioning with new FSxL filesystem
+resource "kubernetes_persistent_volume_claim_v1" "fsx_pvc" {
   count = var.create_new_filesystem ? 1 : 0
 
   metadata {
@@ -90,14 +123,13 @@ resource "kubernetes_persistent_volume_claim_v1" "fsx_sample" {
     namespace = "default"
   }
   spec {
-    access_modes = ["ReadWriteMany"]
-    storage_class_name = "fsx-sc"
+    access_modes       = ["ReadWriteMany"]
+    storage_class_name = kubernetes_storage_class_v1.fsx_sc[0].metadata[0].name
+    volume_name        = kubernetes_persistent_volume_v1.fsx_pv[0].metadata[0].name
     resources {
       requests = {
         storage = "${var.storage_capacity}Gi"
       }
     }
   }
-  
-  depends_on = [kubernetes_storage_class_v1.fsx_dynamic]
 }

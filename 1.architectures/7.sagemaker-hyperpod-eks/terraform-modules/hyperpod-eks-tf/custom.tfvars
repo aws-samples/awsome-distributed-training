@@ -1,4 +1,4 @@
-kubernetes_version = "1.32"
+kubernetes_version = "1.33"
 eks_cluster_name = "tf-eks-cluster"
 hyperpod_cluster_name = "tf-hp-cluster"
 resource_name_prefix = "tf-eks-test"
@@ -22,3 +22,4 @@ create_task_governance_module = true
 create_hyperpod_training_operator_module = true
 create_hyperpod_inference_operator_module = true
 enable_guardduty_cleanup = true
+create_new_fsx_filesystem = true

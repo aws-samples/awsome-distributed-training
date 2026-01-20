@@ -223,6 +223,7 @@ variable "helm_release_name_hpio" {
   default     = "hyperpod-inference-operator"
 }
 
+# Check GITHUB_REPO_REVISION here: https://github.com/aws/sagemaker-hyperpod-cluster-setup/blob/main/eks/cloudformation/helm-chart-template.yaml
 variable "helm_repo_revision" {
   description = "Git revision for normal mode"
   type        = string
@@ -235,6 +236,7 @@ variable "helm_repo_revision_rig" {
   default     = "c5275ddbbca58164d1f5bd3a2811e0fc952f7ff4"
 }
 
+# Check HYPERPOD_CLI_GITHUB_REPO_REVISION here: https://github.com/aws/sagemaker-hyperpod-cluster-setup/blob/main/eks/cloudformation/inf-helm-chart-template.yaml
 variable "helm_repo_revision_hpio" {
   description = "Git revision for the HyperPod Inference Operator"
   type        = string
