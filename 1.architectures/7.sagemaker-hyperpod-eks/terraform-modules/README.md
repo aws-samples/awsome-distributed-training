@@ -108,7 +108,7 @@ In addition to enabling the [HyperPod Observability addon](https://docs.aws.amaz
 ---
 ### FSx for Lustre Module
 
-By default, the FSx for Lustre module installs the Amazon FSx for Lustre Container Storage Interface (CSI) Driver, but does not dynamically provision a new filesystem. For existing filesystems, you can follow [these steps in the AI on SageMaker HyperPod Workshop](https://awslabs.github.io/ai-on-sagemaker-hyperpod/docs/getting-started/orchestrated-by-eks/Set%20up%20your%20shared%20file%20system#option-3-bring-your-own-fsx-static-provisioning) for static provisioning. If you wish to create a new filesystem using Terraform, add the parameter `create_new_fsx_filesystem = true` to your `custom.tfvars` file, and review the `fsx_storage_capacity` (default 1200 GiB) and `fsx_throughput` (default 250 MBps/TiB) parameters to ensure they are set according to your requirements. 
+By default, the FSx for Lustre module installs the Amazon FSx for Lustre Container Storage Interface (CSI) Driver, but does not dynamically provision a new filesystem. For existing filesystems, you can follow [these steps in the AI on SageMaker HyperPod Workshop](https://awslabs.github.io/ai-on-sagemaker-hyperpod/docs/getting-started/orchestrated-by-eks/Set%20up%20your%20shared%20file%20system#option-3-bring-your-own-fsx-static-provisioning) for static provisioning. If you wish to create a new filesystem using Terraform, add the parameter `create_new_fsx_filesystem = true` to your `custom.tfvars` file, and review the `fsx_storage_capacity` (default 1200 GiB) and `fsx_throughput` (default 250 MBps/TiB) parameters to ensure they are set according to your requirements. When `create_new_fsx_filesystem = true` the FSx for Lustre module will statically create a new filesystem along with a StorageClass, PersistentVolume, and PersistentVolumeClaim (PVC). By default the PVC will be mapped to the default namespace. If you wish to use another namespace, use the `fsx_pvc_namespace` parameter to specify it. By default, specifying a non-default namespace will trigger the creation of that namespace. If you are using an existing EKS cluster where the target namespace already exists, set `create_fsx_pvc_namespace = false` to skip creation. 
 
 ---
 
@@ -142,13 +142,13 @@ eks_cluster_name = "tf-eks-cluster-rig"
 hyperpod_cluster_name = "tf-hp-cluster-rig"
 resource_name_prefix = "tf-eks-test-rig"
 aws_region = "us-east-1"
-availability_zone_id  = "use1-az6"
 rig_input_s3_bucket = "my-tf-rig-test-input-bucket"
 rig_output_s3_bucket = "my-tf-rig-test-output-bucket"
 restricted_instance_groups = {
    rig-1 = {
         instance_type = "ml.p5.48xlarge",
         instance_count = 2, 
+        availability_zone_id  = "use1-az6"
         ebs_volume_size_in_gb = 850,
         threads_per_core = 2, 
         enable_stress_check = false,

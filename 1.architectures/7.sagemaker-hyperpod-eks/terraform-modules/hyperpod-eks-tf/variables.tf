@@ -434,6 +434,19 @@ variable "fsx_file_system_type_version" {
   default     = "2.15"
 }
 
+variable "create_fsx_pvc_namespace" {
+  description = "Create the namespace for FSx PVC (set to false if namespace already exists)"
+  type        = bool
+  default     = true
+}
+
+variable "fsx_pvc_namespace" {
+  description = "Namespace for FSx PVC"
+  type        = string
+  default     = "default"
+}
+
+
 # Observability Module Variables
 variable "create_observability_module" {
   description = "Whether to create observability module"

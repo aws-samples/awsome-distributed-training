@@ -15,7 +15,7 @@ resource "aws_grafana_workspace" "hyperpod" {
 
   # ignore timestamp_suffix changes in name after initial deployment
   lifecycle {
-    ignore_changes = [name] 
+    ignore_changes = [name, configuration] 
   }
 
   tags = {
@@ -75,6 +75,10 @@ resource "grafana_data_source" "prometheus" {
     httpMethod      = "POST"
     sigV4AuthType   = "ec2_iam_role"
   })
+
+  lifecycle {
+    ignore_changes = [url]
+  }
 }
 
 resource "grafana_folder" "alerts" {
@@ -90,6 +94,10 @@ resource "grafana_dashboard" "hyperpod_dashboards" {
   
   config_json = jsonencode(local.dashboard_content[each.key])
   overwrite = true
+  
+  lifecycle {
+    ignore_changes = [config_json]
+  }
 }
 
 resource "grafana_rule_group" "hyperpod_alerts" {

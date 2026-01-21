@@ -113,6 +113,13 @@ resource "kubernetes_persistent_volume_v1" "fsx_pv" {
   }
 }
 
+resource "kubernetes_namespace_v1" "fsx_namespace" {
+  count = var.create_new_filesystem && var.fsx_pvc_namespace != "default" && var.create_fsx_pvc_namespace ? 1 : 0
+
+  metadata {
+    name = var.fsx_pvc_namespace
+  }
+}
 
 # PersistentVolumeClaim for static provisioning with new FSxL filesystem
 resource "kubernetes_persistent_volume_claim_v1" "fsx_pvc" {
@@ -120,7 +127,7 @@ resource "kubernetes_persistent_volume_claim_v1" "fsx_pvc" {
 
   metadata {
     name      = "fsx-claim"
-    namespace = "default"
+    namespace = var.fsx_pvc_namespace
   }
   spec {
     access_modes       = ["ReadWriteMany"]
@@ -132,4 +139,5 @@ resource "kubernetes_persistent_volume_claim_v1" "fsx_pvc" {
       }
     }
   }
+  depends_on = [kubernetes_namespace_v1.fsx_namespace]
 }

@@ -248,6 +248,8 @@ module "fsx_lustre" {
   data_compression_type      = var.fsx_data_compression_type
   file_system_type_version   = var.fsx_file_system_type_version
   inference_operator_enabled = local.create_hyperpod_inference_operator_module
+  fsx_pvc_namespace          = var.fsx_pvc_namespace
+  create_fsx_pvc_namespace   = var.create_fsx_pvc_namespace
   
   depends_on = [
     module.hyperpod_cluster,

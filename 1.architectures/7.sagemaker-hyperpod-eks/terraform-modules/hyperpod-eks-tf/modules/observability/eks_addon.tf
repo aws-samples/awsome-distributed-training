@@ -142,4 +142,8 @@ resource "terraform_data" "addon_update_with_grafana" {
     aws_eks_addon.hyperpod_observability_basic,
     aws_grafana_workspace.hyperpod
   ]
+
+  lifecycle {
+    ignore_changes = [input]
+  }
 }

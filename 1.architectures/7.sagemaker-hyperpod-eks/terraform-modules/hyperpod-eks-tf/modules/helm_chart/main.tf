@@ -15,10 +15,6 @@ resource "null_resource" "git_checkout" {
       git checkout ${local.revision}
     EOT
   }
-
-  triggers = {
-    always_run = timestamp()
-  }
 }
 
 resource "null_resource" "add_helm_repos" {
@@ -28,10 +24,6 @@ resource "null_resource" "add_helm_repos" {
       helm repo add eks https://aws.github.io/eks-charts/
       helm repo update
     EOT
-  }
-  
-  triggers = {
-    always_run = timestamp()
   }
 }
 
@@ -123,10 +115,6 @@ resource "null_resource" "run_rig_script" {
   }
   
   depends_on = [helm_release.hyperpod]
-  
-  triggers = {
-    revision = local.revision
- }
 }
 
 resource "null_resource" "git_cleanup" {
@@ -143,8 +131,4 @@ resource "null_resource" "git_cleanup" {
     helm_release.hyperpod,
     null_resource.run_rig_script
   ]
-  
-  triggers = {
-    always_run = timestamp()
-  }
 }
