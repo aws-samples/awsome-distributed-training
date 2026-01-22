@@ -10,6 +10,11 @@ variable "hyperpod_cluster_name" {
   default     = "ml-cluster"
 }
 
+variable "eks_cluster_arn" {
+  description = "The ARN of the EKS cluster"
+  type        = string
+}
+
 variable "auto_node_recovery" {
   description = "Whether to enable or disable the automatic node recovery feature"
   type        = bool
@@ -22,8 +27,9 @@ variable "continuous_provisioning_mode" {
 }
 
 variable "instance_groups" {
-  description = "Map of instance group configurations"
-  type = map(object({
+  description = "List of instance group configurations"
+  type = list(object({
+    name                      = string
     instance_type             = string
     instance_count            = number
     ebs_volume_size_in_gb     = number
@@ -31,15 +37,17 @@ variable "instance_groups" {
     enable_stress_check       = bool
     enable_connectivity_check = bool
     lifecycle_script          = string
+    availability_zone_id      = string
     image_id                  = optional(string)
     training_plan_arn         = optional(string)
   }))
-  default = {}
+  default = []
 }
 
 variable "restricted_instance_groups" {
-  description = "Map of restricted instance group configurations"
-  type = map(object({
+  description = "List of restricted instance group configurations"
+  type = list(object({
+    name                             = string
     instance_type                    = string
     instance_count                   = number
     ebs_volume_size_in_gb            = number
@@ -48,9 +56,10 @@ variable "restricted_instance_groups" {
     enable_connectivity_check        = bool
     fsxl_per_unit_storage_throughput = number
     fsxl_size_in_gi_b                = number
+    availability_zone_id             = string
     training_plan_arn                = optional(string)
   }))
-  default = {}
+  default = []
 }
 
 variable "sagemaker_iam_role_name" {
@@ -58,9 +67,15 @@ variable "sagemaker_iam_role_name" {
   type        = string
 }
 
-variable "private_subnet_id" {
-  description = "The Id of the private subnet for HyperPod cross-account ENIs"
-  type        = string
+variable "private_subnet_ids" {
+  description = "List of private subnet IDs for HyperPod cluster"
+  type        = list(string)
+}
+
+variable "az_to_subnet_map" {
+  description = "Map of availability zone IDs to subnet IDs"
+  type        = map(string)
+  default     = {}
 }
 
 variable "security_group_id" {
@@ -91,4 +106,22 @@ variable "karpenter_autoscaling" {
 variable "karpenter_role_arn" {
   description = "ARN of the Karpenter IAM role"
   type        = string
+}
+
+variable "wait_for_nodes" {
+  description = "Whether to wait for HyperPod nodes (needed by external modules)"
+  type        = bool
+  default     = false
+}
+
+variable "enable_cert_manager" {
+  description = "Whether to install cert-manager EKS add-on"
+  type        = bool
+  default     = false
+}
+
+variable "cert_manager_version" {
+  description = "Version of the cert-manager EKS add-on"
+  type        = string
+  default     = "v1.18.2-eksbuild.2"
 }
