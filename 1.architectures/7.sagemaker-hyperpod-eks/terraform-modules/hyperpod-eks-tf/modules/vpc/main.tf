@@ -71,19 +71,6 @@ resource "aws_eip" "nat_1" {
   )
 }
 
-resource "aws_eip" "nat_2" {
-  domain = "vpc"
-
-  depends_on = [aws_internet_gateway.main]
-
-  tags = merge(
-    {
-      Name = "${var.resource_name_prefix}-SMHP-NAT2-EIP"
-    },
-    var.tags
-  )
-}
-
 resource "aws_nat_gateway" "nat_1" {
   allocation_id = aws_eip.nat_1.id
   subnet_id     = aws_subnet.public_1.id
@@ -93,20 +80,6 @@ resource "aws_nat_gateway" "nat_1" {
   tags = merge(
     {
       Name = "${var.resource_name_prefix}-SMHP-NAT1"
-    },
-    var.tags
-  )
-}
-
-resource "aws_nat_gateway" "nat_2" {
-  allocation_id = aws_eip.nat_2.id
-  subnet_id     = aws_subnet.public_2.id
-
-  depends_on = [aws_internet_gateway.main]
-
-  tags = merge(
-    {
-      Name = "${var.resource_name_prefix}-SMHP-NAT2"
     },
     var.tags
   )

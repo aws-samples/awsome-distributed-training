@@ -25,14 +25,14 @@ output "nat_gateway_id" {
 }
 
 # Private Subnet Outputs
-output "private_subnet_id" {
+output "private_subnet_ids" {
   description = "ID of the private subnet"
-  value       = var.create_private_subnet_module ? module.private_subnet[0].private_subnet_id : var.existing_private_subnet_id
+  value       = var.create_private_subnet_module ? module.private_subnet[0].private_subnet_ids : var.existing_private_subnet_ids
 }
 
-output "private_route_table_id" {
+output "private_route_table_ids" {
   description = "ID of the private route table"
-  value       = var.create_private_subnet_module ? module.private_subnet[0].private_route_table_id : var.existing_private_route_table_id
+  value       = var.create_private_subnet_module ? module.private_subnet[0].private_route_table_ids : var.existing_private_route_table_ids
 }
 
 # Security Group Outputs
