@@ -8,13 +8,13 @@ locals {
 
   # Create configurations for each instance group
   instance_groups_list = [
-    for name, config in var.instance_groups : merge(
+    for config in var.instance_groups : merge(
       {
-        instance_group_name = name
-        instance_type      = config.instance_type
-        instance_count     = config.instance_count
-        threads_per_core   = config.threads_per_core
-        execution_role     = "arn:${data.aws_partition.current.partition}:iam::${data.aws_caller_identity.current.account_id}:role/${var.sagemaker_iam_role_name}"
+        instance_group_name = config.name
+        instance_type       = config.instance_type
+        instance_count      = config.instance_count
+        threads_per_core    = config.threads_per_core
+        execution_role      = "arn:${data.aws_partition.current.partition}:iam::${data.aws_caller_identity.current.account_id}:role/${var.sagemaker_iam_role_name}"
         
         instance_storage_configs = [
           {
@@ -49,13 +49,13 @@ locals {
   ]
 
   restricted_instance_groups_list = [
-    for name, config in var.restricted_instance_groups : merge(
+    for config in var.restricted_instance_groups : merge(
       {
-        instance_group_name = name
-        instance_type      = config.instance_type
-        instance_count     = config.instance_count
-        threads_per_core   = config.threads_per_core
-        execution_role     = "arn:${data.aws_partition.current.partition}:iam::${data.aws_caller_identity.current.account_id}:role/${var.sagemaker_iam_role_name}"
+        instance_group_name = config.name
+        instance_type       = config.instance_type
+        instance_count      = config.instance_count
+        threads_per_core    = config.threads_per_core
+        execution_role      = "arn:${data.aws_partition.current.partition}:iam::${data.aws_caller_identity.current.account_id}:role/${var.sagemaker_iam_role_name}"
 
         instance_storage_configs = [
           {

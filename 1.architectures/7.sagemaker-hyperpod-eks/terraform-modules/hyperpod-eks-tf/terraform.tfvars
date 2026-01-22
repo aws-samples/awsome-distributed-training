@@ -54,8 +54,9 @@ auto_node_recovery           = true
 continuous_provisioning_mode = true
 
 # For the instance_groups variable, you'll need to define specific groups. Here's an example:
-instance_groups = {
-  instance-group-1 = {
+instance_groups = [
+  {
+    name                      = "instance-group-1"
     instance_type             = "ml.g5.8xlarge"
     instance_count            = 8
     availability_zone_id      = "usw2-az2"
@@ -65,4 +66,4 @@ instance_groups = {
     enable_connectivity_check = true
     lifecycle_script          = "on_create.sh"
   }
-}
+]

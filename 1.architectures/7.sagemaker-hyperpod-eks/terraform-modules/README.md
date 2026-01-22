@@ -36,8 +36,9 @@ eks_cluster_name = "my-eks-cluster"
 hyperpod_cluster_name = "my-hp-cluster"
 resource_name_prefix = "hp-eks-test"
 aws_region = "us-west-2"
-instance_groups = {
-    accelerated-instance-group-1 = {
+instance_groups = [
+    {
+        name = "accelerated-instance-group-1"
         instance_type = "ml.p5en.48xlarge",
         instance_count = 5,
         availability_zone_id  = "usw2-az2",
@@ -48,7 +49,7 @@ instance_groups = {
         lifecycle_script = "on_create.sh"
         training_plan_arn = arn:aws:sagemaker:us-west-2:123456789012:training-plan/training-plan-example
     }
-}
+]
 EOL
 ```
 ---
@@ -67,8 +68,9 @@ existing_nat_gateway_id = "nat-1234567890abcdef0"
 hyperpod_cluster_name = "my-hp-cluster"
 resource_name_prefix = "hp-eks-test"
 aws_region = "us-west-2"
-instance_groups = {
-    accelerated-instance-group-1 = {
+instance_groups = [
+    {
+        name = "accelerated-instance-group-1"
         instance_type = "ml.p5en.48xlarge",
         instance_count = 5,
         availability_zone_id  = "usw2-az2",
@@ -78,8 +80,8 @@ instance_groups = {
         enable_connectivity_check = true,
         lifecycle_script = "on_create.sh"
         training_plan_arn = arn:aws:sagemaker:us-west-2:123456789012:training-plan/training-plan-example
-  }
-}
+    }
+]
 EOL
 ```
 ---
@@ -144,8 +146,9 @@ resource_name_prefix = "tf-eks-test-rig"
 aws_region = "us-east-1"
 rig_input_s3_bucket = "my-tf-rig-test-input-bucket"
 rig_output_s3_bucket = "my-tf-rig-test-output-bucket"
-restricted_instance_groups = {
-   rig-1 = {
+restricted_instance_groups = [
+    {
+        name = "rig-1" 
         instance_type = "ml.p5.48xlarge",
         instance_count = 2, 
         availability_zone_id  = "use1-az6"
@@ -156,8 +159,8 @@ restricted_instance_groups = {
         fsxl_per_unit_storage_throughput = 250,
         fsxl_size_in_gi_b = 4800
         training_plan_arn = arn:aws:sagemaker:us-west-2:123456789012:training-plan/training-plan-example
-   }
-}
+    }
+]
 EOL
 ```
 RIG mode (`local.rig_mode = true` set in [main.tf](./hyperpod-eks-tf/main.tf)) is automatic when `restricted_instance_groups` are defined, enabling Nova model customization with the following changes: 

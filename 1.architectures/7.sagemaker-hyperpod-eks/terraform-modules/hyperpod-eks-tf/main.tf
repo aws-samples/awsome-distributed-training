@@ -53,7 +53,7 @@ locals {
   
   # Disabled feature set for RIGs
   rig_mode                                  = length(var.restricted_instance_groups) > 0
-  instance_groups                           = !local.rig_mode ? var.instance_groups : {}
+  instance_groups                           = !local.rig_mode ? var.instance_groups : []
   create_s3_bucket_module                   = !local.rig_mode && var.create_s3_bucket_module
   s3_bucket_name                            = !local.rig_mode ? (var.create_s3_bucket_module ? module.s3_bucket[0].s3_bucket_name : var.existing_s3_bucket_name) : null
   create_lifecycle_script_module            = !local.rig_mode && var.create_lifecycle_script_module

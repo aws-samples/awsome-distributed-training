@@ -27,8 +27,9 @@ variable "continuous_provisioning_mode" {
 }
 
 variable "instance_groups" {
-  description = "Map of instance group configurations"
-  type = map(object({
+  description = "List of instance group configurations"
+  type = list(object({
+    name                      = string
     instance_type             = string
     instance_count            = number
     ebs_volume_size_in_gb     = number
@@ -40,12 +41,13 @@ variable "instance_groups" {
     image_id                  = optional(string)
     training_plan_arn         = optional(string)
   }))
-  default = {}
+  default = []
 }
 
 variable "restricted_instance_groups" {
-  description = "Map of restricted instance group configurations"
-  type = map(object({
+  description = "List of restricted instance group configurations"
+  type = list(object({
+    name                             = string
     instance_type                    = string
     instance_count                   = number
     ebs_volume_size_in_gb            = number
@@ -57,7 +59,7 @@ variable "restricted_instance_groups" {
     availability_zone_id             = string
     training_plan_arn                = optional(string)
   }))
-  default = {}
+  default = []
 }
 
 variable "sagemaker_iam_role_name" {
