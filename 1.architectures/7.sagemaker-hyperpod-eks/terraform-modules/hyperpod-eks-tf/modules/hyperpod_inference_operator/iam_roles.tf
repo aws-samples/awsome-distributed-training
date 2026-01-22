@@ -28,11 +28,19 @@ resource "aws_iam_role" "inference_operator" {
       }
     ]
   })
+
+  lifecycle {
+    ignore_changes = [assume_role_policy]
+  }
 }
 
 resource "aws_iam_role_policy" "inference_operator_policy" {
   name = "${var.resource_name_prefix}-InfOperator-Policy"
   role = aws_iam_role.inference_operator.id
+
+  lifecycle {
+    ignore_changes = [policy]
+  }
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -398,6 +406,10 @@ resource "aws_iam_role" "keda" {
       }
     ]
   })
+
+  lifecycle {
+    ignore_changes = [assume_role_policy]
+  }
 }
 
 resource "aws_iam_role_policy" "keda_policy" {
@@ -453,11 +465,19 @@ resource "aws_iam_role" "gated" {
       }
     ]
   })
+
+  lifecycle {
+    ignore_changes = [assume_role_policy]
+  }
 }
 
 resource "aws_iam_role_policy" "gated_policy" {
   name = "${var.resource_name_prefix}-Gated-Policy"
   role = aws_iam_role.gated.id
+
+  lifecycle {
+    ignore_changes = [policy]
+  }
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -745,6 +765,10 @@ resource "aws_iam_role" "alb_controller_sa" {
       }
     ]
   })
+
+  lifecycle {
+    ignore_changes = [assume_role_policy]
+  }
 }
 
 resource "aws_iam_role_policy_attachment" "alb_controller_policy" {
@@ -801,6 +825,10 @@ resource "aws_iam_role" "s3_csi_sa" {
       }
     ]
   })
+
+  lifecycle {
+    ignore_changes = [assume_role_policy]
+  }
 }
 
 resource "aws_iam_role_policy_attachment" "s3_csi_policy" {

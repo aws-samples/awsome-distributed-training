@@ -21,7 +21,7 @@ resource "aws_iam_openid_connect_provider" "eks_oidc_provider" {
 
   # ignore re-evaluation of data source after initial deployment
   lifecycle {
-    ignore_changes = [url]
+    ignore_changes = [url, thumbprint_list]
   }
 
   tags = {

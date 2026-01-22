@@ -81,6 +81,10 @@ resource "helm_release" "inference_operator" {
     }
   ]
 
+  lifecycle {
+    ignore_changes = all
+  }
+
   depends_on = [
     null_resource.git_checkout,
     kubernetes_namespace_v1.keda,

@@ -26,11 +26,19 @@ resource "aws_iam_role" "hyperpod_observability_addon" {
       }
     ]
   })
+
+  lifecycle {
+    ignore_changes = [assume_role_policy]
+  }
 }
 
 resource "aws_iam_role_policy" "hyperpod_observability_addon" {
   name = "${var.resource_name_prefix}-OnPol"
   role = aws_iam_role.hyperpod_observability_addon.id
+
+  lifecycle {
+    ignore_changes = [policy]
+  }
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -93,6 +101,10 @@ resource "aws_iam_role" "grafana_workspace" {
       }
     ]
   })
+
+  lifecycle {
+    ignore_changes = [assume_role_policy]
+  }
 }
 
 resource "aws_iam_role_policy" "grafana_workspace" {

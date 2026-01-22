@@ -57,6 +57,10 @@ resource "grafana_data_source" "cloudwatch" {
     httpMethod      = "POST"
     sigV4AuthType   = "ec2_iam_role"
   })
+
+  lifecycle {
+    ignore_changes = [json_data_encoded]
+  }
 }
 
 resource "grafana_data_source" "prometheus" {
@@ -77,7 +81,7 @@ resource "grafana_data_source" "prometheus" {
   })
 
   lifecycle {
-    ignore_changes = [url]
+    ignore_changes = [url, json_data_encoded]
   }
 }
 
@@ -106,6 +110,10 @@ resource "grafana_rule_group" "hyperpod_alerts" {
   name             = "sagemaker_hyperpod_alerts"
   folder_uid       = grafana_folder.alerts[0].uid
   interval_seconds = 300
+  
+  lifecycle {
+    ignore_changes = [rule]
+  }
   
   dynamic "rule" {
     for_each = local.alert_rules
