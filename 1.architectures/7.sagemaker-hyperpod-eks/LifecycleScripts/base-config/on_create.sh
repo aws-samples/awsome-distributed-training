@@ -12,12 +12,16 @@ logger() {
 
 logger "[start] on_create.sh"
 
-if ! bash ./on_create_main.sh >> "$LOG_FILE" 2>&1; then
-  logger "[error] on_create_main.sh failed, waiting 60 seconds before exit, to make sure logs are uploaded"
-  sync
-  sleep 60
-  logger "[stop] on_create.sh with error"
-  exit 1
+if [ -f "./on_create_main.sh" ]; then
+  if ! bash ./on_create_main.sh >> "$LOG_FILE" 2>&1; then
+    logger "[error] on_create_main.sh failed, waiting 60 seconds before exit, to make sure logs are uploaded"
+    sync
+    sleep 60
+    logger "[stop] on_create.sh with error"
+    exit 1
+  fi
+else
+  logger "[warning] on_create_main.sh not found, skipping execution"
 fi
 
 logger "[stop] on_create.sh"
