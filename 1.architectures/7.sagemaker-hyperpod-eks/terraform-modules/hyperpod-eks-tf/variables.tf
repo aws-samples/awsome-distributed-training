@@ -79,6 +79,12 @@ variable "existing_security_group_id" {
   default     = ""
 }
 
+variable "create_vpc_endpoint_ingress_rule" {
+  description = "Whether to create HTTPS ingress rule from VPC CIDR for VPC endpoints (recommended for closed networks)"
+  type        = bool
+  default     = true
+}
+
 # EKS Cluster Module Variables
 variable "create_eks_module" {
   description = "Whether to create EKS cluster module"
@@ -104,14 +110,26 @@ variable "existing_eks_cluster_name" {
   default     = ""
 }
 
+variable "create_eks_subnets" {
+  description = "Whether to create new subnets for EKS or use existing ones (only applies when create_eks_module is true)"
+  type        = bool
+  default     = true
+}
+
+variable "existing_eks_subnet_ids" {
+  description = "List of existing subnet IDs to use for EKS (only used when create_eks_module is true and create_eks_subnets is false)"
+  type        = list(string)
+  default     = []
+}
+
 variable "eks_private_subnet_1_cidr" {
-  description = "The IP range (CIDR notation) for the first EKS private subnet"
+  description = "The IP range (CIDR notation) for the first EKS private subnet (only used when create_eks_subnets is true)"
   type        = string
   default     = "10.192.7.0/28"
 }
 
 variable "eks_private_subnet_2_cidr" {
-  description = "The IP range (CIDR notation) for the second EKS private subnet"
+  description = "The IP range (CIDR notation) for the second EKS private subnet (only used when create_eks_subnets is true)"
   type        = string
   default     = "10.192.8.0/28"
 }
@@ -140,6 +158,80 @@ variable "existing_private_route_table_ids" {
   description = "List of existing private route table IDs"
   type        = list(string)
   default     = []
+}
+
+# Closed Network - VPC Endpoint Configuration
+variable "create_s3_endpoint" {
+  description = "Create S3 gateway endpoint (required for container images and data access)"
+  type        = bool
+  default     = true
+}
+
+# Closed Network - EKS Endpoint Access Configuration
+variable "eks_endpoint_private_access" {
+  description = "Enable private API server endpoint (required for closed networks)"
+  type        = bool
+  default     = true
+}
+
+variable "eks_endpoint_public_access" {
+  description = "Enable public API server endpoint (should be false for closed networks)"
+  type        = bool
+  default     = true
+}
+
+variable "create_ec2_endpoint" {
+  description = "Create EC2 interface endpoint (CRITICAL - required for AWS CNI plugin to assign IPs to pods)"
+  type        = bool
+  default     = true
+}
+
+variable "create_ecr_api_endpoint" {
+  description = "Create ECR API interface endpoint (required for ECR authentication and image metadata)"
+  type        = bool
+  default     = true
+}
+
+variable "create_ecr_dkr_endpoint" {
+  description = "Create ECR DKR interface endpoint (required for pulling container images from ECR)"
+  type        = bool
+  default     = true
+}
+
+variable "create_sts_endpoint" {
+  description = "Create STS interface endpoint (required for IAM role assumption and IRSA)"
+  type        = bool
+  default     = true
+}
+
+variable "create_logs_endpoint" {
+  description = "Create CloudWatch Logs interface endpoint (required for sending logs to CloudWatch)"
+  type        = bool
+  default     = true
+}
+
+variable "create_monitoring_endpoint" {
+  description = "Create CloudWatch Monitoring interface endpoint (required for sending metrics to CloudWatch)"
+  type        = bool
+  default     = true
+}
+
+variable "create_ssm_endpoint" {
+  description = "Create SSM interface endpoint (recommended for Systems Manager access)"
+  type        = bool
+  default     = true
+}
+
+variable "create_ssmmessages_endpoint" {
+  description = "Create SSM Messages interface endpoint (recommended for Session Manager)"
+  type        = bool
+  default     = true
+}
+
+variable "create_ec2messages_endpoint" {
+  description = "Create EC2 Messages interface endpoint (recommended for SSM Agent communication)"
+  type        = bool
+  default     = true
 }
 
 # Lifecycle Script Module Variables

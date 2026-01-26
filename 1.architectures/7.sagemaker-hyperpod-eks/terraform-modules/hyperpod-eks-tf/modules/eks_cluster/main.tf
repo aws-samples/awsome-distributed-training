@@ -12,8 +12,13 @@ data "aws_availability_zones" "available" {
   }
 }
 
+# Conditionally create new subnets or use existing ones
+locals {
+  eks_subnet_ids = var.create_eks_subnets ? aws_subnet.private[*].id : var.existing_eks_subnet_ids
+}
+
 resource "aws_subnet" "private" {
-  count             = length(var.private_subnet_cidrs)
+  count             = var.create_eks_subnets ? length(var.private_subnet_cidrs) : 0
   vpc_id            = data.aws_vpc.selected.id
   cidr_block        = var.private_subnet_cidrs[count.index]
   availability_zone = data.aws_availability_zones.available.names[count.index]
@@ -26,7 +31,7 @@ resource "aws_subnet" "private" {
 }
 
 resource "aws_route_table" "eks_private" {
-  count  = length(var.private_subnet_cidrs)
+  count  = var.create_eks_subnets ? length(var.private_subnet_cidrs) : 0
   vpc_id = data.aws_vpc.selected.id
 
   tags = {
@@ -35,7 +40,7 @@ resource "aws_route_table" "eks_private" {
 }
 
 resource "aws_route_table_association" "private" {
-  count          = length(aws_subnet.private)
+  count          = var.create_eks_subnets ? length(aws_subnet.private) : 0
   subnet_id      = aws_subnet.private[count.index].id
   route_table_id = aws_route_table.eks_private[count.index].id
 }
@@ -73,9 +78,10 @@ resource "aws_eks_cluster" "cluster" {
   role_arn = aws_iam_role.eks_cluster_role.arn
 
   vpc_config {
-    subnet_ids              = aws_subnet.private[*].id
+    subnet_ids              = local.eks_subnet_ids
     security_group_ids      = [var.security_group_id]
-    endpoint_public_access  = true
+    endpoint_private_access = var.endpoint_private_access
+    endpoint_public_access  = var.endpoint_public_access
   }
 
   access_config {
@@ -93,8 +99,7 @@ resource "aws_eks_cluster" "cluster" {
 
   depends_on = [
     aws_cloudwatch_log_group.eks_cluster,
-    aws_iam_role_policy_attachment.eks_cluster_policy,
-    aws_subnet.private
+    aws_iam_role_policy_attachment.eks_cluster_policy
   ]
 }
 

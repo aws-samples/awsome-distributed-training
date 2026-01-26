@@ -90,23 +90,28 @@ module "security_group" {
   count  = var.create_security_group_module ? 1 : 0
   source = "./modules/security_group"
 
-  resource_name_prefix       = var.resource_name_prefix
-  vpc_id                     = local.vpc_id
-  create_new_sg              = var.create_eks_module
-  existing_security_group_id = var.existing_security_group_id
+  resource_name_prefix            = var.resource_name_prefix
+  vpc_id                          = local.vpc_id
+  create_new_sg                   = var.create_eks_module
+  existing_security_group_id      = var.existing_security_group_id
+  create_vpc_endpoint_ingress_rule = var.create_vpc_endpoint_ingress_rule
 }
 
 module "eks_cluster" {
   count  = var.create_eks_module ? 1 : 0
   source = "./modules/eks_cluster"
 
-  resource_name_prefix = var.resource_name_prefix
-  vpc_id               = local.vpc_id
-  eks_cluster_name     = var.eks_cluster_name
-  kubernetes_version   = var.kubernetes_version
-  security_group_id    = local.security_group_id
-  private_subnet_cidrs = local.eks_private_subnet_cidrs
-  nat_gateway_id       = local.nat_gateway_id
+  resource_name_prefix    = var.resource_name_prefix
+  vpc_id                  = local.vpc_id
+  eks_cluster_name        = var.eks_cluster_name
+  kubernetes_version      = var.kubernetes_version
+  security_group_id       = local.security_group_id
+  create_eks_subnets      = var.create_eks_subnets
+  existing_eks_subnet_ids = var.existing_eks_subnet_ids
+  private_subnet_cidrs    = local.eks_private_subnet_cidrs
+  nat_gateway_id          = local.nat_gateway_id
+  endpoint_private_access = var.eks_endpoint_private_access
+  endpoint_public_access  = var.eks_endpoint_public_access
 }
 
 module "s3_bucket" {
@@ -128,6 +133,18 @@ module "vpc_endpoints" {
   rig_mode                = local.rig_mode
   rig_rft_lambda_access   = var.rig_rft_lambda_access
   rig_rft_sqs_access      = var.rig_rft_sqs_access
+  
+  # Closed Network - VPC Endpoint Configuration
+  create_s3_endpoint          = var.create_s3_endpoint
+  create_ec2_endpoint         = var.create_ec2_endpoint
+  create_ecr_api_endpoint     = var.create_ecr_api_endpoint
+  create_ecr_dkr_endpoint     = var.create_ecr_dkr_endpoint
+  create_sts_endpoint         = var.create_sts_endpoint
+  create_logs_endpoint        = var.create_logs_endpoint
+  create_monitoring_endpoint  = var.create_monitoring_endpoint
+  create_ssm_endpoint         = var.create_ssm_endpoint
+  create_ssmmessages_endpoint = var.create_ssmmessages_endpoint
+  create_ec2messages_endpoint = var.create_ec2messages_endpoint
 
   depends_on = [
     module.private_subnet, 
