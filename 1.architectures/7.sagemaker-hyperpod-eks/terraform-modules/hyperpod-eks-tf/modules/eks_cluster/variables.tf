@@ -26,11 +26,37 @@ variable "security_group_id" {
 }
 
 variable "private_subnet_cidrs" {
-  description = "CIDR blocks for private subnets"
+  description = "CIDR blocks for private subnets (only used if create_eks_subnets is true)"
   type        = list(string)
+  default     = []
 }
 
 variable "nat_gateway_id" {
-  description = "ID of the NAT gateway for the EKS cluster"
+  description = "ID of the NAT gateway for the EKS cluster (only used if create_eks_subnets is true)"
   type        = string
+  default     = ""
+}
+
+variable "create_eks_subnets" {
+  description = "Whether to create new subnets for EKS or use existing ones"
+  type        = bool
+  default     = true
+}
+
+variable "existing_eks_subnet_ids" {
+  description = "List of existing subnet IDs to use for EKS (only used if create_eks_subnets is false)"
+  type        = list(string)
+  default     = []
+}
+
+variable "endpoint_private_access" {
+  description = "Enable private API server endpoint (required for closed networks)"
+  type        = bool
+  default     = true
+}
+
+variable "endpoint_public_access" {
+  description = "Enable public API server endpoint (should be false for closed networks)"
+  type        = bool
+  default     = true
 }

@@ -6,6 +6,11 @@ data "aws_vpc_security_group_rules" "existing" {
   }
 }
 
+# Get VPC CIDR for VPC endpoint ingress rule
+data "aws_vpc" "selected" {
+  id = var.vpc_id
+}
+
 # Get details for each individual rule
 data "aws_vpc_security_group_rule" "rule" {
   for_each = var.create_new_sg ? toset([]) : toset(try(data.aws_vpc_security_group_rules.existing[0].ids, []))
@@ -57,6 +62,17 @@ locals {
          r.rule.from_port == 1018 && 
          r.rule.to_port == 1023 && 
          r.rule.referenced_security_group_id == var.existing_security_group_id
+    ]) > 0
+  )
+  
+  has_vpc_endpoint_https_ingress = var.create_new_sg ? false : (
+    length([
+      for r in local.rules : r
+      if !r.rule.is_egress && 
+         r.rule.ip_protocol == "tcp" && 
+         r.rule.from_port == 443 && 
+         r.rule.to_port == 443 && 
+         r.rule.cidr_ipv4 == data.aws_vpc.selected.cidr_block
     ]) > 0
   )
   
@@ -151,4 +167,16 @@ resource "aws_vpc_security_group_ingress_rule" "fsx_lustre_ingress_1018_1023" {
   ip_protocol                  = "tcp"
   security_group_id            = local.security_group_id
   referenced_security_group_id = local.security_group_id
+}
+
+# VPC Endpoint HTTPS Ingress Rule
+resource "aws_vpc_security_group_ingress_rule" "vpc_endpoint_https" {
+  count = var.create_vpc_endpoint_ingress_rule && (var.create_new_sg || !local.has_vpc_endpoint_https_ingress) ? 1 : 0
+  
+  description       = "Allow HTTPS traffic from VPC CIDR for VPC endpoints"
+  from_port         = 443
+  to_port           = 443
+  ip_protocol       = "tcp"
+  cidr_ipv4         = data.aws_vpc.selected.cidr_block
+  security_group_id = local.security_group_id
 }

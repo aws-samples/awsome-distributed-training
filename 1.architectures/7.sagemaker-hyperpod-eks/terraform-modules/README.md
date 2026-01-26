@@ -85,6 +85,116 @@ instance_groups = [
 EOL
 ```
 ---
+
+### Closed Network Deployment
+
+For air-gapped or closed network environments without internet access:
+
+#### 1. VPC Configuration
+Use existing VPC and subnets:
+```bash
+create_vpc_module            = false # If using existing VPC
+create_private_subnet_module = false # If using existing subnets
+existing_vpc_id              = "vpc-xxxxx"
+existing_private_subnet_ids  = ["subnet-xxxxx", "subnet-yyyyy"]
+```
+
+#### 2. VPC Endpoints (Required)
+Create these interface endpoints in your VPC:
+- **EC2** (critical for AWS CNI)
+- **ECR API** and **ECR DKR**
+- **STS**, **CloudWatch Logs**, **CloudWatch Monitoring**
+- **SSM**, **SSM Messages**, **EC2 Messages**
+- **S3** (gateway endpoint)
+
+Enable endpoints in terraform:
+```bash
+create_ec2_endpoint         = true  # CRITICAL - AWS CNI plugin needs this to assign IPs to pods
+create_ecr_api_endpoint     = true  # Required for ECR authentication
+create_ecr_dkr_endpoint     = true  # Required for pulling container images
+create_sts_endpoint         = true  # Required for IAM role assumption (IRSA)
+create_logs_endpoint        = true  # Required for CloudWatch Logs
+create_monitoring_endpoint  = true  # CloudWatch metrics
+create_ssm_endpoint         = true  # Systems Manager access
+create_ssmmessages_endpoint = true  # Session Manager
+create_ec2messages_endpoint = true  # SSM Agent communication
+create_vpc_endpoint_ingress_rule = true  # Adds HTTPS from VPC CIDR
+```
+
+Or reuse existing endpoints:
+```bash
+create_<endpoint-type>_endpoint = false
+existing_private_route_table_ids = ["rtb-xxxxx"]
+```
+
+You can verify connectivity to service endpoints with:
+```bash
+python3 tools/verify-aws-connectivity.py
+```
+
+#### 3. EKS API Endpoint Access
+Enable private access for nodes in private subnets:
+```bash
+eks_endpoint_private_access = true
+eks_endpoint_public_access  = true # Can change to false after cluster deployment
+```
+
+#### 4. EKS Subnets
+Use existing subnets for EKS control plane:
+```bash
+create_eks_subnets      = false
+existing_eks_subnet_ids = ["subnet-xxxxx", "subnet-yyyyy"]
+```
+
+#### 5. Helm Chart Images
+Copy container images to your ECR and update helm chart:
+
+```bash
+# Review required images
+cat tools/ecr-images.conf
+
+# Get AWS Account ID and Region
+export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+export AWS_REGION=$(aws configure get region)  # Your region
+
+echo "Account ID: $AWS_ACCOUNT_ID"
+echo "Region: $AWS_REGION"
+
+# Optional: Preview ECR repositories that will be created
+./tools/list-ecr-repos.sh $AWS_REGION $AWS_ACCOUNT_ID
+
+# Copy images to ECR
+./tools/copy-images-to-ecr.sh $AWS_REGION $AWS_ACCOUNT_ID
+
+# Clone helm chart repo
+git clone https://github.com/aws/sagemaker-hyperpod-cli.git sagemaker-hyperpod-cli
+
+# Update images with your ECR account
+python3 tools/update-values-with-ecr.py $AWS_REGION $AWS_ACCOUNT_ID
+
+# Commit changes
+cd sagemaker-hyperpod-cli
+git add -A && git commit -m "Update ECR images"
+git rev-parse HEAD  # Copy this commit hash
+
+# Copy to /tmp for Terraform
+cd ..
+cp -r sagemaker-hyperpod-cli /tmp/helm-repo
+```
+
+Update `terraform.tfvars`:
+```bash
+helm_repo_revision = "<commit-hash-from-above>"
+```
+
+Now you can run:
+```bash
+terraform init
+terraform plan
+terraform apply
+```
+
+---
 ### Enabling Optional Addons 
 Set the following parameters to `true` in your `custom.tfvars` file to enable optional addons for your HyperPod cluster (e.g. `create_task_governance_module = true`):
 | Parameter | Usage |
