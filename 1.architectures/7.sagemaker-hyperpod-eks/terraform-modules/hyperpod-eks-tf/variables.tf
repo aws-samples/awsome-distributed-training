@@ -48,16 +48,10 @@ variable "create_private_subnet_module" {
   default     = true
 }
 
-variable "availability_zone_id" {
-  description = "The Availability Zone Id for private subnet"
-  type        = string
-  default     = "usw2-az2"
-}
-
-variable "private_subnet_cidr" {
-  description = "The IP range (CIDR notation) for the private subnet"
-  type        = string
-  default     = "10.1.0.0/16"
+variable "private_subnet_cidrs" {
+  description = "List of CIDR blocks for HyperPod private subnets (up to 5 AZs)"
+  type        = list(string)
+  default     = ["10.1.0.0/16", "10.2.0.0/16", "10.3.0.0/16", "10.4.0.0/16"]
 }
 
 variable "existing_nat_gateway_id" {
@@ -66,10 +60,10 @@ variable "existing_nat_gateway_id" {
   default     = ""
 }
 
-variable "existing_private_subnet_id" {
-  description = "The ID of an existing private subnet"
-  type        = string
-  default     = ""
+variable "existing_private_subnet_ids" {
+  description = "List of existing private subnet IDs"
+  type        = list(string)
+  default     = []
 }
 
 # Security Group Module Variables
@@ -95,7 +89,7 @@ variable "create_eks_module" {
 variable "kubernetes_version" {
   description = "The Kubernetes version to use for the EKS cluster"
   type        = string
-  default     = "1.32"
+  default     = "1.33"
 }
 
 variable "eks_cluster_name" {
@@ -142,10 +136,10 @@ variable "create_vpc_endpoints_module" {
   default     = true
 }
 
-variable "existing_private_route_table_id" {
-  description = "The ID of an existing private route table"
-  type        = string
-  default     = ""
+variable "existing_private_route_table_ids" {
+  description = "List of existing private route table IDs"
+  type        = list(string)
+  default     = []
 }
 
 # Lifecycle Script Module Variables
@@ -211,10 +205,10 @@ variable "helm_repo_path" {
   default     = "helm_chart/HyperPodHelmChart"
 }
 
-variable "namespace" {
-  description = "The Kubernetes namespace"
+variable "helm_repo_path_hpio" {
+  description = "The path to the HyperPod Inference Operator Helm chart"
   type        = string
-  default     = "kube-system"
+  default     = "helm_chart/HyperPodHelmChart/charts/inference-operator"
 }
 
 variable "helm_release_name" {
@@ -223,16 +217,36 @@ variable "helm_release_name" {
   default     = "hyperpod-dependencies"
 }
 
+variable "helm_release_name_hpio" {
+  description = "The name of the Helm release for the HyperPod Inference Operator"
+  type        = string
+  default     = "hyperpod-inference-operator"
+}
+
+# Check GITHUB_REPO_REVISION here: https://github.com/aws/sagemaker-hyperpod-cluster-setup/blob/main/eks/cloudformation/helm-chart-template.yaml
 variable "helm_repo_revision" {
   description = "Git revision for normal mode"
   type        = string
-  default     = "c00832cd40698943b61e53802114658a61ba45f4"
+  default     = "0e32919013e957dc9bd2051bca645a4d60df9e8e"
 }
 
 variable "helm_repo_revision_rig" {
   description = "Git revision for RIG mode"
   type        = string
   default     = "c5275ddbbca58164d1f5bd3a2811e0fc952f7ff4"
+}
+
+# Check HYPERPOD_CLI_GITHUB_REPO_REVISION here: https://github.com/aws/sagemaker-hyperpod-cluster-setup/blob/main/eks/cloudformation/inf-helm-chart-template.yaml
+variable "helm_repo_revision_hpio" {
+  description = "Git revision for the HyperPod Inference Operator"
+  type        = string
+  default     = "170bf1598143946f2d0023bb13d0f1f6195d26ed"
+}
+
+variable "namespace" {
+  description = "The Kubernetes namespace"
+  type        = string
+  default     = "kube-system"
 }
 
 variable "enable_gpu_operator" {
@@ -346,8 +360,9 @@ variable "karpenter_autoscaling" {
 }
 
 variable "instance_groups" {
-  description = "Map of instance group configurations"
-  type = map(object({
+  description = "List of instance group configurations"
+  type = list(object({
+    name                      = string
     instance_type             = string
     instance_count            = number
     ebs_volume_size_in_gb     = number
@@ -355,15 +370,17 @@ variable "instance_groups" {
     enable_stress_check       = bool
     enable_connectivity_check = bool
     lifecycle_script          = string
+    availability_zone_id      = string
     image_id                  = optional(string)
     training_plan_arn         = optional(string)
   }))
-  default = {}
+  default = []
 }
 
 variable "restricted_instance_groups" {
-  description = "Map of restricted instance group configurations"
-  type = map(object({
+  description = "List of restricted instance group configurations"
+  type = list(object({
+    name                             = string
     instance_type                    = string
     instance_count                   = number
     ebs_volume_size_in_gb            = number
@@ -372,7 +389,212 @@ variable "restricted_instance_groups" {
     enable_connectivity_check        = bool
     fsxl_per_unit_storage_throughput = number
     fsxl_size_in_gi_b                = number
+    availability_zone_id             = string
     training_plan_arn                = optional(string)
   }))
-  default = {}
+  default = []
+}
+
+# FSx for Lustre Module Variables
+variable "create_fsx_module" {
+  description = "Whether to create FSx for Lustre module"
+  type        = bool
+  default     = true
+}
+
+variable "create_new_fsx_filesystem" {
+  description = "Whether to create a new FSx filesystem via dynamic provisioning"
+  type        = bool
+  default     = false
+}
+
+variable "fsx_storage_capacity" {
+  description = "Storage capacity for FSx filesystem in GiB"
+  type        = number
+  default     = 1200
+}
+
+variable "fsx_throughput" {
+  description = "Per unit storage throughput for FSx filesystem"
+  type        = number
+  default     = 250
+}
+
+variable "fsx_data_compression_type" {
+  description = "Data compression type for FSx filesystem"
+  type        = string
+  default     = "LZ4"
+  validation {
+    condition     = contains(["NONE", "LZ4"], var.fsx_data_compression_type)
+    error_message = "Data compression type must be NONE or LZ4."
+  }
+}
+
+variable "fsx_file_system_type_version" {
+  description = "File system type version for FSx filesystem"
+  type        = string
+  default     = "2.15"
+}
+
+variable "create_fsx_pvc_namespace" {
+  description = "Create the namespace for FSx PVC (set to false if namespace already exists)"
+  type        = bool
+  default     = true
+}
+
+variable "fsx_pvc_namespace" {
+  description = "Namespace for FSx PVC"
+  type        = string
+  default     = "default"
+}
+
+
+# Observability Module Variables
+variable "create_observability_module" {
+  description = "Whether to create observability module"
+  type        = bool
+  default     = false
+}
+
+# AMP variables
+variable "create_prometheus_workspace" {
+  description = "Specify whether to create a new Amazon Managed Service for Prometheus (AMP) workspace"
+  type        = bool
+  default     = true
+}
+
+variable "existing_prometheus_workspace_id" {
+  description = "The ID of the existing Amazon Managed Service for Prometheus (AMP) workspace"
+  type        = string
+  default     = ""
+}
+
+variable "prometheus_workspace_name" {
+  description = "(Optional) Name of the new Amazon Managed Service for Prometheus (AMP) workspace"
+  type        = string
+  default     = ""
+}
+
+# AMG variables
+variable "create_grafana_workspace" {
+  description = "Specify whether to create a new Amazon Managed Grafana (AMG) workspace"
+  type        = bool
+  default     = true
+}
+
+variable "existing_grafana_workspace_id" {
+  description = "The ID of the existing Amazon Managed Grafana (AMG) workspace"
+  type        = string
+  default     = ""
+}
+
+variable "grafana_workspace_name" {
+  description = "(Optional) Name of the new Amazon Managed Grafana (AMG) workspace"
+  type        = string
+  default     = ""
+}
+
+# Metrics levels
+variable "training_metric_level" {
+  description = "Level of training metrics"
+  type        = string
+  default     = "BASIC"
+  validation {
+    condition = contains(["BASIC", "ADVANCED"], var.training_metric_level)
+    error_message = "Training metric level must be one of: BASIC, ADVANCED."
+  }
+}
+
+variable "task_governance_metric_level" {
+  description = "Level of task governance metrics"
+  type        = string
+  default     = "DISABLED"
+  validation {
+    condition = contains(["DISABLED", "ADVANCED"], var.task_governance_metric_level)
+    error_message = "Task governance metric level must be one of: DISABLED, ADVANCED."
+  }
+}
+
+variable "scaling_metric_level" {
+  description = "Level of scaling metrics"
+  type        = string
+  default     = "DISABLED"
+  validation {
+    condition = contains(["DISABLED", "ADVANCED"], var.scaling_metric_level)
+    error_message = "Scaling metric level must be one of: DISABLED, ADVANCED."
+  }
+}
+
+variable "cluster_metric_level" {
+  description = "Level of cluster metrics"
+  type        = string
+  default     = "BASIC"
+  validation {
+    condition = contains(["BASIC", "ADVANCED"], var.cluster_metric_level)
+    error_message = "Cluster metric level must be one of: BASIC, ADVANCED."
+  }
+}
+
+variable "node_metric_level" {
+  description = "Level of node metrics"
+  type        = string
+  default     = "BASIC"
+  validation {
+    condition = contains(["BASIC", "ADVANCED"], var.node_metric_level)
+    error_message = "Node metric level must be one of: BASIC, ADVANCED."
+  }
+}
+
+variable "network_metric_level" {
+  description = "Level of network metrics"
+  type        = string
+  default     = "DISABLED"
+  validation {
+    condition = contains(["DISABLED", "ADVANCED"], var.network_metric_level)
+    error_message = "Network metric level must be one of: DISABLED, ADVANCED."
+  }
+}
+
+variable "accelerated_compute_metric_level" {
+  description = "Level of accelerated compute metrics"
+  type        = string
+  default     = "BASIC"
+  validation {
+    condition = contains(["BASIC", "ADVANCED"], var.accelerated_compute_metric_level)
+    error_message = "Accelerated compute metric level must be one of: BASIC, ADVANCED."
+  }
+}
+
+variable "logging_enabled" {
+  description = "Enable logging"
+  type        = bool
+  default     = false
+}
+
+# HyperPod Task Governance
+variable "create_task_governance_module" {
+  description = "Whether to enable Task Governance"
+  type        = bool
+  default     = false
+}
+
+# HyperPod Training Operator
+variable "create_hyperpod_training_operator_module" {
+  description = "Whether to enable HyperPod Training Operator"
+  type        = bool
+  default     = false
+}
+
+# HyperPod Inference Operator
+variable "create_hyperpod_inference_operator_module" {
+  description = "Whether to create HyperPod Inference Operator module"
+  type        = bool
+  default     = false
+}
+
+# GuardDuty VPC endpoint cleanup
+variable "enable_guardduty_cleanup" {
+  description = "Enable automatic cleanup of GuardDuty VPC endpoints during destroy"
+  type        = bool
+  default     = false
 }
