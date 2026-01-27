@@ -2,8 +2,8 @@
 export AWS_REGION=$(aws ec2 describe-availability-zones --output text --query 'AvailabilityZones[0].[RegionName]')
 export ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
 export REGISTRY=${ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com/
-export IMAGE=rlvr
-export TAG=ngc-th2.6.0-cu126-vllm0.8.4-flashinfer0.2.2-cxx11abi0
+export IMAGE=verl-aws
+export TAG=vllm011.latest
 
 # Cluster Details
 export EKS_CLUSTER_NAME="<your-eks-cluster-name>"
@@ -11,18 +11,16 @@ export INSTANCE_TYPE="<your GPU instance type>" # Example: "p5en.48xlarge"
 export NUM_NODES=4                    # Single source of truth for number of nodes
 export NUM_GPU_PER_NODE=8
 export NUM_EFA_PER_NODE=16
-export PRIVATE_SUBNET_ID="subnet-xxxxxxxxxxxxxxxxx"
-export SECURITY_GROUP_ID="sg-xxxxxxxxxxxxxxxxx"
 
 
 # Ray configs
 export MODEL_NAME="Qwen3-8B"
-export MODEL_PATH="Qwen/Qwen3-8B" # Set this to load model from HuggingFace
+export MODEL_PATH="/Qwen/Qwen3-VL-235B-A22B-Instruct" # Set this to load model from HuggingFace
 export RAY_DATA_HOME="/fsx/verl" # Shared storage path for checkpoints and data
 export VERL_HOME="fsx/verl"
 export RAY_DASHBOARD_PORT=8265 # Local port for Ray dashboard (forwarded from cluster)
-export RAY_ADDRESS="http://localhost:${RAY_DASHBOARD_PORT}"
-export WORKING_DIR="$(pwd)/verl"
+export RAY_ADDRESS="ray://rayml-efa-head-svc.default.svc.cluster.local:10001"
+export WORKING_DIR="/workspace/verl"
 
 # Job Env Vars (using NUM_NODES for consistency)
 export HF_TOKEN=<your-huggingface-token>

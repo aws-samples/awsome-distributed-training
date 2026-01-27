@@ -70,9 +70,15 @@ Build a Docker image with verl, EFA networking support, and push to ECR:
 ./setup/build-push.sh
 ```
 
-Deploy the Ray cluster with head and worker pods configured for distributed training:
+Generate kustomization.yaml from your environment variables and deploy the Ray cluster:
 ```bash
-envsubst < setup/raycluster.yaml | kubectl apply -f -
+./setup/generate-kustomization.sh
+kubectl apply -k setup/
+```
+
+Alternatively, you can combine both steps:
+```bash
+./setup/generate-kustomization.sh && kubectl apply -k setup/
 ```
 
 > **Note**: Considerations before applying raycluster.yaml
