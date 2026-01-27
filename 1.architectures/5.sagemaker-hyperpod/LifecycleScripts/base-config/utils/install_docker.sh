@@ -73,8 +73,7 @@ EOL
     if [[ ! -f /etc/containerd/config.toml ]]; then
         containerd config default | sudo tee /etc/containerd/config.toml >/dev/null
     fi
-    sudo sed -i \
-        -e 's|^#\\?root *=.*|root = "/opt/sagemaker/docker/containerd"|' \
+    sudo sed -i -e 's|^#\?root *=.*|root = "/opt/sagemaker/containerd/data-root"|' \
         /etc/containerd/config.toml
 elif [[ $(mount | grep /opt/dlami/nvme) ]]; then
     cat <<EOL >> /etc/docker/daemon.json
