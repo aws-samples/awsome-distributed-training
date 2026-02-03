@@ -1,4 +1,4 @@
-resource_name_prefix = "sagemaker-hyperpod-eks"
+resource_name_prefix = "sagemaker-hyperpod-eks-opentest"
 aws_region           = "us-west-2"
 
 # VPC Module Variables
@@ -22,9 +22,17 @@ existing_security_group_id   = ""
 create_eks_module            = true
 kubernetes_version           = "1.33"
 eks_cluster_name             = "sagemaker-hyperpod-eks-cluster"
+existing_eks_cluster_name    = ""
+
+# EKS Subnet Configuration
+# Option 1: Create new subnets for EKS (default)
+create_eks_subnets           = true
 eks_private_subnet_1_cidr    = "10.192.7.0/28"
 eks_private_subnet_2_cidr    = "10.192.8.0/28"
-existing_eks_cluster_name    = ""
+
+# Option 2: Use existing subnets for EKS (uncomment and set create_eks_subnets = false)
+# create_eks_subnets           = false
+# existing_eks_subnet_ids      = ["", ""]
 
 # S3 Bucket Module Variables
 create_s3_bucket_module = true
@@ -57,13 +65,13 @@ continuous_provisioning_mode = true
 instance_groups = [
   {
     name                      = "instance-group-1"
-    instance_type             = "ml.g5.8xlarge"
-    instance_count            = 8
+    instance_type             = "ml.m5.12xlarge"
+    instance_count            = 1
     availability_zone_id      = "usw2-az2"
     ebs_volume_size_in_gb     = 100
     threads_per_core          = 2
-    enable_stress_check       = true
-    enable_connectivity_check = true
+    enable_stress_check       = false
+    enable_connectivity_check = false
     lifecycle_script          = "on_create.sh"
   }
 ]

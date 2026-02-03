@@ -15,8 +15,14 @@ variable "private_subnet_cidrs" {
 }
 
 variable "nat_gateway_id" {
-  description = "The Id of a NAT Gateway to route internet bound traffic"
+  description = "The Id of a NAT Gateway to route internet bound traffic (ignored if closed_network is true)"
   type        = string
+}
+
+variable "closed_network" {
+  description = "Whether to deploy in closed network mode (no NAT gateway routes)"
+  type        = bool
+  default     = false
 }
 
 variable "tags" {

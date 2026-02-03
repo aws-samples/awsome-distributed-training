@@ -15,6 +15,107 @@ cd awsome-distributed-training/1.architectures/7.sagemaker-hyperpod-eks/terrafor
 
 ---
 
+## Deployment 
+First, clone the [HyperPod Helm charts GitHub repository](https://github.com/aws/sagemaker-hyperpod-cli/tree/main/helm_chart) to locally stage the dependencies Helm chart.  
+```bash
+git clone https://github.com/aws/sagemaker-hyperpod-cli.git /tmp/helm-repo
+```
+Run `terraform init` to initialize the Terraform working directory, install necessary provider plugins, download modules, set up state storage, and configure the backend for managing infrastructure state: 
+
+```bash 
+terraform init
+```
+Run `terraform plan` to generate and display an execution plan that outlines the changes Terraform will make to your infrastructure, allowing you to review and validate the proposed updates before applying them.
+
+```bash 
+terraform plan
+```
+If you created a `custom.tfvars` file, plan using the `-var-file` flag: 
+```bash 
+terraform plan -var-file=custom.tfvars
+```
+Or for RIG deployments:
+```bash
+terraform plan -var-file=rig_custom.tfvars
+```
+Run `terraform apply` to execute the proposed changes outlined in the Terraform plan, creating, updating, or deleting infrastructure resources according to your configuration, and updating the state to reflect the new infrastructure setup.
+
+```bash 
+terraform apply 
+```
+If you created a `custom.tfvars` file, apply using the `-var-file` flag: 
+```bash
+terraform apply  -var-file=custom.tfvars
+```
+Or for RIG deployments: 
+```bash
+terraform apply -var-file=rig_custom.tfvars
+```
+When prompted to confirm, type `yes` and press enter.
+
+You can also run `terraform apply` with the `-auto-approve` flag to avoid being prompted for confirmation, but use with caution to avoid unintended changes to your infrastructure. 
+
+---
+
+## Environment Variables
+Run the `terraform_outputs.sh` script, which populates the `env_vars.sh` script with your environment variables for future reference: 
+```bash 
+cd ..
+chmod +x terraform_outputs.sh
+./terraform_outputs.sh
+cat env_vars.sh 
+```
+Source the `env_vars.sh` script to set your environment variables: 
+```bash 
+source env_vars.sh
+```
+Verify that your environment variables are set: 
+```bash
+echo $EKS_CLUSTER_NAME
+echo $PRIVATE_SUBNET_ID
+echo $SECURITY_GROUP_ID
+```
+
+---
+
+## Clean Up
+
+Before cleaning up, validate the changes by running a speculative destroy plan: 
+
+```bash
+cd hyperpod-eks-tf
+terraform plan -destroy
+```
+
+Before destroying resources, list state to exclude any resources you wish to retain from deletion:
+```bash
+terraform state list
+terraform state rm < resource_to_preserve >
+```
+
+If you created a `custom.tfvars` file, plan using the `-var-file` flag: 
+```bash
+terraform plan -destroy -var-file=custom.tfvars
+```
+Or for RIG deployments:
+```bash
+terraform plan -destroy -var-file=rig_custom.tfvars
+```
+Once you've validated the changes, you can proceed to destroy the resources: 
+```bash 
+terraform destroy
+```
+If you created a `custom.tfvars` file, destroy using the `-var-file` flag: 
+```bash
+terraform destroy -var-file=custom.tfvars
+```
+Or for RIG deployments: 
+```bash
+terraform destroy -var-file=rig_custom.tfvars
+```
+
+---
+
 ## Customize Deployment Configuration
 Start by reviewing the default configurations in the `terraform.tfvars` file and make modifications to customize your deployment as needed.
 
@@ -84,6 +185,235 @@ instance_groups = [
 ]
 EOL
 ```
+---
+
+### Closed Network Deployment
+
+For air-gapped or closed network environments without internet access:
+
+#### Prerequisites: Copy Images to ECR and Prepare Helm Chart
+
+**BEFORE running Terraform**, copy container images to your private ECR and update the Helm chart:
+
+```bash
+# Navigate to the terraform modules directory
+cd awsome-distributed-training/1.architectures/7.sagemaker-hyperpod-eks/terraform-modules/hyperpod-eks-tf
+
+# 1. Set your AWS account and region
+export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+export AWS_REGION=$(aws configure get region)  # Or set explicitly: export AWS_REGION="us-west-2"
+
+echo "Account ID: $AWS_ACCOUNT_ID"
+echo "Region: $AWS_REGION"
+
+# 2. Copy container images to your private ECR
+# This copies all required images from public registries (NVIDIA, Kubeflow, etc.) to your ECR
+cd tools
+./copy-images-to-ecr.sh $AWS_REGION $AWS_ACCOUNT_ID
+cd ..
+
+# 3. Clone sagemaker-hyperpod-cli (if not already done)
+git clone https://github.com/aws/sagemaker-hyperpod-cli.git
+
+# 4. Update Helm chart to reference your private ECR images
+# IMPORTANT: Run from hyperpod-eks-tf directory so script finds tools/ecr-images.conf
+python3 tools/update-values-with-ecr.py $AWS_REGION $AWS_ACCOUNT_ID
+
+# 5. Commit changes locally
+cd sagemaker-hyperpod-cli
+git add -A && git commit -m "Update to private ECR images"
+
+# 6. Get commit hash for terraform.tfvars
+git rev-parse HEAD
+# Copy this hash - you'll use it in helm_repo_revision variable
+
+# 7. Copy entire git repo to /tmp/helm-repo for Terraform
+# IMPORTANT: Copy the entire repo (with .git) so Terraform can checkout the commit
+cd ..
+rm -rf /tmp/helm-repo  # Remove if exists
+cp -r sagemaker-hyperpod-cli /tmp/helm-repo
+```
+
+**What these steps do:**
+- **Step 2**: Copies images from public registries to your private ECR (creates ECR repos automatically)
+- **Step 4**: Updates Helm chart `values.yaml` to use your ECR instead of public registries
+- **Step 7**: Stages the updated Helm chart where Terraform expects it
+
+**Important**: All commands should be run from the `hyperpod-eks-tf` directory so the scripts can find the configuration files.
+
+#### Deployment Configuration
+
+The `closed-network.tfvars` file provides a complete example for deploying in a closed network environment.
+
+**Option 1: Create New Closed Network VPC**
+
+Use the provided example as-is to create a brand new closed network:
+```bash
+terraform plan -var-file=closed-network.tfvars
+terraform apply -var-file=closed-network.tfvars
+```
+
+**Option 2: Use Existing Resources**
+
+To use existing VPC, subnets, or other resources, modify `closed-network.tfvars`:
+
+```hcl
+# Use existing VPC instead of creating new one
+create_vpc_module = false
+existing_vpc_id   = "vpc-xxxxx"
+
+# Use existing private subnets
+create_private_subnet_module = false
+existing_private_subnet_ids  = ["subnet-xxxxx", "subnet-yyyyy", "subnet-zzzzz"]
+
+# Use existing security group
+create_security_group_module = false
+existing_security_group_id   = "sg-xxxxx"
+
+# Use existing EKS cluster
+create_eks_module         = false
+existing_eks_cluster_name = "my-existing-cluster"
+
+# Use existing S3 bucket
+create_s3_bucket_module = false
+existing_s3_bucket_name = "my-existing-bucket"
+
+# Reuse existing VPC endpoints (if VPC already has them)
+create_vpc_endpoints_module      = false
+existing_private_route_table_ids = ["rtb-xxxxx"]
+```
+
+**IMPORTANT: When Reusing VPC Endpoints with a New Security Group**
+
+If you're creating a new security group (`create_security_group_module = true`) but reusing existing VPC endpoints (`create_vpc_endpoints_module = false`), the deployment will fail because pods can't access the VPC endpoints. Follow this workflow:
+
+**Step 1: Initial deployment (will fail)**
+```bash
+terraform apply -var-file=your-config.tfvars
+```
+
+The deployment will fail with this error after ~5 minutes:
+```
+Error: local-exec provisioner error
+  with module.hyperpod_cluster[0].null_resource.wait_for_hyperpod_nodes[0],
+  on modules/hyperpod_cluster/main.tf line 133, in resource "null_resource" "wait_for_hyperpod_nodes":
+  
+Error running command: exit status 1. Output:
+Waiting for EKS Pod Identity Agent to be ready...
+error: timed out waiting for the condition on pods/eks-pod-identity-agent-xxxxx
+```
+
+This is expected! The security group was created but pods can't reach VPC endpoints yet.
+
+**Step 2: Add new security group to VPC endpoints**
+```bash
+# Get your new security group ID from the partial deployment
+NEW_SG_ID=$(terraform output -raw security_group_id)
+VPC_ID=$(terraform output -raw vpc_id)  
+REGION=$(terraform output -raw aws_region)  
+
+# Get all interface VPC endpoint IDs
+ENDPOINT_IDS=$(aws ec2 describe-vpc-endpoints \
+  --filters "Name=vpc-id,Values=$VPC_ID" "Name=vpc-endpoint-type,Values=Interface" \
+  --query 'VpcEndpoints[].VpcEndpointId' \
+  --output text --region $REGION)
+
+# Add new security group to each VPC endpoint (convert tabs to newlines for proper iteration)
+echo "$ENDPOINT_IDS" | tr '\t' '\n' | while read VPCE_ID; do
+  if [ -n "$VPCE_ID" ]; then
+    echo "Adding security group to $VPCE_ID..."
+    aws ec2 modify-vpc-endpoint \
+      --vpc-endpoint-id $VPCE_ID \
+      --add-security-group-ids $NEW_SG_ID \
+      --region $REGION
+  fi
+done
+
+echo "All VPC endpoints updated!"
+```
+
+**Step 3: Delete failing pods and complete deployment**
+```bash
+# Delete pods that failed to pull images
+kubectl delete pods -n kube-system -l app.kubernetes.io/name=eks-pod-identity-agent
+
+# Complete the deployment
+terraform apply -var-file=your-config.tfvars
+```
+
+**Alternative: Reuse existing security group** to avoid this issue entirely:
+```hcl
+create_security_group_module = false
+existing_security_group_id   = "sg-xxxxx"  # Same SG used by VPC endpoints
+```
+
+**Note on Cleanup:** When destroying resources, the security group deletion may take 5-10 minutes because AWS automatically detaches it from all VPC endpoints. This is normal. If the destroy times out or gets stuck, you may need to manually remove the security group from VPC endpoints before retrying:
+```bash
+# Set your values
+NEW_SG_ID="sg-029efc6343bdb7d05"  
+VPC_ID="vpc-09ab7b104c4c92266"    
+REGION="us-west-2"    
+
+# Get all interface VPC endpoint IDs
+ENDPOINT_IDS=$(aws ec2 describe-vpc-endpoints \
+  --filters "Name=vpc-id,Values=$VPC_ID" "Name=vpc-endpoint-type,Values=Interface" \
+  --query 'VpcEndpoints[].VpcEndpointId' \
+  --output text --region $REGION)
+
+# Remove security group from each endpoint
+echo "$ENDPOINT_IDS" | tr '\t' '\n' | while read VPCE_ID; do
+  if [ -n "$VPCE_ID" ]; then
+    echo "Removing security group from $VPCE_ID..."
+    aws ec2 modify-vpc-endpoint \
+      --vpc-endpoint-id $VPCE_ID \
+      --remove-security-group-ids $NEW_SG_ID \
+      --region $REGION
+  fi
+done
+```
+
+**Key Configuration Details:**
+
+**VPC Endpoints (Required for Closed Networks):**
+- **S3** (Gateway) - Free - Container images and data access
+- **EC2** (Interface) - CRITICAL - AWS CNI plugin needs this to assign IPs to pods
+- **ECR API/DKR** (Interface) - Pull container images from ECR
+- **STS** (Interface) - IAM role assumption (IRSA)
+- **EKS Auth** (Interface) - CRITICAL - EKS Pod Identity authentication
+- **CloudWatch Logs/Monitoring** (Interface) - Observability
+- **SSM/SSM Messages/EC2 Messages** (Interface) - Systems Manager access
+
+**EKS API Access:**
+```hcl
+eks_endpoint_private_access = true   # Required for nodes to join
+eks_endpoint_public_access  = true   # Disable after deployment for full isolation
+```
+
+#### Deployment Steps
+
+Once prerequisites are complete and your Helm chart is prepared:
+
+```bash
+# Navigate to terraform directory
+cd awsome-distributed-training/1.architectures/7.sagemaker-hyperpod-eks/terraform-modules/hyperpod-eks-tf
+
+# Initialize Terraform
+terraform init
+
+# Plan deployment (review changes)
+terraform plan -var-file=closed-network.tfvars
+
+# Apply deployment
+terraform apply -var-file=closed-network.tfvars
+```
+
+#### Verification
+
+After deployment, verify connectivity to AWS services:
+```bash
+python3 tools/verify-aws-connectivity.py
+```
+
 ---
 ### Enabling Optional Addons 
 Set the following parameters to `true` in your `custom.tfvars` file to enable optional addons for your HyperPod cluster (e.g. `create_task_governance_module = true`):
@@ -185,101 +515,4 @@ Once you have your `rig_custom.tfvars` file is created, you can proceed to deplo
 
 ---
 
-## Deployment 
-First, clone the [HyperPod Helm charts GitHub repository](https://github.com/aws/sagemaker-hyperpod-cli/tree/main/helm_chart) to locally stage the dependencies Helm chart.  
-```bash
-git clone https://github.com/aws/sagemaker-hyperpod-cli.git /tmp/helm-repo
-```
-Run `terraform init` to initialize the Terraform working directory, install necessary provider plugins, download modules, set up state storage, and configure the backend for managing infrastructure state: 
 
-```bash 
-terraform init
-```
-Run `terraform plan` to generate and display an execution plan that outlines the changes Terraform will make to your infrastructure, allowing you to review and validate the proposed updates before applying them.
-
-```bash 
-terraform plan
-```
-If you created a `custom.tfvars` file, plan using the `-var-file` flag: 
-```bash 
-terraform plan -var-file=custom.tfvars
-```
-Or for RIG deployments:
-```bash
-terraform plan -var-file=rig_custom.tfvars
-```
-Run `terraform apply` to execute the proposed changes outlined in the Terraform plan, creating, updating, or deleting infrastructure resources according to your configuration, and updating the state to reflect the new infrastructure setup.
-
-```bash 
-terraform apply 
-```
-If you created a `custom.tfvars` file, apply using the `-var-file` flag: 
-```bash
-terraform apply  -var-file=custom.tfvars
-```
-Or for RIG deployments: 
-```bash
-terraform apply -var-file=rig_custom.tfvars
-```
-When prompted to confirm, type `yes` and press enter.
-
-You can also run `terraform apply` with the `-auto-approve` flag to avoid being prompted for confirmation, but use with caution to avoid unintended changes to your infrastructure. 
-
----
-
-## Environment Variables
-Run the `terraform_outputs.sh` script, which populates the `env_vars.sh` script with your environment variables for future reference: 
-```bash 
-cd ..
-chmod +x terraform_outputs.sh
-./terraform_outputs.sh
-cat env_vars.sh 
-```
-Source the `env_vars.sh` script to set your environment variables: 
-```bash 
-source env_vars.sh
-```
-Verify that your environment variables are set: 
-```bash
-echo $EKS_CLUSTER_NAME
-echo $PRIVATE_SUBNET_ID
-echo $SECURITY_GROUP_ID
-```
-
----
-
-## Clean Up
-
-Before cleaning up, validate the changes by running a speculative destroy plan: 
-
-```bash
-cd hyperpod-eks-tf
-terraform plan -destroy
-```
-
-Before destroying resources, list state to exclude any resources you wish to retain from deletion:
-```bash
-terraform state list
-terraform state rm < resource_to_preserve >
-```
-
-If you created a `custom.tfvars` file, plan using the `-var-file` flag: 
-```bash
-terraform plan -destroy -var-file=custom.tfvars
-```
-Or for RIG deployments:
-```bash
-terraform plan -destroy -var-file=rig_custom.tfvars
-```
-Once you've validated the changes, you can proceed to destroy the resources: 
-```bash 
-terraform destroy
-```
-If you created a `custom.tfvars` file, destroy using the `-var-file` flag: 
-```bash
-terraform destroy -var-file=custom.tfvars
-```
-Or for RIG deployments: 
-```bash
-terraform destroy -var-file=rig_custom.tfvars
-```
