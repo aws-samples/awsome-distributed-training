@@ -163,6 +163,23 @@ resource "aws_vpc_endpoint" "ec2messages" {
   }
 }
 
+# EKS Auth Endpoint - Required for EKS Pod Identity
+resource "aws_vpc_endpoint" "eks_auth" {
+  count = var.create_eks_auth_endpoint ? 1 : 0
+
+  vpc_id              = var.vpc_id
+  service_name        = "com.amazonaws.${data.aws_region.current.region}.eks-auth"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = var.private_subnet_ids
+  security_group_ids  = [var.security_group_id]
+  private_dns_enabled = true
+  
+  tags = {
+    Name = "${var.resource_name_prefix}-eks-auth-vpc-endpoint"
+    Description = "CRITICAL for EKS Pod Identity authentication"
+  }
+}
+
 # RIG Mode Endpoints (conditional)
 resource "aws_vpc_endpoint" "lambda" {
   count = var.rig_mode && var.rig_rft_lambda_access ? 1 : 0

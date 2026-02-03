@@ -13,11 +13,11 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 
-try:
-    from ruamel.yaml import YAML
-except ImportError:
-    print("Error: ruamel.yaml is required. Install with: pip install ruamel.yaml")
-    sys.exit(1)
+# try:
+#     from ruamel.yaml import YAML
+# except ImportError:
+#     print("Error: ruamel.yaml is required. Install with: pip install ruamel.yaml")
+#     sys.exit(1)
 
 # Colors for output
 class Colors:

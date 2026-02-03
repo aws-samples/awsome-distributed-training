@@ -17,6 +17,12 @@ variable "create_vpc_module" {
   default     = true
 }
 
+variable "closed_network" {
+  description = "Whether to deploy in closed network mode (no internet gateway, NAT gateway, or public subnets)"
+  type        = bool
+  default     = false
+}
+
 variable "vpc_cidr" {
   description = "The IP range (CIDR notation) for the VPC"
   type        = string
@@ -181,57 +187,63 @@ variable "eks_endpoint_public_access" {
 }
 
 variable "create_ec2_endpoint" {
-  description = "Create EC2 interface endpoint (CRITICAL - required for AWS CNI plugin to assign IPs to pods)"
+  description = "Create EC2 interface endpoint (CRITICAL in closed networks - required for AWS CNI plugin to assign IPs to pods)"
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "create_ecr_api_endpoint" {
-  description = "Create ECR API interface endpoint (required for ECR authentication and image metadata)"
+  description = "Create ECR API interface endpoint (required for ECR authentication in closed networks)"
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "create_ecr_dkr_endpoint" {
-  description = "Create ECR DKR interface endpoint (required for pulling container images from ECR)"
+  description = "Create ECR DKR interface endpoint (required for pulling container images from ECR in closed networks)"
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "create_sts_endpoint" {
-  description = "Create STS interface endpoint (required for IAM role assumption and IRSA)"
+  description = "Create STS interface endpoint (required for IAM role assumption in closed networks)"
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "create_logs_endpoint" {
-  description = "Create CloudWatch Logs interface endpoint (required for sending logs to CloudWatch)"
+  description = "Create CloudWatch Logs interface endpoint (required for sending logs in closed networks)"
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "create_monitoring_endpoint" {
-  description = "Create CloudWatch Monitoring interface endpoint (required for sending metrics to CloudWatch)"
+  description = "Create CloudWatch Monitoring interface endpoint (required for sending metrics in closed networks)"
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "create_ssm_endpoint" {
-  description = "Create SSM interface endpoint (recommended for Systems Manager access)"
+  description = "Create SSM interface endpoint (recommended for Systems Manager access in closed networks)"
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "create_ssmmessages_endpoint" {
-  description = "Create SSM Messages interface endpoint (recommended for Session Manager)"
+  description = "Create SSM Messages interface endpoint (recommended for Session Manager in closed networks)"
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "create_ec2messages_endpoint" {
-  description = "Create EC2 Messages interface endpoint (recommended for SSM Agent communication)"
+  description = "Create EC2 Messages interface endpoint (recommended for SSM Agent communication in closed networks)"
   type        = bool
-  default     = true
+  default     = false
+}
+
+variable "create_eks_auth_endpoint" {
+  description = "Create EKS Auth interface endpoint (CRITICAL in closed networks - required for EKS Pod Identity authentication)"
+  type        = bool
+  default     = false
 }
 
 # Lifecycle Script Module Variables

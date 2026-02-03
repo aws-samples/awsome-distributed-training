@@ -1,4 +1,4 @@
-resource_name_prefix = "sagemaker-hyperpod-eks"
+resource_name_prefix = "sagemaker-hyperpod-eks-opentest"
 aws_region           = "us-west-2"
 
 # VPC Module Variables
@@ -17,7 +17,6 @@ existing_private_subnet_ids   = []
 # Security Group Module Variables
 create_security_group_module = true
 existing_security_group_id   = ""
-
 
 # EKS Cluster Module Variables
 create_eks_module            = true
@@ -43,39 +42,6 @@ existing_s3_bucket_name = ""
 create_vpc_endpoints_module     = true
 existing_private_route_table_ids = []
 
-# ============================================================================
-# CLOSED NETWORK CONFIGURATION
-# ============================================================================
-# SET ALL TO TRUE FOR CLOSED NETWORK CONFIGURATION (Besides specific VPC endpoints if you have them already)
-
-# EKS API Endpoint Access (CRITICAL for closed networks)
-
-eks_endpoint_private_access = false   # Required for nodes in private subnets to join cluster
-eks_endpoint_public_access  = true  # `True` is required for cluster deployment - Set to `False` after cluster creation to disable public access in closed networks
-
-# Control which VPC endpoints to create for closed network environments.
-# All endpoints default to true. Set to false to skip creation.
-
-create_s3_endpoint          = true  # S3 gateway endpoint - Always set to true (even without closed network)
-create_ec2_endpoint         = false  # CRITICAL - AWS CNI plugin needs this to assign IPs to pods
-create_ecr_api_endpoint     = false  # Required for ECR authentication
-create_ecr_dkr_endpoint     = false  # Required for pulling container images
-create_sts_endpoint         = false  # Required for IAM role assumption (IRSA)
-create_logs_endpoint        = false  # Required for CloudWatch Logs
-create_monitoring_endpoint  = false  # CloudWatch metrics
-create_ssm_endpoint         = false  # Systems Manager access
-create_ssmmessages_endpoint = false  # Session Manager
-create_ec2messages_endpoint = false  # SSM Agent communication
-
-# VPC Endpoint Security - Allow HTTPS from VPC CIDR
-create_vpc_endpoint_ingress_rule = false  # Recommended for closed networks
-
-
-# ============================================================================
-# END OF CLOSED NETWORK CONFIGURATION
-# ============================================================================
-
-
 # Lifecycle Script Module Variables
 create_lifecycle_script_module = true
 
@@ -99,13 +65,13 @@ continuous_provisioning_mode = true
 instance_groups = [
   {
     name                      = "instance-group-1"
-    instance_type             = "ml.g5.8xlarge"
-    instance_count            = 8
+    instance_type             = "ml.m5.12xlarge"
+    instance_count            = 1
     availability_zone_id      = "usw2-az2"
     ebs_volume_size_in_gb     = 100
     threads_per_core          = 2
-    enable_stress_check       = true
-    enable_connectivity_check = true
+    enable_stress_check       = false
+    enable_connectivity_check = false
     lifecycle_script          = "on_create.sh"
   }
 ]

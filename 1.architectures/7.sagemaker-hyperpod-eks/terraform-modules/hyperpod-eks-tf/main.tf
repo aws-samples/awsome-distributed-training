@@ -74,6 +74,7 @@ module "vpc" {
   vpc_cidr             = var.vpc_cidr
   public_subnet_1_cidr = var.public_subnet_1_cidr
   public_subnet_2_cidr = var.public_subnet_2_cidr
+  closed_network       = var.closed_network
 }
 
 module "private_subnet" {
@@ -84,6 +85,7 @@ module "private_subnet" {
   vpc_id               = local.vpc_id
   private_subnet_cidrs = var.private_subnet_cidrs
   nat_gateway_id       = local.nat_gateway_id
+  closed_network       = var.closed_network
 }
 
 module "security_group" {
@@ -145,6 +147,7 @@ module "vpc_endpoints" {
   create_ssm_endpoint         = var.create_ssm_endpoint
   create_ssmmessages_endpoint = var.create_ssmmessages_endpoint
   create_ec2messages_endpoint = var.create_ec2messages_endpoint
+  create_eks_auth_endpoint    = var.create_eks_auth_endpoint
 
   depends_on = [
     module.private_subnet, 
