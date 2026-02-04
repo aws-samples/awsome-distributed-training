@@ -1,4 +1,4 @@
-resource_name_prefix = "sagemaker-hyperpod-eks-opentest"
+resource_name_prefix = "hp-eks-labels-taints"
 aws_region           = "us-west-2"
 
 # VPC Module Variables
@@ -10,25 +10,25 @@ existing_vpc_id      = ""
 
 # Private Subnet Module Variables
 create_private_subnet_module = true
-private_subnet_cidrs          = ["10.1.0.0/16", "10.2.0.0/16", "10.3.0.0/16", "10.4.0.0/16"]
+private_subnet_cidrs         = ["10.1.0.0/16", "10.2.0.0/16", "10.3.0.0/16", "10.4.0.0/16"]
 existing_nat_gateway_id      = ""
-existing_private_subnet_ids   = []
+existing_private_subnet_ids  = []
 
 # Security Group Module Variables
 create_security_group_module = true
 existing_security_group_id   = ""
 
 # EKS Cluster Module Variables
-create_eks_module            = true
-kubernetes_version           = "1.33"
-eks_cluster_name             = "sagemaker-hyperpod-eks-cluster"
-existing_eks_cluster_name    = ""
+create_eks_module         = true
+kubernetes_version        = "1.33"
+eks_cluster_name          = "sagemaker-hyperpod-eks-cluster"
+existing_eks_cluster_name = ""
 
 # EKS Subnet Configuration
 # Option 1: Create new subnets for EKS (default)
-create_eks_subnets           = true
-eks_private_subnet_1_cidr    = "10.192.7.0/28"
-eks_private_subnet_2_cidr    = "10.192.8.0/28"
+create_eks_subnets        = true
+eks_private_subnet_1_cidr = "10.192.7.0/28"
+eks_private_subnet_2_cidr = "10.192.8.0/28"
 
 # Option 2: Use existing subnets for EKS (uncomment and set create_eks_subnets = false)
 # create_eks_subnets           = false
@@ -39,7 +39,7 @@ create_s3_bucket_module = true
 existing_s3_bucket_name = ""
 
 # S3 Endpoint Module Variables
-create_vpc_endpoints_module     = true
+create_vpc_endpoints_module      = true
 existing_private_route_table_ids = []
 
 # Lifecycle Script Module Variables

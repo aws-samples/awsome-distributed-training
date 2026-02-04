@@ -23,7 +23,7 @@ variable "auto_node_recovery" {
 
 variable "continuous_provisioning_mode" {
   description = "whether to enable continuous node provisioning mode"
-  type        = bool 
+  type        = bool
 }
 
 variable "instance_groups" {
@@ -40,6 +40,12 @@ variable "instance_groups" {
     availability_zone_id      = string
     image_id                  = optional(string)
     training_plan_arn         = optional(string)
+    labels                    = optional(map(string))
+    taints = optional(list(object({
+      key    = string
+      value  = optional(string)
+      effect = string
+    })))
   }))
   default = []
 }

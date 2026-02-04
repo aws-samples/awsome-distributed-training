@@ -155,6 +155,82 @@ EOL
 ```
 ---
 
+### Configuring Kubernetes Labels and Taints
+
+You can add custom Kubernetes labels and taints to your HyperPod instance groups to control pod scheduling and node organization. This is useful for:
+- Organizing nodes by workload type, team, or environment
+- Dedicating GPU nodes to specific workloads
+- Implementing multi-tenant cluster configurations
+- Controlling pod placement with node selectors and tolerations
+
+**Adding Labels:**
+
+Labels are key-value pairs for node identification and selection:
+
+```hcl
+instance_groups = [
+  {
+    name                      = "gpu-training-group"
+    instance_type             = "ml.g5.12xlarge"
+    instance_count            = 4
+    availability_zone_id      = "usw2-az2"
+    ebs_volume_size_in_gb     = 500
+    threads_per_core          = 1
+    enable_stress_check       = false
+    enable_connectivity_check = false
+    lifecycle_script          = "on_create.sh"
+    
+    # Custom labels
+    labels = {
+      "workload-type" = "training"
+      "gpu-type"      = "a10g"
+      "team"          = "ml-research"
+    }
+  }
+]
+```
+
+**Adding Taints:**
+
+Taints prevent pods without matching tolerations from scheduling on nodes:
+
+```hcl
+instance_groups = [
+  {
+    name                      = "gpu-inference-group"
+    instance_type             = "ml.g5.12xlarge"
+    instance_count            = 2
+    availability_zone_id      = "usw2-az2"
+    ebs_volume_size_in_gb     = 200
+    threads_per_core          = 1
+    enable_stress_check       = false
+    enable_connectivity_check = false
+    lifecycle_script          = "on_create.sh"
+    
+    # Custom taints (max 50 per instance group)
+    taints = [
+      {
+        key    = "nvidia.com/gpu"
+        value  = "true"
+        effect = "NoSchedule"  # NoSchedule, PreferNoSchedule, or NoExecute
+      },
+      {
+        key    = "dedicated"
+        value  = "inference"
+        effect = "NoSchedule"
+      }
+    ]
+  }
+]
+```
+
+**Taint Effects:**
+- `NoSchedule`: Pods without matching tolerations won't be scheduled
+- `PreferNoSchedule`: Kubernetes tries to avoid scheduling non-matching pods
+- `NoExecute`: Existing pods without matching tolerations will be evicted
+
+---
+
 ### Using an Existing EKS Cluster with HyperPod
 
 The following `custom.tfvars` file uses an existing EKS Cluster (referenced by name) along with an existing Security Group, VPC, and NAT Gateway (referenced by ID):
