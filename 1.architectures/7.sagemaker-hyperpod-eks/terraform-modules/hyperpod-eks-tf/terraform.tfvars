@@ -1,4 +1,4 @@
-resource_name_prefix = "hp-eks-labels-taints"
+resource_name_prefix = "hp-eks"
 aws_region           = "us-west-2"
 
 # VPC Module Variables
