@@ -1,9 +1,5 @@
 data "aws_region" "current" {}
 
-data "aws_vpc" "selected" {
-  id = var.vpc_id
-}
-
 data "aws_availability_zones" "available" {
   state = "available"
   filter {
@@ -19,7 +15,7 @@ locals {
 
 resource "aws_subnet" "private" {
   count             = var.create_eks_subnets ? length(var.private_subnet_cidrs) : 0
-  vpc_id            = data.aws_vpc.selected.id
+  vpc_id            = var.vpc_id
   cidr_block        = var.private_subnet_cidrs[count.index]
   availability_zone = data.aws_availability_zones.available.names[count.index]
 
@@ -32,7 +28,7 @@ resource "aws_subnet" "private" {
 
 resource "aws_route_table" "eks_private" {
   count  = var.create_eks_subnets ? length(var.private_subnet_cidrs) : 0
-  vpc_id = data.aws_vpc.selected.id
+  vpc_id = var.vpc_id
 
   tags = {
     Name = "${var.resource_name_prefix}-EKS-Private-RT-${count.index + 1}"
