@@ -43,7 +43,7 @@ resource "aws_eks_addon" "fsx_lustre_csi_driver" {
   }
 }
 
-# Wait for FSx CSI driver to be available (required for the HPIO and dynamic provisioning)
+# Wait for FSx CSI driver to be available (required for the HPIO and PVC binding)
 resource "null_resource" "wait_for_fsx_csi_driver" {
   count = local.wait_for_fsx_csi_driver ? 1 : 0
 

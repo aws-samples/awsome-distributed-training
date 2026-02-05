@@ -8,11 +8,6 @@ variable "eks_cluster_name" {
   type        = string
 }
 
-variable "vpc_id" {
-  description = "VPC ID used by the EKS cluster"
-  type        = string
-}
-
 variable "hyperpod_cluster_arn" {
   description = "ARN of the HyperPod cluster"
   type        = string
@@ -23,25 +18,29 @@ variable "access_logs_bucket_name" {
   type        = string
 }
 
-variable "namespace" {
-  description = "Kubernetes namespace for deployment"
-  type        = string
-  default     = "kube-system"
+# S3 CSI Driver (required for for HPIO - only set to false if previously installed)
+variable "enable_s3_csi_driver" {
+  description = "Install S3 Mountpoint CSI driver EKS addon"
+  type        = bool
+  default     = true
 }
 
-variable "helm_release_name" {
-  description = "The name of the Helm release"
-  type        = string
-  default     = "hyperpod-inference-operator"
+# ALB Controller (required for for HPIO - only set to false if previously installed)
+variable "enable_alb_controller" {
+  description = "Install the ALB Conroller (bundled with HPIO EKS addon)"
+  type        = bool
+  default     = true
 }
 
-variable "helm_repo_revision" {
-  description = "Git revision for the HyperPod Inference Operator"
-  type        = string
+# KEDA (required for for HPIO - only set to false if previously installed)
+variable "enable_keda" {
+  description = "Install KEDA (bundled with HPIO EKS addon)"
+  type        = bool
+  default     = true
 }
 
-variable "helm_repo_path" {
-  description = "The path to the HyperPod Inference Operator Helm chart"
-  type        = string
-  default     = "helm_chart/HyperPodHelmChart/charts/inference-operator"
+# Metric Server (optional for HPIO)
+variable "enable_metrics_server" {
+  description = "Install metrics-server EKS addon"
+  type        = bool
 }

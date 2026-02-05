@@ -500,6 +500,14 @@ Set the following parameters to `true` in your `custom.tfvars` file to enable op
 | `create_hyperpod_inference_operator_module`  | Installs the [HyperPod inference operator addon](https://docs.aws.amazon.com/sagemaker/latest/dg/sagemaker-hyperpod-model-deployment-setup.html) for deployment and management of machine learning inference endpoints |
 | `create_observability_module` | Installs the [HyperPod Observability addon](https://docs.aws.amazon.com/sagemaker/latest/dg/hyperpod-observability-addon-setup.html) to publish key metrics to Amazon Managed Service for Prometheus and displays them in Amazon Managed Grafana dashboards | 
 
+The HyperPod training and inference operators both require the [cert-manager](https://cert-manager.io/) EKS addon to be installed as a prerequisite. The variable `enable_cert_manager` is set to `true` by default, so that when `create_hyperpod_training_operator_module` or `create_hyperpod_inference_operator_module` are also set to `true`, cert-manager will be installed as a dependency of the operators. In other words, this stack will not install cert-manager as a standalone component, but it can be disabled if you already have it installed on an existing EKS cluster and wish to use one of the HyperPod operators. 
+
+The HyperPod inference operator also has the following additional dependencies: 
+  - The [Amazon FSx for Lustre CSI driver](https://github.com/kubernetes-sigs/aws-fsx-csi-driver): This EKS addon is installed by default as part of the FSx for Lustre module. Set `create_fsx_module = false` if you already have it installed on an existing EKS cluster. 
+  - The [Mountpoint for Amazon S3 CSI Driver](https://github.com/awslabs/mountpoint-s3-csi-driver): This EKS addon is bundled with the Hyperpod inference operator module and is enabled by default. Set `enable_s3_csi_driver = false` if you already have it installed on an existing EKS cluster.
+  - The [AWS Load Balancer Controller](https://github.com/kubernetes-sigs/aws-load-balancer-controller): This is bundled with the HyperPod inference operator EKS addon and is enabled by default. Set `enable_alb_controller = false` if you already have it installed on an existing EKS cluster.
+  - The [KEDA (Kubernetes Event-driven Autoscaling) Operator](https://keda.sh/): This is bundled with the HyperPod inference operator EKS addon and is enabled by default. Set `enable_keda = false` if you already have it installed on an existing EKS cluster.
+
 ---
 ### Advanced Observability Metrics Configuration
 In addition to enabling the [HyperPod Observability addon](https://docs.aws.amazon.com/sagemaker/latest/dg/hyperpod-observability-addon-setup.html) by setting `create_observability_module = true`, you can also configure the following metrics that you wish to collect on your cluster: 

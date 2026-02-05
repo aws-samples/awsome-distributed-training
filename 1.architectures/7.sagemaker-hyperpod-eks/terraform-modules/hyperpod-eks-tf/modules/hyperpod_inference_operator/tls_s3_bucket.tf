@@ -1,6 +1,6 @@
 
 resource "aws_s3_bucket" "tls_certificates" {
-  bucket = "${var.resource_name_prefix}-tls-${random_string.bucket_suffix.result}"
+  bucket = "hyperpod-tls-${random_string.bucket_suffix.result}"
 }
 
 resource "random_string" "bucket_suffix" {
