@@ -331,20 +331,13 @@ variable "helm_release_name_hpio" {
 variable "helm_repo_revision" {
   description = "Git revision for normal mode"
   type        = string
-  default     = "0e32919013e957dc9bd2051bca645a4d60df9e8e"
+  default     = "9f496a6364759553f73ff534434a057ef4bdc004"
 }
 
 variable "helm_repo_revision_rig" {
   description = "Git revision for RIG mode"
   type        = string
   default     = "c5275ddbbca58164d1f5bd3a2811e0fc952f7ff4"
-}
-
-# Check HYPERPOD_CLI_GITHUB_REPO_REVISION here: https://github.com/aws/sagemaker-hyperpod-cluster-setup/blob/main/eks/cloudformation/inf-helm-chart-template.yaml
-variable "helm_repo_revision_hpio" {
-  description = "Git revision for the HyperPod Inference Operator"
-  type        = string
-  default     = "170bf1598143946f2d0023bb13d0f1f6195d26ed"
 }
 
 variable "namespace" {
@@ -506,6 +499,9 @@ variable "restricted_instance_groups" {
 }
 
 # FSx for Lustre Module Variables
+# FSxL CSI driver (required for for HPIO)
+# If setting create_hyperpod_inference_operator_module = true 
+# only set create_fsx_module = false if FSxL CSI driver was previously installed
 variable "create_fsx_module" {
   description = "Whether to create FSx for Lustre module"
   type        = bool
@@ -702,21 +698,44 @@ variable "create_hyperpod_inference_operator_module" {
   default     = false
 }
 
-# Cert Manager (required for HPTO and HPIO)
+# Cert Manager (bundled with HyperPod cluster module and required for HPTO and HPIO) 
+# If setting create_hyperpod_training_operator_module = true 
+# or create_hyperpod_inference_operator_module = true 
+# only set enable_cert_manager = false if cert manager was previously installed
 variable "enable_cert_manager" {
   description = "Install cert-manager EKS addon"
   type        = bool
   default     = true 
 }
 
-# S3 CSI Driver (optional for HPIO)
+# S3 CSI Driver (bundled with and required for for HPIO module)
+# If setting create_hyperpod_inference_operator_module = true 
+# only set enable_s3_csi_driver = false if S3 CSI driver was previously installed
 variable "enable_s3_csi_driver" {
   description = "Install S3 Mountpoint CSI driver EKS addon"
   type        = bool
   default     = true
 }
 
-# Metric Server (optional for HPIO)
+# ALB Controller (bundled with and required for for HPIO module)
+# If setting create_hyperpod_inference_operator_module = true 
+# only set enable_alb_controller = false if ALB Controller was previously installed
+variable "enable_alb_controller" {
+  description = "Install the ALB Conroller (bundled with HPIO EKS addon)"
+  type        = bool
+  default     = true
+}
+
+# KEDA (bundled with and required for for HPIO module)
+# If setting create_hyperpod_inference_operator_module = true 
+# only set enable_keda = false if KEDA was previously installed
+variable "enable_keda" {
+  description = "Install KEDA (bundled with HPIO EKS addon)"
+  type        = bool
+  default     = true
+}
+
+# Metric Server (bundled with but optional for HPIO module)
 variable "enable_metrics_server" {
   description = "Install metrics-server EKS addon"
   type        = bool

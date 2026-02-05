@@ -295,14 +295,13 @@ module "hyperpod_inference_operator" {
   source = "./modules/hyperpod_inference_operator"
 
   resource_name_prefix    = var.resource_name_prefix
-  helm_repo_path          = var.helm_repo_path_hpio
-  helm_release_name       = var.helm_release_name_hpio
-  helm_repo_revision      = var.helm_repo_revision_hpio
-  namespace               = var.namespace
   eks_cluster_name        = local.eks_cluster_name
-  vpc_id                  = local.vpc_id
   hyperpod_cluster_arn    = module.hyperpod_cluster[0].hyperpod_cluster_arn
   access_logs_bucket_name = module.s3_bucket[0].s3_logs_bucket_name
+  enable_s3_csi_driver    = var.enable_s3_csi_driver
+  enable_alb_controller   = var.enable_alb_controller
+  enable_keda             = var.enable_keda
+  enable_metrics_server   = var.enable_metrics_server
 
   depends_on = [
     module.hyperpod_cluster,
