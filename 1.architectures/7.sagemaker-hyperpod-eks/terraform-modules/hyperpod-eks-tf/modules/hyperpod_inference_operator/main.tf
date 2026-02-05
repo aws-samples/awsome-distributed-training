@@ -30,17 +30,19 @@ resource "aws_iam_openid_connect_provider" "eks_oidc_provider" {
 }
 
 resource "aws_eks_addon" "s3_csi_driver" {
+  count                    = var.enable_s3_csi_driver ? 1 : 0
   cluster_name             = var.eks_cluster_name
   addon_name               = "aws-mountpoint-s3-csi-driver"
-  service_account_role_arn = aws_iam_role.s3_csi_role.arn
+  service_account_role_arn = aws_iam_role.s3_csi[0].arn
 }
 
 resource "aws_eks_addon" "metrics_server" {
+  count        = var.enable_metrics_server ? 1 : 0
   cluster_name = var.eks_cluster_name
   addon_name   = "metrics-server"
   
   configuration_values = jsonencode({
-    tolerations = [
+    tolerations  = [
       { operator = "Exists", effect = "NoSchedule" },
       { operator = "Exists", effect = "NoExecute" },
       { operator = "Exists", effect = "PreferNoSchedule" }

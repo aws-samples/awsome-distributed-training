@@ -127,7 +127,7 @@ resource "aws_iam_role" "jumpstart_gated" {
 }
 
 resource "aws_iam_role_policy_attachment" "jumpstart_gated" {
-  role       = aws_iam_role.jumpstart_gated
+  role       = aws_iam_role.jumpstart_gated.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonSageMakerHyperPodGatedModelAccess"
 }
 
@@ -413,7 +413,8 @@ resource "aws_iam_role_policy_attachment" "alb_controller" {
 }
 
 resource "aws_iam_policy" "s3_csi" {
-  name = "${var.resource_name_prefix}-S3-Mountpoint-Policy"
+  count = var.enable_s3_csi_driver ? 1 : 0
+  name  = "${var.resource_name_prefix}-S3-Mountpoint-Policy"
   
   policy = jsonencode({
     Version = "2012-10-17"
@@ -441,7 +442,8 @@ resource "aws_iam_policy" "s3_csi" {
 }
 
 resource "aws_iam_role" "s3_csi" {
-  name = "${var.resource_name_prefix}-S3-CSI-Driver-Role"
+  count = var.enable_s3_csi_driver ? 1 : 0
+  name  = "${var.resource_name_prefix}-S3-CSI-Driver-Role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -468,6 +470,7 @@ resource "aws_iam_role" "s3_csi" {
 }
 
 resource "aws_iam_role_policy_attachment" "s3_csi" {
-  role       = aws_iam_role.s3_csi.name
-  policy_arn = aws_iam_policy.s3_csi.arn
+  count      = var.enable_s3_csi_driver ? 1 : 0
+  role       = aws_iam_role.s3_csi[0].name
+  policy_arn = aws_iam_policy.s3_csi[0].arn
 }
