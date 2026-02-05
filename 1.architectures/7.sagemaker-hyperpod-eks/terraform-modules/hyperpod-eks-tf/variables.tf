@@ -269,7 +269,7 @@ variable "existing_sagemaker_iam_role_name" {
 variable "rig_input_s3_bucket" {
   description = "The name of the RIG input S3 bucket"
   type        = string
-  default     = null 
+  default     = null
 }
 
 variable "rig_output_s3_bucket" {
@@ -286,13 +286,13 @@ variable "gated_access" {
 
 variable "rig_rft_lambda_access" {
   description = "Whether to include Lambda access permissions for RFT"
-  type        = bool 
+  type        = bool
   default     = true
 }
 
 variable "rig_rft_sqs_access" {
-    description = "Whether to include SQS access permissions for RFT"
-  type        = bool 
+  description = "Whether to include SQS access permissions for RFT"
+  type        = bool
   default     = true
 }
 
@@ -453,7 +453,7 @@ variable "auto_node_recovery" {
 
 variable "continuous_provisioning_mode" {
   description = "whether to enable continuous node provisioning mode"
-  type        = bool 
+  type        = bool
   default     = true
 }
 
@@ -477,6 +477,12 @@ variable "instance_groups" {
     availability_zone_id      = string
     image_id                  = optional(string)
     training_plan_arn         = optional(string)
+    labels                    = optional(map(string))
+    taints = optional(list(object({
+      key    = string
+      value  = optional(string)
+      effect = string
+    })))
   }))
   default = []
 }
@@ -604,7 +610,7 @@ variable "training_metric_level" {
   type        = string
   default     = "BASIC"
   validation {
-    condition = contains(["BASIC", "ADVANCED"], var.training_metric_level)
+    condition     = contains(["BASIC", "ADVANCED"], var.training_metric_level)
     error_message = "Training metric level must be one of: BASIC, ADVANCED."
   }
 }
@@ -614,7 +620,7 @@ variable "task_governance_metric_level" {
   type        = string
   default     = "DISABLED"
   validation {
-    condition = contains(["DISABLED", "ADVANCED"], var.task_governance_metric_level)
+    condition     = contains(["DISABLED", "ADVANCED"], var.task_governance_metric_level)
     error_message = "Task governance metric level must be one of: DISABLED, ADVANCED."
   }
 }
@@ -624,7 +630,7 @@ variable "scaling_metric_level" {
   type        = string
   default     = "DISABLED"
   validation {
-    condition = contains(["DISABLED", "ADVANCED"], var.scaling_metric_level)
+    condition     = contains(["DISABLED", "ADVANCED"], var.scaling_metric_level)
     error_message = "Scaling metric level must be one of: DISABLED, ADVANCED."
   }
 }
@@ -634,7 +640,7 @@ variable "cluster_metric_level" {
   type        = string
   default     = "BASIC"
   validation {
-    condition = contains(["BASIC", "ADVANCED"], var.cluster_metric_level)
+    condition     = contains(["BASIC", "ADVANCED"], var.cluster_metric_level)
     error_message = "Cluster metric level must be one of: BASIC, ADVANCED."
   }
 }
@@ -644,7 +650,7 @@ variable "node_metric_level" {
   type        = string
   default     = "BASIC"
   validation {
-    condition = contains(["BASIC", "ADVANCED"], var.node_metric_level)
+    condition     = contains(["BASIC", "ADVANCED"], var.node_metric_level)
     error_message = "Node metric level must be one of: BASIC, ADVANCED."
   }
 }
@@ -654,7 +660,7 @@ variable "network_metric_level" {
   type        = string
   default     = "DISABLED"
   validation {
-    condition = contains(["DISABLED", "ADVANCED"], var.network_metric_level)
+    condition     = contains(["DISABLED", "ADVANCED"], var.network_metric_level)
     error_message = "Network metric level must be one of: DISABLED, ADVANCED."
   }
 }
@@ -664,7 +670,7 @@ variable "accelerated_compute_metric_level" {
   type        = string
   default     = "BASIC"
   validation {
-    condition = contains(["BASIC", "ADVANCED"], var.accelerated_compute_metric_level)
+    condition     = contains(["BASIC", "ADVANCED"], var.accelerated_compute_metric_level)
     error_message = "Accelerated compute metric level must be one of: BASIC, ADVANCED."
   }
 }
