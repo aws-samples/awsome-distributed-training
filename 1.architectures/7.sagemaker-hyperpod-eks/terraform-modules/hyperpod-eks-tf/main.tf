@@ -57,7 +57,7 @@ locals {
   create_s3_bucket_module                   = !local.rig_mode && var.create_s3_bucket_module
   s3_bucket_name                            = !local.rig_mode ? (var.create_s3_bucket_module ? module.s3_bucket[0].s3_bucket_name : var.existing_s3_bucket_name) : null
   create_lifecycle_script_module            = !local.rig_mode && var.create_lifecycle_script_module
-  enable_cert_manager                       = !local.rig_mode && (var.create_hyperpod_training_operator_module || var.create_hyperpod_inference_operator_module) 
+  enable_cert_manager                       = !local.rig_mode && var.enable_cert_manager && (var.create_hyperpod_training_operator_module || var.create_hyperpod_inference_operator_module) 
   wait_for_nodes                            = !local.rig_mode && anytrue(local.features_requiring_nodes)
   create_fsx_module                         = !local.rig_mode ? var.create_fsx_module : false
   create_task_governance_module             = !local.rig_mode && var.create_task_governance_module
