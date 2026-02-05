@@ -702,6 +702,27 @@ variable "create_hyperpod_inference_operator_module" {
   default     = false
 }
 
+# Cert Manager (required for HPTO and HPIO)
+variable "enable_cert_manager" {
+  description = "Install cert-manager EKS addon"
+  type        = bool
+  default     = true 
+}
+
+# S3 CSI Driver (optional for HPIO)
+variable "enable_s3_csi_driver" {
+  description = "Install S3 Mountpoint CSI driver EKS addon"
+  type        = bool
+  default     = true
+}
+
+# Metric Server (optional for HPIO)
+variable "enable_metrics_server" {
+  description = "Install metrics-server EKS addon"
+  type        = bool
+  default     = true
+}
+
 # GuardDuty VPC endpoint cleanup
 variable "enable_guardduty_cleanup" {
   description = "Enable automatic cleanup of GuardDuty VPC endpoints during destroy"
