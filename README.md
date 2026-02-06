@@ -78,7 +78,7 @@ Utilities scripts and micro-benchmarks examples are set under `4.validation_scri
 | --------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
 | [`1.pytorch-env-validation`](./4.validation_and_observability/1.pytorch-env-validation) | Validates your PyTorch environment                              |
 | [`3.efa-node-exporter`](./4.validation_and_observability/3.efa-node-exporter)           | Node exporter with Amazon EFA monitoring modules                |
-| [`4.prometheus-grafana`](./4.validation_and_observability/4.prometheus-grafana)         | Deployment assets to monitor SageMaker Hyperpod Clusters        |
+| [`4.prometheus-grafana`](./4.validation_and_observability/4.prometheus-grafana)         | Monitoring for SageMaker HyperPod and EKS GPU clusters          |
 | [`5.nsight`](./4.validation_and_observability/5.nsight)                                 | Shows how to run Nvidia Nsight Systems to profile your workload |
 | [`efa-versions.py`](./1.architectures/efa-versions.py)                                  | Get the versions of Nvidia libraries, drivers and EFA drivers   |
 
