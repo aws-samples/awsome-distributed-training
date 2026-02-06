@@ -66,8 +66,6 @@ sudo usermod -aG docker ubuntu
 # See: https://github.com/aws-samples/awsome-distributed-training/issues/127
 #
 # Docker workdir doesn't like Lustre. Tried with storage driver overlay2, fuse-overlayfs, & vfs.
-# Also, containerd ships with a commented root in its default config; we need to ensure an
-# uncommented root that points to the fast local volume.
 if [[ $(mount | grep /opt/sagemaker) ]]; then
     cat <<EOL >> /etc/docker/daemon.json
 {
@@ -79,10 +77,6 @@ EOL
         's|^\[Service\]$|[Service]\nEnvironment="DOCKER_TMPDIR=/opt/sagemaker/docker/tmp"|' \
         /usr/lib/systemd/system/docker.service
 
-    # Ensure containerd config exists and point its root to /opt/sagemaker
-    if [[ ! -f /etc/containerd/config.toml ]]; then
-        containerd config default | sudo tee /etc/containerd/config.toml >/dev/null
-    fi
     sudo sed -i -e 's|^#\?root *=.*|root = "/opt/sagemaker/containerd/data-root"|' \
         /etc/containerd/config.toml
 elif [[ $(mount | grep /opt/dlami/nvme) ]]; then
@@ -96,20 +90,9 @@ EOL
         's|^\[Service\]$|[Service]\nEnvironment="DOCKER_TMPDIR=/opt/dlami/nvme/docker/tmp"|' \
         /usr/lib/systemd/system/docker.service
 
-    # Ensure containerd config exists and point its root to /opt/dlami/nvme
-    if [[ ! -f /etc/containerd/config.toml ]]; then
-        containerd config default | sudo tee /etc/containerd/config.toml >/dev/null
-    fi
-    sudo sed -i \
-        -e 's|^#\?root *=.*|root = "/opt/dlami/nvme/docker/containerd"|' \
+    sudo sed -i -e 's|^#\?root *=.*|root = "/opt/dlami/nvme/containerd/data-root"|' \
         /etc/containerd/config.toml
 fi
 
 systemctl daemon-reload
 systemctl restart docker
-
-echo "
-###################################
-# END: install docker
-###################################
-"
