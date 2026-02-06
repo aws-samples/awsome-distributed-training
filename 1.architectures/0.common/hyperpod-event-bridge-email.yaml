@@ -102,16 +102,28 @@ Resources:
         ZipFile: |
           import os
           import json
-
+          from datetime import datetime
           import boto3
 
+          def format_event_time(event_time):
+              try:
+                  dt = datetime.fromtimestamp(int(event_time) / 1000)
+                  return dt.strftime("%Y-%m-%d %H:%M:%S UTC")
+              except:
+                  return event_time
 
           def get_console_url(event):
               region = event["region"]
-              cluster_name = event["detail"]["ClusterName"]
+
+              if "ClusterName" in event["detail"]:
+                  cluster_name = event["detail"]["ClusterName"]
+              elif "EventDetails" in event["detail"]:
+                  cluster_name = event["detail"]["EventDetails"]["ClusterName"]
+              else:
+                  cluster_name = ""
+              
               console_url = f"https://{region}.console.aws.amazon.com/sagemaker/home?region={region}#/cluster-management/{cluster_name}"
               return console_url
-
 
           def format_html_for_cluster_status_event(event):
 
@@ -172,7 +184,6 @@ Resources:
               html_body += "</body>"
 
               return html_body
-
 
           def format_html_for_node_health_event(event):
 
@@ -240,7 +251,76 @@ Resources:
 
               return html_body
 
+          def format_html_for_cluster_event(event):
+              """Format HTML for generic cluster events with EventDetails."""
+              
+              event_details = event["detail"]["EventDetails"]
 
+              html_body = '<body style="font-family:Helvetica; font-size: 11pt;">\n'
+
+              # Table of summary
+              html_body += '<table>\n'
+              
+              html_body += "<tr> <td>%s</td> <td>%s</td> </tr>\n" % (
+                  "AWS account:", 
+                  event["account"]
+              )
+              
+              html_body += "<tr> <td>%s</td> <td>%s</td> </tr>\n" % (
+                  "Region:", 
+                  event["region"]
+              )
+              
+              html_body += "<tr> <td>%s</td> <td>%s</td> </tr>\n" % (
+                  "Cluster name:", 
+                  event_details.get("ClusterName", "N/A")
+              )
+
+              html_body += '</table>\n'
+
+              html_body += "<br>\n"
+
+              # Table of event details
+              html_body += '<table border="1" >\n'
+              html_body += '<caption>Event details</caption>\n'
+
+              html_body += "<tr> <td>%s</td> <td>%s</td> </tr>\n" % (
+                  "Resource Type", 
+                  event_details.get("ResourceType", "N/A")
+              )
+
+              if "InstanceGroupName" in event_details:
+                  html_body += "<tr> <td>%s</td> <td>%s</td> </tr>\n" % (
+                      "Instance Group", 
+                      event_details["InstanceGroupName"]
+                  )
+
+              if "InstanceId" in event_details:
+                  html_body += "<tr> <td>%s</td> <td>%s</td> </tr>\n" % (
+                      "Instance ID", 
+                      event_details["InstanceId"]
+                  )
+
+              html_body += "<tr> <td>%s</td> <td>%s</td> </tr>\n" % (
+                  "Event Time", 
+                  format_event_time(event_details.get("EventTime", "N/A"))
+              )
+
+              html_body += "<tr> <td>%s</td> <td>%s</td> </tr>\n" % (
+                  "Description", 
+                  event_details.get("Description", "N/A")
+              )
+
+              html_body += '</table>\n'
+
+              html_body += "<br>\n"
+
+              # Hyperlink to console page
+              html_body += '<a href="%s">Link to HyperPod console</a>\n' % get_console_url(event)
+
+              html_body += "</body>"
+
+              return html_body
 
           def lambda_handler(event, context):
               ses = boto3.client('ses')
@@ -257,6 +337,12 @@ Resources:
                   node_status = event["detail"]["HealthSummary"]["HealthStatus"]
                   email_subject = f"HyperPod Cluster Node Health Event - {node_status}"
                   email_body = format_html_for_node_health_event(event)
+              elif event_type == "SageMaker HyperPod Cluster Event":
+                  event_details = event["detail"]["EventDetails"]
+                  cluster_name = event_details.get("ClusterName", "Unknown")
+                  resource_type = event_details.get("ResourceType", "Unknown")
+                  email_subject = f"HyperPod Cluster Event - {cluster_name} - {resource_type}"
+                  email_body = format_html_for_cluster_event(event)
               else:
                   assert False, f"Unknown event type {event_type}"
 
@@ -295,7 +381,8 @@ Resources:
           "source": ["aws.sagemaker"],
           "detail-type": [
                 "SageMaker HyperPod Cluster State Change",
-                "SageMaker HyperPod Cluster Node Health Event"
+                "SageMaker HyperPod Cluster Node Health Event",
+                "SageMaker HyperPod Cluster Event"
             ]
         }
       Targets:
