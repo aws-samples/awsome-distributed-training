@@ -76,6 +76,10 @@ EOL
     sed -i \
         's|^\[Service\]$|[Service]\nEnvironment="DOCKER_TMPDIR=/opt/sagemaker/docker/tmp"|' \
         /usr/lib/systemd/system/docker.service
+
+    sudo sed -i -e 's|^#\?root *=.*|root = "/opt/sagemaker/containerd/data-root"|' \
+        /etc/containerd/config.toml
+    sudo systemctl restart containerd
 elif [[ $(mount | grep /opt/dlami/nvme) ]]; then
     cat <<EOL >> /etc/docker/daemon.json
 {
@@ -86,6 +90,10 @@ EOL
     sed -i \
         's|^\[Service\]$|[Service]\nEnvironment="DOCKER_TMPDIR=/opt/dlami/nvme/docker/tmp"|' \
         /usr/lib/systemd/system/docker.service
+
+    sudo sed -i -e 's|^#\?root *=.*|root = "/opt/dlami/nvme/containerd/data-root"|' \
+        /etc/containerd/config.toml
+    sudo systemctl restart containerd
 fi
 
 systemctl daemon-reload
