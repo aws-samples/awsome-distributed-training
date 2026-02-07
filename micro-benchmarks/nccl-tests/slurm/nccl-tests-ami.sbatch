@@ -13,8 +13,8 @@ set -ex
 
 # This script is designed to run by default on the Deep Learning AMI, Ubuntu 20.04
 # See https://aws.amazon.com/releasenotes/aws-deep-learning-base-gpu-ami-ubuntu-20-04/
-ALL_REDUCE_BINARY=${1:-/usr/local/cuda-12.4/efa/test-cuda-12.4/all_reduce_perf}
-ADDITIONAL_LD_LIBRARY_PATH=${2:-/usr/local/cuda-12.4/lib}
+ALL_REDUCE_BINARY=${1:-/usr/local/cuda-13.0/efa/test-cuda-13.0/all_reduce_perf}
+ADDITIONAL_LD_LIBRARY_PATH=${2:-/usr/local/cuda-13.0/lib}
 
 # Get Hostname to Instance ID mapping
 mpirun -N 1 bash -c 'echo $(hostname) ➡️ $(cat /sys/devices/virtual/dmi/id/board_asset_tag | tr -d " ")'
