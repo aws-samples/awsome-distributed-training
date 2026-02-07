@@ -79,6 +79,7 @@ EOL
 
     sudo sed -i -e 's|^#\?root *=.*|root = "/opt/sagemaker/containerd/data-root"|' \
         /etc/containerd/config.toml
+    sudo systemctl restart containerd
 elif [[ $(mount | grep /opt/dlami/nvme) ]]; then
     cat <<EOL >> /etc/docker/daemon.json
 {
@@ -92,6 +93,7 @@ EOL
 
     sudo sed -i -e 's|^#\?root *=.*|root = "/opt/dlami/nvme/containerd/data-root"|' \
         /etc/containerd/config.toml
+    sudo systemctl restart containerd
 fi
 
 systemctl daemon-reload
