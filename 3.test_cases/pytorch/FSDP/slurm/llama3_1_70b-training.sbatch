@@ -10,6 +10,7 @@
 #SBATCH --exclusive # job has exclusive use of the resource, no sharing
 
 set -ex;
+source /fsx/awsome-distributed-training/3.test_cases/pytorch/FSDP/slurm/env/bin/activate
 
 ###########################
 ###### User Variables #####
