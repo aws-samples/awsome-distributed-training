@@ -79,7 +79,20 @@ def install_observability(node_type, prometheus_remote_write_url, advanced=False
         subprocess.run( ["bash", "./install_otel_collector.sh"], env=env_vars )
 
     elif node_type=="login":
-        pass
+
+        os.makedirs("/etc/otel", exist_ok=True)
+        create_file_from_template(
+            "./otel_config/config-login-template.yaml",
+            "/etc/otel/config.yaml",
+            {
+                "REGION": region,
+                "AMPREMOTEWRITEURL": prometheus_remote_write_url,
+                "HOSTNAME": hostname
+            }
+        )
+
+        subprocess.run( ["bash", "./install_node_exporter.sh"], env=env_vars )
+        subprocess.run( ["bash", "./install_otel_collector.sh"], env=env_vars )
 
 
 if __name__ == "__main__":
