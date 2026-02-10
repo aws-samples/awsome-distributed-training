@@ -4,7 +4,6 @@
 import datetime
 import functools
 import math
-import re
 import time
 
 import numpy as np
@@ -13,31 +12,20 @@ from torch import optim
 import torch.distributed as dist
 import torch.utils.data
 
-import transformers
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from datasets import load_dataset
 
-from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
-from torch.distributed.fsdp import MixedPrecision
-from torch.distributed.fsdp import ShardingStrategy
-from torch.distributed.fsdp import CPUOffload
-from torch.distributed.fsdp.wrap import size_based_auto_wrap_policy, transformer_auto_wrap_policy
+from torch.distributed.fsdp import fully_shard, MixedPrecisionPolicy, CPUOffloadPolicy
 from torch.utils.data import DataLoader
 
 from model_utils.concat_dataset import ConcatTokensDataset
 from model_utils.train_utils import (get_model_config, 
                                    compute_num_params,
                                    get_transformer_layer,
-                                   get_sharding_strategy,
-                                   get_backward_fetch_policy,
-                                   apply_activation_checkpoint,
-                                   get_param_groups_by_weight_decay,
-                                   get_logger,
                                    get_learning_rate_scheduler,
                                    create_streaming_dataloader)
 from model_utils.checkpoint import save_checkpoint, load_checkpoint
 from model_utils.arguments import parse_args
-
 
 import logging
 import sys
@@ -97,7 +85,7 @@ def train(
             step_start = time.time()
             loss = model(input_ids=input_data, attention_mask=None, labels=input_data)["loss"]
             loss.backward()
-            model.clip_grad_norm_(args.grad_clip)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
             optimizer.step()
             lr_scheduler.step()
             total_steps += 1
@@ -109,7 +97,7 @@ def train(
             current_lr = lr_scheduler.get_lr()
             if global_rank==0 and batch_idx%args.logging_freq==0:
                 logger.info(
-                    "Batch %d Loss: %.5f, Speed: %.2f samples/sec, lr: %.6f",  # pylint: disable=line-too-long
+                    "Batch %d Loss: %.5f, Speed: %.2f samples/sec, lr: %.6f",
                     batch_idx,
                     loss_scalar,
                     throughput,
@@ -161,80 +149,81 @@ def main(args):
     
     model_config = get_model_config(args)
     if global_rank == 0:
-        logger.info(
-            "Creating Model"
-        )
-    # Instantiate model on CPU on rank=0 only to prevent CPU OOM
-    # (e.g. 70B * 4 bytes * 8 processes > 2T RAM available on P5)
-    if global_rank == 0:
+        logger.info("Creating Model with FSDP2")
+    
+    # Initialize model on meta device
+    with torch.device("meta"):
         model = AutoModelForCausalLM.from_config(model_config)
-    else:
-        with torch.device("meta"):
-            # Instantiating model on `meta` device doesn't consume CPU memory,
-            # but requires specifing `param_init_fn=...`
-            # and `sync_module_states=True` in FSDP c-tor.
-            model = AutoModelForCausalLM.from_config(model_config)
     
     num_params = compute_num_params(model)
     if global_rank == 0:
         logger.info(
             "Created model with total parameters: %d (%.2f B)", num_params, num_params * 1e-9
         )
+    
     transformer_layer = get_transformer_layer(args.model_type)
 
-    gpt_auto_wrap_policy = functools.partial(
-        transformer_auto_wrap_policy,
-        transformer_layer_cls={
-            transformer_layer,
-        },
-    )
-
-    torch.cuda.set_device(device)
-    mixed_precision_policy = MixedPrecision(
-        param_dtype=dtype, reduce_dtype=dtype, buffer_dtype=dtype
-    )
-
-    if args.sharding_strategy=="full":
-        sharding_strategy = ShardingStrategy.FULL_SHARD
-    elif args.sharding_strategy=="hybrid":
-        sharding_strategy = ShardingStrategy.HYBRID_SHARD
+    # Configure FSDP2 options
+    fsdp_kwargs = {}
+    
+    # Mixed precision policy
+    if args.bf16:
+        fsdp_kwargs["mp_policy"] = MixedPrecisionPolicy(
+            param_dtype=torch.bfloat16,
+            reduce_dtype=torch.float32,
+        )
+    
+    # Sharding strategy
+    if args.sharding_strategy == "full":
+        fsdp_kwargs["reshard_after_forward"] = True
+    elif args.sharding_strategy == "hybrid":
+        # For hybrid sharding, need 2D device mesh
+        fsdp_kwargs["reshard_after_forward"] = True
     else:
         raise NotImplementedError("Available sharding strategies are full and hybrid")
     
+    # CPU offload
     if args.cpu_offload == 1:
-        cpu_offload = CPUOffload(offload_params=True)
-    else: 
-        cpu_offload = None
-
-    model = FSDP(
-        model,
-        auto_wrap_policy=gpt_auto_wrap_policy,
-        mixed_precision=mixed_precision_policy,
-        limit_all_gathers=args.limit_all_gathers,
-        device_id=torch.cuda.current_device(),
-        use_orig_params=False,
-        sharding_strategy=sharding_strategy,
-        cpu_offload=cpu_offload,
-        sync_module_states=True,
-        param_init_fn=(lambda module: module.to_empty(device=torch.device("cuda"), recurse=False))
-        if global_rank != 0 else None,
-    )
+        fsdp_kwargs["offload_policy"] = CPUOffloadPolicy()
+    
+    # Apply fully_shard to transformer layers first
+    for module in model.modules():
+        if isinstance(module, transformer_layer):
+            fully_shard(module, **fsdp_kwargs)
+    
+    # Apply fully_shard to root model
+    fully_shard(model, **fsdp_kwargs)
+    
+    # Move model from meta device to CUDA
+    model.to_empty(device=torch.device("cuda"))
 
     if global_rank == 0:
-        logger.info("Wrapped model with FSDP")
+        logger.info("Wrapped model with FSDP2")
 
     if args.activation_checkpointing > 0:
-        apply_activation_checkpoint(args, model=model)
+        from torch.distributed.algorithms._checkpoint.checkpoint_wrapper import (
+            CheckpointImpl,
+            apply_activation_checkpointing,
+            checkpoint_wrapper,
+        )
+        check_fn = lambda submodule: isinstance(submodule, transformer_layer)
+        wrapper_fn = functools.partial(
+            checkpoint_wrapper, checkpoint_impl=CheckpointImpl.NO_REENTRANT
+        )
+        apply_activation_checkpointing(
+            model, checkpoint_wrapper_fn=wrapper_fn, check_fn=check_fn
+        )
 
     if args.offload_activations > 0:
         from torch.distributed.algorithms._checkpoint.checkpoint_wrapper import offload_wrapper
-
         model = offload_wrapper(model)
 
-    param_groups = get_param_groups_by_weight_decay(model)
-
+    # Optimizer with DTensor parameters
     optimizer = optim.AdamW(
-        param_groups, betas=(args.beta1, args.beta2), lr=args.lr, weight_decay=args.weight_decay
+        model.parameters(), 
+        betas=(args.beta1, args.beta2), 
+        lr=args.lr, 
+        weight_decay=args.weight_decay
     )
 
     if global_rank == 0:
@@ -289,3 +278,4 @@ def main(args):
 if __name__ == "__main__":
     args, _ = parse_args()
     main(args)
+
