@@ -11,6 +11,6 @@ RUN --mount=type=cache,target=/root/.cache/pip pip install -r /fsdp/requirements
 WORKDIR /fsdp
 
 # HyperPod-specific image with elastic agent
-FROM Base AS HTPO
+FROM Base AS HPTO
 
 RUN pip install hyperpod-elastic-agent
