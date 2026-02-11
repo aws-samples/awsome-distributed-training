@@ -1,4 +1,4 @@
-FROM public.ecr.aws/hpc-cloud/nccl-tests:latest AS Base
+FROM public.ecr.aws/hpc-cloud/nccl-tests:latest AS base
 
 RUN apt update && apt install -y nvtop
 
@@ -11,6 +11,6 @@ RUN --mount=type=cache,target=/root/.cache/pip pip install -r /fsdp/requirements
 WORKDIR /fsdp
 
 # HyperPod-specific image with elastic agent
-FROM Base AS HPTO
+FROM base AS hpto
 
 RUN pip install hyperpod-elastic-agent
