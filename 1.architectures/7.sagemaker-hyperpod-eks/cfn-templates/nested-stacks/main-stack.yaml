@@ -50,6 +50,11 @@ Metadata:
         Parameters: 
           - HyperPodClusterName
           - NodeRecovery
+          - UseContinuousNodeProvisioningMode
+      - Label: 
+          default: Parameters for Accelerated Instance Group
+        Parameters: 
+          - CreateAcceleratedInstanceGroup
           - AcceleratedInstanceGroupName
           - AcceleratedInstanceType
           - AcceleratedInstanceCount
@@ -58,6 +63,11 @@ Metadata:
           - EnableInstanceStressCheck
           - EnableInstanceConnectivityCheck
           - AcceleratedLifeCycleConfigOnCreate
+          - AcceleratedTrainingPlanArn
+          - AcceleratedImageId
+      - Label: 
+          default: Parameters for General Purpose Instance Group
+        Parameters: 
           - CreateGeneralPurposeInstanceGroup
           - GeneralPurposeInstanceGroupName
           - GeneralPurposeInstanceType
@@ -65,6 +75,22 @@ Metadata:
           - GeneralPurposeEBSVolumeSize
           - GeneralPurposeThreadsPerCore
           - GeneralPurposeLifeCycleConfigOnCreate
+          - GeneralPurposeImageId
+      - Label: 
+          default: Parameters for Restricted Instance Group
+        Parameters:
+          - CreateRestrictedInstanceGroup
+          - RestrictedInstanceGroupName
+          - RestrictedInstanceType
+          - RestrictedInstanceCount
+          - RestrictedPerUnitStorageThroughput
+          - RestrictedSizeInGiB
+          - RestrictedEBSVolumeSize
+          - EnableRestrictedInstanceStressCheck
+          - EnableRestrictedInstanceConnectivityCheck
+          - RestrictedThreadsPerCore
+          - RestrictedTrainingPlanArn
+
       - Label: 
           default: Parameter Overrides Required If CreateVPCStack == false and Any(CreatePrivateSubnetStack, CreateSecurityGroupStack, CreateEKSClusterStack, CreateS3EndpointStack) == true
         Parameters: 
@@ -222,7 +248,7 @@ Parameters:
   KubernetesVersion:
     Description: The Kubernetes version to use for the EKS cluster. 
     Type: String
-    Default: '1.31'
+    Default: '1.32'
 
   EKSClusterName:
     Description: The name of the newly created of preexisting EKS cluster you wish to use. 
@@ -313,6 +339,14 @@ Parameters:
     AllowedValues:
       - Automatic
       - None
+  
+  UseContinuousNodeProvisioningMode:
+    Description: Whether to enable continuous node provisioning mode for the HyperPod cluster.
+    Type: String
+    Default: true
+    AllowedValues: 
+      - true
+      - false
 
   SageMakerIAMRoleName:
     Description: The name of the IAM role that SageMaker will use to access the AWS resources on your behalf. 
@@ -327,12 +361,20 @@ Parameters:
     Type: String
     Default: subnet-1234567890abcdef0
 
-  ### ----------------  Accelerated Instance Group 1 Params----------------###
+  ### ----------------  Accelerated Instance Group Params----------------###
+
+  CreateAcceleratedInstanceGroup:
+    Description: Whether to create an accelerated instance group for the HyperPod cluster.
+    Type: String
+    Default: true
+    AllowedValues: 
+      - true
+      - false
 
   AcceleratedInstanceGroupName:
     Description: The name of the accelerated instance group for the HyperPod cluster.
     Type: String
-    Default: accelerated-worker-group-1
+    Default: accelerated-instance-group
 
   AcceleratedInstanceType:
     Description: The instance type of the accelerated instance group for the HyperPod cluster.
@@ -354,14 +396,14 @@ Parameters:
   AcceleratedThreadsPerCore:
     Description: The number of threads per CPU core in the accelerated instance group for the HyperPod cluster.
     Type: Number
+    Default: 1
     AllowedValues:
       - 1
       - 2
-    Default: 1
 
   EnableInstanceStressCheck:
     Type: String
-    Description: Enable Instance Stress deep health check
+    Description: Enable instance stress deep health check
     Default: true
     AllowedValues: 
       - true
@@ -369,7 +411,7 @@ Parameters:
 
   EnableInstanceConnectivityCheck:
     Type: String
-    Description: Enable Instance Connectivity deep health check
+    Description: Enable instance connectivity deep health check
     Default: true
     AllowedValues: 
       - true
@@ -380,12 +422,22 @@ Parameters:
     Type: String
     Default: on_create.sh
 
+  AcceleratedTrainingPlanArn:
+    Description: The ARN of the accelerated instance group training plan
+    Type: String
+    Default: ""
+
+  AcceleratedImageId:
+    Description: The AMI ID of the accelerated instance group for the HyperPod cluster.
+    Type: String
+    Default: ""
+
   ### ----------------  General Purpose Instance Group 2 Params ----------------###
 
   CreateGeneralPurposeInstanceGroup: 
     Description: Whether to create a general purpose instance group for the HyperPod cluster.
     Type: String
-    Default: true
+    Default: false
     AllowedValues: 
       - true
       - false
@@ -393,7 +445,7 @@ Parameters:
   GeneralPurposeInstanceGroupName:
     Description: The name of the general purpose instance group for the HyperPod cluster.
     Type: String
-    Default: general-purpose-worker-group-2
+    Default: general-purpose-instance-group
 
   GeneralPurposeInstanceType:
     Description: The instance type of the general purpose instance group for the HyperPod cluster.
@@ -415,15 +467,90 @@ Parameters:
   GeneralPurposeThreadsPerCore:
     Description: The number of threads per CPU core in the general purpose instance group for the HyperPod cluster.
     Type: Number
+    Default: 1
     AllowedValues:
       - 1
       - 2
-    Default: 1
 
   GeneralPurposeLifeCycleConfigOnCreate:
     Description: The file name of lifecycle script for the general purpose instance group. This script runs during cluster creation.
     Type: String
     Default: on_create.sh
+  
+  GeneralPurposeImageId:
+    Description: The AMI ID of the general purpose instance group for the HyperPod cluster.
+    Type: String
+    Default: ""
+  
+  ### ----------------  Restricted Instance Group Params ----------------###
+  CreateRestrictedInstanceGroup:
+    Description: Whether to create a restricted instance group for the HyperPod cluster.
+    Type: String
+    Default: false
+    AllowedValues: 
+      - true
+      - false
+
+  RestrictedInstanceGroupName: 
+    Description: The name of the restricted instance group for the HyperPod cluster.
+    Type: String
+    Default: restricted-instance-group
+
+  RestrictedInstanceType:
+    Description: The instance type of the restricted instance group for the HyperPod cluster.
+    Type: String
+    Default: ml.g5.8xlarge
+
+  RestrictedInstanceCount:
+    Description: The number of instances in the restricted instance group for the HyperPod cluster.
+    Type: Number
+    Default: 1
+
+  RestrictedPerUnitStorageThroughput:
+    Description: The throughput for the service-managed FSx for Lustre file system 
+    Type: Number
+    Default: 250
+
+  RestrictedSizeInGiB: 
+    Description: The volume size for the service-managed FSx for Lustre file system
+    Type: Number
+    Default: 1200
+
+  RestrictedEBSVolumeSize:
+    Description: > 
+        The size in gigabytes (GB) of the additional EBS volume to be attached 
+        to the instances in the restricted instance group for the HyperPod cluster.
+    Type: Number
+    Default: 500
+
+  EnableRestrictedInstanceStressCheck:
+    Type: String
+    Description: Enable restricted instance stress deep health check
+    Default: true
+    AllowedValues: 
+      - true
+      - false
+
+  EnableRestrictedInstanceConnectivityCheck:
+    Type: String
+    Description: Enable restricted instance connectivity deep health check
+    Default: true
+    AllowedValues: 
+      - true
+      - false
+
+  RestrictedThreadsPerCore:
+    Description: The number of threads per CPU core in the restricted instance group for the HyperPod cluster.
+    Type: Number
+    Default: 1
+    AllowedValues: 
+      - 1 
+      - 2
+
+  RestrictedTrainingPlanArn:
+    Description: The ARN of the restricted instance group training plan
+    Type: String
+    Default: ""
 
   ### ---------------- Condition Params ----------------###
 
@@ -774,6 +901,8 @@ Resources:
       Parameters:
         HyperPodClusterName: !Ref HyperPodClusterName
         NodeRecovery: !Ref NodeRecovery
+        UseContinuousNodeProvisioningMode: !Ref UseContinuousNodeProvisioningMode
+        CreateAcceleratedInstanceGroup: !Ref CreateAcceleratedInstanceGroup
         AcceleratedInstanceGroupName: !Ref AcceleratedInstanceGroupName
         AcceleratedInstanceType: !Ref AcceleratedInstanceType
         AcceleratedInstanceCount: !Ref AcceleratedInstanceCount
@@ -782,6 +911,8 @@ Resources:
         EnableInstanceStressCheck: !Ref EnableInstanceStressCheck
         EnableInstanceConnectivityCheck: !Ref EnableInstanceConnectivityCheck
         AcceleratedLifeCycleConfigOnCreate: !Ref AcceleratedLifeCycleConfigOnCreate
+        AcceleratedTrainingPlanArn: !Ref AcceleratedTrainingPlanArn
+        AcceleratedImageId: !Ref AcceleratedImageId
         CreateGeneralPurposeInstanceGroup: !Ref CreateGeneralPurposeInstanceGroup
         GeneralPurposeInstanceGroupName: !Ref GeneralPurposeInstanceGroupName
         GeneralPurposeInstanceType: !Ref GeneralPurposeInstanceType
@@ -789,6 +920,18 @@ Resources:
         GeneralPurposeEBSVolumeSize: !Ref GeneralPurposeEBSVolumeSize
         GeneralPurposeThreadsPerCore: !Ref GeneralPurposeThreadsPerCore
         GeneralPurposeLifeCycleConfigOnCreate: !Ref GeneralPurposeLifeCycleConfigOnCreate
+        GeneralPurposeImageId: !Ref GeneralPurposeImageId
+        CreateRestrictedInstanceGroup: !Ref CreateRestrictedInstanceGroup
+        RestrictedInstanceGroupName: !Ref RestrictedInstanceGroupName
+        RestrictedInstanceType: !Ref RestrictedInstanceType
+        RestrictedInstanceCount: !Ref RestrictedInstanceCount
+        RestrictedPerUnitStorageThroughput: !Ref RestrictedPerUnitStorageThroughput
+        RestrictedSizeInGiB: !Ref RestrictedSizeInGiB
+        RestrictedEBSVolumeSize: !Ref RestrictedEBSVolumeSize
+        EnableRestrictedInstanceStressCheck: !Ref EnableRestrictedInstanceStressCheck
+        EnableRestrictedInstanceConnectivityCheck: !Ref EnableRestrictedInstanceConnectivityCheck
+        RestrictedThreadsPerCore: !Ref RestrictedThreadsPerCore
+        RestrictedTrainingPlanArn: !Ref RestrictedTrainingPlanArn
         # Used to conditionally force HyperPod to wait on the HelmChartStack (if deployed)
         HelmChartStatus: !If
           - CreateHelmChartStack
@@ -817,38 +960,38 @@ Resources:
 
 ### ---------------- Outputs ----------------###
 Outputs:
-  VpcId:
+  OutputVpcId:
     Condition: CreateVPCStack
     Value: !GetAtt VPCStack.Outputs.VpcId
 
-  PrivateSubnetId:
+  OutputPrivateSubnetIds:
     Condition: CreatePrivateSubnetStack
     Value: !GetAtt PrivateSubnetStack.Outputs.PrivateSubnetId
 
-  SecurityGroupId:
+  OutputSecurityGroupId:
     Condition: CreateSecurityGroupStack
     Value: !GetAtt SecurityGroupStack.Outputs.SecurityGroupId
 
-  EKSClusterArn:
+  OutputEKSClusterArn:
     Condition: CreateEKSClusterStack
     Value: !GetAtt EKSClusterStack.Outputs.EKSClusterArn
 
-  EKSClusterName:
+  OutputEKSClusterName:
     Condition: CreateEKSClusterStack
     Value: !GetAtt EKSClusterStack.Outputs.EKSClusterName
 
-  SageMakerIAMRoleArn:
+  OutputSageMakerIAMRoleArn:
     Condition: CreateSageMakerIAMRoleStack
     Value: !GetAtt SageMakerIAMRoleStack.Outputs.SageMakerIAMRoleArn
 
-  S3BucketName:
+  OutputS3BucketName:
     Condition: CreateS3BucketStack
     Value: !GetAtt S3BucketStack.Outputs.S3BucketName
 
-  HyperPodClusterName:
+  OutputHyperPodClusterName:
     Condition: CreateHyperPodClusterStack
     Value: !GetAtt HyperPodClusterStack.Outputs.HyperPodClusterName
 
-  HyperPodClusterArn:
+  OutputHyperPodClusterArn:
     Condition: CreateHyperPodClusterStack
     Value: !GetAtt HyperPodClusterStack.Outputs.HyperPodClusterArn

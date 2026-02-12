@@ -31,36 +31,41 @@ const AmazonEfaPath = "class/infiniband"
 // /sys/class/infiniband/<Name>/ports/<Port>/hw_counters
 // for a single port of one Amazon Elastic Fabric Adapter device.
 type AmazonEfaCounters struct {
-	AllocPdErr         *uint64 // hw_counters/alloc_pd_err
-	AllocUcontextErr   *uint64 // hw_counters/alloc_ucontext_err
-	CmdsErr            *uint64 // hw_counters/cmds_err
-	CompletedCmds      *uint64 // hw_counters/completed_cmds
-	CreateAhErr        *uint64 // hw_counters/create_ah_err
-	CreateCqErr        *uint64 // hw_counters/create_cq_err
-	CreateQpErr        *uint64 // hw_counters/create_qp_err
-	KeepAliveRcvd      *uint64 // hw_counters/keep_alive_rcvd
-	Lifespan           *uint64 // hw_counters/lifespan
-	MmapErr            *uint64 // hw_counters/mmap_err
-	NoCompletionCmds   *uint64 // hw_counters/no_completion_cmds
-	RdmaReadBytes      *uint64 // hw_counters/rdma_read_bytes
-	RdmaReadRespBytes  *uint64 // hw_counters/rdma_read_resp_bytes
-	RdmaReadWrErr      *uint64 // hw_counters/rdma_read_wr_err
-	RdmaReadWrs        *uint64 // hw_counters/rdma_read_wrs
-	RdmaWriteBytes     *uint64 // hw_counters/rdma_read_bytes
-	RdmaWriteRecvBytes *uint64 // hw_counters/rdma_read_resp_bytes
-	RdmaWriteWrErr     *uint64 // hw_counters/rdma_read_wr_err
-	RdmaWritedWrs      *uint64 // hw_counters/rdma_read_wrs
-	RecvBytes          *uint64 // hw_counters/recv_bytes
-	RecvWrs            *uint64 // hw_counters/recv_wrs
-	RegMrErr           *uint64 // hw_counters/reg_mr_err
-	RxBytes            *uint64 // hw_counters/rx_bytes
-	RxDrops            *uint64 // hw_counters/rx_drops
-	RxPkts             *uint64 // hw_counters/rx_pkts
-	SendBytes          *uint64 // hw_counters/send_bytes
-	SendWrs            *uint64 // hw_counters/send_wrs
-	SubmittedCmds      *uint64 // hw_counters/submitted_cmds
-	TxBytes            *uint64 // hw_counters/tx_bytes
-	TxPkts             *uint64 // hw_counters/tx_pkts
+    AllocPdErr               *uint64 // hw_counters/alloc_pd_err
+    AllocUcontextErr         *uint64 // hw_counters/alloc_ucontext_err
+    CmdsErr                  *uint64 // hw_counters/cmds_err
+    CompletedCmds            *uint64 // hw_counters/completed_cmds
+    CreateAhErr              *uint64 // hw_counters/create_ah_err
+    CreateCqErr              *uint64 // hw_counters/create_cq_err
+    CreateQpErr              *uint64 // hw_counters/create_qp_err
+    KeepAliveRcvd            *uint64 // hw_counters/keep_alive_rcvd
+    ImpairedRemoteConnEvents *uint64 // hw_counters/impaired_remote_conn_events
+    Lifespan                 *uint64 // hw_counters/lifespan
+    MmapErr                  *uint64 // hw_counters/mmap_err
+    NoCompletionCmds         *uint64 // hw_counters/no_completion_cmds
+    RdmaReadBytes            *uint64 // hw_counters/rdma_read_bytes
+    RdmaReadRespBytes        *uint64 // hw_counters/rdma_read_resp_bytes
+    RdmaReadWrErr            *uint64 // hw_counters/rdma_read_wr_err
+    RdmaReadWrs              *uint64 // hw_counters/rdma_read_wrs
+    RdmaWriteBytes           *uint64 // hw_counters/rdma_write_bytes
+    RdmaWriteRecvBytes       *uint64 // hw_counters/rdma_write_recv_bytes
+    RdmaWriteWrErr           *uint64 // hw_counters/rdma_write_wr_err
+    RdmaWriteWrs             *uint64 // hw_counters/rdma_write_wrs
+    RecvBytes                *uint64 // hw_counters/recv_bytes
+    RecvWrs                  *uint64 // hw_counters/recv_wrs
+    RegMrErr                 *uint64 // hw_counters/reg_mr_err
+    RetransBytes             *uint64 // hw_counters/retrans_bytes
+    RetransPkts              *uint64 // hw_counters/retrans_pkts
+    RetransTimeoutEvents     *uint64 // hw_counters/retrans_timeout_events
+    RxBytes                  *uint64 // hw_counters/rx_bytes
+    RxDrops                  *uint64 // hw_counters/rx_drops
+    RxPkts                   *uint64 // hw_counters/rx_pkts
+    SendBytes                *uint64 // hw_counters/send_bytes
+    SendWrs                  *uint64 // hw_counters/send_wrs
+    SubmittedCmds            *uint64 // hw_counters/submitted_cmds
+    TxBytes                  *uint64 // hw_counters/tx_bytes
+    TxPkts                   *uint64 // hw_counters/tx_pkts
+    UnresponsiveRemoteEvents *uint64 // hw_counters/unresponsive_remote_events
 }
 
 // AmazonEfaPort contains info from files in
@@ -252,7 +257,8 @@ func parseAmazonEfaCounters(portPath string) (*AmazonEfaCounters, error) {
 		//vp := util.NewValueParser(value)
 
 		switch f.Name() {
-
+			case "impaired_remote_conn_events":
+				counters.ImpairedRemoteConnEvents, err = parseUInt64(value)
 			case "lifespan":
 				counters.Lifespan, err = parseUInt64(value)
 			case "rdma_read_bytes":
@@ -270,11 +276,17 @@ func parseAmazonEfaCounters(portPath string) (*AmazonEfaCounters, error) {
 			case "rdma_write_wr_err":
 				counters.RdmaWriteWrErr, err = parseUInt64(value)
 			case "rdma_write_wrs":
-				counters.RdmaWritedWrs, err = parseUInt64(value)
+				counters.RdmaWriteWrs, err = parseUInt64(value)
 			case "recv_bytes":
 				counters.RecvBytes, err = parseUInt64(value)
 			case "recv_wrs":
 				counters.RecvWrs, err = parseUInt64(value)
+			case "retrans_bytes":
+				counters.RetransBytes, err = parseUInt64(value)
+			case "retrans_pkts":
+				counters.RetransPkts, err = parseUInt64(value)
+			case "retrans_timeout_events":
+				counters.RetransTimeoutEvents, err = parseUInt64(value)
 			case "rx_bytes":
 				counters.RxBytes, err = parseUInt64(value)
 			case "rx_drops":
@@ -289,6 +301,8 @@ func parseAmazonEfaCounters(portPath string) (*AmazonEfaCounters, error) {
 				counters.TxBytes, err = parseUInt64(value)
 			case "tx_pkts":
 				counters.TxPkts, err = parseUInt64(value)
+			case "unresponsive_remote_events":
+				counters.UnresponsiveRemoteEvents, err = parseUInt64(value)
 
 			if err != nil {
 				// Ugly workaround for handling https://github.com/prometheus/node_exporter/issues/966

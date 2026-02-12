@@ -451,8 +451,8 @@ login:
   extraVolumeMounts:
     - name: fsx-lustre
       mountPath: /fsx
-    - name: fsx-openzfs
-      mountPath: /home
+    # - name: fsx-openzfs
+    #   mountPath: /home
     # - name: nfs-home
     #   mountPath: /home
     # - name: nfs-data
@@ -465,9 +465,9 @@ login:
      - name: fsx-lustre
        persistentVolumeClaim: 
         claimName: fsx-claim
-     - name: fsx-openzfs
-       persistentVolumeClaim: 
-        claimName: openzfs-claim
+    #  - name: fsx-openzfs
+    #    persistentVolumeClaim: 
+    #     claimName: openzfs-claim
     # - name: nfs-home
     #   persistentVolumeClaim:
     #     claimName: nfs-home
@@ -678,8 +678,8 @@ compute:
       extraVolumeMounts:
         - name: fsx-lustre
           mountPath: /fsx
-        - name: fsx-openzfs
-          mountPath: /home
+        # - name: fsx-openzfs
+        #   mountPath: /home
         - name: shmem
           mountPath: /dev/shm
         # - name: nfs-home
@@ -694,9 +694,9 @@ compute:
         - name: fsx-lustre
           persistentVolumeClaim: 
             claimName: fsx-claim
-        - name: fsx-openzfs
-          persistentVolumeClaim: 
-            claimName: openzfs-claim
+        # - name: fsx-openzfs
+        #   persistentVolumeClaim: 
+        #     claimName: openzfs-claim
         - name: shmem
           hostPath: 
                 path: /dev/shm

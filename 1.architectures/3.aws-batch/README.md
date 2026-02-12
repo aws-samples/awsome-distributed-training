@@ -1,61 +1,174 @@
-# AWS Batch distributed training architectures
+# AWS Batch Distributed Training Architectures
 
-This architecture serves as an example to run distributed training jobs on p4d.24xlarge instances but can be easily be modified to accommodate other instance kinds (Trn or other P instances).
+This repository provides CloudFormation templates and examples for running distributed training jobs on AWS Batch using GPU instances. The architecture can be easily modified to accommodate different instance types including Trainium (Trn) and other P-series instances.
 
-> **Important**: it is assumed that you deployed the VPC template [`2.vpc-one-az.yaml`](../0.vpc_network/2.vpc-oneaz.yaml) as our Batch template will fetch automatically the EFA Security Group ID (SG) and Subnet ID to setup the AWS Batch Compute Environment. Both the SG and Subnet are exported values from the VPC template.
+## Table of Contents
 
-This architecture consists of the following resources:
+- [Prerequisites](#prerequisites)
+- [Architecture Overview](#architecture-overview)
+- [Available Templates](#available-templates)
+- [P4 Instance Deployment](#p4-instance-deployment)
+- [P5 Instance Deployment](#p5-instance-deployment)
+- [P6 Instance Deployment](#p6-instance-deployment)
+- [Important Considerations](#important-considerations)
 
-- [AWS Batch Compute Environment](https://docs.aws.amazon.com/batch/latest/userguide/compute_environments.html) for [Multi-node parallel jobs](https://docs.aws.amazon.com/batch/latest/userguide/multi-node-parallel-jobs.html). It is similar to a compute cluster.
-- [AWS Batch Job Queue](https://docs.aws.amazon.com/batch/latest/userguide/job_queues.html) attached to the compute environment. It is similar to a queue for job schedulers (Slurm, LSF...).
-- [EC2 Launch Template](https://docs.aws.amazon.com/autoscaling/ec2/userguide/launch-templates.html) which used to setup 4 EFA cards on our instance.
-- [Job Definition](https://docs.aws.amazon.com/batch/latest/userguide/job_definitions.html) serves as a template for our jobs and refers to the container registry to pull containers
-- [ECR Container Registry](https://docs.aws.amazon.com/AmazonECR/latest/userguide/what-is-ecr.html) is used to store containers.
+## Prerequisites
 
-## Template
+> **⚠️ Important**: You must deploy the VPC template [`2.vpc-one-az.yaml`](../../1.architectures/1.vpc_network/2.vpc-one-az.yaml) before deploying any Batch template. The Batch templates automatically fetch the EFA Security Group ID and Subnet ID from the VPC template's exported values.
 
-This template deploys AWS Batch and EC2 resources. It can be deployed via the console and the AWS CLI. Regardless of the deployment method it is assumed that you deployed the VPC template [`2.vpc-one-az.yaml`](../0.vpc_network/2.vpc-oneaz.yaml) prior to deploying that one.
+## Architecture Overview
 
-- **Template file**: [`0.aws-batch-distributed-training.yaml`](./0.aws-batch-distributed-training.yaml)
+This architecture consists of the following AWS resources:
 
-### Quick Create
+| Component | Purpose | Documentation |
+|-----------|---------|---------------|
+| **AWS Batch Compute Environment** | Manages compute resources for multi-node parallel jobs (similar to a compute cluster) | [AWS Docs](https://docs.aws.amazon.com/batch/latest/userguide/compute_environments.html) |
+| **AWS Batch Job Queue** | Queues jobs for execution (similar to Slurm/LSF schedulers) | [AWS Docs](https://docs.aws.amazon.com/batch/latest/userguide/job_queues.html) |
+| **EC2 Launch Template** | Configures EFA network interfaces for high-performance networking | [AWS Docs](https://docs.aws.amazon.com/autoscaling/ec2/userguide/launch-templates.html) |
+| **Job Definition** | Template for job execution, references container images | [AWS Docs](https://docs.aws.amazon.com/batch/latest/userguide/job_definitions.html) |
+| **ECR Container Registry** | Stores Docker container images | [AWS Docs](https://docs.aws.amazon.com/AmazonECR/latest/userguide/what-is-ecr.html) |
 
-[<kbd> <br> 1-Click Deploy 🚀 <br> </kbd>](https://console.aws.amazon.com/cloudformation/home?#/stacks/quickcreate?templateURL=https://awsome-distributed-training.s3.amazonaws.com/templates/0.aws-batch-distributed-training.yaml&stackName=AWS-Batch)
+<img src="../../0.docs/batch-arch.png" width="600" alt="AWS Batch Architecture Diagram">
 
+## Available Templates
 
-## List of Parameters
+| Template | Instance Types | Features |
+|----------|----------------|----------|
+| [`0.aws-batch-distributed-training.yaml`](./0.aws-batch-distributed-training.yaml) | P4d.24xlarge (default) | Standard deployment with 4 EFA interfaces |
+| [`0.aws-batch-distributed-training-p5.yaml`](./0.aws-batch-distributed-training-p5.yaml) | P5.48xlarge | Optimized for P5 instances |
+| [`aws-batch-distributed-training-p6.yaml`](./aws-batch-distributed-training-p6.yaml) | P6-b200.48xlarge | P6 deployment with sample AWS Batch MNP job setup |
 
-The templates takes parameters that are mandatory and optional, see below for more details.
+## P4 Instance Deployment
 
-| Name                    | Type        | Details                                                               |
-|-------------------------|-------------|-----------------------------------------------------------------------|
-| `VPCStackParameter`     | Required    | Name of the VPC stack in CloudFormation.                              |
-| `AMI`                   | Optional    | ID of the AMI if using a custom one otherwise leave blank             |
-| `CapacityReservationId` | Optional    | Use that or the ResourceGroup to refer to an EC2 reservation          |
-| `CapacityReservationResourceGroup`    | Optional    | Use that or the CapacityReservationId.                  |
-| `EC2KeyPair`            | Optional    | EC2 key pair to use in case you want to connect through ssh for debug.|
-| `CreatePlacementGroup`  | Optional    | Create a placement group for the instances.                           |
+### Quick Deploy
 
+Deploy the standard template with one click:
 
-## Deploy with the AWS CLI
+[<kbd> <br> 1-Click Deploy 🚀 <br> </kbd>](https://console.aws.amazon.com/cloudformation/home?#/stacks/quickcreate?templateURL=https://awsome-distributed-training.s3.amazonaws.com/templates/0.aws-batch-distributed-training.yaml&stackName=AWS-Batch)
 
-If you'd like to deploy through the AWS CLI instead of the quick create link above, the command to deploy the template is shown below. Please edit the parameters values with your own configuration.
+### Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `VPCStackParameter` | **Required** | Name of the VPC CloudFormation stack |
+| `AMI` | Optional | Custom AMI ID (leave blank for default) |
+| `CapacityReservationId` | Optional | EC2 Capacity Reservation ID |
+| `CapacityReservationResourceGroup` | Optional | Alternative to CapacityReservationId |
+| `EC2KeyPair` | Optional | EC2 key pair for SSH debugging |
+| `CreatePlacementGroup` | Optional | Create placement group for instances |
+
+### P5 Instance Deployment
 
 ```bash
-aws cloudformation create-stack --stack-name aws-batch-p5 \
-                                --template-body file://0.aws-batch-distributed-training-p5.yaml \
-                                --parameters ParameterKey=VPCStackParameter,ParameterValue="aws-batch-vpc" \
-                                             ParameterKey=CapacityReservationId,ParameterValue="cr-1234567890" \
-                                --capabilities CAPABILITY_NAMED_IAM
+aws cloudformation create-stack \
+  --stack-name aws-batch-distributed-training \
+  --template-body file://0.aws-batch-distributed-training.yaml \
+  --parameters \
+    ParameterKey=VPCStackParameter,ParameterValue="your-vpc-stack-name" \
+    ParameterKey=CapacityReservationId,ParameterValue="cr-1234567890" \
+  --capabilities CAPABILITY_NAMED_IAM
 ```
 
-## Gotchas
+## P6 Instance Deployment
 
-There are a few things to know as you evaluate this architecture:
-- EFA interfaces need to be declared explicitly in the EC2 Launch Template and you need to provide the security group used for EFA.
-- The Compute Environment must retrieve the list of private subnets from the VPC template. This list is exported by the VPC template.
-- The Batch Job Definition assumes you are pushing a container with `stress-ng` and is pre-configured as such.
+### Template Parameters
 
-## Architecture Diagram
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `VPCStackParameter` | **Required** | Name of the VPC CloudFormation stack |
+| `CapacityReservationId` | **Required** | Capacity Reservation ID (e.g., cr-1234567890) |
 
-<img src="../../0.docs/batch-arch.png" width="500">
+### Deployment Steps
+
+#### Step 1: Deploy CloudFormation Stack
+
+```bash
+aws cloudformation create-stack \
+  --stack-name batch-p6 \
+  --template-body file://aws-batch-distributed-training-p6.yaml \
+  --parameters \
+    ParameterKey=VPCStackParameter,ParameterValue="your-vpc-stack-name" \
+    ParameterKey=CapacityReservationId,ParameterValue="cr-1234567890" \
+  --capabilities CAPABILITY_NAMED_IAM
+```
+
+#### Step 2: Generate and Store SSH Key
+
+```bash
+# Generate SSH key pair
+ssh-keygen -t rsa -b 2048 -N '' -f /tmp/batch_key
+
+# Store private key in Secrets Manager
+aws secretsmanager put-secret-value \
+  --secret-id batch-p6-ssh-key \
+  --secret-string file:///tmp/batch_key
+
+# Clean up temporary files
+rm /tmp/batch_key /tmp/batch_key.pub
+```
+
+### Testing Your Deployment
+
+Submit a multi-node NCCL test job to verify the setup:
+
+```bash
+# Retrieve stack outputs
+JOB_DEFINITION=$(aws cloudformation describe-stacks \
+  --stack-name batch-p6 \
+  --query 'Stacks[0].Outputs[?OutputKey==`JobDefinitionMultiInstance`].OutputValue' \
+  --output text)
+
+JOB_QUEUE=$(aws cloudformation describe-stacks \
+  --stack-name batch-p6 \
+  --query 'Stacks[0].Outputs[?OutputKey==`DistributedDeepLearningJQ`].OutputValue' \
+  --output text)
+
+# Submit test job
+aws batch submit-job \
+  --job-name nccl-test-2node \
+  --job-queue ${JOB_QUEUE} \
+  --job-definition ${JOB_DEFINITION} \
+  --node-overrides numNodes=2
+
+# Monitor job status
+aws batch describe-jobs --jobs <job-id>
+
+# View logs
+aws logs tail /aws/batch/job --follow
+```
+
+### P6 Architecture Details
+
+- **Container Image**: `public.ecr.aws/hpc-cloud/nccl-tests:latest`
+- **Network Configuration**: 8 EFA interfaces per instance
+- **SSH Setup**: Automated via inline bash script in Job Definition
+- **Default Test**: `all_reduce_perf` with 8 GPUs per node (16 total processes for 2-node job)
+- **Key Management**: SSH keys retrieved from Secrets Manager at container startup
+
+## Important Considerations
+
+### EFA Network Configuration
+
+- EFA interfaces must be explicitly declared in the EC2 Launch Template
+- The EFA security group must be provided and properly configured
+- Network performance is critical for distributed training workloads
+
+### VPC Dependencies
+
+- The Compute Environment retrieves private subnet information from the VPC template
+- Ensure the VPC template exports the required subnet and security group values
+- Both templates must be deployed in the same AWS region
+
+### Capacity Management
+
+- Use Capacity Reservations for guaranteed instance availability
+- Consider using Capacity Reservation Resource Groups for easier management
+- Monitor your EC2 limits and request increases if needed
+
+---
+
+## Additional Resources
+
+- [AWS Batch User Guide](https://docs.aws.amazon.com/batch/latest/userguide/)
+- [Multi-node Parallel Jobs](https://docs.aws.amazon.com/batch/latest/userguide/multi-node-parallel-jobs.html)
+- [EFA Documentation](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa.html)
