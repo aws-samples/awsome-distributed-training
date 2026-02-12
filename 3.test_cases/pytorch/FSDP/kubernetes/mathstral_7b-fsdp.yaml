@@ -45,7 +45,7 @@ spec:
                   nvidia.com/gpu: $GPU_PER_NODE
                   vpc.amazonaws.com/efa: $EFA_PER_NODE
               env:
-              # for P5 FI_* should be commented out
+              # for P5 FI_* should be uncommented
               - name: LOGLEVEL
                 value: "DEBUG"
               #- name: FI_PROVIDER

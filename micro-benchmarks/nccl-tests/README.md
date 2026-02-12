@@ -36,20 +36,20 @@ The NCCL tests are packaged in a container.
 > | Variable              | Default     | Repository                                                                                  |
 > |-----------------------|-------------|---------------------------------------------------------------------------------------------|
 > |`CUDA_VERSION`         | `12.8.1`    |                                                                                             |
-> |`GDRCOPY_VERSION`      | `v2.4.4`    | [link](https://github.com/NVIDIA/gdrcopy)                                                   |
-> |`EFA_INSTALLER_VERSION`| `1.42.0`    | [link](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa-start.html#efa-start-enable) |
-> |`AWS_OFI_NCCL_VERSION` | `v1.16.0`   | [link](https://github.com/aws/aws-ofi-nccl)                                                 |
-> |`NCCL_VERSION`         | `v2.27.5-1` | [link](https://github.com/NVIDIA/nccl)                                                      |
-> |`NCCL_TESTS_VERSION`   | `v2.16.4`   | [link](https://github.com/NVIDIA/nccl-tests)                                                |
+> |`GDRCOPY_VERSION`      | `v2.5.1`    | [link](https://github.com/NVIDIA/gdrcopy)                                                   |
+> |`EFA_INSTALLER_VERSION`| `1.43.2`    | [link](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa-start.html#efa-start-enable) |
+> |`AWS_OFI_NCCL_VERSION` | `v1.16.3`   | [link](https://github.com/aws/aws-ofi-nccl)                                                 |
+> |`NCCL_VERSION`         | `v2.27.7-1` | [link](https://github.com/NVIDIA/nccl)                                                      |
+> |`NCCL_TESTS_VERSION`   | `v2.16.9`   | [link](https://github.com/NVIDIA/nccl-tests)                                                |
 
 You must pick each version of the library and set them as variables before proceed:
 
 ```bash
-GDRCOPY_VERSION=v2.4.4
-EFA_INSTALLER_VERSION=1.42.0
-AWS_OFI_NCCL_VERSION=v1.16.0
-NCCL_VERSION=v2.27.5-1
-NCCL_TESTS_VERSION=v2.16.4
+GDRCOPY_VERSION=v2.5.1
+EFA_INSTALLER_VERSION=1.43.2
+AWS_OFI_NCCL_VERSION=v1.16.3
+NCCL_VERSION=v2.27.7-1
+NCCL_TESTS_VERSION=v2.16.9
 TAG="efa${EFA_INSTALLER_VERSION}-ofi${AWS_OFI_NCCL_VERSION}-nccl${NCCL_VERSION}-tests${NCCL_TESTS_VERSION}"
 CONTAINER_IMAGE_NAME_TAG="nccl-tests:${TAG}"
 ```
@@ -60,7 +60,7 @@ If you wish to build the containar image by yourself, follow this section. Alter
 
 1. Build the container image with the command below:
    ```bash
-   docker build  -f nccl-tests.Dockerfile \
+   docker build -f nccl-tests.Dockerfile \
           --build-arg="EFA_INSTALLER_VERSION=${EFA_INSTALLER_VERSION}" \
           --build-arg="AWS_OFI_NCCL_VERSION=${AWS_OFI_NCCL_VERSION}" \
           --build-arg="NCCL_VERSION=${NCCL_VERSION}" \
@@ -68,6 +68,7 @@ If you wish to build the containar image by yourself, follow this section. Alter
           -t ${CONTAINER_IMAGE_NAME_TAG} \
           .
    ```
+   Note: If you are using an arm64 platform (like p6e-gb200.36xlarge, or any ultraserver comprised of that instance, for example), pass in `--platform=linux/arm64` into the `docker build` command above. Or, just build your image directly on an `arm64` based instance!
  
 1. Once the container image is prepared, you can check if it is present with `docker images`. You should see an output similar to this one:
    ```
@@ -84,13 +85,13 @@ To run the NCCL tests on Slurm, you will need to convert the container into a Sq
 Convert the container image to a squash file via Enroot. If you have the built image locally use the following command:
 
    ```bash
-   enroot import -o /fsx/nccl-tests.sqsh  dockerd://${CONTAINER_IMAGE_NAME_TAG}
+   enroot import -o /fsx/nccl-tests.sqsh dockerd://${CONTAINER_IMAGE_NAME_TAG}
    ```
 
 If you want to pull the image from the public ECR use the following command:
 
    ```bash
-   enroot import -o /fsx/nccl.sqsh  dockerd://public.ecr.aws/hpc-cloud/${CONTAINER_IMAGE_NAME_TAG}
+   enroot import -o /fsx/nccl.sqsh dockerd://public.ecr.aws/hpc-cloud/${CONTAINER_IMAGE_NAME_TAG}
    ```
 
 The file will be stored in the `/fsx` directory.
@@ -127,6 +128,9 @@ You can skip this part if you use pre-built image on `public.ecr.aws/hpc-cloud/n
    ```
 
 ## 2. Running the NCCL Tests
+
+Note: For topology aware NCCL tests, with features like export to csv, 
+passing in a topologically sorted hostfile to mpirun, look in slurm/topology-aware-nccl-tests
 
 ### Slurm with container
 

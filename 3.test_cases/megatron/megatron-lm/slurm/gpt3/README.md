@@ -111,7 +111,7 @@ Now that the data is preprocessed, we will pretrain a GPT3 model MegatronLM.
    You can stop the training job by executing:
     
    ```bash
-   kubectl delete -f ./pytorchjob.yaml
+   scancel [JOB_ID]
    ```
     
 ## 4. What's next?

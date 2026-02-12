@@ -9,9 +9,19 @@ MOCK_PKG=libnvidia-compute-${DRV_VERSION_MAJOR}
 #apt-get -y -o DPkg::Lock::Timeout=120 update   # Most likely this has been been done by another script.
 apt-get -y -o DPkg::Lock::Timeout=120 install equivs
 
-apt-cache show ${MOCK_PKG}=${DRV_VERSION}-0ubuntu1 \
-    | egrep '^Package|^Version|^Provides' \
-    &> ${MOCK_PKG}
+# Try different package revision suffixes to find the correct one
+for SUFFIX in "-1ubuntu1" "-0ubuntu1" ""; do
+    if apt-cache show ${MOCK_PKG}=${DRV_VERSION}${SUFFIX} 2>/dev/null | egrep '^Package|^Version|^Provides' &> ${MOCK_PKG}; then
+        echo "Found package with suffix: ${SUFFIX}"
+        break
+    fi
+done
+
+# Check if we successfully created the control file
+if [ ! -s ${MOCK_PKG} ]; then
+    echo "Error: Could not find package ${MOCK_PKG} with version ${DRV_VERSION} in apt-cache"
+    exit 1
+fi
 
 equivs-build ${MOCK_PKG}
 apt install -y -o DPkg::Lock::Timeout=120 ./${MOCK_PKG}_*.deb
