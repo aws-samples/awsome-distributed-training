@@ -3,7 +3,7 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 
-#SBATCH --job-name=cpu-ddp-container
+#SBATCH --job-name=ddp-container
 #SBATCH --exclusive
 #SBATCH --wait-all-nodes=1
 #SBATCH --nodes 2
@@ -18,11 +18,21 @@ declare -a ARGS=(
 )
 
 declare -a TORCHRUN_ARGS=(
-    --nproc_per_node=4
+    --nproc_per_node=4     # For GPU: Set this to number of GPUs per node
     --nnodes=$SLURM_JOB_NUM_NODES
     --rdzv_id=$SLURM_JOB_ID
     --rdzv_backend=c10d
     --rdzv_endpoint=$(hostname)
+    --use-mlflow
+)
+
+
+declare -a TRAIN_ARGS=(
+    --total_epochs 500
+    --save_every 1
+    --batch_size 32
+    --checkpoint_path ./snapshot.pt
+    --use-mlflow
 )
 
 AUTO_RESUME=""
@@ -33,4 +43,4 @@ fi
 
 srun ${AUTO_RESUME} -l "${ARGS[@]}" torchrun \
     "${TORCHRUN_ARGS[@]}" \
-    $(dirname "$PWD")/ddp.py 5000000 10
+    $(dirname "$PWD")/ddp.py ${TRAIN_ARGS[@]}

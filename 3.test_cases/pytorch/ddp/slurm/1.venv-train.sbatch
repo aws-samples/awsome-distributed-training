@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=cpu-ddp-conda
+#SBATCH --job-name=ddp-venv
 #SBATCH --exclusive
 #SBATCH --wait-all-nodes=1
 #SBATCH --nodes 2
@@ -8,11 +8,19 @@
 export LOGLEVEL=INFO
 
 declare -a TORCHRUN_ARGS=(
-    --nproc_per_node=4
+    --nproc_per_node=1     # For GPU: Set this to number of GPUs per node
     --nnodes=$SLURM_JOB_NUM_NODES
     --rdzv_id=$SLURM_JOB_ID
     --rdzv_backend=c10d
     --rdzv_endpoint=$(hostname)
+)
+
+declare -a TRAIN_ARGS=(
+    --total_epochs 500
+    --save_every 1
+    --batch_size 32
+    --checkpoint_path ./snapshot.pt
+    --use_mlflow
 )
 
 AUTO_RESUME=""
@@ -21,6 +29,6 @@ if [ -d "/opt/sagemaker_cluster" ]; then
     AUTO_RESUME="--auto-resume=1"
 fi
 
-srun ${AUTO_RESUME} ./pt_cpu/bin/torchrun \
+srun ${AUTO_RESUME} ./pt/bin/torchrun \
     "${TORCHRUN_ARGS[@]}" \
-    $(dirname "$PWD")/ddp.py 5000000 10
+    $(dirname "$PWD")/ddp.py ${TRAIN_ARGS[@]}
