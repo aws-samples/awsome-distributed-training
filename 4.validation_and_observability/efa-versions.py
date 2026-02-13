@@ -33,7 +33,7 @@ def get_nccl_version(container=[]):
         version = subprocess.check_output(container + ['locate', 'nccl'])
         version = version.decode('utf-8')
         print(version)
-        version = re.search(r'/usr/local/cuda-12.2/lib/libnccl.so.(\d+\.\d+\.\d+)', version).group(1)
+        version = re.search(r'/usr/local/cuda-12.8/lib/libnccl.so.(\d+\.\d+\.\d+)', version).group(1)
         return version
     except Exception as e:
         print(f'Error: {e}')
@@ -41,12 +41,12 @@ def get_nccl_version(container=[]):
 
 def get_aws_ofi_nccl_version(container=[]):
     try:
-        version = subprocess.check_output(container + ['strings', '/opt/aws-ofi-nccl/lib/libnccl-net.so'])
+        lib_path = subprocess.check_output(container + ['cat', '/etc/ld.so.conf.d/100_ofinccl.conf']).decode().strip()
+        version = subprocess.check_output(container + ['strings', f'{lib_path}/libnccl-net.so'])
         version = version.decode('utf-8')
-        version = re.search(r'NET/OFI Initializing aws-ofi-nccl (\d+\.\d+\.\d+-aws)', version).group(1)
+        version = re.search(r'NET/OFI Initializing aws-ofi-nccl (\d+\.\d+\.\d+)', version).group(1)
         return version
     except Exception as e:
-        
         print(f'Error: {e}')
         return None
 

@@ -1,0 +1,1839 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: AWS CloudFormation Template for SageMaker Studio Domain
+
+Parameters:
+  EKSClusterName:
+    Type: String
+    Description: Name of the Amazon EKS cluster to associate with the SageMaker domain.
+  ExistingVpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC ID from the HyperPod cluster stack
+  ExistingSubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Subnet IDs from the HyperPod cluster stack
+  ExistingFSxLustreId:
+    Type: String
+    Description: ID of the existing FSx Lustre file system
+    AllowedPattern: ^(fs-[0-9a-f]{8,})$
+  FSxClaimName:
+    Type: String
+    Default: "fsx-claim"
+    Description: Name of the FSx claim to associate with the FSx for Lustre volume
+  KubernetesNamespace:
+    Type: String
+    Default: "default"
+    Description: Namespace where temporary pods will be created to set partition permissions in the FSx volume. The FSx for lustre setup MUST have been done in this namespace.
+  SharedFSx:
+    Type: String
+    Description: Whether to use the FSx for Lustre volume shared across all the Studio user profiles or create a private partitions for them
+    AllowedValues:
+      - "True"
+      - "False"
+    Default: "True"
+
+Conditions:
+  CreatePrivatePartitions: !Equals [!Ref SharedFSx, "False"]
+
+Resources:
+  ## ============================ SageMaker Studio Domain ============================
+
+  SageMakerStudioExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                - sagemaker.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSageMakerFullAccess
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryFullAccess
+        - arn:aws:iam::aws:policy/CloudWatchFullAccessV2
+      Policies:
+        - PolicyName: EKSAccessPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cloudformation:CreateStack
+                  - cloudformation:DeleteStack
+                  - cloudformation:DescribeStacks
+                  - cloudformation:ListStacks
+                  - eks:AccessKubernetesApi
+                  - eks:AssociateAccessPolicy
+                  - eks:CreateAccessEntry
+                  - eks:CreateAddon
+                  - eks:CreatePodIdentityAssociation
+                  - eks:DescribeAccessEntry
+                  - eks:DescribeAddon
+                  - eks:DescribeAddonVersions
+                  - eks:DescribeCluster
+                  - eks:DescribeClusterVersions
+                  - eks:DeleteAccessEntry
+                  - eks:ListAddons
+                  - eks:ListAccessEntries
+                  - eks:ListAssociatedAccessPolicies
+                  - eks:UpdateAddon
+                  - iam:AttachRolePolicy
+                  - iam:CreateRole
+                  - iam:CreateServiceLinkedRole
+                  - iam:GetOpenIDConnectProvider
+                  - iam:ListOpenIDConnectProviders
+                  - iam:TagRole
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - fsx:DescribeFileSystems
+                  - fsx:DescribeFileSystemAliases
+                  - fsx:UpdateFileSystem
+                  - elasticfilesystem:Describe*
+                  - ec2:DescribeAvailabilityZones
+                  - q:SendMessage
+                  - codewhisperer:GenerateRecommendations
+                  - sagemaker-mlflow:*
+                Resource: "*"
+
+  EKSMLflowTrackingServerPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub ${AWS::StackName}-EKS-MLflow-policy
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - sagemaker:CreateMlflowTrackingServer
+              - sagemaker:ListMlflowTrackingServers
+              - sagemaker:UpdateMlflowTrackingServer
+              - sagemaker:DeleteMlflowTrackingServer
+              - sagemaker:StartMlflowTrackingServer
+              - sagemaker:StopMlflowTrackingServer
+              - sagemaker:CreatePresignedMlflowTrackingServerUrl
+              - sagemaker-mlflow:*
+              - s3:PutObject
+            Resource: "*"
+
+  SageMakerStudioKubernetesCELifecycleConfig:
+    Type: AWS::SageMaker::StudioLifecycleConfig
+    Properties:
+      StudioLifecycleConfigAppType: CodeEditor
+      StudioLifecycleConfigContent:
+        Fn::Base64: |
+          #!/bin/bash
+
+          # Exit on error
+          set -e
+
+          # Setup logging
+          exec > >(tee /var/log/studio-lifecycle-config.log) 2>&1
+
+          # install tools
+          echo 'debconf debconf/frontend select Noninteractive' | sudo debconf-set-selections
+          sudo apt update -qq
+          sudo apt install -y -qq vim git jq curl
+
+          # Create user bin directory
+          USER_BIN="/home/sagemaker-user/.local/bin"
+          mkdir -p $USER_BIN
+
+          # Add to PATH in both .bashrc and .bash_profile
+          grep -q "export PATH=$USER_BIN:\$PATH" /home/sagemaker-user/.bashrc || echo "export PATH=$USER_BIN:$PATH" >> /home/sagemaker-user/.bashrc
+          grep -q "export PATH=$USER_BIN:\$PATH" /home/sagemaker-user/.bash_profile || echo "export PATH=$USER_BIN:$PATH" >> /home/sagemaker-user/.bash_profile
+
+          # Set PATH for current session
+          export PATH=$USER_BIN:$PATH
+
+          # install kubectl if not present
+          if [ ! -f $USER_BIN/kubectl ]; then
+            curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+            chmod +x kubectl
+            mv kubectl $USER_BIN/
+          fi
+
+          # install eksctl if not present
+          if [ ! -f $USER_BIN/eksctl ]; then
+            curl -sLO "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_Linux_amd64.tar.gz"
+            tar -xzf eksctl_Linux_amd64.tar.gz
+            chmod +x eksctl
+            mv eksctl $USER_BIN/
+            rm eksctl_Linux_amd64.tar.gz
+          fi 
+
+          # install helm if not present
+          if ! command -v helm &> /dev/null; then
+            curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3
+            chmod 700 get_helm.sh
+            ./get_helm.sh
+            rm get_helm.sh
+          fi
+
+          # Function to compare versions
+          version_compare() {
+            if [ "$(printf '%s\n' "$1" "$2" | sort -V | head -n1)" = "$1" ]; then
+              return 0
+            else
+              return 1
+            fi
+          }
+
+          check_aws_cli_version() {
+            if [ -f ~/.local/bin/aws ]; then
+              current_version=$(~/.local/bin/aws --version 2>&1 | cut -d/ -f2 | cut -d' ' -f1)
+              required_version="2.17.47"
+              if version_compare "$current_version" "$required_version"; then
+                return 0  # Current version is >= required version
+              fi
+            fi
+            return 1  # AWS CLI needs to be installed or updated
+          }
+
+          # Update AWS CLI if needed
+          if ! check_aws_cli_version; then
+            echo "Installing/Updating AWS CLI to version >= 2.17.47"
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip -o awscliv2.zip
+            ./aws/install -i ~/.local/aws-cli -b ~/.local/bin --update
+            rm -rf aws awscliv2.zip
+          fi
+
+          # install docker if not present
+          if ! command -v docker &> /dev/null; then
+            sudo install -m 0755 -d /etc/apt/keyrings
+            sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+            sudo chmod a+r /etc/apt/keyrings/docker.asc
+            echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+            sudo apt update -qq
+            sudo apt install -y -qq docker-ce=5:20.10.24~3-0~ubuntu-jammy docker-ce-cli=5:20.10.24~3-0~ubuntu-jammy docker-buildx-plugin=0.17.1-1~ubuntu.22.04~jammy docker-compose-plugin=2.29.7-1~ubuntu.22.04~jammy
+          fi
+
+          # add completion if not present
+          LINE="complete -C '/usr/local/bin/aws_completer' aws"
+          grep -qxF "$LINE" /home/sagemaker-user/.bashrc || echo "$LINE" >> /home/sagemaker-user/.bashrc
+
+          # remove metadata file
+          METADATA_FILE="/home/sagemaker-user/.sagemaker-last-active-timestamp"
+          if [ -f $METADATA_FILE ]; then
+              rm $METADATA_FILE
+          fi
+      StudioLifecycleConfigName: !Sub ${AWS::StackName}-ce-kubernetes-setup
+
+  SageMakerStudioKubernetesJLLifecycleConfig:
+    Type: AWS::SageMaker::StudioLifecycleConfig
+    Properties:
+      StudioLifecycleConfigAppType: JupyterLab
+      StudioLifecycleConfigContent:
+        Fn::Base64: |
+          #!/bin/bash
+
+          # Exit on error
+          set -e
+
+          # Setup logging
+          exec > >(tee /var/log/studio-lifecycle-config.log) 2>&1
+
+          # install tools
+          echo 'debconf debconf/frontend select Noninteractive' | sudo debconf-set-selections
+          sudo apt update -qq
+          sudo apt install -y -qq vim git jq curl
+
+          # Create user bin directory
+          USER_BIN="/home/sagemaker-user/.local/bin"
+          mkdir -p $USER_BIN
+
+          # Add to PATH in both .bashrc and .bash_profile
+          grep -q "export PATH=$USER_BIN:\$PATH" /home/sagemaker-user/.bashrc || echo "export PATH=$USER_BIN:$PATH" >> /home/sagemaker-user/.bashrc
+          grep -q "export PATH=$USER_BIN:\$PATH" /home/sagemaker-user/.bash_profile || echo "export PATH=$USER_BIN:$PATH" >> /home/sagemaker-user/.bash_profile
+
+          # Set PATH for current session
+          export PATH=$USER_BIN:$PATH
+
+          # install kubectl if not present
+          if [ ! -f $USER_BIN/kubectl ]; then
+            curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+            chmod +x kubectl
+            mv kubectl $USER_BIN/
+          fi
+
+          # install eksctl if not present
+          if [ ! -f $USER_BIN/eksctl ]; then
+            curl -sLO "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_Linux_amd64.tar.gz"
+            tar -xzf eksctl_Linux_amd64.tar.gz
+            chmod +x eksctl
+            mv eksctl $USER_BIN/
+            rm eksctl_Linux_amd64.tar.gz
+          fi 
+
+          # install helm if not present
+          if ! command -v helm &> /dev/null; then
+            curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3
+            chmod 700 get_helm.sh
+            ./get_helm.sh
+            rm get_helm.sh
+          fi
+
+          # Function to compare versions
+          version_compare() {
+            if [ "$(printf '%s\n' "$1" "$2" | sort -V | head -n1)" = "$1" ]; then
+              return 0
+            else
+              return 1
+            fi
+          }
+
+          check_aws_cli_version() {
+            if [ -f ~/.local/bin/aws ]; then
+              current_version=$(~/.local/bin/aws --version 2>&1 | cut -d/ -f2 | cut -d' ' -f1)
+              required_version="2.17.47"
+              if version_compare "$current_version" "$required_version"; then
+                return 0  # Current version is >= required version
+              fi
+            fi
+            return 1  # AWS CLI needs to be installed or updated
+          }
+
+          # Update AWS CLI if needed
+          if ! check_aws_cli_version; then
+            echo "Installing/Updating AWS CLI to version >= 2.17.47"
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip -o awscliv2.zip
+            ./aws/install -i ~/.local/aws-cli -b ~/.local/bin --update
+            rm -rf aws awscliv2.zip
+          fi
+
+          # install docker if not present
+          if ! command -v docker &> /dev/null; then
+            sudo install -m 0755 -d /etc/apt/keyrings
+            sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+            sudo chmod a+r /etc/apt/keyrings/docker.asc
+            echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+            sudo apt update -qq
+            sudo apt install -y -qq docker-ce=5:20.10.24~3-0~ubuntu-jammy docker-ce-cli=5:20.10.24~3-0~ubuntu-jammy docker-buildx-plugin=0.17.1-1~ubuntu.22.04~jammy docker-compose-plugin=2.29.7-1~ubuntu.22.04~jammy
+          fi
+
+          # add completion if not present
+          LINE="complete -C '/usr/local/bin/aws_completer' aws"
+          grep -qxF "$LINE" /home/sagemaker-user/.bashrc || echo "$LINE" >> /home/sagemaker-user/.bashrc
+
+          # remove metadata file
+          METADATA_FILE="/home/sagemaker-user/.sagemaker-last-active-timestamp"
+          if [ -f $METADATA_FILE ]; then
+              rm $METADATA_FILE
+          fi
+      StudioLifecycleConfigName: !Sub ${AWS::StackName}-jl-kubernetes-setup
+
+  SageMakerStudioDomain:
+    Type: AWS::SageMaker::Domain
+    Properties:
+      DomainName: !Sub ${AWS::StackName}-Domain
+      AuthMode: IAM
+      VpcId: !Ref ExistingVpcId
+      SubnetIds: !Ref ExistingSubnetIds
+      DefaultUserSettings:
+        ExecutionRole: !GetAtt SageMakerStudioExecutionRole.Arn
+        CodeEditorAppSettings:
+          LifecycleConfigArns:
+            - Fn::GetAtt: SageMakerStudioKubernetesCELifecycleConfig.StudioLifecycleConfigArn
+        JupyterLabAppSettings:
+          LifecycleConfigArns:
+            - Fn::GetAtt: SageMakerStudioKubernetesJLLifecycleConfig.StudioLifecycleConfigArn
+
+  ## ============================ Lambda ============================
+
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonFSxFullAccess
+        - arn:aws:iam::aws:policy/AmazonElasticFileSystemFullAccess
+        - arn:aws:iam::aws:policy/AWSLambda_FullAccess
+      Policies:
+        - PolicyName: !Sub ${AWS::StackName}-lambda-update-security-group
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${AWS::StackName}-setup-fsx-to-studio:*
+                  - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${AWS::StackName}-attach-fsx-to-profile:*
+              - Effect: Allow
+                Action:
+                  - sagemaker:DescribeDomain
+                  - sagemaker:UpdateDomain
+                  - sagemaker:ListDomains
+                Resource:
+                  - !Sub arn:aws:sagemaker:${AWS::Region}:${AWS::AccountId}:domain/*
+              - Effect: Allow
+                Action:
+                  - sagemaker:DescribeUserProfile
+                  - sagemaker:UpdateUserProfile
+                Resource:
+                  - !Sub arn:aws:sagemaker:${AWS::Region}:${AWS::AccountId}:user-profile/*/*
+              - Effect: Allow
+                Action:
+                  - ec2:DescribeSecurityGroups
+                  - ec2:DescribeSubnets
+                  - ec2:AuthorizeSecurityGroupIngress
+                  - ec2:RevokeSecurityGroupIngress
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DescribeVpcs
+                  - eks:AccessKubernetesApi
+                  - eks:AssociateAccessPolicy
+                  - eks:CreateAccessEntry
+                  - eks:CreateAddon
+                  - eks:DescribeAccessEntry
+                  - eks:DescribeAddon
+                  - eks:DescribeAddonVersions
+                  - eks:DescribeCluster
+                  - eks:DescribeClusterVersions
+                  - eks:DeleteAccessEntry
+                  - eks:ListAddons
+                  - eks:ListAccessEntries
+                  - eks:ListAssociatedAccessPolicies
+                  - eks:UpdateAddon
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - ec2:CreateNetworkInterface
+                  - ec2:ModifyNetworkInterfaceAttribute
+                Resource:
+                  - !Sub arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:security-group/*
+                  - !Sub arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:network-interface/*
+                  - !Sub arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:subnet/*
+              - Effect: Allow
+                Action:
+                  - ec2:DeleteNetworkInterface
+                Resource:
+                  - !Sub arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:*/*
+      RoleName: !Sub ${AWS::StackName}-lambda-security-group-role
+
+  LambdaEKSAccessEntry:
+    Type: AWS::EKS::AccessEntry
+    Properties:
+      AccessPolicies:
+        - AccessScope:
+            Type: cluster
+          PolicyArn: arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy
+      ClusterName: !Ref EKSClusterName
+      PrincipalArn: !GetAtt LambdaExecutionRole.Arn
+      Type: "STANDARD"
+
+  ## ============================ FSx association ============================
+
+  LogsSetupFSxToStudio:
+    Type: AWS::Logs::LogGroup
+    #DeletionPolicy: Retain
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${AWS::StackName}-setup-fsx-to-studio
+      RetentionInDays: 14
+
+  SetupFSxToStudio:
+    Type: AWS::Lambda::Function
+    DependsOn:
+      - LogsSetupFSxToStudio
+      - SageMakerStudioDomain
+    Properties:
+      Description: Lambda function to update FSx Lustre ENIs with SageMaker security group
+      FunctionName: !Sub ${AWS::StackName}-setup-fsx-to-studio
+      Timeout: 900
+      MemorySize: 1024
+      EphemeralStorage:
+        Size: 2048
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Runtime: python3.12
+      Environment:
+        Variables:
+          eks_cluster_name: !Ref EKSClusterName
+          fsx_claim_name: !Ref FSxClaimName
+          fsx_file_system_id: !Ref ExistingFSxLustreId
+          namespace: !Ref KubernetesNamespace
+          sagemaker_domain_id: !Ref SageMakerStudioDomain
+          shared_fsx: !Ref SharedFSx
+      Code:
+        ZipFile: |
+          import os
+          import shutil
+          import subprocess
+          import sys
+          from typing import List, Dict, Any, Optional, Union, Literal
+
+
+          def update_requirements(requirements_list: List[str]) -> None:
+              """
+              Install Python dependencies in a temporary directory.
+
+              This function creates a temporary directory at /tmp/python and installs
+              the specified Python packages there. This is useful for AWS Lambda functions
+              that need dependencies not included in the Lambda runtime.
+
+              Args:
+                  requirements_list: List of Python package requirements in pip format
+              """
+              curr_dir = os.getcwd()
+              os.chdir("/tmp")
+
+              if os.path.exists("python"):
+                  shutil.rmtree("python")
+              os.mkdir("python")
+
+              for requirement in requirements_list:
+                  print(f"running pip install {requirement}")
+                  subprocess.check_call(
+                      [sys.executable, "-m", "pip", "install", requirement, "-t", "python"]
+                  )
+
+              os.chdir(curr_dir)
+
+
+          requirements_list = ["boto3==1.37.6", "eks-token==0.3.0"]
+          update_requirements(requirements_list)
+          sys.path.insert(0, "/tmp/python/")
+
+
+          import boto3
+          from eks_token import get_token
+          import time
+          import logging
+          import json
+          from pathlib import Path
+          import urllib.request
+          import urllib3
+          import yaml
+
+          # cfnresponse implementation
+          http = urllib3.PoolManager()
+          SUCCESS = "SUCCESS"
+          FAILED = "FAILED"
+
+          logger = logging.getLogger()
+          logger.setLevel(logging.INFO)
+
+          ec2_client = boto3.client("ec2")
+          eks_client = boto3.client("eks")
+          sagemaker_client = boto3.client("sagemaker")
+
+
+          def send(
+              event: Dict[str, Any],
+              context: Any,
+              responseStatus: str,
+              responseData: Dict[str, Any],
+              physicalResourceId: Optional[str] = None,
+              noEcho: bool = False,
+          ) -> None:
+              """
+              Send a response to a CloudFormation custom resource request.
+
+              This function sends a response back to CloudFormation to indicate whether
+              the custom resource operation succeeded or failed.
+
+              Args:
+                  event: The Lambda event that contains the custom resource request
+                  context: The Lambda context object
+                  responseStatus: Either SUCCESS or FAILED
+                  responseData: A dictionary containing response data to send back
+                  physicalResourceId: The physical resource ID (defaults to log stream name)
+                  noEcho: Whether to mask the response in CloudFormation console
+              """
+              responseUrl = event["ResponseURL"]
+
+              responseBody = {
+                  "Status": responseStatus,
+                  "Reason": "See the details in CloudWatch Log Stream: "
+                  + context.log_stream_name,
+                  "PhysicalResourceId": physicalResourceId or context.log_stream_name,
+                  "StackId": event["StackId"],
+                  "RequestId": event["RequestId"],
+                  "LogicalResourceId": event["LogicalResourceId"],
+                  "NoEcho": noEcho,
+                  "Data": responseData,
+              }
+
+              json_responseBody = json.dumps(responseBody)
+
+              headers = {"content-type": "", "content-length": str(len(json_responseBody))}
+
+              try:
+                  response = http.request(
+                      "PUT", responseUrl, body=json_responseBody.encode("utf-8"), headers=headers
+                  )
+                  print("Status code:", response.status)
+              except Exception as e:
+                  print(f"send(..) failed executing http.request(..): {str(e)}")
+
+
+          def create_fsx_partition(kubectl_path, env, namespace, fsx_claim_name, partition):
+              try:
+                  yaml_file_path = "/tmp/fsx-test-pod.yaml"
+
+                  # Check if file exists and remove it
+                  if os.path.exists(yaml_file_path):
+                      os.remove(yaml_file_path)
+                      logger.info(f"Previous {yaml_file_path} removed")
+
+                  # Define the YAML for the pod
+                  pod_yaml = {
+                      "apiVersion": "v1",
+                      "kind": "Pod",
+                      "metadata": {
+                          "name": "fsx-test-pod",
+                          "annotations": {"kueue.x-k8s.io/skip-webhook": "true"},
+                      },
+                      "spec": {
+                          "volumes": [
+                              {
+                                  "name": "fsx-volume",
+                                  "persistentVolumeClaim": {"claimName": fsx_claim_name},
+                              }
+                          ],
+                          "containers": [
+                              {
+                                  "name": "app",
+                                  "image": "centos:centos7",
+                                  "command": ["/bin/sh"],
+                                  "args": [
+                                      "-c",
+                                      "while true; do echo $(date) >> /data/outfile; sleep 5; done",
+                                  ],
+                                  "volumeMounts": [{"name": "fsx-volume", "mountPath": "/data"}],
+                              }
+                          ],
+                      },
+                  }
+
+                  with open(yaml_file_path, "w") as file:
+                      yaml.dump(pod_yaml, file, default_flow_style=False)
+
+                  # Apply the YAML using kubectl
+                  logger.info("Creating fsx-test-pod...")
+                  kubectl_apply_cmd = [
+                      kubectl_path,
+                      "apply",
+                      "-f",
+                      "/tmp/fsx-test-pod.yaml",
+                      "--namespace",
+                      namespace,
+                  ]
+                  kubectl_apply_result = subprocess.run(
+                      kubectl_apply_cmd, capture_output=True, text=True, env=env, check=True
+                  )
+                  logger.info(f"kubectl apply output: {kubectl_apply_result.stdout}")
+
+                  # Wait for the pod to be ready
+                  logger.info("Waiting for pod to be ready...")
+                  wait_cmd = [
+                      kubectl_path,
+                      "wait",
+                      "--for=condition=ready",
+                      "pod/fsx-test-pod",
+                      "--timeout=60s",
+                      "--namespace",
+                      namespace,
+                  ]
+                  wait_result = subprocess.run(wait_cmd, capture_output=True, text=True, env=env)
+                  logger.info(f"Wait result: {wait_result.stdout}")
+
+                  directory_message = ""
+                  try:
+                      # First check if the directory exists
+                      logger.info(f"Checking if directory /data/{partition} exists...")
+                      check_dir_cmd = [
+                          kubectl_path,
+                          "exec",
+                          "fsx-test-pod",
+                          "--namespace",
+                          namespace,
+                          "--",
+                          "/bin/sh",
+                          "-c",
+                          f"[ -d /data/{partition} ] && echo 'exists' || echo 'not exists'",
+                      ]
+                      check_dir_result = subprocess.run(
+                          check_dir_cmd, capture_output=True, text=True, env=env, check=True
+                      )
+
+                      # Only create directory if it doesn't exist
+                      if "not exists" in check_dir_result.stdout:
+                          logger.info(f"Creating directory /data/{partition}...")
+                          mkdir_cmd = [
+                              kubectl_path,
+                              "exec",
+                              "fsx-test-pod",
+                              "--namespace",
+                              namespace,
+                              "--",
+                              "/bin/sh",
+                              "-c",
+                              f"mkdir /data/{partition} && \
+                                  chown 200001:1001 /data/{partition} && \
+                                  setfacl -R -d -m u:200001:rwx /data/{partition} && \
+                                  setfacl -R -d -m g:1001:rwx /data/{partition}",
+                          ]
+                          mkdir_result = subprocess.run(
+                              mkdir_cmd, capture_output=True, text=True, env=env, check=True
+                          )
+                          logger.info(f"mkdir result: {mkdir_result.stdout}")
+                          directory_message = (
+                              f"Directory /data/{partition} created and permissions set"
+                          )
+                      else:
+                          logger.info(f"Directory /data/{partition} already exists")
+                          directory_message = f"Directory /data/{partition} already exists"
+                  finally:
+                      logger.info(f"Partition message: {directory_message}")
+                      # Clean up by deleting the pod regardless of whether directory creation succeeded
+                      logger.info("Cleaning up: Deleting fsx-test-pod...")
+                      delete_cmd = [
+                          kubectl_path,
+                          "delete",
+                          "-f",
+                          "/tmp/fsx-test-pod.yaml",
+                          "--namespace",
+                          namespace,
+                      ]
+                      delete_result = subprocess.run(
+                          delete_cmd, capture_output=True, text=True, env=env
+                      )
+                      logger.info(f"Pod deletion result: {delete_result.stdout}")
+              except subprocess.CalledProcessError as e:
+                  logger.error(f"kubectl apply failed with exit code {e.returncode}")
+                  logger.error(f"Error output: {e.stderr}")
+                  raise
+              except Exception as e:
+                  logger.error(f"Error creating FSx partition: {str(e)}")
+                  raise e
+
+
+          def get_sagemaker_security_group_id(sagemaker_domain_id: str) -> str:
+              """
+              Find the security group ID associated with a SageMaker domain.
+
+              This function searches for a security group with a specific naming pattern
+              that is associated with the given SageMaker domain ID.
+
+              Args:
+                  sagemaker_domain_id: The ID of the SageMaker domain
+
+              Returns:
+                  The ID of the security group associated with the domain
+
+              Raises:
+                  ValueError: If no matching security group is found
+              """
+              logger.info(
+                  f"Starting get_sagemaker_security_group_id with domain_id: {sagemaker_domain_id}"
+              )
+
+              search_name = f"security-group-for-inbound-nfs-{sagemaker_domain_id}"
+              logger.info(f"Looking for security group with exact name: {search_name}")
+
+              try:
+                  # Get all security groups and log their names
+                  logger.info("About to call describe_security_groups")
+                  try:
+                      all_sgs = ec2_client.describe_security_groups()["SecurityGroups"]
+                      logger.info("Successfully called describe_security_groups")
+                  except Exception as e:
+                      logger.error(f"Error calling describe_security_groups: {str(e)}")
+                      raise
+
+                  logger.info(f"Processing {len(all_sgs)} security groups")
+
+                  try:
+                      security_groups = ec2_client.describe_security_groups(
+                          Filters=[{"Name": "group-name", "Values": [search_name]}]
+                      )["SecurityGroups"]
+                      logger.info(f"Successfully filtered security groups")
+                  except Exception as e:
+                      logger.error(f"Error filtering security groups: {str(e)}")
+                      raise
+
+                  if security_groups:
+                      sg_id = security_groups[0]["GroupId"]
+                      logger.info(f"Found security group by name: {sg_id}")
+                      return sg_id
+                  else:
+                      logger.error(f"No security group found matching name: {search_name}")
+                      raise ValueError(
+                          f"Could not find security group for domain {sagemaker_domain_id}"
+                      )
+              except Exception as e:
+                  logger.error(
+                      f"Error in get_sagemaker_security_group_id: {type(e).__name__}: {str(e)}"
+                  )
+                  raise
+
+
+          def install_kubectl(bin_dir, kubectl_path):
+              try:
+                  # Create bin directory if it doesn't exist
+                  if not os.path.exists(bin_dir):
+                      os.makedirs(bin_dir)
+
+                  # Download kubectl if it doesn't exist
+                  if not os.path.isfile(kubectl_path):
+                      logger.info("kubectl not found, downloading...")
+
+                      # Get the latest stable kubectl version
+                      version_url = "https://dl.k8s.io/release/stable.txt"
+                      with urllib.request.urlopen(version_url) as response:
+                          stable_version = response.read().decode("utf-8").strip()
+
+                      logger.info(f"Latest stable kubectl version: {stable_version}")
+
+                      # Download kubectl binary
+                      kubectl_url = (
+                          f"https://dl.k8s.io/release/{stable_version}/bin/linux/amd64/kubectl"
+                      )
+                      urllib.request.urlretrieve(kubectl_url, kubectl_path)
+
+                      # Make kubectl executable
+                      os.chmod(kubectl_path, 0o755)
+                      logger.info("kubectl downloaded and made executable")
+              except Exception as e:
+                  logger.error(f"Error installing kubectl: {str(e)}")
+                  raise e
+
+
+          def setup_eks_context(kubeconfig_path, kubectl_path, env, eks_cluster_name):
+              try:
+                  # Use boto3 directly to get EKS cluster info and generate kubeconfig
+                  cluster_info = eks_client.describe_cluster(name=eks_cluster_name)
+
+                  # Generate kubeconfig content using boto3 instead of aws cli
+                  cluster = cluster_info["cluster"]
+                  certificate = cluster["certificateAuthority"]["data"]
+                  endpoint = cluster["endpoint"]
+
+                  # Create the kubeconfig content
+                  kubeconfig = {
+                      "apiVersion": "v1",
+                      "clusters": [
+                          {
+                              "cluster": {
+                                  "certificate-authority-data": certificate,
+                                  "server": endpoint,
+                              },
+                              "name": cluster["arn"],
+                          }
+                      ],
+                      "contexts": [
+                          {
+                              "context": {"cluster": cluster["arn"], "user": cluster["arn"]},
+                              "name": cluster["arn"],
+                          }
+                      ],
+                      "current-context": cluster["arn"],
+                      "kind": "Config",
+                      "preferences": {},
+                      "users": [
+                          {
+                              "name": cluster["arn"],
+                              "user": {
+                                  "token": get_token(cluster_name=eks_cluster_name)["status"][
+                                      "token"
+                                  ]
+                              },
+                          }
+                      ],
+                  }
+
+                  # Write the kubeconfig file
+                  with open(kubeconfig_path, "w") as f:
+                      json.dump(kubeconfig, f)
+
+                  # Verify the current context
+                  context_cmd = [kubectl_path, "config", "current-context"]
+                  context_result = subprocess.run(
+                      context_cmd, capture_output=True, text=True, env=env, check=True
+                  )
+                  logger.info(f"Current context: {context_result.stdout.strip()}")
+              except Exception as e:
+                  logger.error(f"Error setting up EKS context: {str(e)}")
+                  raise e
+
+
+          def update_fsx_enis(
+              fsx_id: str, security_group_id: str, action: Literal["add", "remove"] = "add"
+          ) -> None:
+              """
+              Update the Elastic Network Interfaces (ENIs) of an FSx filesystem.
+
+              This function finds all network interfaces associated with the given FSx
+              filesystem and either adds or removes the specified security group based on the action.
+
+              Args:
+                  fsx_id: The ID of the FSx filesystem
+                  security_group_id: The ID of the security group to add or remove from the ENIs
+                  action: Either "add" to add the security group or "remove" to remove it (default: "add")
+              """
+              enis = ec2_client.describe_network_interfaces(
+                  Filters=[{"Name": "description", "Values": [f"*{fsx_id}*"]}]
+              )["NetworkInterfaces"]
+
+              logger.info(f"Found {len(enis)} ENIs for FSxL filesystem {fsx_id}: {enis}")
+
+              for eni in enis:
+                  current_groups = [group["GroupId"] for group in eni["Groups"]]
+
+                  if action == "add":
+                      if security_group_id not in current_groups:
+                          current_groups.append(security_group_id)
+                          logger.info(
+                              f"Adding security group {security_group_id} to ENI {eni['NetworkInterfaceId']}"
+                          )
+
+                          ec2_client.modify_network_interface_attribute(
+                              NetworkInterfaceId=eni["NetworkInterfaceId"], Groups=current_groups
+                          )
+                  elif action == "remove":
+                      if security_group_id in current_groups:
+                          current_groups.remove(security_group_id)
+                          logger.info(
+                              f"Removing security group {security_group_id} from ENI {eni['NetworkInterfaceId']}"
+                          )
+
+                          ec2_client.modify_network_interface_attribute(
+                              NetworkInterfaceId=eni["NetworkInterfaceId"], Groups=current_groups
+                          )
+
+
+          def update_sagemaker_domain(domain_id: str, security_group_id: str) -> None:
+              """
+              Update the SageMaker domain to include or remove the security group in its configuration.
+
+              This function adds the specified security group to the domain's security group list.
+
+              Args:
+                  domain_id: The ID of the SageMaker domain to update
+                  security_group_id: The security group ID to add or remove
+
+              Raises:
+                  Exception: If there's an error updating the domain
+              """
+              logger.info(
+                  f"Adding security group {security_group_id} to SageMaker domain {domain_id}"
+              )
+
+              try:
+                  # First, describe the domain to get current configuration
+                  domain_response = sagemaker_client.describe_domain(DomainId=domain_id)
+
+                  logger.info(domain_response)
+
+                  # Get the current security groups
+                  if (
+                      "DomainSettings" in domain_response
+                      and "SecurityGroupIds" in domain_response["DomainSettings"]
+                  ):
+                      current_security_groups = domain_response["DomainSettings"][
+                          "SecurityGroupIds"
+                      ]
+                  else:
+                      current_security_groups = []
+
+                  logger.info(f"Current security groups: {current_security_groups}")
+
+                  # Check if the security group is already added
+                  if security_group_id in current_security_groups:
+                      logger.info(
+                          f"Security group {security_group_id} is already associated with the domain"
+                      )
+                      return
+
+                  # Add the new security group to the list
+                  updated_security_groups = current_security_groups + [security_group_id]
+
+                  # Update the domain with the new security group configuration
+                  logger.info(
+                      f"Added security group {security_group_id} to SageMaker domain {domain_id}"
+                  )
+
+                  response = sagemaker_client.update_domain(
+                      DomainId=domain_id,
+                      DomainSettingsForUpdate={"SecurityGroupIds": updated_security_groups},
+                  )
+
+                  logger.info(
+                      f"Successfully updated SageMaker domain security groups. Response: {response}"
+                  )
+
+              except Exception as e:
+                  logger.error(f"Error updating SageMaker domain: {str(e)}")
+                  raise
+
+
+          def update_domain_filesystem(
+              fsx_file_system_id: Union[str, List[str]], sagemaker_domain_id: str, shared: bool
+          ) -> None:
+              """
+              Update the SageMaker domain by attaching an FSx for Lustre volume.
+
+              This function attaches an FSx for Lustre filesystem to the domain's default user settings.
+
+              Args:
+                  fsx_file_system_id: The ID of the FSx for Lustre volume (string or list)
+                  sagemaker_domain_id: The ID of the SageMaker domain to update
+                  shared: If True, attach to domain default settings; if False, attach to specific user
+
+              Raises:
+                  Exception: If there's an error updating the domain
+              """
+              try:
+                  if isinstance(fsx_file_system_id, list):
+                      logger.info("fsx_file_system_id is a list. Taking the first element")
+                      fsx_file_system_id = fsx_file_system_id[0]
+                  elif isinstance(fsx_file_system_id, str):
+                      logger.info("fsx_file_system_id is a string")
+                  else:
+                      raise TypeError(
+                          f"Type for fsx_file_system_id unsupported: {type(fsx_file_system_id)}"
+                      )
+
+                  if shared:
+                      logger.info(f"Attaching FSx volume {fsx_file_system_id} under /shared")
+                      domain_response = sagemaker_client.describe_domain(
+                          DomainId=sagemaker_domain_id
+                      )
+
+                      already_present = False
+
+                      if (
+                          "DefaultUserSettings" in domain_response
+                          and "CustomFileSystemConfigs" in domain_response["DefaultUserSettings"]
+                      ):
+                          current_file_systems = domain_response["DefaultUserSettings"][
+                              "CustomFileSystemConfigs"
+                          ]
+
+                          for config in current_file_systems:
+                              # Check if this config has FSxLustreFileSystemConfig
+                              if "FSxLustreFileSystemConfig" in config:
+                                  fsx_config = config["FSxLustreFileSystemConfig"]
+
+                                  # Check if FileSystemId matches our target
+                                  if fsx_config.get("FileSystemId") == fsx_file_system_id:
+                                      already_present = True
+                      else:
+                          current_file_systems = []
+
+                      if not already_present:
+                          logger.info(
+                              f"Attaching FSx volume {fsx_file_system_id} to domain {sagemaker_domain_id} under /"
+                          )
+
+                          current_file_systems.append(
+                              {
+                                  "FSxLustreFileSystemConfig": {
+                                      "FileSystemId": fsx_file_system_id,
+                                      "FileSystemPath": "/shared",
+                                  }
+                              }
+                          )
+
+                          response = sagemaker_client.update_domain(
+                              DomainId=sagemaker_domain_id,
+                              DefaultUserSettings={
+                                  "CustomFileSystemConfigs": current_file_systems
+                              },
+                          )
+
+                          logger.info(
+                              f"Updated Studio Domain {sagemaker_domain_id} and FSx {fsx_file_system_id}"
+                          )
+                      else:
+                          logger.info(
+                              f"FSx volume {fsx_file_system_id} already attached to domain {sagemaker_domain_id}"
+                          )
+                  else:
+                      logger.info(
+                          f"Nothing to do on domain {sagemaker_domain_id} with file system {fsx_file_system_id}"
+                      )
+
+              except Exception as e:
+                  logger.error(f"Error updating SageMaker domain: {str(e)}")
+                  raise
+
+
+          def lambda_handler(event: Dict[str, Any], context: Any) -> Optional[Dict[str, Any]]:
+              """
+              AWS Lambda function handler for attaching FSx volumes to SageMaker domains.
+
+              This function handles CloudFormation custom resource requests.
+              It attaches an FSx for Lustre filesystem to a SageMaker domain.
+
+              Args:
+                  event: The Lambda event object
+                  context: The Lambda context object
+
+              Returns:
+                  Response data dictionary for non-custom resource invocations
+              """
+              logger.info(f"Received event: {event}")
+
+              request_type = event["RequestType"]
+              eks_cluster_name = os.environ.get("eks_cluster_name")
+              fsx_file_system_id = os.environ.get("fsx_file_system_id")
+              fsx_claim_name = os.environ.get("fsx_claim_name")
+              namespace = os.environ.get("namespace")
+              sagemaker_domain_id = os.environ.get("sagemaker_domain_id")
+              shared_fsx = os.environ.get("shared_fsx")
+
+              try:
+                  if request_type == "Create" or request_type == "Update":
+                      retries = 0
+                      sagemaker_security_group_id = None
+
+                      while retries < 2:
+                          try:
+                              sagemaker_security_group_id = get_sagemaker_security_group_id(
+                                  sagemaker_domain_id
+                              )
+                              logger.info(
+                                  f"Found SageMaker security group {sagemaker_security_group_id}"
+                              )
+                              break
+                          except Exception as e:
+                              logger.info(
+                                  f"Waiting for SageMaker security group to be available. Attempt {retries + 1}/2..."
+                              )
+                              if retries == 1:
+                                  raise Exception(
+                                      "Failed to find the SageMaker Studio Domain Security Group after 2 attempts"
+                                  ) from e
+                              time.sleep(10)
+                              retries += 1
+
+                      if not sagemaker_security_group_id:
+                          raise Exception("SageMaker security group not found")
+
+                      update_fsx_enis(
+                          fsx_file_system_id, sagemaker_security_group_id, action="add"
+                      )
+                      update_sagemaker_domain(sagemaker_domain_id, sagemaker_security_group_id)
+
+                      is_shared = shared_fsx in ["True", "true"]
+
+                      if is_shared:
+                          # Set up the bin directory in /tmp (the only writable directory in Lambda)
+                          bin_dir = "/tmp/bin"
+                          kubectl_path = f"{bin_dir}/kubectl"
+                          kubeconfig_path = "/tmp/.kube/config"
+                          Path(bin_dir).mkdir(parents=True, exist_ok=True)
+                          Path("/tmp/.kube").mkdir(parents=True, exist_ok=True)
+
+                          # Install kubectl
+                          install_kubectl(bin_dir, kubectl_path)
+                          # Set up environment to use our kubectl and kubeconfig
+                          env = os.environ.copy()
+                          env["PATH"] = f"{bin_dir}:{env.get('PATH', '')}"
+                          env["KUBECONFIG"] = kubeconfig_path
+
+                          # Test kubectl command
+                          cmd = [kubectl_path, "version", "--client"]
+                          result = subprocess.run(cmd, capture_output=True, text=True, env=env)
+
+                          logger.info(f"kubectl output: {result.stdout}")
+
+                          # Setup EKS context
+                          setup_eks_context(kubeconfig_path, kubectl_path, env, eks_cluster_name)
+
+                          create_fsx_partition(
+                              kubectl_path, env, namespace, fsx_claim_name, "shared"
+                          )
+                          update_domain_filesystem(
+                              fsx_file_system_id, sagemaker_domain_id, is_shared
+                          )
+
+                      response_data = {
+                          "sagemaker_domain_id": sagemaker_domain_id,
+                          "sagemaker_security_group_id": sagemaker_security_group_id,
+                      }
+
+                      logger.info("Successful execution of the request")
+
+                      send(event, context, SUCCESS, response_data, event["LogicalResourceId"])
+                  elif request_type == "Delete":
+                      logger.info("Delete request received. Processing...")
+
+                      retries = 0
+                      sagemaker_security_group_id = None
+
+                      while retries < 2:
+                          try:
+                              sagemaker_security_group_id = get_sagemaker_security_group_id(
+                                  sagemaker_domain_id
+                              )
+                              logger.info(
+                                  f"Found SageMaker security group {sagemaker_security_group_id}"
+                              )
+                              break
+                          except Exception as e:
+                              logger.info(
+                                  f"Waiting for SageMaker security group to be available. Attempt {retries + 1}/2..."
+                              )
+                              if retries == 1:
+                                  logger.warning(
+                                      "Could not find SageMaker security group, continuing with delete operation"
+                                  )
+                                  break
+                              time.sleep(10)
+                              retries += 1
+
+                      if sagemaker_security_group_id:
+                          # Remove the security group from FSx ENIs
+                          update_fsx_enis(
+                              fsx_file_system_id, sagemaker_security_group_id, action="remove"
+                          )
+
+                      send(event, context, SUCCESS, {"status": 200}, event["LogicalResourceId"])
+                  else:
+                      logger.error(f"Unsupported request type")
+
+                      send(event, context, FAILED, {"status": 500}, event["LogicalResourceId"])
+
+                      return {"status": 200, "error": "Unsupported request type"}
+              except Exception as error:
+                  logger.error(str(error))
+
+                  send(event, context, FAILED, {"status": 500}, event["LogicalResourceId"])
+
+                  return {"status": 500, "error": str(error)}
+
+  SetupFSxToStudioUpdate:
+    Type: Custom::SetupFSxToStudioUpdate
+    DependsOn:
+      - LogsSetupFSxToStudio
+      - SageMakerStudioDomain
+    Properties:
+      ServiceToken: !GetAtt SetupFSxToStudio.Arn
+
+  ## ============================ EventBridge rule ============================
+
+  LogsAttachFSxToStudio:
+    Type: AWS::Logs::LogGroup
+    #DeletionPolicy: Retain
+    Condition: CreatePrivatePartitions
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${AWS::StackName}-attach-fsx-to-profile
+      RetentionInDays: 14
+
+  AttachFSxToProfile:
+    Type: AWS::Lambda::Function
+    Condition: CreatePrivatePartitions
+    DependsOn:
+      - LogsAttachFSxToStudio
+    Properties:
+      Description: Lambda function to update FSx Lustre ENIs with SageMaker security group
+      FunctionName: !Sub ${AWS::StackName}-attach-fsx-to-profile
+      Timeout: 900
+      MemorySize: 1024
+      EphemeralStorage:
+        Size: 2048
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Runtime: python3.12
+      Environment:
+        Variables:
+          eks_cluster_name: !Ref EKSClusterName
+          fsx_claim_name: !Ref FSxClaimName
+          fsx_file_system_id: !Ref ExistingFSxLustreId
+          namespace: !Ref KubernetesNamespace
+          sagemaker_domain_id: !Ref SageMakerStudioDomain
+          shared_fsx: !Ref SharedFSx
+      Code:
+        ZipFile: |
+          import logging
+          import os
+          import shutil
+          import subprocess
+          import sys
+          from typing import List, Dict, Any, Optional, Union
+
+          logger = logging.getLogger()
+          logger.setLevel(logging.INFO)
+
+
+          def update_requirements(requirements_list: List[str]) -> None:
+              """
+              Install Python dependencies in a temporary directory.
+
+              This function creates a temporary directory at /tmp/python and installs
+              the specified Python packages there. This is useful for AWS Lambda functions
+              that need dependencies not included in the Lambda runtime.
+
+              Args:
+                  requirements_list: List of Python package requirements in pip format
+              """
+              curr_dir = os.getcwd()
+              os.chdir("/tmp")
+
+              if os.path.exists("python"):
+                  shutil.rmtree("python")
+              os.mkdir("python")
+
+              for requirement in requirements_list:
+                  logger.info(f"running pip install {requirement}")
+                  subprocess.check_call(
+                      [sys.executable, "-m", "pip", "install", requirement, "-t", "python"]
+                  )
+
+              os.chdir(curr_dir)
+
+
+          requirements_list = ["boto3==1.37.6", "eks-token==0.3.0"]
+          update_requirements(requirements_list)
+          sys.path.insert(0, "/tmp/python/")
+
+
+          import boto3
+          from eks_token import get_token
+          import json
+          from pathlib import Path
+          import time
+          import urllib.request
+          import yaml
+
+          eks_client = boto3.client("eks")
+          sagemaker_client = boto3.client("sagemaker")
+
+
+          def create_fsx_partition(kubectl_path, env, namespace, fsx_claim_name, partition):
+              try:
+                  yaml_file_path = "/tmp/fsx-test-pod.yaml"
+
+                  # Check if file exists and remove it
+                  if os.path.exists(yaml_file_path):
+                      os.remove(yaml_file_path)
+                      logger.info(f"Previous {yaml_file_path} removed")
+
+                  # Define the YAML for the pod
+                  pod_yaml = {
+                      "apiVersion": "v1",
+                      "kind": "Pod",
+                      "metadata": {
+                          "name": "fsx-test-pod",
+                          "annotations": {"kueue.x-k8s.io/skip-webhook": "true"},
+                      },
+                      "spec": {
+                          "volumes": [
+                              {
+                                  "name": "fsx-volume",
+                                  "persistentVolumeClaim": {"claimName": fsx_claim_name},
+                              }
+                          ],
+                          "containers": [
+                              {
+                                  "name": "app",
+                                  "image": "centos:centos7",
+                                  "command": ["/bin/sh"],
+                                  "args": [
+                                      "-c",
+                                      "while true; do echo $(date) >> /data/outfile; sleep 5; done",
+                                  ],
+                                  "volumeMounts": [{"name": "fsx-volume", "mountPath": "/data"}],
+                              }
+                          ],
+                      },
+                  }
+
+                  with open(yaml_file_path, "w") as file:
+                      yaml.dump(pod_yaml, file, default_flow_style=False)
+
+                  # Apply the YAML using kubectl
+                  logger.info("Creating fsx-test-pod...")
+                  kubectl_apply_cmd = [
+                      kubectl_path,
+                      "apply",
+                      "-f",
+                      "/tmp/fsx-test-pod.yaml",
+                      "--namespace",
+                      namespace,
+                  ]
+                  kubectl_apply_result = subprocess.run(
+                      kubectl_apply_cmd, capture_output=True, text=True, env=env, check=True
+                  )
+                  logger.info(f"kubectl apply output: {kubectl_apply_result.stdout}")
+
+                  # Wait for the pod to be ready
+                  logger.info("Waiting for pod to be ready...")
+                  wait_cmd = [
+                      kubectl_path,
+                      "wait",
+                      "--for=condition=ready",
+                      "pod/fsx-test-pod",
+                      "--timeout=60s",
+                      "--namespace",
+                      namespace,
+                  ]
+                  wait_result = subprocess.run(wait_cmd, capture_output=True, text=True, env=env)
+                  logger.info(f"Wait result: {wait_result.stdout}")
+
+                  directory_message = ""
+                  try:
+                      # First check if the directory exists
+                      logger.info(f"Checking if directory /data/{partition} exists...")
+                      check_dir_cmd = [
+                          kubectl_path,
+                          "exec",
+                          "fsx-test-pod",
+                          "--namespace",
+                          namespace,
+                          "--",
+                          "/bin/sh",
+                          "-c",
+                          f"[ -d /data/{partition} ] && echo 'exists' || echo 'not exists'",
+                      ]
+                      check_dir_result = subprocess.run(
+                          check_dir_cmd, capture_output=True, text=True, env=env, check=True
+                      )
+
+                      # Only create directory if it doesn't exist
+                      if "not exists" in check_dir_result.stdout:
+                          logger.info(f"Creating directory /data/{partition}...")
+                          mkdir_cmd = [
+                              kubectl_path,
+                              "exec",
+                              "fsx-test-pod",
+                              "--namespace",
+                              namespace,
+                              "--",
+                              "/bin/sh",
+                              "-c",
+                              f"mkdir /data/{partition} && \
+                                  chown 200001:1001 /data/{partition} && \
+                                  setfacl -R -d -m u:200001:rwx /data/{partition} && \
+                                  setfacl -R -d -m g:1001:rwx /data/{partition}",
+                          ]
+                          mkdir_result = subprocess.run(
+                              mkdir_cmd, capture_output=True, text=True, env=env, check=True
+                          )
+                          logger.info(f"mkdir result: {mkdir_result.stdout}")
+                          directory_message = (
+                              f"Directory /data/{partition} created and permissions set"
+                          )
+                      else:
+                          logger.info(f"Directory /data/{partition} already exists")
+                          directory_message = f"Directory /data/{partition} already exists"
+                  finally:
+                      logger.info(f"Partition message: {directory_message}")
+                      # Clean up by deleting the pod regardless of whether directory creation succeeded
+                      logger.info("Cleaning up: Deleting fsx-test-pod...")
+                      delete_cmd = [
+                          kubectl_path,
+                          "delete",
+                          "-f",
+                          "/tmp/fsx-test-pod.yaml",
+                          "--namespace",
+                          namespace,
+                      ]
+                      delete_result = subprocess.run(
+                          delete_cmd, capture_output=True, text=True, env=env
+                      )
+                      logger.info(f"Pod deletion result: {delete_result.stdout}")
+              except subprocess.CalledProcessError as e:
+                  logger.error(f"kubectl apply failed with exit code {e.returncode}")
+                  logger.error(f"Error output: {e.stderr}")
+                  raise
+              except Exception as e:
+                  logger.error(f"Error creating FSx partition: {str(e)}")
+                  raise e
+
+
+          def install_kubectl(bin_dir, kubectl_path):
+              try:
+                  # Create bin directory if it doesn't exist
+                  if not os.path.exists(bin_dir):
+                      os.makedirs(bin_dir)
+
+                  # Download kubectl if it doesn't exist
+                  if not os.path.isfile(kubectl_path):
+                      logger.info("kubectl not found, downloading...")
+
+                      # Get the latest stable kubectl version
+                      version_url = "https://dl.k8s.io/release/stable.txt"
+                      with urllib.request.urlopen(version_url) as response:
+                          stable_version = response.read().decode("utf-8").strip()
+
+                      logger.info(f"Latest stable kubectl version: {stable_version}")
+
+                      # Download kubectl binary
+                      kubectl_url = (
+                          f"https://dl.k8s.io/release/{stable_version}/bin/linux/amd64/kubectl"
+                      )
+                      urllib.request.urlretrieve(kubectl_url, kubectl_path)
+
+                      # Make kubectl executable
+                      os.chmod(kubectl_path, 0o755)
+                      logger.info("kubectl downloaded and made executable")
+              except Exception as e:
+                  logger.error(f"Error installing kubectl: {str(e)}")
+                  raise e
+
+
+          def setup_eks_context(kubeconfig_path, kubectl_path, env, eks_cluster_name):
+              try:
+                  # Use boto3 directly to get EKS cluster info and generate kubeconfig
+                  cluster_info = eks_client.describe_cluster(name=eks_cluster_name)
+
+                  # Generate kubeconfig content using boto3 instead of aws cli
+                  cluster = cluster_info["cluster"]
+                  certificate = cluster["certificateAuthority"]["data"]
+                  endpoint = cluster["endpoint"]
+
+                  # Create the kubeconfig content
+                  kubeconfig = {
+                      "apiVersion": "v1",
+                      "clusters": [
+                          {
+                              "cluster": {
+                                  "certificate-authority-data": certificate,
+                                  "server": endpoint,
+                              },
+                              "name": cluster["arn"],
+                          }
+                      ],
+                      "contexts": [
+                          {
+                              "context": {"cluster": cluster["arn"], "user": cluster["arn"]},
+                              "name": cluster["arn"],
+                          }
+                      ],
+                      "current-context": cluster["arn"],
+                      "kind": "Config",
+                      "preferences": {},
+                      "users": [
+                          {
+                              "name": cluster["arn"],
+                              "user": {
+                                  "token": get_token(cluster_name=eks_cluster_name)["status"][
+                                      "token"
+                                  ]
+                              },
+                          }
+                      ],
+                  }
+
+                  # Write the kubeconfig file
+                  with open(kubeconfig_path, "w") as f:
+                      json.dump(kubeconfig, f)
+
+                  # Verify the current context
+                  context_cmd = [kubectl_path, "config", "current-context"]
+                  context_result = subprocess.run(
+                      context_cmd, capture_output=True, text=True, env=env, check=True
+                  )
+                  logger.info(f"Current context: {context_result.stdout.strip()}")
+              except Exception as e:
+                  logger.error(f"Error setting up EKS context: {str(e)}")
+                  raise e
+
+
+          def update_user_profile_filesystem(
+              fsx_file_system_id: Union[str, List[str]],
+              sagemaker_domain_id: str,
+              user_profile_name: str,
+              shared: bool,
+          ) -> None:
+              """
+              Update the SageMaker User Profile by attaching an FSx for Lustre volume.
+
+              This function attaches an FSx for Lustre filesystem to either a specific user profile
+              or to the domain's default user settings, depending on the 'shared' parameter.
+
+              Args:
+                  fsx_file_system_id: The ID of the FSx for Lustre volume (string or list)
+                  sagemaker_domain_id: The ID of the SageMaker domain to update
+                  user_profile_name: Name of the Studio user profile
+                  shared: If True, attach to domain default settings; if False, attach to specific user
+
+              Raises:
+                  Exception: If there's an error updating the domain or user profile
+              """
+              try:
+                  if isinstance(fsx_file_system_id, list):
+                      logger.info("fsx_file_system_id is a list. Taking the first element")
+                      fsx_file_system_id = fsx_file_system_id[0]
+                  elif isinstance(fsx_file_system_id, str):
+                      logger.info("fsx_file_system_id is a string")
+                  else:
+                      raise TypeError(
+                          f"Type for fsx_file_system_id unsupported: {type(fsx_file_system_id)}"
+                      )
+
+                  if shared:
+                      logger.info(f"Attaching FSx volume {fsx_file_system_id} under /shared")
+                      domain_response = sagemaker_client.describe_domain(
+                          DomainId=sagemaker_domain_id
+                      )
+
+                      already_present = False
+
+                      if (
+                          "DefaultUserSettings" in domain_response
+                          and "CustomFileSystemConfigs" in domain_response["DefaultUserSettings"]
+                      ):
+                          current_file_systems = domain_response["DefaultUserSettings"][
+                              "CustomFileSystemConfigs"
+                          ]
+
+                          for config in current_file_systems:
+                              # Check if this config has FSxLustreFileSystemConfig
+                              if "FSxLustreFileSystemConfig" in config:
+                                  fsx_config = config["FSxLustreFileSystemConfig"]
+
+                                  # Check if FileSystemId matches our target
+                                  if fsx_config.get("FileSystemId") == fsx_file_system_id:
+                                      already_present = True
+                      else:
+                          current_file_systems = []
+
+                      if not already_present:
+                          logger.info(
+                              f"Attaching FSx volume {fsx_file_system_id} to domain {sagemaker_domain_id} under /"
+                          )
+
+                          current_file_systems.append(
+                              {
+                                  "FSxLustreFileSystemConfig": {
+                                      "FileSystemId": fsx_file_system_id,
+                                      "FileSystemPath": "/shared",
+                                  }
+                              }
+                          )
+
+                          response = sagemaker_client.update_domain(
+                              DomainId=sagemaker_domain_id,
+                              DefaultUserSettings={
+                                  "CustomFileSystemConfigs": current_file_systems
+                              },
+                          )
+
+                          logger.info(
+                              f"Updated Studio Domain {sagemaker_domain_id} and FSx {fsx_file_system_id}"
+                          )
+                      else:
+                          logger.info(
+                              f"FSx volume {fsx_file_system_id} already attached to domain {sagemaker_domain_id}"
+                          )
+                  else:
+                      logger.info(
+                          f"Attaching FSx volume {fsx_file_system_id} under /{user_profile_name}"
+                      )
+
+                      response = sagemaker_client.update_user_profile(
+                          DomainId=sagemaker_domain_id,
+                          UserProfileName=user_profile_name,
+                          UserSettings={
+                              "CustomFileSystemConfigs": [
+                                  {
+                                      "FSxLustreFileSystemConfig": {
+                                          "FileSystemId": fsx_file_system_id,
+                                          "FileSystemPath": f"/{user_profile_name}",
+                                      }
+                                  }
+                              ]
+                          },
+                      )
+
+                      logger.info(
+                          f"Updated Studio User {user_profile_name} for Domain {sagemaker_domain_id} and FSx {fsx_file_system_id}"
+                      )
+
+              except Exception as e:
+                  logger.error(f"Error updating SageMaker domain or user profile: {str(e)}")
+                  raise
+
+
+          def lambda_handler(event: Dict[str, Any], context: Any) -> Optional[Dict[str, Any]]:
+              """
+              AWS Lambda function handler for attaching FSx volumes to SageMaker domains.
+
+              This function handles both CloudFormation custom resource requests and EventBridge
+              events for user profile creation. It attaches an FSx for Lustre filesystem to
+              a SageMaker domain or user profile.
+
+              Args:
+                  event: The Lambda event object
+                  context: The Lambda context object
+
+              Returns:
+                  Response data dictionary for non-custom resource invocations
+              """
+              logger.info(f"Received event: {event}")
+              shared_fsx = os.environ.get("shared_fsx")
+
+              is_shared = shared_fsx in ["True", "true"]
+
+              if not is_shared:
+                  if (
+                      "detail" in event
+                      and "requestParameters" in event["detail"]
+                      and "userProfileName" in event["detail"]["requestParameters"]
+                  ):
+                      user_profile_name = event["detail"]["requestParameters"]["userProfileName"]
+                      logger.info(f"User profile is {user_profile_name}")
+                  else:
+                      raise Exception("Could not find user profile name in event")
+
+                  eks_cluster_name = os.environ.get("eks_cluster_name")
+                  fsx_claim_name = os.environ.get("fsx_claim_name")
+                  fsx_file_system_id = os.environ.get("fsx_file_system_id")
+                  namespace = os.environ.get("namespace")
+                  sagemaker_domain_id = os.environ.get("sagemaker_domain_id")
+
+                  try:
+                      # Check if user profile is in "InService" status before proceeding
+                      logger.info(
+                          f"Checking status of user profile {user_profile_name} in domain {sagemaker_domain_id}"
+                      )
+
+                      start_time = time.time()
+                      timeout = 600  # 10 minutes in seconds
+
+                      while True:
+                          user_profile = sagemaker_client.describe_user_profile(
+                              DomainId=sagemaker_domain_id, UserProfileName=user_profile_name
+                          )
+
+                          status = user_profile.get("Status")
+                          logger.info(f"Current user profile status: {status}")
+
+                          if status == "InService":
+                              logger.info(
+                                  f"User profile {user_profile_name} is InService, proceeding with operations"
+                              )
+                              break
+                          elif status not in ["Pending", "Updating"]:
+                              error_msg = f"User profile {user_profile_name} is in an invalid state: {status}. Expected 'InService', 'Pending', or 'Updating'."
+                              logger.error(error_msg)
+                              raise Exception(error_msg)
+
+                          elapsed_time = time.time() - start_time
+                          if elapsed_time > timeout:
+                              error_msg = f"Timed out waiting for user profile {user_profile_name} to be InService. Current status: {status}"
+                              logger.error(error_msg)
+                              raise Exception(error_msg)
+
+                          wait_time = min(
+                              30, timeout - elapsed_time
+                          )  # Wait up to 30 seconds between checks
+                          logger.info(
+                              f"Waiting {wait_time} seconds for user profile to be InService... (Current status: {status})"
+                          )
+                          time.sleep(wait_time)
+
+                      # Set up the bin directory in /tmp (the only writable directory in Lambda)
+                      bin_dir = "/tmp/bin"
+                      kubectl_path = f"{bin_dir}/kubectl"
+                      kubeconfig_path = "/tmp/.kube/config"
+                      Path(bin_dir).mkdir(parents=True, exist_ok=True)
+                      Path("/tmp/.kube").mkdir(parents=True, exist_ok=True)
+
+                      # Install kubectl
+                      install_kubectl(bin_dir, kubectl_path)
+                      # Set up environment to use our kubectl and kubeconfig
+                      env = os.environ.copy()
+                      env["PATH"] = f"{bin_dir}:{env.get('PATH', '')}"
+                      env["KUBECONFIG"] = kubeconfig_path
+
+                      # Test kubectl command
+                      cmd = [kubectl_path, "version", "--client"]
+                      result = subprocess.run(cmd, capture_output=True, text=True, env=env)
+
+                      logger.info(f"kubectl output: {result.stdout}")
+
+                      # Setup EKS context
+                      setup_eks_context(kubeconfig_path, kubectl_path, env, eks_cluster_name)
+
+                      create_fsx_partition(
+                          kubectl_path, env, namespace, fsx_claim_name, user_profile_name
+                      )
+                      update_user_profile_filesystem(
+                          fsx_file_system_id, sagemaker_domain_id, user_profile_name, False
+                      )
+
+                      response_data = {
+                          "user_profile_name": user_profile_name,
+                          "partition": f"/{user_profile_name}",
+                      }
+
+                      return response_data
+                  except Exception as error:
+                      logger.error(str(error))
+
+                      return {"status": 500, "error": str(error)}
+              else:
+                  logger.info("Shared FSx")
+
+                  return {"status": 200, "message": "Shared FSx, no action needed"}
+
+  EventBridgeRuleCreateUserProfile:
+    Type: AWS::Events::Rule
+    Condition: CreatePrivatePartitions
+    DependsOn:
+      - SageMakerStudioDomain
+    Properties:
+      EventPattern:
+        detail-type:
+          - AWS API Call via CloudTrail
+        source:
+          - aws.sagemaker
+        detail:
+          eventSource:
+            - sagemaker.amazonaws.com
+          eventName:
+            - CreateUserProfile
+      Description: EventBridge Rule triggered when a new Studio User Profile is
+        created. It will invoke a Lambda function that will create an FSx
+        directory for such user.
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt AttachFSxToProfile.Arn
+          Id: TargetLambda
+      Name: !Sub ${AWS::StackName}-eb-rule-CreateUserProfile
+
+  PermissionForEventsToInvokeLambda:
+    Type: AWS::Lambda::Permission
+    Condition: CreatePrivatePartitions
+    Properties:
+      FunctionName: !GetAtt AttachFSxToProfile.Arn
+      Action: lambda:InvokeFunction
+      SourceArn: !GetAtt EventBridgeRuleCreateUserProfile.Arn
+      Principal: events.amazonaws.com
+
+Outputs:
+  EKSClusterName:
+    Value: !Ref EKSClusterName
+    Description: EKS Cluster name
+  EKSMLflowTrackingServerPolicyArn:
+    Value: !GetAtt EKSMLflowTrackingServerPolicy.PolicyArn
+    Description: MLFlow policy to attach to EKS Access role
+  StudioDomainId:
+    Value: !Ref SageMakerStudioDomain
+    Description: SageMaker Studio Domain ID
+  SageMakerStudioExecutionRoleName:
+    Value: !Ref SageMakerStudioExecutionRole
+    Description: SageMaker Studio execution role name
+  SecurityGroupForNFS:
+    Value: !Sub security-group-for-inbound-nfs-${SageMakerStudioDomain}
+    Description: Security Group ID that needs to be added to FSx Lustre ENIs

@@ -10,8 +10,11 @@ variable "s3_bucket_name" {
   default     = "sagemaker-hyperpod-eks-bucket"
 }
 
-variable "script_url" {
-  description = "Raw URL of the script file"
-  type        = string
-  default     = "https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/main/1.architectures/7.sagemaker-hyperpod-eks/LifecycleScripts/base-config/on_create.sh"
+variable "script_urls" {
+  description = "List of raw URLs of the script files to upload"
+  type        = list(string)
+  default = [
+    "https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/main/1.architectures/7.sagemaker-hyperpod-eks/LifecycleScripts/base-config/on_create.sh",
+    "https://raw.githubusercontent.com/aws-samples/awsome-distributed-training/main/1.architectures/7.sagemaker-hyperpod-eks/LifecycleScripts/base-config/on_create_main.sh"
+  ]
 }

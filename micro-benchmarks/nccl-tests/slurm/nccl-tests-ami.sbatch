@@ -13,8 +13,8 @@ set -ex
 
 # This script is designed to run by default on the Deep Learning AMI, Ubuntu 20.04
 # See https://aws.amazon.com/releasenotes/aws-deep-learning-base-gpu-ami-ubuntu-20-04/
-ALL_REDUCE_BINARY=${1:-/usr/local/cuda-12.4/efa/test-cuda-12.4/all_reduce_perf}
-ADDITIONAL_LD_LIBRARY_PATH=${2:-/usr/local/cuda-12.4/lib}
+ALL_REDUCE_BINARY=${1:-/usr/local/cuda-13.0/efa/test-cuda-13.0/all_reduce_perf}
+ADDITIONAL_LD_LIBRARY_PATH=${2:-/usr/local/cuda-13.0/lib}
 
 # Get Hostname to Instance ID mapping
 mpirun -N 1 bash -c 'echo $(hostname) ➡️ $(cat /sys/devices/virtual/dmi/id/board_asset_tag | tr -d " ")'
@@ -33,7 +33,6 @@ mpirun -N 1 bash -c 'echo $(hostname) ➡️ $(cat /sys/devices/virtual/dmi/id/b
 # run all_reduce test
 mpirun -n $((8 * SLURM_JOB_NUM_NODES)) -N 8 \
         -x FI_PROVIDER=efa \
-	-x FI_EFA_USE_DEVICE_RDMA=1  \
 	-x FI_EFA_FORK_SAFE=1 \
 	-x LD_LIBRARY_PATH=$ADDITIONAL_LD_LIBRARY_PATH:/opt/amazon/efa/lib:/opt/amazon/openmpi/lib:/opt/amazon/ofi-nccl/lib:/usr/local/lib:/usr/lib:$LD_LIBRARY_PATH \
 	-x NCCL_DEBUG=INFO \

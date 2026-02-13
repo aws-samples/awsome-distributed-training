@@ -43,7 +43,7 @@ export FI_EFA_SET_CUDA_SYNC_MEMOPS=0
 # LD_PRELOAD is required for PyTorch to find the NCCL library
 # This path assumes you are using the Deep Learning AMI
 # If you are not using the DLAMI, you may need to update this path
-export LD_PRELOAD=/usr/local/cuda-12.4/lib/libnccl.so
+export LD_PRELOAD=/usr/local/cuda-12.8/lib/libnccl.so
 export NCCL_SOCKET_IFNAME=^docker,lo,veth,eth
 
 ## Set HuggingFace metadata timeout (in seconds) for large clusters
@@ -56,6 +56,8 @@ export HF_HUB_ETAG_TIMEOUT=60
 
 if [ ! -z $CONTAINER_IMAGE ];
 then
+    export TRAIN_SCRIPT=./train.py
+    
     declare -a ARGS=(
         --container-image $CONTAINER_IMAGE
         --container-mounts $FSX_MOUNT
@@ -75,53 +77,53 @@ declare -a TORCHRUN_ARGS=(
 )
 
 export TORCHRUN=torchrun
-export TRAIN_SCRIPT=./train.py
+export TRAIN_SCRIPT=${TRAIN_SCRIPT:=../src/train.py}
 
 ############################
 # mathstral_7b Training Params ##
 ############################
 
 declare -a TRAINING_ARGS=(
-    --train_batch_size=1 \
-    --val_batch_size=1 \
-    --max_steps=5000 \
-    --seed=42 \
-    --grad_clip=1.0 \
-    --weight_decay=0.2 \
-    --beta1=0.9 \
-    --beta2=0.95 \
-    --activation_checkpointing=1 \
-    --intermediate_size=14336 \
-    --num_key_value_heads=8 \
-    --logging_freq=1 \
-    --max_context_width=32768 \
-    --vocab_size=32768 \
-    --hidden_width=4096 \
-    --num_layers=32 \
-    --num_heads=32 \
-    --resid_pdrop=0.1 \
-    --embd_pdrop=0.1 \
-    --attn_pdrop=0.1 \
-    --summary_first_pdrop=0.1 \
-    --initializer_range=0.02 \
-    --model_type="mistral" \
-    --rotary_pct=0.25 \
-    --rotary_emb_base=10000 \
-    --lr=0.0001 \
-    --lr_decay_style="cosine" \
-    --min_lr=1e-5 \
-    --warmup=0.0032 \
-    --plateau=0.0 \
-    --dataset="allenai/c4" \
-    --tokenizer="mistralai/mathstral-7B-v0.1" \
-    --epochs=3 \
-    --checkpoint_dir="./checkpoints/mathstral-7B" \
-    --resume_from_checkpoint="./checkpoints/mathstral-7B" \
-    --checkpoint_freq=50 \
-    --validation_freq=500 \
-    --dataset_config_name="en" \
-    --limit_all_gathers=1 \
-    --sharding_strategy="full" \ # https://pytorch.org/docs/stable/fsdp.html
+    --train_batch_size=1
+    --val_batch_size=1
+    --seed=42
+    --grad_clip=1.0
+    --weight_decay=0.2
+    --beta1=0.9
+    --beta2=0.95
+    --activation_checkpointing=1
+    --intermediate_size=14336
+    --num_key_value_heads=8
+    --logging_freq=1
+    --max_context_width=32768
+    --vocab_size=32768
+    --hidden_width=4096
+    --num_layers=32
+    --num_heads=32
+    --resid_pdrop=0.1
+    --embd_pdrop=0.1
+    --attn_pdrop=0.1
+    --summary_first_pdrop=0.1
+    --initializer_range=0.02
+    --model_type=mistral
+    --rotary_pct=0.25
+    --rotary_emb_base=10000
+    --lr=0.0001
+    --lr_decay_style=cosine
+    --min_lr=1e-5
+    --warmup=0.0032
+    --plateau=0.0
+    --dataset=allenai/c4
+    --tokenizer=mistralai/mathstral-7B-v0.1
+    --epochs=3
+    --checkpoint_dir=./checkpoints/mathstral-7B
+    --resume_from_checkpoint=./checkpoints/mathstral-7B
+    --max_steps=200
+    --checkpoint_freq=50
+    --validation_freq=100
+    --dataset_config_name=en
+    --limit_all_gathers=1
+    --sharding_strategy=full  # https://pytorch.org/docs/stable/fsdp.html
     --offload_activations=1
 )
 

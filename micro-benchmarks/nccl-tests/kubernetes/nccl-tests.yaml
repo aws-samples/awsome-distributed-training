@@ -21,7 +21,7 @@ spec:
              - name: PATH
                value: $PATH:/opt/amazon/efa/bin:/usr/bin
              - name: LD_LIBRARY_PATH
-               value: /opt/amazon/openmpi/lib:/opt/nccl/build/lib:/opt/amazon/efa/lib:/opt/aws-ofi-nccl/install/lib:/usr/local/nvidia/lib:$LD_LIBRARY_PATH
+               value: /opt/amazon/openmpi/lib:/opt/nccl/build/lib:/opt/amazon/efa/lib:/opt/amazon/ofi-nccl/lib/x86_64-linux-gnu:/usr/local/nvidia/lib:$LD_LIBRARY_PATH
             command:
             - /opt/amazon/openmpi/bin/mpirun
             - --allow-run-as-root
@@ -39,8 +39,6 @@ spec:
             - -x
             - FI_PROVIDER=efa
             - -x
-            - FI_EFA_USE_DEVICE_RDMA=1
-            - -x
             - FI_EFA_FORK_SAFE=1
             - -x
             - NCCL_DEBUG=INFO
@@ -49,7 +47,7 @@ spec:
             - -x
             - NCCL_P2P_NET_CHUNKSIZE=524288
             - -x
-            - NCCL_TUNER_PLUGIN=/opt/aws-ofi-nccl/install/lib/libnccl-ofi-tuner.so
+            - NCCL_TUNER_PLUGIN=/opt/amazon/ofi-nccl/lib/x86_64-linux-gnu/libnccl-ofi-tuner.so
             - --mca
             - pml
             - ^ucx

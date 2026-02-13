@@ -150,13 +150,27 @@ def on_create():
         subprocess.run(['helm', 'repo', 'update'], check=True)
 
         # Clone the GitHub repository
+        branch = os.environ.get('GITHUB_REPO_BRANCH', 'main')
         clone_cmd = [
             'git', 'clone',
+            '--branch', branch,
             os.environ['GITHUB_REPO_URL'],
             '/tmp/helm-charts'
         ]
         subprocess.run(clone_cmd, check=True)
 
+        # DEBUG: Check what branch we're on and list chart directories
+        print(f"Cloned branch: {branch}")
+        subprocess.run(['git', '-C', '/tmp/helm-charts', 'branch'], check=True)
+        subprocess.run(['ls', '-la', '/tmp/helm-charts/helm_chart/HyperPodHelmChart/charts/'], check=True)
+        subprocess.run(['cat', '/tmp/helm-charts/helm_chart/HyperPodHelmChart/Chart.yaml'], check=True)
+
+        # DEBUG: Show the Chart.yaml dependencies
+        print("Chart.yaml contents:")
+        with open('/tmp/helm-charts/helm_chart/HyperPodHelmChart/Chart.yaml', 'r') as f:
+            print(f.read())
+
+        print("Running helm dependency update...")
         # Update dependencies
         subprocess.run(['helm', 'dependency', 'update', f"/tmp/helm-charts/{os.environ['CHART_PATH']}"], check=True)
 

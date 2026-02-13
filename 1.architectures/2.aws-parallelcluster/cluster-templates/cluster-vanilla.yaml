@@ -1,0 +1,103 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+Region: ${AWS_REGION}
+Imds:
+  ImdsSupport: v2.0
+Image:
+  Os: ubuntu2204
+HeadNode:
+  InstanceType: m5.8xlarge
+  Networking:
+    SubnetId: ${PublicSubnet}
+    AdditionalSecurityGroups:
+      - ${SecurityGroup}
+  Ssh:
+    KeyName: ${KEYPAIR_NAME}
+  LocalStorage:
+    RootVolume:
+      Size: 500
+      DeleteOnTermination: true # that's your root and /home volume for users
+  Iam:
+    AdditionalIamPolicies: # grant ECR, SSM and S3 read access
+      - Policy: arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      - Policy: arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
+      - Policy: arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+  CustomActions:
+    OnNodeConfigured:
+      Sequence:
+        - Script: 'https://raw.githubusercontent.com/aws-samples/aws-parallelcluster-post-install-scripts/main/docker/postinstall.sh'
+        - Script: 'https://raw.githubusercontent.com/aws-samples/aws-parallelcluster-post-install-scripts/main/nccl/postinstall.sh'
+          Args:
+            - v2.26.6-1 # NCCL version
+            - v1.14.2   # AWS OFI NCCL version
+        - Script: 'https://raw.githubusercontent.com/aws-samples/aws-parallelcluster-post-install-scripts/main/pyxis/postinstall.sh'
+  Imds:
+    Secured: false
+Scheduling:
+  Scheduler: slurm
+  SlurmSettings:
+    ScaledownIdletime: 60
+    QueueUpdateStrategy: DRAIN
+    CustomSlurmSettings:
+      # Simple accounting to text file /home/slurm/slurm-job-completions.txt.
+      - JobCompType: jobcomp/filetxt
+      - JobCompLoc: /home/slurm/slurm-job-completions.txt
+      - JobAcctGatherType: jobacct_gather/linux
+  SlurmQueues:
+    - Name: compute-gpu
+      CapacityType: ONDEMAND
+      Networking:
+        SubnetIds:
+          - ${PrimaryPrivateSubnet}
+        PlacementGroup:
+          Enabled: false  # set this to false if using a targeted ODCR
+        AdditionalSecurityGroups:
+          - ${SecurityGroup}
+      ComputeSettings:
+        LocalStorage:
+          EphemeralVolume:
+            MountDir: /scratch # each instance has a local scratch on NVMe
+          RootVolume:
+            Size: 512
+      ComputeResources:
+        - Name: distributed-ml
+          InstanceType: ${INSTANCE}
+          MinCount: ${NUM_INSTANCES} # if min = max then capacity is maintained and will
+          MaxCount: ${NUM_INSTANCES} # not scale down
+          Efa:
+            Enabled: true
+          CapacityReservationTarget:
+            CapacityReservationId: ${CAPACITY_RESERVATION_ID}
+      CustomActions:
+        OnNodeConfigured:
+          Sequence:
+            - Script: 'https://raw.githubusercontent.com/aws-samples/aws-parallelcluster-post-install-scripts/main/docker/postinstall.sh'
+            - Script: 'https://raw.githubusercontent.com/aws-samples/aws-parallelcluster-post-install-scripts/main/nccl/postinstall.sh'
+              Args:
+                - v2.26.6-1 # NCCL version
+                - v1.14.2   # AWS OFI NCCL version
+        OnNodeStart:
+          Sequence:
+            - Script: 'https://raw.githubusercontent.com/aws-samples/aws-parallelcluster-post-install-scripts/main/pyxis/postinstall.sh'
+SharedStorage:
+  - Name: HomeDirs
+    MountDir: /home
+    StorageType: FsxOpenZfs
+    FsxOpenZfsSettings:
+      VolumeId: ${FSxORootVolumeId}
+  - MountDir: /fsx
+    Name: fsx
+    StorageType: FsxLustre
+    FsxLustreSettings:
+      FileSystemId: ${FSxLustreFilesystemId}
+Monitoring:
+  DetailedMonitoring: true
+  Logs:
+    CloudWatch:
+      Enabled: true # good for debug
+  Dashboards:
+    CloudWatch:
+      Enabled: true # provide basic dashboards
+Tags:
+  - Key: 'Grafana'
+    Value: 'true'

@@ -17,6 +17,9 @@ from datasets import load_dataset
 
 from model_utils.concat_dataset import ConcatTokensDataset
 
+from transformers import LlamaForCausalLM, LlamaTokenizer, LlamaConfig
+from transformers.models.llama.modeling_llama import LlamaDecoderLayer
+
 g_gigabyte = 1024**3
 
 def setup():
@@ -144,6 +147,27 @@ def get_model_config(args):
             tie_word_embeddings=False,
             rope_scaling=None,
         )
+    elif "llama_v3" in args.model_type:
+        from transformers import LlamaConfig
+        
+        model_config = LlamaConfig(
+            vocab_size=args.vocab_size,
+            hidden_size=args.hidden_width,
+            intermediate_size=args.intermediate_size,
+            num_hidden_layers=args.num_layers,
+            num_attention_heads=args.num_heads,
+            num_key_value_heads=args.num_key_value_heads,
+            hidden_act="silu",
+            max_position_embeddings=args.max_context_width,
+            initializer_range=args.initializer_range,
+            rms_norm_eps=1e-5,
+            use_cache=False,
+            pretraining_tp=1,
+            tie_word_embeddings=False,
+            rope_scaling= {"type": "dynamic", "factor": 2.0},
+        )
+        
+        
     elif "mixtral" in args.model_type:
         from transformers import MixtralConfig
         model_config = MixtralConfig(
@@ -238,6 +262,11 @@ def get_transformer_layer(model_type="gpt2"):
         # TODO: Add support for Block
         transformer_layer = ParallelBlock
     elif model_type == "llama_v2":
+        from transformers.models.llama.modeling_llama import LlamaDecoderLayer
+
+        transformer_layer = LlamaDecoderLayer
+        
+    elif model_type == "llama_v3":
         from transformers.models.llama.modeling_llama import LlamaDecoderLayer
 
         transformer_layer = LlamaDecoderLayer
@@ -476,8 +505,8 @@ def create_streaming_dataloader(dataset,
                       workers=4,
                       split=None):
     print(f"dataset={dataset}, name={name}")
-    tokenizer = AutoTokenizer.from_pretrained(tokenizer)
-    data = load_dataset(dataset, name=name, streaming=True, split=split, trust_remote_code=True).shuffle(42+global_rank)
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer,legacy=False)
+    data = load_dataset(dataset, name=name, streaming=True, split=split).shuffle(42+global_rank)
     train_concat_dataset = ConcatTokensDataset(data, tokenizer, max_context_width, True)
     train_dataloader = DataLoader(train_concat_dataset,
                                        batch_size=batch_size,

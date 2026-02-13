@@ -1,132 +1,241 @@
 #!/bin/bash
 
-# must be run a sudo
+# must be run as sudo
 
-set -x
-set -e
+set -eux
 
 # FSx Lustre Endpoints
 FSX_DNS_NAME="$1"
 FSX_MOUNTNAME="$2"
 MOUNT_POINT="$3"
 
-is_mounted() {
-  mountpoint -q "$1"
-  return $?
+# Function for error handling
+handle_error()
+{
+    local exit_code=$?
+    echo "Error occurred in command: $BASH_COMMAND"
+    echo "Exit code: $exit_code"
+    echo "Exit logs:"
+    sudo dmesg | tail -n 20
+    echo "Mount status:"
+    mount | grep lustre || true
+    echo "LNet status:"
+    sudo lctl list_nids || true
+    exit $exit_code
 }
 
-check_already_mounted() {
-  # Check if FSx is already mounted to $MOUNT_POINT
-  if is_mounted $MOUNT_POINT; then
-    if grep -qs "$FSX_MOUNTNAME $MOUNT_POINT lustre" /proc/mounts; then
-      echo "FSx Lustre already mounted to $MOUNT_POINT. Exiting."
-      exit 0
+trap handle_error ERR
+
+# DEBUG: Verify parameters are set
+verify_parameters()
+{
+    if [ -z "$FSX_DNS_NAME" ] || [ -z "$FSX_MOUNTNAME" ] || [ -z "$MOUNT_POINT" ]; then
+        echo "Usage: $0 <fsx_dns_name> <fsx_mountname> <mount_point>"
+        exit 1
+    fi
+}
+
+# Print Lustre client version
+print_lustre_version()
+{
+    echo "Lustre client version:"
+    modinfo lustre | grep 'version:' | head -n 1 | awk '{print $2}'
+}
+
+# Verify if FSxL is created with EFA-enabled and if the FS is in the same AZ (cross AZ is not supported)
+verify_fsx_efa_compatibility()
+{
+    local fsx_dns_name="$1"
+
+    echo "[INFO] Verifying FSx EFA compatibility"
+
+    # Extract FSx filesystem ID from DNS name
+    local fsx_id=$(echo "$fsx_dns_name" | cut -d'.' -f1)
+
+    # Get instance AZ
+    local instance_az
+    TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600" -s --max-time 3 2>/dev/null)
+    if [[ -n "$TOKEN" ]]; then
+        instance_az=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -s --max-time 3 http://169.254.169.254/latest/meta-data/placement/availability-zone 2>/dev/null)
     else
-      echo "$MOUNT_POINT is mounted, but not to mountname: $FSX_MOUNTNAME from provisioning_parameters.json. Exiting."
-      exit 1
+        instance_az=$(curl -s --max-time 3 http://169.254.169.254/latest/meta-data/placement/availability-zone 2>/dev/null)
     fi
-  fi
+
+    if [[ -z "$instance_az" ]]; then
+        echo "[WARN] Could not determine instance AZ - proceeding without EFA verification"
+        return 1
+    fi
+
+    # Get FSx filesystem details (EFA and Subnet details)
+    local fsx_info
+    if ! fsx_info=$(aws fsx describe-file-systems --file-system-ids "$fsx_id" --query 'FileSystems[0].{LustreConfiguration: LustreConfiguration, SubnetIds: SubnetIds}' --output json 2>/dev/null); then
+        echo "[WARN] Could not describe FSx filesystem - proceeding without EFA verification"
+        return 1
+    fi
+
+    # Get FSx AZ from subnet (To match FSx and instance AZ)
+    local fsx_subnet=$(echo "$fsx_info" | python3 -c "import sys, json; data=json.load(sys.stdin); print(data['SubnetIds'][0])" 2>/dev/null)
+
+    if [[ -z "$fsx_subnet" ]]; then
+        echo "[WARN] Could not determine FSx subnet - proceeding without EFA verification"
+        return 1
+    fi
+
+    local fsx_az=$(aws ec2 describe-subnets --subnet-ids "$fsx_subnet" --query 'Subnets[0].AvailabilityZone' --output text 2>/dev/null)
+
+    if [[ "$instance_az" != "$fsx_az" ]]; then
+        echo "[INFO] FSx filesystem is in different AZ ($fsx_az vs $instance_az) - EFA not supported cross-AZ"
+        return 1
+    fi
+
+    # Check if FSx has EFA enabled (checking for EfaEnabled field and value. Currently, as observed, if FSx is created without EFA, the field doesn't exist in the describe call)
+    local efa_enabled=$(echo "$fsx_info" | python3 -c "import sys, json; data=json.load(sys.stdin); lustre_config=data.get('LustreConfiguration', {}); print('FieldNotPresent' if 'EfaEnabled' not in lustre_config else lustre_config['EfaEnabled'])" 2>/dev/null)
+
+    if [[ "$efa_enabled" != "True" ]]; then
+        if [[ "$efa_enabled" == "FieldNotPresent" ]]; then
+            echo "[INFO] FSx filesystem was not created with EFA enabled - skipping EFA configuration"
+        else
+            echo "[INFO] FSx filesystem has EFA disabled (EfaEnabled: $efa_enabled) - skipping EFA configuration"
+        fi
+        return 1
+    fi
+
+    echo "[INFO] FSx filesystem is EFA-compatible (same AZ: $instance_az, EfaEnabled: true)"
+    return 0
 }
 
-is_fsx_reachable() {
-  if lctl ping "$FSX_DNS_NAME"; then
-    echo "FSx is reachable"
-  else
-    echo "FSx is not reachable, Trying to mount system anyway"
-  fi
+# Configure EFA for Lustre if supported
+configure_efa_lustre()
+{
+    echo "[INFO] Configuring EFA for FSx Lustre"
+
+    # Check if instance has EFA drivers installed and configured
+    if [[ -x "/opt/amazon/efa/bin/fi_info" ]]; then
+        if /opt/amazon/efa/bin/fi_info -p efa >/dev/null 2>&1; then
+            echo "[INFO] EFA provider detected successfully"
+        else
+            echo "[INFO] EFA provider not available - skipping EFA configuration"
+            return 0
+        fi
+    else
+        echo "[INFO] EFA tools not found - skipping EFA configuration"
+        return 0
+    fi
+
+    # Verify FSx EFA compatibility
+    if ! verify_fsx_efa_compatibility "$FSX_DNS_NAME"; then
+        echo "[INFO] FSx not EFA-compatible - skipping EFA configuration"
+        return 0
+    fi
+
+    echo "[INFO] EFA requirements met - proceeding with EFA configuration"
+    echo "[INFO] - EFA provider: available"
+    echo "[INFO] - FSx EFA enabled: yes"
+    echo "[INFO] - Same AZ: yes"
+
+    # Download EFA configuration script
+    if ! ansible localhost -m ansible.builtin.get_url -a "url=https://docs.aws.amazon.com/fsx/latest/LustreGuide/samples/configure-efa-fsx-lustre-client.zip dest=/tmp/configure-efa-fsx-lustre-client.zip mode='0644'"; then
+        echo "[ERROR] Failed to download EFA configuration script"
+        return 1
+    fi
+
+    # Extract the zip file
+    ansible localhost -m ansible.builtin.unarchive -a "src=/tmp/configure-efa-fsx-lustre-client.zip dest=/tmp remote_src=yes"
+
+    # Make script executable and run it
+    ansible localhost -b -m ansible.builtin.file -a "path=/tmp/configure-efa-fsx-lustre-client/setup.sh mode='0755'"
+    ansible localhost -b -m ansible.builtin.command -a "/tmp/configure-efa-fsx-lustre-client/setup.sh"
+
+    # Cleanup
+    ansible localhost -m ansible.builtin.file -a "path=/tmp/configure-efa-fsx-lustre-client.zip state=absent"
+    ansible localhost -m ansible.builtin.file -a "path=/tmp/configure-efa-fsx-lustre-client/setup.sh state=absent"
+
+    echo "[INFO] EFA configuration for FSx Lustre completed"
 }
 
-add_to_fstab() {
-  # Add FSx to /etc/fstab
-  echo "$FSX_DNS_NAME@tcp:/$FSX_MOUNTNAME $MOUNT_POINT lustre defaults,noatime,flock,_netdev 0 0" | tee -a /etc/fstab  
+# Load lnet modules
+load_lnet_modules()
+{
+  ansible localhost -b -m ansible.builtin.modprobe -a "name=lnet state=present"
+  ansible localhost -b -m ansible.builtin.modprobe -a "name=lustre state=present"
+  lctl network up || { echo "Error: Failed to bring up LNet network"; exit 1; }     # Simplifying: Instead of using ansible.builtin.shell
 }
 
+# Mount the FSx Lustre file system using Ansible
 mount_fs() {
-  if [[ ! -d $MOUNT_POINT ]]; then
-    mkdir -p $MOUNT_POINT
-    chmod 644 $MOUNT_POINT
-  fi
+    local max_attempts=5
+    local attempt=1
+    local delay=5
+    local test_file="$MOUNT_POINT/test_file_$(hostname)"
 
-  if mount -t lustre -o noatime,flock "$FSX_DNS_NAME"@tcp:/"$FSX_MOUNTNAME" "$MOUNT_POINT"; then
-    if ! is_mounted $MOUNT_POINT ;then
-      echo "Mounting FSx to $MOUNT_POINT directory successful, but mountpoint was not detected. Exiting."
-      exit 1
-    fi
-  else
-    echo "FAILED to mount, FSX to $MOUNT_POINT directory. Exiting."
-    exit 1
-  fi
+    echo "[INFO] Ensuring $MOUNT_POINT directory exists..."
+    ansible localhost -b -m ansible.builtin.file -a "path=$MOUNT_POINT state=directory" || true
+
+    echo "[INFO] Mounting FSx Lustre on $MOUNT_POINT..."
+    echo "[INFO] Using test file: $test_file"
+
+    while (( attempt <= max_attempts )); do
+        echo "============================"
+        echo "[INFO] Attempt $attempt of $max_attempts"
+        echo "============================"
+
+        echo "[STEP] Mounting FSx..."
+        if ! ansible localhost -b -m ansible.posix.mount -a \
+            "path=$MOUNT_POINT src=$FSX_DNS_NAME@tcp:/$FSX_MOUNTNAME fstype=lustre opts=noatime,flock,_netdev,x-systemd.automount,x-systemd.requires=network-online.target dump=0 passno=0 state=mounted"; then
+            echo "[WARN] Mount command failed — retrying in $delay seconds"
+            sleep "$delay"; ((attempt++)); continue
+        fi
+
+        echo "[STEP] Verifying mountpoint..."
+        if ! ansible localhost -b -m ansible.builtin.command -a "mountpoint $MOUNT_POINT"; then
+            echo "[WARN] Mountpoint verification failed — retrying in $delay seconds"
+            sleep "$delay"; ((attempt++)); continue
+        fi
+        echo "[STEP] Triggering automount..."
+        ls -la "$MOUNT_POINT" >/dev/null 2>&1 || true
+
+        echo "[STEP] Testing file access (touch)..."
+        if ! ansible localhost -b -m ansible.builtin.file -a "path=$test_file state=touch"; then
+            echo "[WARN] Touch failed — retrying in $delay seconds"
+            sleep "$delay"; ((attempt++)); continue
+        fi
+
+        echo "[STEP] Testing file access (delete)..."
+        if ! ansible localhost -b -m ansible.builtin.file -a "path=$test_file state=absent"; then
+            echo "[WARN] Delete failed — retrying in $delay seconds"
+            sleep "$delay"; ((attempt++)); continue
+        fi
+
+        echo "[SUCCESS] FSx mount succeeded on attempt $attempt"
+        return 0
+    done
+
+    echo "[ERROR] FSx mount failed after $max_attempts attempts"
+    return 1
 }
 
 
-load_lnet_modules() {
-  modprobe -v lnet
+
+restart_daemon()
+{
+  ansible localhost -b -m ansible.builtin.systemd -a "daemon_reload=yes"
+  ansible localhost -b -m ansible.builtin.systemd -a "name=remote-fs.target state=restarted"
+  # Readable status check
+  echo "Check status of fsx automount service..."
+  systemctl status fsx.automount
 }
 
-# create a systemd service to check mount periodically and remount FSx if necessary
-# To stop the service, run: 
-# `systemctl stop check_mount.service`
-# To disable the service, run:
-# `systemctl disable check_mount.service`
-install_remount_service() {
-  
-  if [[ ! -d /opt/ml/scripts ]]; then
-    mkdir -p /opt/ml/scripts
-    chmod 644 /opt/ml/scripts
-    echo "Created dir /opt/ml/scripts"
-  fi
-
-  CHECK_MOUNT_FILE=/opt/ml/scripts/check_mount_$FSX_MOUNTNAME.sh
-
-  cat > $CHECK_MOUNT_FILE << EOF
-#!/bin/bash
-MOUNT_POINT=$MOUNT_POINT
-if ! grep -qs "$MOUNT_POINT" /proc/mounts; then
-  mount -t lustre -o noatime,flock "$FSX_DNS_NAME"@tcp:/"$FSX_MOUNTNAME" "$MOUNT_POINT"
-  echo "Mounted FSx to $MOUNT_POINT"
-else
-  echo "FSx Lustre already mounted to $MOUNT_POINT. Stopping services check_fsx_mount_$FSX_MOUNTNAME.timer and check_fsx_mount_$FSX_MOUNTNAME.service"
-  systemctl stop check_fsx_mount_$FSX_MOUNTNAME.timer
-fi
-EOF
-
-  chmod +x $CHECK_MOUNT_FILE
-
-  cat > /etc/systemd/system/check_fsx_mount_$FSX_MOUNTNAME.service << EOF
-[Unit]
-Description=Check and remount FSx Lustre filesystems if necessary
-
-[Service]
-ExecStart=$CHECK_MOUNT_FILE
-EOF
-
-  cat > /etc/systemd/system/check_fsx_mount_$FSX_MOUNTNAME.timer << EOF
-[Unit]
-Description=Run check_fsx_mount_$FSX_MOUNTNAME.service every minute
-
-[Timer]
-OnBootSec=1min
-OnUnitActiveSec=1min
-
-[Install]
-WantedBy=timers.target
-EOF
-
-  systemctl daemon-reload
-  systemctl enable --now check_fsx_mount_$FSX_MOUNTNAME.timer
-}
-
-main() {
-  echo "Mount_fsx called fsx_dns_name: $FSX_DNS_NAME, fsx_mountname: $FSX_MOUNTNAME"
-  echo "Using mount_point: $MOUNT_POINT"
-  load_lnet_modules
-  check_already_mounted
-  is_fsx_reachable
-  add_to_fstab
-  mount_fs
-  install_remount_service
-  echo "FSx Lustre mounted successfully to $MOUNT_POINT"
+main()
+{
+    verify_parameters
+    echo "Mount_fsx called with fsx_dns_name: $FSX_DNS_NAME, fsx_mountname: $FSX_MOUNTNAME"
+    echo "Using mount_point: $MOUNT_POINT"
+    echo "LUSTRE CLIENT CONFIGURATION $(print_lustre_version)"
+    configure_efa_lustre
+    load_lnet_modules
+    mount_fs || exit 1
+    restart_daemon
+    echo "FSx Lustre mounted successfully to $MOUNT_POINT"
 }
 
 main "$@"
-

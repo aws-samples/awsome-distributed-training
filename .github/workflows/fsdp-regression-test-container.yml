@@ -1,0 +1,154 @@
+name: FSDP Regression Test (container)
+
+# TODO: Additional configuration options as inputs (egs. number of nodes (auto change num GPUs and EFA variables accordingly), add support for g* instances etc)
+
+on: 
+  push:
+    branches: [ "main" ]
+    paths: 
+      - '3.test_cases/pytorch/FSDP/**'
+  pull_request:
+    paths:
+      - '3.test_cases/pytorch/FSDP/**'
+
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy: 
+      fail-fast: true
+      max-parallel: 3
+      matrix:
+        cluster: [p5, p5-smhp]
+    runs-on: [self-hosted, "${{ matrix.cluster }}"]
+    concurrency:
+      group: ${{ github.workflow }}-${{ matrix.cluster }}
+      cancel-in-progress: false      
+    timeout-minutes: 60
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          path: ${{ github.run_id }}
+
+      - name: Set env vars
+        run: |
+          HOME_DIR="/home/github"
+          BUILD_ID="${{ github.run_id }}"
+          FSDP_DIR="$(pwd)/${BUILD_ID}/3.test_cases/pytorch/FSDP"
+          CONTAINER_DIR="${HOME_DIR}/regression-container-${BUILD_ID}-${{ matrix.cluster }}"
+
+          echo "HOME_DIR=$HOME_DIR" >> $GITHUB_ENV
+          echo "BUILD_ID=$BUILD_ID" >> $GITHUB_ENV
+          echo "FSDP_DIR=$FSDP_DIR" >> $GITHUB_ENV
+          echo "CONTAINER_DIR=$CONTAINER_DIR" >> $GITHUB_ENV
+          echo "Env vars set successfully!"
+ 
+      - name: Create directories
+        run: |
+          mkdir -p ${{ env.CONTAINER_DIR }}
+          chmod 755 ${{ env.CONTAINER_DIR }}
+
+      - name: Build container [on head node]
+        working-directory: ${{ env.FSDP_DIR }}
+        run: |
+          echo "Building FSDP image"
+          docker build -t fsdp:pytorch .
+          echo "FSDP Image built!"
+
+      - name: Convert built container to squash file [on head node]
+        working-directory: ${{ env.FSDP_DIR }}
+        run: |
+          echo "Converting container to squash file..."
+          enroot import -o ${{ env.CONTAINER_DIR }}/fsdp.sqsh dockerd://fsdp:pytorch
+          echo "Container converted to squash file successfully!"
+
+  run-tests:
+    needs: build
+    strategy: 
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        cluster: [p5, p5-smhp]
+        model_config: [llama2_7b, llama2_13b, llama2_70b, llama3_1_8b, llama3_1_70b]
+    runs-on: [self-hosted, "${{ matrix.cluster }}"]
+    concurrency:
+      group: ${{ github.workflow }}-${{ matrix.cluster }}-${{ matrix.model_config }}
+      cancel-in-progress: false      
+    timeout-minutes: 360  # 6 hours for the full Llama 2 test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          path: ${{ github.run_id }}
+
+      - name: Set env vars
+        run: |
+          HOME_DIR="/home/github"
+          BUILD_ID="${{ github.run_id }}"
+          FSDP_DIR="$(pwd)/${BUILD_ID}/3.test_cases/pytorch/FSDP"
+          LOG_DIR="${HOME_DIR}/regression-logs-${BUILD_ID}-${{ matrix.model_config }}-${{ matrix.cluster }}"
+          CHECKPOINT_DIR="${HOME_DIR}/regression-checkpoints-${BUILD_ID}-${{ matrix.model_config }}-${{ matrix.cluster }}"
+          CONTAINER_DIR="${HOME_DIR}/regression-container-${BUILD_ID}-${{ matrix.cluster }}"
+
+          echo "HOME_DIR=$HOME_DIR" >> $GITHUB_ENV
+          echo "BUILD_ID=$BUILD_ID" >> $GITHUB_ENV
+          echo "FSDP_DIR=$FSDP_DIR" >> $GITHUB_ENV
+          echo "LOG_DIR=$LOG_DIR" >> $GITHUB_ENV
+          echo "CHECKPOINT_DIR=$CHECKPOINT_DIR" >> $GITHUB_ENV
+          echo "CONTAINER_DIR=$CONTAINER_DIR" >> $GITHUB_ENV
+          echo "Env vars set successfully!"
+
+      - name: Create directories
+        run: |
+          mkdir -p ${{ env.LOG_DIR }} ${{ env.CHECKPOINT_DIR }}
+          chmod 755 ${{ env.LOG_DIR }} ${{ env.CHECKPOINT_DIR }}
+
+      - name: Run regression test
+        id: run_test
+        working-directory: ${{ env.FSDP_DIR }}
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          SBATCH_FILE="slurm/${{ matrix.model_config }}-training.sbatch"
+          TMP_SBATCH="slurm/regression_test_${{ matrix.model_config }}_${{ matrix.cluster }}.sbatch"
+
+          if [ ! -f "$SBATCH_FILE" ]; then
+            echo "Error: sbatch file ${SBATCH_FILE} does not exist!"
+            exit 1
+          fi
+
+          cp "$SBATCH_FILE" "$TMP_SBATCH"
+
+          sed -i "s|#SBATCH --output=.*|#SBATCH --output=${{ env.LOG_DIR }}/regression_test_%j.out|" "$TMP_SBATCH"
+          sed -i "s|#SBATCH --error=.*|#SBATCH --error=${{ env.LOG_DIR }}/regression_test_%j.err|" "$TMP_SBATCH"
+          sed -i "s|#export CONTAINER_IMAGE=.*|export CONTAINER_IMAGE=${{ env.CONTAINER_DIR }}/fsdp.sqsh|" "$TMP_SBATCH"
+          sed -i "s|--checkpoint_dir=./checkpoints|--checkpoint_dir=/checkpoints|g" "$TMP_SBATCH"
+          sed -i "s|--container-mounts.*|--container-mounts \$FSX_MOUNT,${{ env.CHECKPOINT_DIR }}:/checkpoints|" "$TMP_SBATCH"
+
+          echo "Submitting Slurm job..."
+          sbatch --wait $TMP_SBATCH
+          exit_code=$?
+          echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
+          echo "Slurm job completed with exit code: $exit_code"
+          if [ $exit_code -ne 0 ]; then
+            echo "Slurm job failed with exit code: $exit_code"
+            exit $exit_code
+          fi
+
+      - name: Upload logs as artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: regression-logs-${{ matrix.model_config }}-${{ matrix.cluster }}-${{ github.run_id }}
+          path: ${{ env.LOG_DIR }}
+          retention-days: 60
+
+      - name: Cleanup
+        if: always()
+        run: |
+          echo "Cleaning up..."
+          rm -rf ${{ env.LOG_DIR }} ${{ env.CHECKPOINT_DIR }}
+          echo "Container, logs and checkpoints cleaned up successfully!"
+
+    
