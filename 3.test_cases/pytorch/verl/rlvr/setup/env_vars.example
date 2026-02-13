@@ -40,4 +40,9 @@ export N_RESP_PER_PROMPT=2
 
 # Managed Tiered Checkpointing with HyperPod
 # S3 checkpoint configuration
-S3_CHECKPOINT_BASE="s3://<your S3 bucket name>/checkpoints"
+export S3_BUCKET_NAME="<your S3 bucket name>"
+export S3_BUCKET_ARN="arn:aws:s3:::${S3_BUCKET_NAME}"
+export S3_CHECKPOINT_BASE="s3://${S3_BUCKET_NAME}/checkpoints"
+
+
+

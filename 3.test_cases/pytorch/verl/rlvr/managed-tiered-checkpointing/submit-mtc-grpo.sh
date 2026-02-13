@@ -45,8 +45,12 @@ RAY_DATA_HOME=${RAY_DATA_HOME:-"/fsx/verl"}
 TRAIN_FILE="${RAY_DATA_HOME}/data/gsm8k/train.parquet"
 TEST_FILE="${RAY_DATA_HOME}/data/gsm8k/test.parquet"
 
-# S3 checkpoint configuration
-S3_CHECKPOINT_BASE=${S3_CHECKPOINT_BASE:-"s3://s3-bucket-example"}
+# S3 checkpoint configuration for Managed Tiered Checkpointing (MTC)
+# MTC enables asynchronous checkpointing to CPU memory with automatic background sync to S3
+# This reduces checkpoint overhead during training and provides faster recovery
+# Learn more: https://docs.aws.amazon.com/sagemaker/latest/dg/managed-tier-checkpointing.html
+S3_CHECKPOINT_BASE=${S3_CHECKPOINT_BASE:?Error: S3_CHECKPOINT_BASE not set. Please configure in env_vars file.}
+
 # Performance parameters
 gen_tp=2
 log_prob_micro_bsz_per_gpu=32
@@ -96,7 +100,11 @@ ray job submit --no-wait \
     actor_rollout_ref.actor.entropy_coeff=${entropy_coeff} \
     actor_rollout_ref.actor.fsdp_config.param_offload=${param_offload} \
     actor_rollout_ref.actor.fsdp_config.optimizer_offload=${optimizer_offload} \
+    # MTC Configuration: S3 base path for tiered checkpoint storage
+    # Checkpoints are first saved to CPU memory, then asynchronously synced to S3
     actor_rollout_ref.actor.checkpoint.s3_base_path=${S3_CHECKPOINT_BASE} \
+    # MTC Configuration: Unique namespace for this training job
+    # Used to organize checkpoints in S3 and enable recovery
     actor_rollout_ref.actor.checkpoint.ckpt_namespace=mtc-grpo-$(date +%s) \
     actor_rollout_ref.rollout.log_prob_micro_batch_size_per_gpu=${log_prob_micro_bsz_per_gpu} \
     actor_rollout_ref.rollout.tensor_model_parallel_size=${gen_tp} \
@@ -115,6 +123,7 @@ ray job submit --no-wait \
     trainer.save_freq=1 \
     trainer.test_freq=2 \
     trainer.total_epochs=5 \
+    # MTC Configuration: S3 base path for trainer-level checkpoints (e.g., critic)
     trainer.s3_base_path=${S3_CHECKPOINT_BASE}
 
 echo ""

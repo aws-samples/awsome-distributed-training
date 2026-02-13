@@ -24,7 +24,7 @@ spec:
           fsGroup: 0
         containers:
         - name: ray-head
-          image: ${REGISTRY}${IMAGE}:${TAG}
+          image: ${REGISTRY}${IMAGE}:${MTC_TAG}
           env:
             ## PROMETHEUS AND GRAFANA
             - name: RAY_GRAFANA_IFRAME_HOST
@@ -111,7 +111,7 @@ spec:
           fsGroup: 0
         containers:
         - name: ray-worker
-          image: ${REGISTRY}${IMAGE}:${TAG}
+          image: ${REGISTRY}${IMAGE}:${MTC_TAG}
           env:
             - name: FI_PROVIDER
               value: "efa"

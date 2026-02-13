@@ -45,14 +45,6 @@ CKPTS_DIR="${RAY_DATA_HOME}/ckpts/${project_name}/${exp_name}"
 TRAIN_FILE="${RAY_DATA_HOME}/data/gsm8k/train.parquet"
 TEST_FILE="${RAY_DATA_HOME}/data/gsm8k/test.parquet"
 
-# S3 checkpoint configuration (for managed tiered checkpointing)
-S3_CHECKPOINT_BASE=${S3_CHECKPOINT_BASE:-"s3://sagemaker-mvincig-rlvr-e66849d3-bucket/checkpoints"}
-CHECKPOINT_NAMESPACE="${exp_name}-$(date +%s)"
-
-# Checkpoint configuration
-CHECKPOINT_ASYNC_SAVE=True  # Enable async checkpointing
-CHECKPOINT_SAVE_TO_S3_FREQ=5  # Save to S3 every N steps (in addition to in-memory)
-
 # Performance parameters
 gen_tp=2
 log_prob_micro_bsz_per_gpu=32
@@ -73,7 +65,6 @@ echo "GPUs per node: ${GPUS_PER_NODE}"
 echo "Total GPUs: $((NNODES * GPUS_PER_NODE))"
 echo "Data home: ${RAY_DATA_HOME}"
 echo "Checkpoints: ${CKPTS_DIR}"
-echo "S3 Checkpoints: ${S3_CHECKPOINT_BASE}"
 echo "Ray address: ${RAY_ADDRESS}"
 echo "=================================="
 

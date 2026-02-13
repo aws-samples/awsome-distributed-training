@@ -9,10 +9,42 @@ source "${SCRIPT_DIR}/env_vars"
 EKS_CLUSTER_NAME="${EKS_CLUSTER_NAME}"
 AWS_REGION="${AWS_REGION}"
 AWS_ACCOUNT="${ACCOUNT}"
-NAMESPACE="default"
-SERVICE_ACCOUNT_NAME="ray-s3-sa"
+S3_BUCKET_ARN="${S3_BUCKET_ARN}"
+NAMESPACE="${NAMESPACE:-default}"
+SERVICE_ACCOUNT_NAME="${SERVICE_ACCOUNT_NAME:-ray-s3-sa}"
 IAM_ROLE_NAME="ray-s3-access-role"
 IAM_POLICY_NAME="ray-s3-access-policy"
+
+# Validate required environment variables
+if [ -z "${EKS_CLUSTER_NAME}" ]; then
+    echo "ERROR: EKS_CLUSTER_NAME not set. Please set in env_vars file."
+    exit 1
+fi
+
+if [ -z "${AWS_REGION}" ]; then
+    echo "ERROR: AWS_REGION not set. Please set in env_vars file."
+    exit 1
+fi
+
+if [ -z "${ACCOUNT}" ]; then
+    echo "ERROR: ACCOUNT not set. Please set in env_vars file."
+    exit 1
+fi
+
+if [ -z "${S3_BUCKET_ARN}" ]; then
+    echo "ERROR: S3_BUCKET_ARN environment variable is not set"
+    echo "Please set it in your env_vars file: export S3_BUCKET_ARN='arn:aws:s3:::your-bucket-name'"
+    exit 1
+fi
+
+# Validate S3 bucket exists
+BUCKET_NAME=$(echo "${S3_BUCKET_ARN}" | sed 's/arn:aws:s3::://')
+echo "Validating S3 bucket: ${BUCKET_NAME}..."
+if ! aws s3api head-bucket --bucket "${BUCKET_NAME}" 2>/dev/null; then
+    echo "ERROR: S3 bucket '${BUCKET_NAME}' does not exist or you don't have access to it"
+    exit 1
+fi
+echo "✓ S3 bucket validated"
 
 echo "=== Setting up IRSA for Ray Pods ==="
 echo "EKS Cluster: ${EKS_CLUSTER_NAME}"
@@ -60,9 +92,19 @@ else
         {
             "Effect": "Allow",
             "Action": [
-                "s3:*"
+                "s3:GetObject",
+                "s3:PutObject",
+                "s3:DeleteObject"
             ],
-            "Resource": "*"
+            "Resource": "${S3_BUCKET_ARN}/*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "s3:ListBucket",
+                "s3:GetBucketLocation"
+            ],
+            "Resource": "${S3_BUCKET_ARN}"
         }
     ]
 }
@@ -71,7 +113,7 @@ EOF
     aws iam create-policy \
         --policy-name ${IAM_POLICY_NAME} \
         --policy-document file:///tmp/ray-s3-policy.json \
-        --description "Full S3 access for Ray pods"
+        --description "Restricted S3 access for Ray pods to ${S3_BUCKET_ARN}"
     
     echo "✓ IAM policy created: ${POLICY_ARN}"
     rm /tmp/ray-s3-policy.json

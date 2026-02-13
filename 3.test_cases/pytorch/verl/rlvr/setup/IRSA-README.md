@@ -4,8 +4,7 @@ This guide explains how to set up IAM Roles for Service Accounts (IRSA) to give 
 
 ## Prerequisites
 
-- `eksctl` installed (for OIDC provider setup)
-- AWS CLI configured with appropriate permissions
+- AWS CLI configured with appropriate permissions (for OIDC provider setup)
 - kubectl configured to access your EKS cluster
 
 ## Quick Setup
@@ -80,20 +79,35 @@ Once the cluster is deployed, you can test S3 access from a pod:
 POD_NAME=$(kubectl get pods -l ray.io/node-type=head -o jsonpath='{.items[0].metadata.name}')
 
 # Test S3 access
-kubectl exec -it $POD_NAME -- aws s3 ls s3://sagemaker-mvincig-rlvr-e66849d3-bucket/
+kubectl exec -it $POD_NAME -- aws s3 ls s3://${S3_BUCKET_NAME}/
 ```
 
 ## Troubleshooting
 
 ### OIDC Provider Not Found
-If you get an error about OIDC provider, install eksctl:
-```bash
-# macOS
-brew install eksctl
 
-# Linux
-curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
-sudo mv /tmp/eksctl /usr/local/bin
+If you get an error about OIDC provider, you need to create an IAM OIDC identity provider for your cluster. This allows Kubernetes service accounts to authenticate with AWS IAM.
+
+**Option 1: Using AWS CLI**
+```bash
+# Get your cluster's OIDC issuer URL
+oidc_url=$(aws eks describe-cluster --name $EKS_CLUSTER_NAME \
+    --query "cluster.identity.oidc.issuer" --output text)
+
+# Create the OIDC provider
+aws iam create-open-id-connect-provider \
+    --url $oidc_url \
+    --client-id-list sts.amazonaws.com
+```
+
+**Option 2: Using eksctl**
+```bash
+# Install eksctl first
+# macOS: brew install eksctl
+# Linux: curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp && sudo mv /tmp/eksctl /usr/local/bin
+
+# Create OIDC provider
+eksctl utils associate-iam-oidc-provider --cluster $EKS_CLUSTER_NAME --approve
 ```
 
 ### Credentials Not Working
@@ -122,8 +136,8 @@ The current setup grants full S3 access (`s3:*`). For production, consider:
 1. **Restrict to specific buckets**:
    ```json
    "Resource": [
-       "arn:aws:s3:::sagemaker-mvincig-rlvr-e66849d3-bucket",
-       "arn:aws:s3:::sagemaker-mvincig-rlvr-e66849d3-bucket/*"
+       "arn:aws:s3:::sagemaker-mtcpt-${ACCOUNT}",
+       "arn:aws:s3:::sagemaker-mtcpt-${ACCOUNT}/*"
    ]
    ```
 
