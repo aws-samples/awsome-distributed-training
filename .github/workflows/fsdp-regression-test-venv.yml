@@ -13,6 +13,18 @@ on:
 
   workflow_dispatch:
 
+env:
+  AWS_REGION: us-east-1
+  SLURM_HOST: p5en.smml.aiml.aws.dev
+  SLURM_USER: ghactions
+  AWS_ROLE_ARN: arn:aws:iam::159553542841:role/awslabs-AOSH-GitHubActionsRole
+  BASE_PATH: /fsx/agents/pr-reviews
+  HOME_PATH: /home/ghactions
+
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   regression:
     strategy:
@@ -21,86 +33,222 @@ jobs:
       matrix:
         cluster: [p5, p5-smhp]
         model_config: [llama2_7b, llama2_13b, llama2_70b, llama3_1_8b, llama3_1_70b]
-    runs-on: [self-hosted, "${{ matrix.cluster }}"]
+    runs-on: ubuntu-latest
     concurrency:
       group: ${{ github.workflow }}-${{ matrix.cluster }}-${{ matrix.model_config }}
       cancel-in-progress: false      
-    timeout-minutes: 360  # 6 hours for the full Llama 2 test
+    timeout-minutes: 375
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          path: ${{ github.run_id }}
+          path: source-code
 
-      - name: Set env vars
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup SSH Key
         run: |
-          HOME_DIR="/home/github"
-          BUILD_ID="${{ github.run_id }}"
-          FSDP_DIR="$(pwd)/${BUILD_ID}/3.test_cases/pytorch/FSDP"
-          LOG_DIR="${HOME_DIR}/regression-logs-${BUILD_ID}-${{ matrix.model_config }}-${{ matrix.cluster }}"
-          CHECKPOINT_DIR="${HOME_DIR}/regression-checkpoints-${BUILD_ID}-${{ matrix.model_config }}-${{ matrix.cluster }}"
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SLURM_SSH_KEY }}" > ~/.ssh/slurm_key
+          chmod 600 ~/.ssh/slurm_key
+          
+          # Add host to known hosts with retry
+          for i in {1..5}; do
+            if ssh-keyscan -H ${{ env.SLURM_HOST }} >> ~/.ssh/known_hosts 2>/dev/null; then
+              echo "SSH keyscan successful"
+              break
+            fi
+            echo "SSH keyscan attempt $i failed, retrying..."
+            sleep 5
+          done
 
-          echo "HOME_DIR=$HOME_DIR" >> $GITHUB_ENV
-          echo "BUILD_ID=$BUILD_ID" >> $GITHUB_ENV
-          echo "FSDP_DIR=$FSDP_DIR" >> $GITHUB_ENV
+      - name: Setup Environment Variables
+        id: setup
+        run: |
+          BUILD_ID="${{ github.run_id }}"
+          REMOTE_TEST_PATH="${{ env.BASE_PATH }}/venv-tests/${BUILD_ID}-${{ matrix.model_config }}-${{ matrix.cluster }}"
+          LOG_DIR="${{ env.HOME_PATH }}/regression-logs-${BUILD_ID}-${{ matrix.model_config }}-${{ matrix.cluster }}"
+          CHECKPOINT_DIR="${{ env.BASE_PATH }}/checkpoints-${BUILD_ID}-${{ matrix.model_config }}-${{ matrix.cluster }}"
+          
+          echo "remote_test_path=$REMOTE_TEST_PATH" >> $GITHUB_OUTPUT
+          echo "log_dir=$LOG_DIR" >> $GITHUB_OUTPUT
+          echo "checkpoint_dir=$CHECKPOINT_DIR" >> $GITHUB_OUTPUT
+          
+          echo "REMOTE_TEST_PATH=$REMOTE_TEST_PATH" >> $GITHUB_ENV
           echo "LOG_DIR=$LOG_DIR" >> $GITHUB_ENV
           echo "CHECKPOINT_DIR=$CHECKPOINT_DIR" >> $GITHUB_ENV
-          echo "Env vars set successfully!"
 
-      - name: Create directories
+      - name: Create Remote Directories
         run: |
-          mkdir -p ${{ env.LOG_DIR }} ${{ env.CHECKPOINT_DIR }}
-          chmod 755 ${{ env.LOG_DIR }} ${{ env.CHECKPOINT_DIR }}
-      
-      - name: Create virtual environment
-        working-directory: ${{ env.FSDP_DIR }}/slurm
-        run: |
-          bash ./create_venv.sh
-          echo "Virtual environment created successfully!"
+          ssh -i ~/.ssh/slurm_key -o StrictHostKeyChecking=no -o ConnectTimeout=30 \
+            ${{ env.SLURM_USER }}@${{ env.SLURM_HOST }} << EOF
+            mkdir -p ${{ env.REMOTE_TEST_PATH }}
+            mkdir -p ${{ env.LOG_DIR }}
+            mkdir -p ${{ env.CHECKPOINT_DIR }}
+            chmod 755 ${{ env.LOG_DIR }} ${{ env.CHECKPOINT_DIR }}
+EOF
 
-      - name: Run regression test
-        id: run_test
-        working-directory: ${{ env.FSDP_DIR }}/slurm
+      - name: Transfer Code to Cluster
+        run: |
+          # Transfer code with retry
+          for i in {1..3}; do
+            if scp -i ~/.ssh/slurm_key -o StrictHostKeyChecking=no -o ConnectTimeout=30 -r \
+              source-code/* ${{ env.SLURM_USER }}@${{ env.SLURM_HOST }}:${{ env.REMOTE_TEST_PATH }}/; then
+              echo "Code transfer successful"
+              break
+            fi
+            echo "Transfer attempt $i failed, retrying..."
+            sleep 10
+          done
+
+      - name: Create Virtual Environment on Cluster
+        run: |
+          FSDP_SLURM_DIR="${{ env.REMOTE_TEST_PATH }}/3.test_cases/pytorch/FSDP/slurm"
+          
+          echo "Creating virtual environment on cluster..."
+          ssh -i ~/.ssh/slurm_key -o StrictHostKeyChecking=no -o ConnectTimeout=30 \
+            ${{ env.SLURM_USER }}@${{ env.SLURM_HOST }} << EOF
+            set -e
+            cd $FSDP_SLURM_DIR
+            bash ./create_venv.sh
+            echo "Virtual environment created successfully!"
+EOF
+
+      - name: Prepare and Submit Slurm Job
+        id: submit_job
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          source env/bin/activate
+          FSDP_SLURM_DIR="${{ env.REMOTE_TEST_PATH }}/3.test_cases/pytorch/FSDP/slurm"
           SBATCH_FILE="${{ matrix.model_config }}-training.sbatch"
-          TMP_SBATCH="regression_test_${{ matrix.model_config }}.sbatch"          
+          TMP_SBATCH="regression_test_${{ matrix.model_config }}.sbatch"
+          
+          # Prepare and submit job on cluster
+          ssh -i ~/.ssh/slurm_key -o StrictHostKeyChecking=no -o ConnectTimeout=30 \
+            ${{ env.SLURM_USER }}@${{ env.SLURM_HOST }} << EOF
+            set -e
+            cd $FSDP_SLURM_DIR
+            
+            if [ ! -f "$SBATCH_FILE" ]; then
+              echo "Error: sbatch file ${SBATCH_FILE} does not exist!"
+              exit 1
+            fi
+            
+            cp "$SBATCH_FILE" "$TMP_SBATCH"
+            
+            # Modify sbatch script
+            sed -i "s|#SBATCH --output=.*|#SBATCH --output=${{ env.LOG_DIR }}/regression_test_%j.out|" "$TMP_SBATCH"
+            sed -i "s|#SBATCH --error=.*|#SBATCH --error=${{ env.LOG_DIR }}/regression_test_%j.err|" "$TMP_SBATCH"
+            sed -i "s|--checkpoint_dir=./checkpoints|--checkpoint_dir=${{ env.CHECKPOINT_DIR }}|g" "$TMP_SBATCH"
+            
+            # Activate venv in the sbatch script
+            sed -i '1a source env/bin/activate' "$TMP_SBATCH"
+            
+            # Submit job
+            echo "Submitting Slurm job..."
+            JOB_ID=\$(sbatch --parsable \$TMP_SBATCH)
+            echo "JOB_ID=\$JOB_ID" >> ${{ env.REMOTE_TEST_PATH }}/job_info.txt
+            echo "Submitted job: \$JOB_ID"
+EOF
+          
+          # Get job ID
+          sleep 2
+          JOB_ID=$(ssh -i ~/.ssh/slurm_key -o StrictHostKeyChecking=no \
+            ${{ env.SLURM_USER }}@${{ env.SLURM_HOST }} \
+            "cat ${{ env.REMOTE_TEST_PATH }}/job_info.txt | grep JOB_ID | cut -d= -f2")
+          
+          echo "job_id=$JOB_ID" >> $GITHUB_OUTPUT
+          echo "JOB_ID=$JOB_ID" >> $GITHUB_ENV
+          echo "Submitted Slurm job: $JOB_ID"
 
-          if [ ! -f "$SBATCH_FILE" ]; then
-            echo "Error: sbatch file ${SBATCH_FILE} does not exist!"
-            exit 1
-          fi
+      - name: Monitor Job with Real-time Logs
+        id: monitor_job
+        run: |
+          echo "Monitoring job ${{ env.JOB_ID }}..."
+          START_TIME=$(date +%s)
+          TIMEOUT=21600  # 6 hours
+          
+          LOG_FILE="${{ env.LOG_DIR }}/regression_test_${{ env.JOB_ID }}.out"
+          
+          while true; do
+            CURRENT_TIME=$(date +%s)
+            ELAPSED=$((CURRENT_TIME - START_TIME))
+            
+            if [ $ELAPSED -gt $TIMEOUT ]; then
+              echo "Timeout reached after 6 hours"
+              exit 1
+            fi
+            
+            # Check job status
+            JOB_STATUS=$(ssh -i ~/.ssh/slurm_key -o StrictHostKeyChecking=no \
+              ${{ env.SLURM_USER }}@${{ env.SLURM_HOST }} \
+              "squeue -j ${{ env.JOB_ID }} -h -o %T 2>/dev/null || echo 'COMPLETED'")
+            
+            if [ -z "$JOB_STATUS" ] || [ "$JOB_STATUS" == "COMPLETED" ]; then
+              echo "Job completed successfully"
+              break
+            elif [ "$JOB_STATUS" == "FAILED" ] || [ "$JOB_STATUS" == "CANCELLED" ] || [ "$JOB_STATUS" == "TIMEOUT" ]; then
+              echo "Job failed with status: $JOB_STATUS"
+              exit 1
+            fi
+            
+            # Stream logs in real-time
+            ssh -i ~/.ssh/slurm_key -o StrictHostKeyChecking=no \
+              ${{ env.SLURM_USER }}@${{ env.SLURM_HOST }} \
+              "tail -n 50 $LOG_FILE 2>/dev/null || echo 'Waiting for log file...'"
+            
+            echo "--- Job status: $JOB_STATUS (elapsed: $((ELAPSED / 60)) min) ---"
+            sleep 30
+          done
 
-          cp "$SBATCH_FILE" "$TMP_SBATCH"
+      - name: Retrieve Logs
+        if: always()
+        run: |
+          echo "Retrieving logs from cluster..."
+          mkdir -p ./logs
+          
+          # Copy logs with retry
+          for i in {1..3}; do
+            if scp -i ~/.ssh/slurm_key -o StrictHostKeyChecking=no -o ConnectTimeout=30 -r \
+              ${{ env.SLURM_USER }}@${{ env.SLURM_HOST }}:${{ env.LOG_DIR }}/* ./logs/ 2>/dev/null; then
+              echo "Logs retrieved successfully"
+              break
+            fi
+            echo "Log retrieval attempt $i failed, retrying..."
+            sleep 10
+          done
 
-          sed -i "s|#SBATCH --output=.*|#SBATCH --output=${{ env.LOG_DIR }}/regression_test_%j.out|" "$TMP_SBATCH"
-          sed -i "s|#SBATCH --error=.*|#SBATCH --error=${{ env.LOG_DIR }}/regression_test_%j.err|" "$TMP_SBATCH"
-          sed -i "s|--checkpoint_dir=./checkpoints|--checkpoint_dir=${{ env.CHECKPOINT_DIR }}|g" "$TMP_SBATCH"
-
-          echo "Submitting Slurm job..."
-          sbatch --wait ${TMP_SBATCH}
-          exit_code=$?
-          echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
-          echo "Slurm job completed with exit code: $exit_code"
-          if [ $exit_code -ne 0 ]; then
-            echo "Slurm job failed with exit code: $exit_code"
-            exit $exit_code
-          fi
-      
       - name: Upload logs as artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: regression-logs-${{ github.run_id }}-${{ matrix.model_config }}-${{ matrix.cluster }}
-          path: ${{ env.LOG_DIR }}
+          path: ./logs
           retention-days: 60
 
       - name: Cleanup
         if: always()
         run: |
-          echo "Cleaning up..."
-          rm -rf ${{ env.LOG_DIR }} ${{ env.CHECKPOINT_DIR }}
-          echo "Logs and checkpoints cleaned up successfully!"
-    
+          echo "Cleaning up remote resources..."
+          
+          # Cancel job if still running
+          if [ -n "${{ env.JOB_ID }}" ]; then
+            ssh -i ~/.ssh/slurm_key -o StrictHostKeyChecking=no \
+              ${{ env.SLURM_USER }}@${{ env.SLURM_HOST }} \
+              "scancel ${{ env.JOB_ID }} 2>/dev/null || true"
+          fi
+          
+          # Clean up directories
+          ssh -i ~/.ssh/slurm_key -o StrictHostKeyChecking=no \
+            ${{ env.SLURM_USER }}@${{ env.SLURM_HOST }} << EOF
+            rm -rf ${{ env.REMOTE_TEST_PATH }}
+            rm -rf ${{ env.LOG_DIR }}
+            rm -rf ${{ env.CHECKPOINT_DIR }}
+EOF
+          
+          rm -rf ./logs
+          echo "Cleanup completed!"
