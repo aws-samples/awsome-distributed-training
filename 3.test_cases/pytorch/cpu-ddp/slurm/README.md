@@ -19,7 +19,7 @@ using a container.
 bash 0.create-conda-env.sh
 ```
 
-It will prepare `miniconda3` and `pt` `pt` includes `torchrun` 
+It will prepare `miniconda3` and `pt_cpu` `pt_cpu` includes `torchrun` 
 
 
 Submit DDP training job with:
