@@ -89,7 +89,7 @@ spec:
               claimName: fsx-claim
           - name: checkpoint-logs
             hostPath:
-              path: /var/logs/sagemaker_checkpointing
+              path: /var/log/sagemaker_checkpointing
               type: DirectoryOrCreate
   workerGroupSpecs:
   - replicas: $NUM_NODES
@@ -158,5 +158,5 @@ spec:
           emptyDir: {}
         - name: checkpoint-logs
           hostPath:
-            path: /var/logs/sagemaker_checkpointing
+            path: /var/log/sagemaker_checkpointing
             type: DirectoryOrCreate
