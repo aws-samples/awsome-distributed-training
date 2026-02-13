@@ -2,7 +2,7 @@
 
 Isolated environments are crucial for reproducible machine learning because they encapsulate specific software versions and dependencies, ensuring models are consistently retrainable, shareable, and deployable without compatibility issues.
 
-[Anaconda](https://www.anaconda.com/) leverages conda environments to create distinct spaces for projects, allowing different Python versions and libraries to coexist without conflicts by isolating updates to their respective environments. [Docker](https://www.docker.com/), a containerization platform, packages applications and their dependencies into containers, ensuring they run seamlessly across any Linux server by providing OS-level virtualization and encapsulating the entire runtime environment.
+Python [venv](https://docs.python.org/3/library/venv.html) creates lightweight virtual environments to isolate project dependencies, ensuring reproducibility without conflicts between different projects. [Docker](https://www.docker.com/), a containerization platform, packages applications and their dependencies into containers, ensuring they run seamlessly across any Linux server by providing OS-level virtualization and encapsulating the entire runtime environment.
 
 This example showcases [PyTorch DDP](https://pytorch.org/tutorials/beginner/ddp_series_theory.html) environment setup utilizing these approaches for efficient environment management. The implementation supports both CPU and GPU computation:
 
@@ -42,7 +42,7 @@ To enable MLFlow logging, add the `--use_mlflow` flag when running the training 
 torchrun --nproc_per_node=N ddp.py --total_epochs=10 --save_every=1 --batch_size=32 --use_mlflow
 ```
 
-By default, MLFlow will connect to `http://localhost:5000`. To use a different tracking server, specify the `--tracking_uri`:
+By default, MLFlow will log to `file://$HOME/mlruns`. To use a different tracking server, specify the `--tracking_uri`:
 ```bash
 torchrun --nproc_per_node=N ddp.py --total_epochs=10 --save_every=1 --batch_size=32 --use_mlflow --tracking_uri=http://localhost:5000
 ```
@@ -68,4 +68,4 @@ The MLFlow UI provides:
 
 ## Deployment
 
-We provide guides for both Slurm and Kubernetes. However, please note that the Conda example is only compatible with Slurm. For detailed instructions, proceed to the [slurm](slurm) or [kubernetes](kubernetes) subdirectory.
+We provide guides for both Slurm and Kubernetes. However, please note that the venv example is only compatible with Slurm. For detailed instructions, proceed to the [slurm](slurm) or [kubernetes](kubernetes) subdirectory.

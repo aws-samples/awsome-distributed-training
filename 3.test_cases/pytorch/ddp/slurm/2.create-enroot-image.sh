@@ -5,7 +5,7 @@ set -ex
 # SPDX-License-Identifier: MIT-0
 
 # Remove old sqsh file if exists
-if [ -f ${ENROOT_IMAGE}.sqsh ] ; then
+if [ -f pytorch.sqsh ] ; then
     rm pytorch.sqsh
 fi
 
