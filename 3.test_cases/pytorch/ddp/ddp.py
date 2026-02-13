@@ -96,7 +96,10 @@ class Trainer:
         
         avg_loss = total_loss / len(self.train_data)
         if self.use_mlflow and self.rank == 0:  # Only log from rank 0
-            mlflow.log_metric("train_loss", avg_loss, step=epoch)
+            try:
+                mlflow.log_metric("train_loss", avg_loss, step=epoch)
+            except Exception as e:
+                print(f"Warning: MLflow metric logging failed: {e}")
         print(f"[RANK {self.rank}] Epoch {epoch} | Batchsize: {b_sz} | Steps: {len(self.train_data)} | Loss: {avg_loss}")
         return avg_loss
 
@@ -110,31 +113,35 @@ class Trainer:
 
     def train(self, max_epochs: int):
         if self.use_mlflow and self.rank == 0:
-            print(f"Setting tracking URI to {self.tracking_uri}")
-            # Set tracking URI first
-            if self.tracking_uri:
-                mlflow.set_tracking_uri(self.tracking_uri)
-            
-            # Create or get experiment
-            experiment = mlflow.get_experiment_by_name("mnist_ddp")
-            if experiment is None:
-                experiment_id = mlflow.create_experiment("mnist_ddp")
-            else:
-                experiment_id = experiment.experiment_id
-            
-            # Set the experiment
-            mlflow.set_experiment(experiment_id=experiment_id)
-            
-            with mlflow.start_run():
-                mlflow.log_params({
-                    "model": "MLP",
-                    "optimizer": "Adam",
-                    "learning_rate": self.optimizer.param_groups[0]['lr'],
-                    "batch_size": len(next(iter(self.train_data))[0]),
-                    "epochs": max_epochs,
-                    "device": str(self.device)
-                })
-                mlflow.pytorch.log_model(self.model.module, "model")
+            try:
+                print(f"Setting tracking URI to {self.tracking_uri}")
+                # Set tracking URI first
+                if self.tracking_uri:
+                    mlflow.set_tracking_uri(self.tracking_uri)
+
+                # Create or get experiment
+                experiment = mlflow.get_experiment_by_name("mnist_ddp")
+                if experiment is None:
+                    experiment_id = mlflow.create_experiment("mnist_ddp")
+                else:
+                    experiment_id = experiment.experiment_id
+
+                # Set the experiment
+                mlflow.set_experiment(experiment_id=experiment_id)
+
+                with mlflow.start_run():
+                    mlflow.log_params({
+                        "model": "MLP",
+                        "optimizer": "Adam",
+                        "learning_rate": self.optimizer.param_groups[0]['lr'],
+                        "batch_size": len(next(iter(self.train_data))[0]),
+                        "epochs": max_epochs,
+                        "device": str(self.device)
+                    })
+                    mlflow.pytorch.log_model(self.model.module, "model")
+            except Exception as e:
+                print(f"Warning: MLflow initialization failed, continuing without tracking: {e}")
+                self.use_mlflow = False
         else:
             print("MLFlow is disabled")
 
@@ -143,8 +150,11 @@ class Trainer:
             if epoch % self.save_every == 0:
                 self._save_snapshot(epoch)
                 if self.use_mlflow and self.rank == 0:
-                    mlflow.pytorch.log_model(self.model.module, f"model_epoch_{epoch}")
-                    mlflow.log_metric("train_loss", avg_loss, step=epoch)
+                    try:
+                        mlflow.pytorch.log_model(self.model.module, f"model_epoch_{epoch}")
+                        mlflow.log_metric("train_loss", avg_loss, step=epoch)
+                    except Exception as e:
+                        print(f"Warning: MLflow logging failed: {e}")
 
 def load_train_objs():
     # Define data transforms
