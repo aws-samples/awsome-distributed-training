@@ -9,29 +9,29 @@ The guide assumes that you have the following:
 We recommend that you setup a Slurm cluster using the templates in the architectures [directory](../../1.architectures). 
 
 
-## 2. Submit training job using conda environment on Slurm
+## 2. Submit training job using virtual environment on Slurm
 
-In this step, you will create PyTorch virtual environment using conda.
+In this step, you will create PyTorch virtual environment using Python venv.
 This method is only available on Slurm because it runs the training job without
 using a container.
 
 ```bash
-bash 0.create-conda-env.sh
+bash 0.create-venv.sh
 ```
 
-It will prepare `miniconda3` and `pt` `pt` includes `torchrun` 
+It will create a Python virtual environment named `pt` that includes `torchrun`
 
 
 Submit DDP training job with:
 
 ```bash
-sbatch 1.conda-train.sbatch
+sbatch 1.venv-train.sbatch
 ```
 
 Output of the training job can be found in `logs` directory:
 
 ```bash
-# cat logs/cpu-ddp-conda_xxx.out
+# cat logs/ddp-venv_xxx.out
 Node IP: 10.1.96.108
 [2024-03-12 08:22:45,549] torch.distributed.run: [WARNING] master_addr is only used for static rdzv_backend and when rdzv_endpoint is not specified.
 [2024-03-12 08:22:45,549] torch.distributed.run: [WARNING] 
@@ -90,13 +90,13 @@ It will pull `pytorch/pytorch` container, then create [squashfs](https://www.ker
 Submit DDP training job using the image with:
 
 ```bash
-sbatch 4.container-train.sbatch
+sbatch 3.container-train.sbatch
 ```
 
 Output of the training job can be found in `logs` directory:
 
 ```bash
-# cat logs/cpu-ddp-container.out
+# cat logs/ddp-container_xxx.out
 Node IP: 10.1.96.108
 [2024-03-12 08:22:45,549] torch.distributed.run: [WARNING] master_addr is only used for static rdzv_backend and when rdzv_endpoint is not specified.
 [2024-03-12 08:22:45,549] torch.distributed.run: [WARNING] 

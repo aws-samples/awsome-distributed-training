@@ -23,7 +23,6 @@ declare -a TORCHRUN_ARGS=(
     --rdzv_id=$SLURM_JOB_ID
     --rdzv_backend=c10d
     --rdzv_endpoint=$(hostname)
-    --use-mlflow
 )
 
 

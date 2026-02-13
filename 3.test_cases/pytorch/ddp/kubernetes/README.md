@@ -24,15 +24,15 @@ Build the container image:
 export AWS_REGION=$(aws ec2 describe-availability-zones --output text --query 'AvailabilityZones[0].[RegionName]')
 export ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
 export REGISTRY=${ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com/
-docker build -t ${REGISTRY}fsdp:pytorch2.2-cpu ..
+docker build -t ${REGISTRY}ddp:latest ..
 ```
 
 Push the container image to the Elastic Container Registry in your account:
 ```bash
 # Create registry if needed
-REGISTRY_COUNT=$(aws ecr describe-repositories | grep \"fsdp\" | wc -l)
+REGISTRY_COUNT=$(aws ecr describe-repositories | grep \"ddp\" | wc -l)
 if [ "$REGISTRY_COUNT" == "0" ]; then
-        aws ecr create-repository --repository-name fsdp
+        aws ecr create-repository --repository-name ddp
 fi
 
 # Login to registry
@@ -40,18 +40,18 @@ echo "Logging in to $REGISTRY ..."
 aws ecr get-login-password | docker login --username AWS --password-stdin $REGISTRY
 
 # Push image to registry
-docker image push ${REGISTRY}fsdp:pytorch2.2-cpu
+docker image push ${REGISTRY}ddp:latest
 ```
 
 Create manifest and launch PyTorchJob:
 ```bash
-export IMAGE_URI=${REGISTRY}fsdp:pytorch2.2-cpu
+export IMAGE_URI=${REGISTRY}ddp:latest
 export INSTANCE_TYPE=
 export NUM_NODES=2
 export CPU_PER_NODE=4
-cat fsdp.yaml-template | envsubst > fsdp.yaml
+cat ddp-custom-container.yaml-template | envsubst > ddp.yaml
 
-kubectl apply -f ./fsdp.yaml
+kubectl apply -f ./ddp.yaml
 ```
 
 Check the status of your training job:
@@ -62,17 +62,17 @@ kubectl get pods
 
 ```text
 NAME   STATE     AGE
-fsdp   Running   16s
+ddp    Running   16s
 
 NAME                    READY   STATUS    RESTARTS   AGE
 etcd-7787559c74-w9gwx   1/1     Running   0          18s
-fsdp-worker-0           1/1     Running   0          18s
-fsdp-worker-1           1/1     Running   0          18s
+ddp-worker-0            1/1     Running   0          18s
+ddp-worker-1            1/1     Running   0          18s
 ```
 
 Each of the pods produces job logs. 
 ```bash
-kubectl logs fsdp-worker-0
+kubectl logs ddp-worker-0
 ```
 
 ```text
@@ -102,7 +102,7 @@ Epoch 4990 | Training snapshot saved at /fsx/snapshot.pt
 
 Stop the training job:
 ```bash
-kubectl delete -f ./fsdp.yaml
+kubectl delete -f ./ddp.yaml
 ```
 
-Note: Prior to running a new job, please stop any currently running or completed fsdp job.
+Note: Prior to running a new job, please stop any currently running or completed ddp job.
