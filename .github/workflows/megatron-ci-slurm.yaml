@@ -1,0 +1,64 @@
+name: Megatron LM Regression Test (container)
+
+# TODO: Additional configuration options as inputs (egs. number of nodes (auto change num GPUs and EFA variables accordingly), add support for g* instances etc)
+
+on: 
+  push:
+    branches: [ "main" ]
+    paths: 
+      - '3.test_cases/megatron/megatron-lm/**'
+  pull_request:
+    paths:
+      - '3.test_cases/megatron/megatron-lm/**'
+
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy: 
+      fail-fast: true
+      max-parallel: 3
+      matrix:
+        cluster: [p5]
+    runs-on: [self-hosted, "${{ matrix.cluster }}"]
+    concurrency:
+      group: ${{ github.workflow }}-${{ matrix.cluster }}
+      cancel-in-progress: false      
+    timeout-minutes: 60
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          path: ${{ github.run_id }}
+
+      - name: Set env vars
+        run: |
+          HOME_DIR="/home/github"
+          BUILD_ID="${{ github.run_id }}"
+          CASE_DIR="$(pwd)/${BUILD_ID}/3.test_cases/megatron/megatron-lm"
+          CONTAINER_DIR="${HOME_DIR}/regression-container-${BUILD_ID}-${{ matrix.cluster }}"
+
+          echo "HOME_DIR=$HOME_DIR" >> $GITHUB_ENV
+          echo "BUILD_ID=$BUILD_ID" >> $GITHUB_ENV
+          echo "CASE_DIR=$CASE_DIR" >> $GITHUB_ENV
+          echo "CONTAINER_DIR=$CONTAINER_DIR" >> $GITHUB_ENV
+          echo "Env vars set successfully!"
+ 
+      - name: Create directories
+        run: |
+          mkdir -p ${{ env.CONTAINER_DIR }}
+          chmod 755 ${{ env.CONTAINER_DIR }}
+
+      - name: Build container [on head node]
+        working-directory: ${{ env.CASE_DIR }}
+        run: |
+          echo "Building FSDP image"
+          docker build  -f aws-megatron-lm.Dockerfile -t aws-megatron-lm .
+          echo "FSDP Image built!"
+
+      - name: Convert built container to squash file [on head node]
+        working-directory: ${{ env.CASE_DIR }}
+        run: |
+          echo "Converting container to squash file..."
+          enroot import -o ${{ env.CONTAINER_DIR }}/aws-megatron-lm.sqsh dockerd://aws-megatron-lm 
+          echo "Container converted to squash file successfully!"

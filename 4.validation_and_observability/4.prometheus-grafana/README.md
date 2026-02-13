@@ -1,6 +1,24 @@
-# SageMaker HyperPod Monitoring <!-- omit from toc -->
+# Prometheus & Grafana Observability <!-- omit from toc -->
 
-This repository provides a comprehensive guide for deploying an observability stack tailored to enhance monitoring capabilities for your SageMaker HyperPod cluster. It demonstrates how to export both cluster metrics (SLURM-exporter) and node metrics (DCGM-exporter, EFA-node-exporter) to a Prometheus/Grafana monitoring stack. This setup enables your administrators, ML-ops teams, and model developers to access real-time metrics, offering valuable insights into your cluster's performance.
+This directory provides comprehensive guides for deploying observability stacks to monitor GPU workloads across different AWS compute platforms.
+
+## Available Solutions
+
+### 🚀 [EKS Managed Observability](./eks-managed-observability/)
+Monitor Amazon EKS GPU workloads using Amazon Managed Prometheus and Amazon Managed Grafana with ADOT Collector. This solution provides minimal in-cluster overhead and supports multi-cluster monitoring.
+
+**Best for:** EKS clusters, multi-cluster monitoring, minimal resource overhead
+
+### 📊 SageMaker HyperPod Monitoring (This Document)
+Monitor SageMaker HyperPod clusters with SLURM-exporter, DCGM-exporter, and EFA-node-exporter. This solution uses lifecycle scripts to bootstrap monitoring on HyperPod nodes.
+
+**Best for:** SageMaker HyperPod with SLURM workload manager
+
+---
+
+# SageMaker HyperPod Monitoring
+
+This guide provides a comprehensive approach for deploying an observability stack tailored to enhance monitoring capabilities for your SageMaker HyperPod cluster. It demonstrates how to export both cluster metrics (SLURM-exporter) and node metrics (DCGM-exporter, EFA-node-exporter) to a Prometheus/Grafana monitoring stack. This setup enables your administrators, ML-ops teams, and model developers to access real-time metrics, offering valuable insights into your cluster's performance.
 
 
 To get started, you will initiate the provisioning of an Amazon CloudFormation Stack within your AWS Account. You can find the complete stack template in [cluster-observability.yaml](./cluster-observability.yaml). This CloudFormation stack will orchestrate the deployment of the following resources dedicated to cluster monitoring in your AWS environment:

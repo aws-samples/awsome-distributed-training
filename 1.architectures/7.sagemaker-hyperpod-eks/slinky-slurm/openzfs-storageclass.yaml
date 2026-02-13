@@ -1,0 +1,19 @@
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: openzfs-sc
+provisioner: fsx.openzfs.csi.aws.com
+parameters:
+  ResourceType: "filesystem" #REQUIRED
+  DeploymentType: '"SINGLE_AZ_HA_2"' #REQUIRED
+  ThroughputCapacity: '160' #REQUIRED
+  SubnetIds: '["${PRIVATE_SUBNET_ID}"]' #REQUIRED
+  SkipFinalBackupOnDeletion: 'true' #REQUIRED
+  AutomaticBackupRetentionDays: '30'
+  SecurityGroupIds: '["${SECURITY_GROUP_ID}"]'
+  CopyTagsToBackups: 'true'
+  CopyTagsToVolumes: 'true'
+  DailyAutomaticBackupStartTime: '"19:00"'
+  OptionsOnDeletion: '["DELETE_CHILD_VOLUMES_AND_SNAPSHOTS"]'
+  RootVolumeConfiguration: '{"DataCompressionType": "NONE", "NfsExports": [{"ClientConfigurations": [{"Clients": "*", "Options": ["rw", "no_root_squash", "crossmnt"]}]}]}'
+  WeeklyMaintenanceStartTime: '"1:04:00"'

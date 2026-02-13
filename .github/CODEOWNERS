@@ -1,0 +1,7 @@
+# CODEOWNERS for aws-samples/awsome-distributed-training
+# Enforces that a member of the @aws-samples/sagemaker-hyperpod-dev team
+# must approve any PRs that modify files under either base-config directory,
+# including all nested subdirectories and files.
+
+1.architectures/5.sagemaker-hyperpod/LifecycleScripts/base-config/**     @aws-samples/hyperpod-customer-onbehalf-devs
+1.architectures/7.sagemaker-hyperpod-eks/LifecycleScripts/base-config/** @aws-samples/hyperpod-customer-onbehalf-devs

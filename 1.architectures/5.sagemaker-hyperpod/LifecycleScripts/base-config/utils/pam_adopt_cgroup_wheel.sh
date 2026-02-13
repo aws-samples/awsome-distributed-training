@@ -76,10 +76,13 @@ check_root(){
 # retrieve the node type to detect if we are running on the "controller-machine" or not 
 get_node_type(){
     headnode_ip="$(cat "${smhp_conf}" | jq -r '.InstanceGroups[] | select(.Name == "controller-machine") | .Instances[0].CustomerIpAddress')"
+    login_node_ips="$(cat "${smhp_conf}" | jq -r '.InstanceGroups[] | select(.Name == "login-group") | .Instances[].CustomerIpAddress')"
     if [[ $(hostname -I | grep -c $headnode_ip ) -ge 1 ]]; then
         node_type="controller-machine"
+    elif [[ $(hostname -I | grep -c "$login_node_ips" ) -ge 1 ]]; then
+        node_type="login-group"
     else
-        node_type="login-or-compute"
+        node_type="compute"
     fi
     pecho "node_type=${node_type}" # controller-machine, worker-group-1
 }
@@ -232,6 +235,9 @@ main(){
         # scontrol reconfigure
         systemctl --no-pager restart slurmctld
         systemctl --no-pager status slurmctld
+    elif [[ $node_type == "login-group" ]] ;then
+        # nothing to do
+        echo "nothing to do for pam_adopt on login node"
     else # compute nodes
         slurm_pam_adopt
         systemctl --no-pager restart slurmd

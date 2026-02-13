@@ -1,0 +1,391 @@
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+
+AWSTemplateFormatVersion: '2010-09-09'
+
+Description: "Send SageMaker HyperPod cluster status changes and instance health events by emails."
+
+Parameters:
+
+  SenderEmailAddress:
+    Type: String
+    Description: "Email address to send from (must be verified in SES)."
+
+  ReceiverEmailAddress:
+    Type: String
+    Description: "Email address to send to."
+
+Resources:
+
+  # IAM Role for Lambda execution
+  HyperPodEventsLambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies: 
+        - PolicyName: "HyperPodEventsLambdaExecutionPolicy"
+          PolicyDocument: 
+            Version: "2012-10-17"
+            Statement: 
+              - Effect: "Allow"
+                Action:
+                  - "ses:SendEmail"
+                Resource: 
+                  - !Join
+                    - ""
+                    - 
+                        - "arn:aws:ses:"
+                        - !Ref AWS::Region
+                        - ":"
+                        - !Ref AWS::AccountId
+                        - ":identity/"
+                        - !Ref SenderEmailAddress
+                  - !Join
+                    - ""
+                    - 
+                        - "arn:aws:ses:"
+                        - !Ref AWS::Region
+                        - ":"
+                        - !Ref AWS::AccountId
+                        - ":identity/"
+                        - !Ref ReceiverEmailAddress
+
+              - Effect: "Allow"
+                Action: 
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                Resource:
+                  - "arn:aws:logs:*:*:log-group:/aws/lambda/*"
+                  - "arn:aws:logs:*:*:log-group:/aws/lambda/*:log-stream:*"
+
+  # IAM Role for EventBridge to invoke Lambda
+  EventBridgeTargetRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: EventBridgeInvokeLambda
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource: !GetAtt HyperPodEventsLambdaFunction.Arn
+
+
+  # Lambda function to format and deliver emails
+  HyperPodEventsLambdaFunction:
+    DependsOn: HyperPodEventsLambdaExecutionRole
+    Type: AWS::Lambda::Function
+    Properties:
+      Role: !GetAtt HyperPodEventsLambdaExecutionRole.Arn
+      Runtime: python3.13
+      Handler:  index.lambda_handler
+      Environment:
+        Variables:
+          SENDER_EMAIL_ADDRESS: !Ref SenderEmailAddress
+          RECEIVER_EMAIL_ADDRESS: !Ref ReceiverEmailAddress
+      Code:
+        ZipFile: |
+          import os
+          import json
+          from datetime import datetime
+          import boto3
+
+          def format_event_time(event_time):
+              try:
+                  dt = datetime.fromtimestamp(int(event_time) / 1000)
+                  return dt.strftime("%Y-%m-%d %H:%M:%S UTC")
+              except:
+                  return event_time
+
+          def get_console_url(event):
+              region = event["region"]
+
+              if "ClusterName" in event["detail"]:
+                  cluster_name = event["detail"]["ClusterName"]
+              elif "EventDetails" in event["detail"]:
+                  cluster_name = event["detail"]["EventDetails"]["ClusterName"]
+              else:
+                  cluster_name = ""
+              
+              console_url = f"https://{region}.console.aws.amazon.com/sagemaker/home?region={region}#/cluster-management/{cluster_name}"
+              return console_url
+
+          def format_html_for_cluster_status_event(event):
+
+              html_body = '<body style="font-family:Helvetica; font-size: 11pt;">\n'
+
+              # Table of summary
+              html_body += '<table>\n'
+              
+              html_body += "<tr> <td>%s</td> <td>%s</td> </tr>\n" % (
+                  "AWS account:", 
+                  event["account"]
+              )
+              
+              html_body += "<tr> <td>%s</td> <td>%s</td> </tr>\n" % (
+                  "Region:", 
+                  event["region"]
+              )
+              
+              html_body += "<tr> <td>%s</td> <td>%s</td> </tr>\n" % (
+                  "Cluster name:", 
+                  event["detail"]["ClusterName"]
+              )
+
+              html_body += "<tr> <td>%s</td> <td>%s</td> </tr>\n" % (
+                  "Cluster status:", 
+                  event["detail"]["ClusterStatus"]
+              )
+
+              html_body += '</table>\n'
+
+              html_body += "<br>\n"
+
+              # Table of instance groups
+              html_body += '<table border="1" >\n'
+              html_body += '<caption>Instance groups</caption>\n'
+
+              # Header row
+              html_body += '<tr bgcolor="#ccccff"> <td>%s</td> <td>%s</td> <td>%s</td> <td>%s</td> </tr>\n' % (
+                  "Name", "Status", "Current count", "Target count"
+              )
+
+              # Data row
+              for instance_group in event["detail"]["InstanceGroups"]:
+                  html_body += "<tr> <td>%s</td> <td>%s</td> <td>%s</td> <td>%s</td> </tr>\n" % (
+                      instance_group["InstanceGroupName"],
+                      instance_group["Status"],
+                      instance_group["CurrentCount"],
+                      instance_group["TargetCount"],
+                  )
+
+              html_body += '</table>\n'
+
+              html_body += "<br>\n"
+
+              # Hyperlink to console page
+              html_body += '<a href="%s">Link to HyperPod console</a>\n' % get_console_url(event)
+
+              html_body += "</body>"
+
+              return html_body
+
+          def format_html_for_node_health_event(event):
+
+              html_body = '<body style="font-family:Helvetica; font-size: 11pt;">\n'
+
+              # Table of summary
+              html_body += '<table>\n'
+              
+              html_body += "<tr> <td>%s</td> <td>%s</td> </tr>\n" % (
+                  "AWS account:", 
+                  event["account"]
+              )
+              
+              html_body += "<tr> <td>%s</td> <td>%s</td> </tr>\n" % (
+                  "Region:", 
+                  event["region"]
+              )
+              
+              html_body += "<tr> <td>%s</td> <td>%s</td> </tr>\n" % (
+                  "Cluster name:", 
+                  event["detail"]["ClusterName"]
+              )
+
+              html_body += '</table>\n'
+
+              html_body += "<br>\n"
+
+              # Table of instance groups
+              html_body += '<table border="1" >\n'
+              html_body += '<caption>Instance health info</caption>\n'
+
+              html_body += "<tr> <td>%s</td> <td>%s</td> </tr>\n" % (
+                  "Instance ID", 
+                  event["detail"]["InstanceId"]
+              )
+
+              html_body += "<tr> <td>%s</td> <td>%s</td> </tr>\n" % (
+                  "Health Status", 
+                  event["detail"]["HealthSummary"]["HealthStatus"]
+              )
+
+              html_body += "<tr> <td>%s</td> <td>%s</td> </tr>\n" % (
+                  "Health Status Reason", 
+                  event["detail"]["HealthSummary"]["HealthStatusReason"]
+              )
+
+              html_body += "<tr> <td>%s</td> <td>%s</td> </tr>\n" % (
+                  "RepairAction", 
+                  event["detail"]["HealthSummary"]["RepairAction"]
+              )
+
+              html_body += "<tr> <td>%s</td> <td>%s</td> </tr>\n" % (
+                  "Recommendation", 
+                  event["detail"]["HealthSummary"]["Recommendation"]
+              )
+
+              html_body += '</table>\n'
+
+              html_body += "<br>\n"
+
+              # Hyperlink to console page
+              html_body += '<a href="%s">Link to HyperPod console</a>\n' % get_console_url(event)
+
+              html_body += "</body>"
+
+              return html_body
+
+          def format_html_for_cluster_event(event):
+              """Format HTML for generic cluster events with EventDetails."""
+              
+              event_details = event["detail"]["EventDetails"]
+
+              html_body = '<body style="font-family:Helvetica; font-size: 11pt;">\n'
+
+              # Table of summary
+              html_body += '<table>\n'
+              
+              html_body += "<tr> <td>%s</td> <td>%s</td> </tr>\n" % (
+                  "AWS account:", 
+                  event["account"]
+              )
+              
+              html_body += "<tr> <td>%s</td> <td>%s</td> </tr>\n" % (
+                  "Region:", 
+                  event["region"]
+              )
+              
+              html_body += "<tr> <td>%s</td> <td>%s</td> </tr>\n" % (
+                  "Cluster name:", 
+                  event_details.get("ClusterName", "N/A")
+              )
+
+              html_body += '</table>\n'
+
+              html_body += "<br>\n"
+
+              # Table of event details
+              html_body += '<table border="1" >\n'
+              html_body += '<caption>Event details</caption>\n'
+
+              html_body += "<tr> <td>%s</td> <td>%s</td> </tr>\n" % (
+                  "Resource Type", 
+                  event_details.get("ResourceType", "N/A")
+              )
+
+              if "InstanceGroupName" in event_details:
+                  html_body += "<tr> <td>%s</td> <td>%s</td> </tr>\n" % (
+                      "Instance Group", 
+                      event_details["InstanceGroupName"]
+                  )
+
+              if "InstanceId" in event_details:
+                  html_body += "<tr> <td>%s</td> <td>%s</td> </tr>\n" % (
+                      "Instance ID", 
+                      event_details["InstanceId"]
+                  )
+
+              html_body += "<tr> <td>%s</td> <td>%s</td> </tr>\n" % (
+                  "Event Time", 
+                  format_event_time(event_details.get("EventTime", "N/A"))
+              )
+
+              html_body += "<tr> <td>%s</td> <td>%s</td> </tr>\n" % (
+                  "Description", 
+                  event_details.get("Description", "N/A")
+              )
+
+              html_body += '</table>\n'
+
+              html_body += "<br>\n"
+
+              # Hyperlink to console page
+              html_body += '<a href="%s">Link to HyperPod console</a>\n' % get_console_url(event)
+
+              html_body += "</body>"
+
+              return html_body
+
+          def lambda_handler(event, context):
+              ses = boto3.client('ses')
+              
+              email_source = os.environ['SENDER_EMAIL_ADDRESS']
+              email_recipient = os.environ['RECEIVER_EMAIL_ADDRESS']
+
+              event_type = event["detail-type"]
+              if event_type == "SageMaker HyperPod Cluster State Change":
+                  cluster_status = event["detail"]["ClusterStatus"]
+                  email_subject = f"HyperPod Cluster State Change - {cluster_status}"
+                  email_body = format_html_for_cluster_status_event(event)
+              elif event_type == "SageMaker HyperPod Cluster Node Health Event":
+                  node_status = event["detail"]["HealthSummary"]["HealthStatus"]
+                  email_subject = f"HyperPod Cluster Node Health Event - {node_status}"
+                  email_body = format_html_for_node_health_event(event)
+              elif event_type == "SageMaker HyperPod Cluster Event":
+                  event_details = event["detail"]["EventDetails"]
+                  cluster_name = event_details.get("ClusterName", "Unknown")
+                  resource_type = event_details.get("ResourceType", "Unknown")
+                  email_subject = f"HyperPod Cluster Event - {cluster_name} - {resource_type}"
+                  email_body = format_html_for_cluster_event(event)
+              else:
+                  assert False, f"Unknown event type {event_type}"
+
+              ses.send_email(
+                  Source=email_source,
+                  Destination={
+                      'ToAddresses': [email_recipient]
+                  },
+                  Message={
+                      'Subject': {
+                          "Charset": "UTF-8",
+                          'Data': email_subject,
+                      },
+                      'Body': {
+                          "Html": {
+                              "Charset": "UTF-8",
+                              "Data": email_body,
+                          }
+                      }
+                  }
+              )
+
+              return {
+                  'statusCode': 200,
+                  'body': json.dumps('Email sent successfully.')
+              }
+
+  # EventBridge Rule
+  EventRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "Rule to capture events and send to Lambda"
+      State: ENABLED
+      EventPattern: |
+        {
+          "source": ["aws.sagemaker"],
+          "detail-type": [
+                "SageMaker HyperPod Cluster State Change",
+                "SageMaker HyperPod Cluster Node Health Event",
+                "SageMaker HyperPod Cluster Event"
+            ]
+        }
+      Targets:
+        - Arn: !GetAtt HyperPodEventsLambdaFunction.Arn
+          Id: "NotificationLambdaTarget"
+          RoleArn: !GetAtt EventBridgeTargetRole.Arn

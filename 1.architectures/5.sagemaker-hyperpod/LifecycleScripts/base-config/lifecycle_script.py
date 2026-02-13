@@ -96,15 +96,29 @@ class ProvisioningParameters:
         return slurm_configurations
 
 def get_ip_address():
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    try:
-        # doesn't even have to be reachable
-        s.connect(('10.254.254.254', 1))
-        IP = s.getsockname()[0]
-    except Exception:
-        IP = '127.0.0.1'
-    finally:
-        s.close()
+    max_retries = 7
+    retry_delay_seconds = 5
+    IP = '127.0.0.1'
+
+    retry_count = 0
+    while retry_count < max_retries:
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            # doesn't even have to be reachable
+            s.connect(('10.254.254.254', 1))
+            IP = s.getsockname()[0]
+            break
+        except Exception as e:
+            print(f"Failed to get IP address of the current host. Reason: {repr(e)}.")
+            retry_count += 1
+            if retry_count < max_retries:
+                print(f"Retrying in {retry_delay_seconds} seconds...")
+                time.sleep(retry_delay_seconds)
+                retry_delay_seconds = retry_delay_seconds * 2  # Exponential backoff
+            else:    
+                print(f"Exceeded maximum retries ({max_retries}) to get IP address. Returning default IP address {IP}.")
+        finally:
+            s.close()
     return IP
 
 
@@ -160,6 +174,8 @@ def main(args):
     params = ProvisioningParameters(args.provisioning_parameters)
     resource_config = ResourceConfig(args.resource_config)
 
+    ExecuteBashScript("./utils/install_ansible.sh").run()
+
     fsx_dns_name, fsx_mountname = params.fsx_settings
     if fsx_dns_name and fsx_mountname:
         print(f"Mount fsx: {fsx_dns_name}. Mount point: {fsx_mountname}")
@@ -203,24 +219,40 @@ def main(args):
 
         ExecuteBashScript("./apply_hotfix.sh").run(node_type)
         ExecuteBashScript("./utils/motd.sh").run(node_type, ",".join(head_node_ip), ",".join(login_node_ip))
-        ExecuteBashScript("./utils/fsx_ubuntu.sh").run()
+
+        # Only configure home directory on FSx if either FSx Lustre or FSx OpenZFS is configured and provided in the provisioning params
+        if (fsx_dns_name and fsx_mountname) or (Config.enable_fsx_openzfs and fsx_openzfs_dns_name):
+            if Config.enable_fsx_openzfs and fsx_openzfs_dns_name:
+                ExecuteBashScript("./utils/fsx_ubuntu.sh").run("1")
+            else:
+                ExecuteBashScript("./utils/fsx_ubuntu.sh").run("0")
+
         ExecuteBashScript("./start_slurm.sh").run(node_type, ",".join(controllers))
+        
+        # Setup user associations for Slurm accounting (only on controller nodes)
+        if node_type == SlurmNodeType.HEAD_NODE:
+            ExecuteBashScript("./setup_user_associations.sh").run()
+        
         ExecuteBashScript("./utils/gen-keypair-ubuntu.sh").run()
         ExecuteBashScript("./utils/ssh-to-compute.sh").run()
 
         # Install metric exporting software and Prometheus for observability
         if Config.enable_observability:
-            if node_type == SlurmNodeType.COMPUTE_NODE:
-                ExecuteBashScript("./utils/install_docker.sh").run()
-                ExecuteBashScript("./utils/install_dcgm_exporter.sh").run()
-                ExecuteBashScript("./utils/install_efa_node_exporter.sh").run()
 
-            if node_type == SlurmNodeType.HEAD_NODE:
-                wait_for_scontrol()
-                ExecuteBashScript("./utils/install_docker.sh").run()
-                ExecuteBashScript("./utils/install_slurm_exporter.sh").run()
-                ExecuteBashScript("./utils/install_head_node_exporter.sh").run()
-                ExecuteBashScript("./utils/install_prometheus.sh").run()
+            from config import ObservabilityConfig
+
+            ExecuteBashScript("./utils/install_docker.sh").run()
+
+            cmd = [
+                "python3", "-u", "install_observability.py",
+                "--node-type", node_type,
+                "--prometheus-remote-write-url", ObservabilityConfig.prometheus_remote_write_url, 
+            ]
+
+            if ObservabilityConfig.advanced_metrics:
+                cmd += ["--advanced"]
+            
+            subprocess.run(cmd, cwd="./observability", check=True)
         
         # Install Docker/Enroot/Pyxis
         if Config.enable_docker_enroot_pyxis:
@@ -242,6 +274,9 @@ def main(args):
 
         if Config.enable_mount_s3:
             ExecuteBashScript("./utils/mount-s3.sh").run(Config.s3_bucket)
+
+        if Config.enable_slurm_log_rotation:
+            ExecuteBashScript("./utils/enable_slurm_log_rotation.sh").run()
 
     print("[INFO]: Success: All provisioning scripts completed")
 
