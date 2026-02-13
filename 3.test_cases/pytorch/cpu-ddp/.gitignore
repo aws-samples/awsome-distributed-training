@@ -1,7 +1,4 @@
 Miniconda3-latest*
 miniconda3
-pt
+pt_cpu
 *.yaml
-data
-*.pt
-mlruns
