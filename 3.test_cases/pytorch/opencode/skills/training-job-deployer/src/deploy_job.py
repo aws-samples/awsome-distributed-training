@@ -232,5 +232,152 @@ def main():
     return 0
 
 
+def generate_production_raycluster_yaml(
+    job_name: str,
+    image_uri: str,
+    num_nodes: int = 4,
+    checkpoint_pvc: str = "fsx-claim",
+    use_efia: bool = True
+) -> str:
+    """Generate a production-ready RayCluster YAML with EFA and persistent storage.
+    
+    This function creates a complete RayCluster configuration with:
+    - EFA (Elastic Fabric Adapter) for high-performance networking
+    - Persistent storage for checkpoints
+    - NCCL safeguards for stability
+    - Proper security context for EFA
+    
+    Args:
+        job_name: Name for the RayCluster
+        image_uri: Docker image URI
+        num_nodes: Number of nodes (including head)
+        checkpoint_pvc: Name of the PersistentVolumeClaim for checkpoints
+        use_efia: Whether to enable EFA (recommended for g5/p4d/p5 instances)
+    
+    Returns:
+        Complete RayCluster YAML as string
+    """
+    
+    efa_resources = '''              vpc.amazonaws.com/efa: "1"
+            requests:
+              vpc.amazonaws.com/efa: "1"''' if use_efia else ""
+    
+    efa_env = '''          - name: FI_PROVIDER
+            value: "efa"
+          - name: FI_EFA_USE_DEVICE_RDMA
+            value: "0"
+          - name: FI_EFA_FORK_SAFE
+            value: "1"''' if use_efia else ""
+    
+    security_context = '''          securityContext:
+            capabilities:
+              add:
+              - IPC_LOCK
+              - SYS_RESOURCE''' if use_efia else ""
+    
+    yaml_content = f'''apiVersion: ray.io/v1
+kind: RayCluster
+metadata:
+  name: {job_name}
+  namespace: default
+spec:
+  headGroupSpec:
+    rayStartParams:
+      dashboard-host: "0.0.0.0"
+      num-gpus: "1"
+      block: "true"
+    template:
+      spec:
+        containers:
+        - name: ray-head
+          image: {image_uri}
+          resources:
+            limits:
+              cpu: "4"
+              memory: 16Gi
+              nvidia.com/gpu: "1"
+{efa_resources}
+          env:
+          - name: NCCL_DEBUG
+            value: "INFO"
+          - name: NCCL_TIMEOUT
+            value: "1800"
+          - name: TORCH_NCCL_TRACE_BUFFER_SIZE
+            value: "4096"
+          - name: PYTHONUNBUFFERED
+            value: "1"
+          - name: NCCL_PROTO
+            value: "simple"
+{efa_env}
+{security_context}
+          ports:
+          - containerPort: 6379
+            name: gcs-server
+          - containerPort: 8265
+            name: dashboard
+          - containerPort: 10001
+            name: client
+          volumeMounts:
+          - name: checkpoints
+            mountPath: /checkpoints
+          - name: shm
+            mountPath: /dev/shm
+        volumes:
+        - name: checkpoints
+          persistentVolumeClaim:
+            claimName: {checkpoint_pvc}
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 16Gi
+  workerGroupSpecs:
+  - replicas: {num_nodes - 1}
+    minReplicas: {num_nodes - 1}
+    maxReplicas: {num_nodes - 1}
+    groupName: worker-group
+    rayStartParams:
+      num-gpus: "1"
+      block: "true"
+    template:
+      spec:
+        containers:
+        - name: ray-worker
+          image: {image_uri}
+          resources:
+            limits:
+              cpu: "4"
+              memory: 16Gi
+              nvidia.com/gpu: "1"
+{efa_resources}
+          env:
+          - name: NCCL_DEBUG
+            value: "INFO"
+          - name: NCCL_TIMEOUT
+            value: "1800"
+          - name: TORCH_NCCL_TRACE_BUFFER_SIZE
+            value: "4096"
+          - name: PYTHONUNBUFFERED
+            value: "1"
+          - name: NCCL_PROTO
+            value: "simple"
+{efa_env}
+{security_context}
+          volumeMounts:
+          - name: checkpoints
+            mountPath: /checkpoints
+          - name: shm
+            mountPath: /dev/shm
+        volumes:
+        - name: checkpoints
+          persistentVolumeClaim:
+            claimName: {checkpoint_pvc}
+        - name: shm
+          emptyDir:
+            medium: Memory
+            sizeLimit: 16Gi
+'''
+    return yaml_content
+
+
 if __name__ == '__main__':
     sys.exit(main())

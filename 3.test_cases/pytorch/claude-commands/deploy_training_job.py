@@ -8,7 +8,6 @@ from typing import Optional
 import sys
 import os
 import subprocess
-import json
 
 def deploy_training_job(
     job_name: str = "fsdp-training",
