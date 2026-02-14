@@ -1,0 +1,373 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  EKS Cluster with GPU support for PyTorch FSDP training.
+  Creates EKS control plane, managed node groups with GPU instances,
+  and installs required plugins (NVIDIA GPU, EFA, Kubeflow).
+
+Parameters:
+  ClusterName:
+    Type: String
+    Default: fsdp-training-cluster
+    Description: Name of the EKS cluster
+    MinLength: 1
+    MaxLength: 100
+    AllowedPattern: '^[a-zA-Z0-9-]+$'
+
+  KubernetesVersion:
+    Type: String
+    Default: '1.29'
+    AllowedValues:
+      - '1.28'
+      - '1.29'
+      - '1.30'
+    Description: Kubernetes version
+
+  NodeInstanceType:
+    Type: String
+    Default: ml.g5.8xlarge
+    AllowedValues:
+      - ml.g5.xlarge
+      - ml.g5.2xlarge
+      - ml.g5.4xlarge
+      - ml.g5.8xlarge
+      - ml.g5.16xlarge
+      - ml.g5.48xlarge
+      - ml.p4d.24xlarge
+      - ml.p4de.24xlarge
+      - ml.p5en.48xlarge
+    Description: Instance type for training nodes
+
+  NodeCount:
+    Type: Number
+    Default: 4
+    MinValue: 1
+    MaxValue: 100
+    Description: Number of nodes in the cluster
+
+  EnableEFA:
+    Type: String
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Description: Enable EFA (Elastic Fabric Adapter)
+
+  VpcCidr:
+    Type: String
+    Default: 10.0.0.0/16
+    Description: CIDR block for VPC
+
+  AvailabilityZones:
+    Type: List<AWS::EC2::AvailabilityZone::Name>
+    Description: Availability zones for the cluster
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Cluster Configuration
+        Parameters:
+          - ClusterName
+          - KubernetesVersion
+      - Label:
+          default: Node Configuration
+        Parameters:
+          - NodeInstanceType
+          - NodeCount
+          - EnableEFA
+      - Label:
+          default: Network Configuration
+        Parameters:
+          - VpcCidr
+          - AvailabilityZones
+
+Resources:
+  # VPC
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidr
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: !Ref ClusterName
+
+  # Internet Gateway
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub '${ClusterName}-igw'
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  # Public Subnets
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Select [0, !Cidr [!Ref VpcCidr, 6, 8]]
+      AvailabilityZone: !Select [0, !Ref AvailabilityZones]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${ClusterName}-public-1'
+        - Key: kubernetes.io/role/elb
+          Value: '1'
+
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Select [1, !Cidr [!Ref VpcCidr, 6, 8]]
+      AvailabilityZone: !Select [1, !Ref AvailabilityZones]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${ClusterName}-public-2'
+        - Key: kubernetes.io/role/elb
+          Value: '1'
+
+  # Private Subnets
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Select [2, !Cidr [!Ref VpcCidr, 6, 8]]
+      AvailabilityZone: !Select [0, !Ref AvailabilityZones]
+      Tags:
+        - Key: Name
+          Value: !Sub '${ClusterName}-private-1'
+        - Key: kubernetes.io/role/internal-elb
+          Value: '1'
+
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Select [3, !Cidr [!Ref VpcCidr, 6, 8]]
+      AvailabilityZone: !Select [1, !Ref AvailabilityZones]
+      Tags:
+        - Key: Name
+          Value: !Sub '${ClusterName}-private-2'
+        - Key: kubernetes.io/role/internal-elb
+          Value: '1'
+
+  # NAT Gateway
+  NatGateway1EIP:
+    Type: AWS::EC2::EIP
+    DependsOn: AttachGateway
+    Properties:
+      Domain: vpc
+
+  NatGateway1:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatGateway1EIP.AllocationId
+      SubnetId: !Ref PublicSubnet1
+
+  # Route Tables
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${ClusterName}-public'
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet1
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet2
+      RouteTableId: !Ref PublicRouteTable
+
+  PrivateRouteTable1:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub '${ClusterName}-private-1'
+
+  PrivateRoute1:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable1
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway1
+
+  PrivateSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet1
+      RouteTableId: !Ref PrivateRouteTable1
+
+  # Security Group
+  ClusterSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for EKS cluster
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 10250
+          ToPort: 10250
+          CidrIp: !Ref VpcCidr
+      Tags:
+        - Key: Name
+          Value: !Sub '${ClusterName}-sg'
+
+  # IAM Role for EKS Cluster
+  ClusterRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ClusterName}-cluster-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: eks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEKSClusterPolicy
+        - arn:aws:iam::aws:policy/AmazonEKSVPCResourceController
+
+  # IAM Role for Node Group
+  NodeGroupRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ClusterName}-node-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
+        - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+
+  # EKS Cluster
+  EKSCluster:
+    Type: AWS::EKS::Cluster
+    Properties:
+      Name: !Ref ClusterName
+      Version: !Ref KubernetesVersion
+      RoleArn: !GetAtt ClusterRole.Arn
+      ResourcesVpcConfig:
+        SubnetIds:
+          - !Ref PrivateSubnet1
+          - !Ref PrivateSubnet2
+          - !Ref PublicSubnet1
+          - !Ref PublicSubnet2
+        SecurityGroupIds:
+          - !Ref ClusterSecurityGroup
+        EndpointPublicAccess: true
+        EndpointPrivateAccess: true
+
+  # EKS Node Group
+  NodeGroup:
+    Type: AWS::EKS::Nodegroup
+    DependsOn: EKSCluster
+    Properties:
+      ClusterName: !Ref ClusterName
+      NodegroupName: !Sub '${ClusterName}-gpu-nodes'
+      NodeRole: !GetAtt NodeGroupRole.Arn
+      Subnets:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+      InstanceTypes:
+        - !Ref NodeInstanceType
+      AmiType: AL2_x86_64_GPU
+      CapacityType: ON_DEMAND
+      ScalingConfig:
+        MinSize: 1
+        MaxSize: !Ref NodeCount
+        DesiredSize: !Ref NodeCount
+      DiskSize: 500
+      Labels:
+        workload-type: training
+      Tags:
+        Name: !Sub '${ClusterName}-gpu-node'
+
+  # Outputs
+Outputs:
+  ClusterName:
+    Description: EKS Cluster Name
+    Value: !Ref ClusterName
+    Export:
+      Name: !Sub '${ClusterName}-ClusterName'
+
+  ClusterEndpoint:
+    Description: EKS Cluster Endpoint
+    Value: !GetAtt EKSCluster.Endpoint
+    Export:
+      Name: !Sub '${ClusterName}-ClusterEndpoint'
+
+  ClusterArn:
+    Description: EKS Cluster ARN
+    Value: !GetAtt EKSCluster.Arn
+    Export:
+      Name: !Sub '${ClusterName}-ClusterArn'
+
+  NodeGroupName:
+    Description: EKS Node Group Name
+    Value: !Ref NodeGroup
+    Export:
+      Name: !Sub '${ClusterName}-NodeGroupName'
+
+  VPCId:
+    Description: VPC ID
+    Value: !Ref VPC
+    Export:
+      Name: !Sub '${ClusterName}-VPCId'
+
+  PrivateSubnetIds:
+    Description: Private Subnet IDs
+    Value: !Join [',', [!Ref PrivateSubnet1, !Ref PrivateSubnet2]]
+    Export:
+      Name: !Sub '${ClusterName}-PrivateSubnetIds'
+
+  PublicSubnetIds:
+    Description: Public Subnet IDs
+    Value: !Join [',', [!Ref PublicSubnet1, !Ref PublicSubnet2]]
+    Export:
+      Name: !Sub '${ClusterName}-PublicSubnetIds'
+
+  SecurityGroupId:
+    Description: Security Group ID
+    Value: !Ref ClusterSecurityGroup
+    Export:
+      Name: !Sub '${ClusterName}-SecurityGroupId'
+
+  KubectlCommand:
+    Description: Command to configure kubectl
+    Value: !Sub 'aws eks update-kubeconfig --region ${AWS::Region} --name ${ClusterName}'
