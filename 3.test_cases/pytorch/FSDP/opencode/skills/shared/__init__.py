@@ -1,5 +1,5 @@
 """
-Shared utilities for opencode Docker/ECR skills.
+Shared utilities for opencode Docker/ECR/K8s skills.
 """
 
 from .aws_utils import (
@@ -23,6 +23,27 @@ from .docker_utils import (
     analyze_base_image_compatibility,
     get_recommended_base_image,
     check_image_exists_locally
+)
+
+from .k8s_utils import (
+    EKSClient,
+    K8sClient,
+    ClusterValidator,
+    ConfigMapManager
+)
+
+from .cluster_manager import (
+    ClusterManager
+)
+
+from .job_deployer import (
+    JobDeployer
+)
+
+from .failure_analyzer import (
+    FailureAnalyzer,
+    FailureSeverity,
+    FailurePattern
 )
 
 from .logger import (
@@ -52,6 +73,19 @@ __all__ = [
     'analyze_base_image_compatibility',
     'get_recommended_base_image',
     'check_image_exists_locally',
+    # K8s
+    'EKSClient',
+    'K8sClient',
+    'ClusterValidator',
+    'ConfigMapManager',
+    # Cluster Management
+    'ClusterManager',
+    # Job Deployment
+    'JobDeployer',
+    # Failure Analysis
+    'FailureAnalyzer',
+    'FailureSeverity',
+    'FailurePattern',
     # Logger
     'SkillLogger',
     'StatusReporter',

@@ -1,0 +1,93 @@
+name: training-job-deployer
+version: 1.0.0
+description: |
+  Deploy and manage training jobs on EKS. Supports both kubectl and HyperPod CLI,
+  with automatic failure detection, log streaming, and intelligent retry with fixes.
+
+triggers:
+  - type: command
+    pattern: "/deploy-training-job"
+    description: "Deploy training job to EKS"
+
+parameters:
+  - name: job_name
+    type: string
+    default: "fsdp-training"
+    description: "Job name"
+  
+  - name: image_uri
+    type: string
+    default: ""
+    description: "Docker image URI (auto-detect if empty)"
+  
+  - name: instance_type
+    type: string
+    default: "ml.g5.8xlarge"
+    description: "Instance type"
+  
+  - name: num_nodes
+    type: integer
+    default: 8
+    description: "Number of nodes"
+  
+  - name: cluster_name
+    type: string
+    default: ""
+    description: "EKS cluster name"
+  
+  - name: use_hyperpod_cli
+    type: string
+    default: "auto"
+    description: "Use HyperPod CLI: auto, true, or false"
+  
+  - name: monitor
+    type: boolean
+    default: true
+    description: "Monitor job after deployment"
+  
+  - name: auto_retry
+    type: boolean
+    default: true
+    description: "Auto-retry on known failures"
+  
+  - name: save_config
+    type: boolean
+    default: true
+    description: "Save config to ConfigMap"
+  
+  - name: sns_topic
+    type: string
+    default: ""
+    description: "SNS topic ARN for notifications"
+
+outputs:
+  - name: job_status
+    type: string
+    description: "Job status"
+  
+  - name: master_pod
+    type: string
+    description: "Master pod name"
+  
+  - name: fixes_applied
+    type: array
+    description: "List of fixes applied"
+
+dependencies:
+  - aws-cli
+  - kubectl
+  - docker
+  - python3
+
+examples:
+  - command: "/deploy-training-job"
+    description: "Deploy with default settings"
+  
+  - command: "/deploy-training-job --job-name my-training --num-nodes 4"
+    description: "Deploy with custom name and node count"
+  
+  - command: "/deploy-training-job --auto_retry --monitor"
+    description: "Deploy with monitoring and auto-retry"
+
+author: opencode
+license: MIT
