@@ -1,0 +1,27 @@
+version: 0.2
+
+env:
+  variables:
+    PROJECT_NAME: "verl-rlvr"
+    ECR_REPOSITORY: "verl-rlvr"
+    AWS_REGION: "us-west-2"
+
+phases:
+  pre_build:
+    commands:
+      - pip install --quiet boto3 awscli
+      - export AWS_DEFAULT_REGION=${AWS_REGION}
+      - export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+      - aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+
+  build:
+    commands:
+      - echo "Building Docker image..."
+      - docker build -t verl-rlvr:test -f Dockerfile .
+
+  post_build:
+    commands:
+      - echo "Tagging and pushing to ECR..."
+      - docker tag verl-rlvr:test ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}:latest
+      - docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}:latest
+      - echo "Build complete!"
