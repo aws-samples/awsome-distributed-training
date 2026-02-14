@@ -1,25 +1,14 @@
 #!/usr/bin/env python3
 """
 Claude Code Command: Deploy Training Job
-Deploy training jobs to EKS with monitoring and auto-retry.
+Deploy training jobs to EKS using PyTorchJob (torchrun) or Ray (KubeRay).
 """
 
 from typing import Optional
 import sys
 import os
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'opencode', 'skills', 'shared'))
-
-try:
-    from job_deployer import JobDeployer
-    from failure_analyzer import FailureAnalyzer
-    from logger import create_logger
-except ImportError:
-    sys.path.insert(0, os.path.expanduser('~/.opencode/skills/shared'))
-    from job_deployer import JobDeployer
-    from failure_analyzer import FailureAnalyzer
-    from logger import create_logger
-
+import subprocess
+import json
 
 def deploy_training_job(
     job_name: str = "fsdp-training",
@@ -29,18 +18,25 @@ def deploy_training_job(
     gpu_per_node: int = 1,
     cluster_name: Optional[str] = None,
     torchrun_path: str = "/opt/conda/bin/torchrun",
+    use_ray: bool = False,
+    install_ray: bool = False,
     use_hyperpod_cli: Optional[bool] = None,
     monitor: bool = True,
     auto_retry: bool = True,
     hf_token: Optional[str] = None
 ) -> str:
     """
-    Deploy FSDP training job to EKS cluster using torchrun.
+    Deploy distributed training job to EKS using PyTorchJob (torchrun) or Ray (KubeRay).
     
-    Deploys PyTorch training job with automatic torchrun configuration
-    for multi-node distributed training. Uses either kubectl or HyperPod CLI
-    (auto-detected), monitors progress, detects failures, and automatically
-    retries with fixes for known issues.
+    **PyTorchJob Mode (Default):**
+    - Uses torchrun for distributed training
+    - Kubeflow PyTorchJob for orchestration
+    - Automatic torchrun configuration
+    
+    **Ray Mode (Optional):**
+    - Uses Ray (KubeRay) for distributed training
+    - Alternative to PyTorchJob
+    - Good for Ray-based workloads
     
     Args:
         job_name: Job name (default: "fsdp-training")
@@ -50,6 +46,8 @@ def deploy_training_job(
         gpu_per_node: Number of GPUs per node (default: 1)
         cluster_name: EKS cluster name (required)
         torchrun_path: Path to torchrun in container (default: "/opt/conda/bin/torchrun")
+        use_ray: Use Ray (KubeRay) instead of PyTorchJob (default: False)
+        install_ray: Install KubeRay operator if not present (default: False)
         use_hyperpod_cli: Use HyperPod CLI (None for auto-detect)
         monitor: Monitor job after deployment (default: True)
         auto_retry: Auto-retry on failures (default: True)
@@ -60,80 +58,60 @@ def deploy_training_job(
     
     Examples:
         "Deploy training job"
-        "Start training with 4 nodes on ml.g5.8xlarge"
+        "Deploy with 4 nodes on ml.g5.8xlarge"
+        "Deploy using Ray"
         "Deploy and monitor with auto-retry"
-        "Deploy Llama 3.2 training with HF token"
     """
     
     if not cluster_name:
         return "❌ Error: cluster_name is required"
     
-    logger = create_logger('training-job-deployer')
+    # Build command
+    cmd = [
+        'python3',
+        os.path.join(os.path.dirname(__file__), '..', 'opencode', 'skills',
+                    'training-job-deployer', 'src', 'deploy_job.py'),
+        '--job_name', job_name,
+        '--cluster_name', cluster_name,
+        '--instance_type', instance_type,
+        '--num_nodes', str(num_nodes),
+        '--gpu_per_node', str(gpu_per_node),
+        '--torchrun_path', torchrun_path
+    ]
+    
+    if image_uri:
+        cmd.extend(['--image_uri', image_uri])
+    
+    if use_ray:
+        cmd.append('--use_ray')
+    
+    if install_ray:
+        cmd.append('--install_ray')
+    
+    if use_hyperpod_cli is not None:
+        cmd.extend(['--use_hyperpod_cli', 'true' if use_hyperpod_cli else 'false'])
+    
+    if hf_token:
+        cmd.extend(['--hf_token', hf_token])
+    
+    if monitor:
+        cmd.append('--monitor')
+    
+    if auto_retry:
+        cmd.append('--auto_retry')
     
     try:
-        deployer = JobDeployer(cluster_name=cluster_name, verbose=True)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
         
-        # Verify image
-        if not image_uri:
-            image_uri = "975049888767.dkr.ecr.us-west-2.amazonaws.com/fsdp:latest"
-        
-        success, msg = deployer.verify_image(image_uri)
-        if not success:
-            logger.warning(f"Image verification: {msg}")
-        
-        # Build config with torchrun support
-        config = {
-            'job_name': job_name,
-            'image_uri': image_uri,
-            'instance_type': instance_type,
-            'num_nodes': num_nodes,
-            'gpu_per_node': gpu_per_node,
-            'torchrun_path': torchrun_path,
-            'model_type': 'llama_v3',
-            'max_steps': 100,
-            'tokenizer': 'hf-internal-testing/llama-tokenizer',
-            'dataset': 'allenai/c4',
-            'dataset_config_name': 'en',
-            'sharding_strategy': 'full',
-            'checkpoint_dir': '/checkpoints',
-            'hf_token': hf_token
-        }
-        
-        # Generate and deploy
-        method = 'hyperpod-cli' if use_hyperpod_cli else 'kubectl'
-        manifest = deployer.generate_manifest(config, format=method)
-        
-        success, output = deployer.deploy_job(manifest, method='auto')
-        
-        if not success:
-            return f"❌ Deployment failed: {output}"
-        
-        result = f"✅ Job deployed: {job_name}\n"
-        result += f"   Image: {image_uri}\n"
-        result += f"   Nodes: {num_nodes} x {instance_type}\n"
-        result += f"   GPUs: {num_nodes} nodes x {gpu_per_node} GPUs = {num_nodes * gpu_per_node} total GPUs\n"
-        result += f"   Torchrun: {torchrun_path}\n"
-        
-        if monitor:
-            result += "\n📊 Monitoring started (5 min real-time + background)\n"
-            deployer.monitor_job(job_name, mode='hybrid')
-        
-        return result
+        if result.returncode == 0:
+            return f"✅ Deployment successful\n\n{result.stdout}"
+        else:
+            return f"❌ Deployment failed\n\n{result.stderr}\n\n{result.stdout}"
     
+    except subprocess.TimeoutExpired:
+        return "❌ Deployment timeout after 300 seconds"
     except Exception as e:
         return f"❌ Error: {str(e)}"
-
-
-try:
-    from claude.tools import tool
-    
-    @tool
-    def deploy_training_job_tool(**kwargs) -> str:
-        """Deploy training job"""
-        return deploy_training_job(**kwargs)
-        
-except ImportError:
-    pass
 
 
 if __name__ == '__main__':
@@ -146,6 +124,8 @@ if __name__ == '__main__':
     parser.add_argument('--gpu_per_node', type=int, default=1, help='GPUs per node')
     parser.add_argument('--cluster_name', required=True, help='EKS cluster name')
     parser.add_argument('--torchrun_path', default='/opt/conda/bin/torchrun', help='Path to torchrun')
+    parser.add_argument('--use_ray', action='store_true', help='Use Ray (KubeRay)')
+    parser.add_argument('--install_ray', action='store_true', help='Install KubeRay operator')
     parser.add_argument('--hf_token', default=None, help='HuggingFace token')
     args = parser.parse_args()
     

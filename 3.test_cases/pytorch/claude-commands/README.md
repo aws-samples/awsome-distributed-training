@@ -97,7 +97,7 @@ manage_eks_cluster(create_if_missing=True)
 ```
 
 ### 4. deploy_training_job
-Deploy distributed training jobs to EKS with automatic torchrun configuration.
+Deploy distributed training jobs to EKS using PyTorchJob (torchrun) or Ray (KubeRay).
 
 ```python
 deploy_training_job(
@@ -108,15 +108,30 @@ deploy_training_job(
     gpu_per_node=1,              # GPUs per node
     cluster_name="my-cluster",   # Required
     torchrun_path="/opt/conda/bin/torchrun",  # Path to torchrun
+    use_ray=False,               # Use Ray (KubeRay) instead of PyTorchJob
+    install_ray=False,           # Install KubeRay operator if not present
     monitor=True,                # Real-time monitoring
     auto_retry=True,             # Auto-retry on failures
     hf_token=None                # HuggingFace token for gated models
 )
 ```
 
+**Deployment Options:**
+
+**Option 1: PyTorchJob (Default)**
+- Uses torchrun for distributed training
+- Kubeflow PyTorchJob for orchestration
+- Best for standard PyTorch FSDP workloads
+
+**Option 2: Ray (KubeRay)**
+- Uses Ray for distributed training
+- Alternative to PyTorchJob
+- Best for Ray-based workloads and hyperparameter tuning
+
 **Key Features:**
+- ✅ **PyTorchJob or Ray** - Choose your distributed framework
 - ✅ **Automatic torchrun configuration** - No manual distributed setup needed
-- ✅ **PyTorchJob integration** - Uses Kubeflow PyTorchJob for orchestration
+- ✅ **KubeRay integration** - Ray support with auto-installation
 - ✅ **Multi-node support** - Scale from 1 to 100+ nodes
 - ✅ **Checkpoint persistence** - Automatic checkpoint volume mounting
 - ✅ **HuggingFace integration** - Support for gated models with tokens
@@ -153,6 +168,15 @@ deploy_training_job(
     num_nodes=2,
     torchrun_path="/usr/local/bin/torchrun",
     cluster_name="my-cluster"
+)
+
+# Deploy using Ray (KubeRay)
+deploy_training_job(
+    job_name="ray-training",
+    num_nodes=4,
+    cluster_name="my-cluster",
+    use_ray=True,
+    install_ray=True  # Install KubeRay if not present
 )
 ```
 
