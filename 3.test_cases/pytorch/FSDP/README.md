@@ -1,30 +1,45 @@
 # PyTorch FSDP Training on EKS with Automated Deployment
 
-This repository provides a complete solution for distributed PyTorch FSDP training on Amazon EKS (Elastic Kubernetes Service) with automated deployment using Claude Code commands and opencode skills.
+This repository provides a complete solution for distributed PyTorch FSDP training on Amazon EKS (Elastic Kubernetes Service) with automated deployment using **AWS CodeBuild** (default) or local tools.
 
-## 🚀 Quick Start
+## 🚀 Quick Start (AWS CodeBuild - Recommended)
 
-Deploy a training job in 3 simple steps:
+The **CodeBuild architecture** is the default and recommended approach. It provides:
+- ✅ Automated builds on every commit
+- ✅ No local Docker required
+- ✅ Scalable, serverless infrastructure
+- ✅ Integrated testing and ECR push
+
+### One-Time Setup
 
 ```bash
-# 1. Build Docker image
-python claude-commands/build_image.py --auto_fix
+# Setup AWS infrastructure (ECR, CodeBuild, IAM)
+./opencode/skills/infrastructure/aws-cli/setup-codebuild.sh \
+  --project-name pytorch-fsdp \
+  --region us-west-2
+```
 
-# 2. Deploy training job
+### Deploy Training Job
+
+Once CodeBuild is configured, simply push your code to trigger the pipeline:
+
+```bash
+# Commit and push - CodeBuild handles the rest
+git add .
+git commit -m "feat: Add training configuration"
+git push origin main
+
+# Then deploy the training job
 python claude-commands/deploy_training_job.py \
   --cluster_name your-cluster \
   --num_nodes 4 \
   --job_name llama32-1b-training
-
-# 3. Monitor training
-kubectl logs -f llama32-1b-training-worker-0
 ```
 
 Or using Claude Code interactively:
 
 ```python
-# Build and deploy
-build_docker_image(auto_fix=True)
+# Deploy training job (image is built automatically by CodeBuild)
 deploy_training_job(
     cluster_name="your-cluster",
     num_nodes=4,
@@ -32,6 +47,22 @@ deploy_training_job(
     monitor=True
 )
 ```
+
+### Alternative: Local Docker Build
+
+If you prefer local builds (requires Docker):
+
+```bash
+# 1. Build locally
+python claude-commands/build_image.py --auto_fix
+
+# 2. Deploy
+python claude-commands/deploy_training_job.py \
+  --cluster_name your-cluster \
+  --num_nodes 4
+```
+
+See [Local Development](#local-development) section below for details.
 
 ## 📋 What's Included
 
@@ -102,6 +133,45 @@ deploy_training_job(
 └─────────────────────────────────────────────────────────────┘
 ```
 
+### CodeBuild Architecture (Default)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      Git Repository                          │
+│                    (GitHub/GitLab)                           │
+└──────────────────────┬──────────────────────────────────────┘
+                       │ Webhook / Manual Trigger
+                       ▼
+┌─────────────────────────────────────────────────────────────┐
+│                      AWS CodeBuild                           │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │              Build Environment                       │   │
+│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────┐  │   │
+│  │  │Build Image   │  │Test Image    │  │Push to   │  │   │
+│  │  │(Auto-fix)    │  │(Validation)  │  │ECR       │  │   │
+│  │  └──────────────┘  └──────────────┘  └──────────┘  │   │
+│  └─────────────────────────────────────────────────────┘   │
+└──────────────────────┬──────────────────────────────────────┘
+                       │
+                       ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Amazon ECR                                │
+│              (Docker Image Repository)                       │
+└──────────────────────┬──────────────────────────────────────┘
+                       │ Pull Image
+                       ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    EKS Training Job                          │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Why CodeBuild?**
+- **No Local Setup**: No need to install Docker locally
+- **Consistent Environment**: Same environment every build
+- **Auto-Scaling**: Handles multiple builds concurrently
+- **Integrated**: Works with GitHub/GitLab webhooks
+- **Cost-Effective**: Pay only for build minutes used
+
 ## 🎓 Supported Models
 
 - **Llama 3.2** (1B, 3B) - Meta's latest small language models
@@ -133,17 +203,16 @@ Results:
 
 ## 🛠️ Prerequisites
 
-### Required Tools
+### Required Tools (CodeBuild - Default)
+
+For the **CodeBuild architecture** (recommended), you only need:
 
 ```bash
 # AWS CLI
 pip install awscli
 aws configure
 
-# Docker
-# https://docs.docker.com/get-docker/
-
-# kubectl
+# kubectl (for deploying training jobs)
 brew install kubectl  # macOS
 # OR download from https://kubernetes.io/docs/tasks/tools/
 
@@ -151,11 +220,27 @@ brew install kubectl  # macOS
 pip install boto3 pyyaml
 ```
 
+**Note**: Docker is NOT required locally when using CodeBuild!
+
+### Required Tools (Local Development - Optional)
+
+For **local Docker builds** (alternative approach):
+
+```bash
+# Docker Desktop or Docker Engine
+# https://docs.docker.com/get-docker/
+
+# Verify Docker is running
+docker --version
+docker info
+```
+
 ### AWS Resources
 
+- **CodeBuild Project** - For automated builds (set up via infrastructure scripts)
 - **ECR Repository** - For Docker images
 - **EKS Cluster** - With GPU nodes (ml.g5 family)
-- **IAM Permissions** - ECR push/pull, EKS access
+- **IAM Permissions** - CodeBuild, ECR, EKS access
 
 See [USAGE.md](USAGE.md) for detailed setup instructions.
 
@@ -197,6 +282,57 @@ deploy_training_job(
     tokenizer="meta-llama/Llama-3.2-1B"
 )
 ```
+
+## 💻 Local Development (Alternative to CodeBuild)
+
+If you prefer to build Docker images locally instead of using CodeBuild:
+
+### Setup
+
+```bash
+# 1. Install Docker
+# https://docs.docker.com/get-docker/
+
+# 2. Verify Docker is running
+docker --version
+docker info
+
+# 3. Login to ECR
+aws ecr get-login-password --region us-west-2 | \
+  docker login --username AWS --password-stdin \
+  your-account.dkr.ecr.us-west-2.amazonaws.com
+```
+
+### Build Locally
+
+```bash
+# Build with auto-fix
+python claude-commands/build_image.py \
+  --dockerfile Dockerfile \
+  --context . \
+  --auto_fix true \
+  --max_attempts 3
+
+# Test the image
+python claude-commands/test_image.py \
+  --image fsdp:latest \
+  --level full
+
+# Push to ECR
+python claude-commands/push_image.py \
+  --image fsdp:latest \
+  --repository fsdp \
+  --region us-west-2
+```
+
+### When to Use Local Builds?
+
+- **Rapid Iteration**: Testing Dockerfile changes quickly
+- **Offline Development**: Working without AWS access temporarily
+- **Debugging**: Investigating build issues interactively
+- **Custom Base Images**: Testing non-standard base images
+
+**Note**: CodeBuild is still recommended for production builds as it provides consistent environments and automatic testing.
 
 ## 🔧 Advanced Features
 

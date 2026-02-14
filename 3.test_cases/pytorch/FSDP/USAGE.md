@@ -1,29 +1,42 @@
 # PyTorch FSDP Training on EKS - Complete Usage Guide
 
-This guide covers how to use the Claude Code commands and opencode skills to deploy distributed PyTorch FSDP training jobs on Amazon EKS.
+This guide covers how to use the **AWS CodeBuild** architecture (default) or local tools to deploy distributed PyTorch FSDP training jobs on Amazon EKS.
 
 ## Table of Contents
 
-1. [Quick Start](#quick-start)
-2. [Prerequisites](#prerequisites)
-3. [Architecture Overview](#architecture-overview)
-4. [Step-by-Step Guide](#step-by-step-guide)
-5. [Advanced Configuration](#advanced-configuration)
-6. [Troubleshooting](#troubleshooting)
-7. [Reference](#reference)
+1. [Quick Start (CodeBuild - Recommended)](#quick-start-codebuild---recommended)
+2. [Quick Start (Local - Optional)](#quick-start-local---optional)
+3. [Prerequisites](#prerequisites)
+4. [Architecture Overview](#architecture-overview)
+5. [Step-by-Step Guide](#step-by-step-guide)
+6. [Advanced Configuration](#advanced-configuration)
+7. [Troubleshooting](#troubleshooting)
+8. [Reference](#reference)
 
-## Quick Start
+## Quick Start (CodeBuild - Recommended)
 
-Deploy a training job in 3 commands:
+The **CodeBuild architecture** is the default and recommended approach. It provides automated builds, no local Docker requirement, and integrated testing.
+
+### One-Time Setup
 
 ```bash
-# 1. Build Docker image
-python claude-commands/build_image.py --auto_fix
+# Setup AWS infrastructure (ECR, CodeBuild, IAM)
+./opencode/skills/infrastructure/aws-cli/setup-codebuild.sh \
+  --project-name pytorch-fsdp \
+  --region us-west-2
+```
 
-# 2. Push to ECR (auto-detected)
-# Image will be pushed automatically after successful build
+### Deploy Training Job
 
-# 3. Deploy training job
+Once CodeBuild is configured:
+
+```bash
+# 1. Push code to trigger CodeBuild pipeline
+git add .
+git commit -m "feat: Add training configuration"
+git push origin main
+
+# 2. Deploy training job (image is built automatically by CodeBuild)
 python claude-commands/deploy_training_job.py \
   --cluster_name your-cluster-name \
   --num_nodes 4 \
@@ -33,10 +46,41 @@ python claude-commands/deploy_training_job.py \
 Or using Claude Code interactively:
 
 ```python
-# Build image
-build_docker_image(auto_fix=True)
+# Deploy job (CodeBuild handles image building automatically)
+deploy_training_job(
+    cluster_name="your-cluster-name",
+    num_nodes=4,
+    job_name="my-training",
+    monitor=True
+)
+```
 
-# Deploy job
+**Note**: No Docker installation required! CodeBuild handles everything in the cloud.
+
+## Quick Start (Local - Optional)
+
+If you prefer local Docker builds (requires Docker installed):
+
+```bash
+# 1. Build Docker image locally
+python claude-commands/build_image.py --auto_fix
+
+# 2. Push to ECR
+python claude-commands/push_image.py --repository fsdp
+
+# 3. Deploy training job
+python claude-commands/deploy_training_job.py \
+  --cluster_name your-cluster-name \
+  --num_nodes 4 \
+  --job_name my-training
+```
+
+Or using Claude Code:
+
+```python
+# Build and deploy locally
+build_docker_image(auto_fix=True)
+push_to_ecr(repository="fsdp")
 deploy_training_job(
     cluster_name="your-cluster-name",
     num_nodes=4,
@@ -47,7 +91,7 @@ deploy_training_job(
 
 ## Prerequisites
 
-### 1. AWS Setup
+### 1. AWS Setup (Required for Both Approaches)
 
 ```bash
 # Install AWS CLI
@@ -64,7 +108,11 @@ aws configure
 aws sts get-caller-identity
 ```
 
-### 2. Docker Setup
+### 2. Docker Setup (Only for Local Builds)
+
+**Note**: Docker is NOT required if using CodeBuild (recommended)!
+
+Only install Docker if you plan to build images locally:
 
 ```bash
 # Install Docker Desktop (Mac/Windows) or Docker Engine (Linux)
@@ -73,7 +121,7 @@ aws sts get-caller-identity
 # Verify
 docker --version
 
-# Login to ECR
+# Login to ECR (only needed for local builds)
 aws ecr get-login-password --region us-west-2 | \
   docker login --username AWS --password-stdin \
   your-account.dkr.ecr.us-west-2.amazonaws.com
@@ -137,7 +185,120 @@ pip install boto3 pyyaml
 
 ## Step-by-Step Guide
 
-### Step 1: Build Docker Image
+### Option A: CodeBuild Approach (Recommended)
+
+#### Step 1: Setup CodeBuild Infrastructure
+
+**One-time setup** using the provided script:
+
+```bash
+# Run the setup script
+./opencode/skills/infrastructure/aws-cli/setup-codebuild.sh \
+  --project-name pytorch-fsdp \
+  --region us-west-2 \
+  --ecr-repository fsdp
+
+# The script will create:
+# - ECR repository
+# - CodeBuild project
+# - IAM role with proper permissions
+# - CloudWatch log group
+# - GitHub webhook (optional)
+```
+
+**What the script does:**
+1. Creates ECR repository with lifecycle policies
+2. Creates CodeBuild project with buildspec.yml
+3. Sets up IAM role with least privilege
+4. Configures CloudWatch logging
+5. Optionally sets up GitHub webhook for automatic builds
+
+#### Step 2: Configure buildspec.yml
+
+The repository includes a pre-configured `buildspec.yml`. Key settings:
+
+```yaml
+env:
+  variables:
+    PROJECT_NAME: "pytorch-fsdp"
+    ECR_REPOSITORY: "fsdp"
+    TEST_LEVEL: "standard"  # quick, standard, or full
+    TAG_STRATEGY: "auto"    # auto, semantic, git-sha, or latest
+```
+
+**Customize if needed** (usually not required):
+- Change `TEST_LEVEL` to `full` for comprehensive testing
+- Change `TAG_STRATEGY` to `semantic` for version-based tagging
+
+#### Step 3: Trigger Build
+
+**Option 1: Automatic (GitHub Webhook)**
+```bash
+# Simply push your code
+git add .
+git commit -m "feat: Add training configuration"
+git push origin main
+
+# CodeBuild automatically triggers and:
+# 1. Builds the Docker image
+# 2. Runs tests
+# 3. Pushes to ECR
+```
+
+**Option 2: Manual (AWS Console or CLI)**
+```bash
+# Start build manually
+aws codebuild start-build \
+  --project-name pytorch-fsdp \
+  --region us-west-2
+
+# Or use the AWS Console:
+# 1. Go to CodeBuild in AWS Console
+# 2. Select "pytorch-fsdp" project
+# 3. Click "Start build"
+```
+
+#### Step 4: Monitor Build
+
+```bash
+# Watch build logs
+aws logs tail /aws/codebuild/pytorch-fsdp --follow
+
+# Or check build status
+aws codebuild batch-get-builds \
+  --ids $(aws codebuild list-builds-for-project \
+    --project-name pytorch-fsdp \
+    --query 'ids[0]' --output text)
+```
+
+**Build outputs:**
+- Docker image pushed to ECR
+- Test reports in `test-reports/` directory
+- Build logs in CloudWatch
+- Artifacts (if configured)
+
+#### Step 5: Deploy Training Job
+
+Once the build completes successfully:
+
+```bash
+# Deploy training job (CodeBuild already pushed the image)
+python claude-commands/deploy_training_job.py \
+  --job_name llama32-1b-training \
+  --num_nodes 4 \
+  --cluster_name sagemaker-test-cluster \
+  --monitor
+```
+
+**Note**: You don't need to specify `--image_uri` - it auto-detects from ECR!
+
+---
+
+### Option B: Local Docker Build (Alternative)
+
+Use this approach if you prefer building locally or need rapid iteration.
+
+#### Step 1: Build Docker Image
 
 The Docker image contains your training code and dependencies.
 
@@ -166,7 +327,7 @@ python claude-commands/build_image.py \
 3. Builds image with retry logic
 4. Tags with semantic version
 
-### Step 2: Push to ECR
+#### Step 2: Push to ECR
 
 Images are automatically pushed after successful build. To push manually:
 
