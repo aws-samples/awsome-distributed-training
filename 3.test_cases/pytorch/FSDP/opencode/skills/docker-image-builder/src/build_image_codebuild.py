@@ -398,9 +398,10 @@ class ImageBuilder:
                 }
             
             self.logger.success("Build completed successfully!")
+            image_full_name = f"{self.args.image_name}:{self.args.image_tag}"
             return {
                 'success': True,
-                'image_name': f"{project_name}:latest",
+                'image_name': image_full_name,
                 'build_id': build_id,
                 'build_time': f"{self.args.timeout}s",
                 'attempts': 1,
@@ -409,9 +410,10 @@ class ImageBuilder:
         else:
             self.logger.info("Build triggered in background")
             self.logger.info(f"Monitor with: aws codebuild batch-get-builds --ids {build_id}")
+            image_full_name = f"{self.args.image_name}:{self.args.image_tag}"
             return {
                 'success': True,
-                'image_name': f"{project_name}:latest",
+                'image_name': image_full_name,
                 'build_id': build_id,
                 'build_time': 'N/A (background)',
                 'attempts': 1,
@@ -440,6 +442,19 @@ class ImageBuilder:
                 'attempts': 0,
                 'fixes_applied': []
             }
+
+
+def get_default_image_name():
+    """Get default image name from current directory."""
+    current_dir = os.path.basename(os.getcwd())
+    # Clean up the name (remove special characters, convert to lowercase)
+    clean_name = ''.join(c if c.isalnum() or c == '-' else '-' for c in current_dir.lower())
+    # Remove leading/trailing dashes
+    clean_name = clean_name.strip('-')
+    # Ensure it's not empty
+    if not clean_name:
+        clean_name = 'docker-image'
+    return clean_name
 
 
 def main():
@@ -471,6 +486,13 @@ def main():
                        help='Build context path (default: .)')
     parser.add_argument('--dockerfile', default='Dockerfile',
                        help='Path to Dockerfile (default: Dockerfile)')
+    
+    # Image naming
+    default_image = get_default_image_name()
+    parser.add_argument('--image-name', default=default_image,
+                       help=f'Image name/tag (default: current directory name "{default_image}")')
+    parser.add_argument('--image-tag', default='latest',
+                       help='Image tag (default: latest)')
     
     # Output options
     parser.add_argument('--verbose', action='store_true', default=True,

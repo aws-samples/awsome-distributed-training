@@ -96,7 +96,15 @@ python3 opencode/skills/docker-image-builder/src/build_image.py \
 - `--timeout`: Build timeout in seconds (default: 3600)
 - `--context`: Build context path (default: ".")
 - `--dockerfile`: Path to Dockerfile (default: "Dockerfile")
+- `--image-name`: Image name (default: current directory name, e.g., "my-project")
+- `--image-tag`: Image tag (default: "latest")
 - `--verbose`: Show detailed output (default: True)
+
+**Image Naming:**
+- By default, the image name is derived from the current directory name
+- Example: If you're in `/home/user/my-training-project`, image will be named `my-training-project:latest`
+- Use `--image-name` to override with a custom name
+- Use `--image-tag` to specify a custom tag (e.g., `v1.0.0`, `2024-01-15`)
 
 ### Local Mode Parameters
 
@@ -143,7 +151,20 @@ python3 opencode/skills/docker-image-builder/src/build_image_codebuild.py \
   --region us-east-1
 ```
 
-### Example 3: Background Build
+### Example 3: Custom Image Name
+
+```bash
+# Build with custom image name (instead of using directory name)
+python3 opencode/skills/docker-image-builder/src/build_image_codebuild.py \
+  --image-name llama3-8b-training \
+  --image-tag v1.0.0
+
+# Build with timestamp tag
+python3 opencode/skills/docker-image-builder/src/build_image_codebuild.py \
+  --image-tag $(date +%Y%m%d-%H%M%S)
+```
+
+### Example 4: Background Build
 
 ```bash
 # Start build without waiting
@@ -156,7 +177,7 @@ aws codebuild batch-get-builds \
   --region us-west-2
 ```
 
-### Example 4: Local Build (Requires Docker)
+### Example 5: Local Build (Requires Docker)
 
 ```bash
 # Only if you have Docker installed locally
