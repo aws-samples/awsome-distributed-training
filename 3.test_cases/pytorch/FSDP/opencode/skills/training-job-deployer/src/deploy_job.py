@@ -18,20 +18,27 @@ from logger import create_logger
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Deploy training job')
+    parser = argparse.ArgumentParser(
+        description='Deploy distributed training job on EKS using torchrun'
+    )
     parser.add_argument('--job_name', default='fsdp-training', help='Job name')
-    parser.add_argument('--image_uri', default='', help='Image URI')
-    parser.add_argument('--instance_type', default='ml.g5.8xlarge', help='Instance type')
-    parser.add_argument('--num_nodes', type=int, default=8, help='Number of nodes')
-    parser.add_argument('--cluster_name', default='', help='Cluster name')
-    parser.add_argument('--use_hyperpod_cli', default='auto', help='Use HyperPod CLI')
+    parser.add_argument('--image_uri', default='', help='Docker image URI (auto-detect from ECR if empty)')
+    parser.add_argument('--instance_type', default='ml.g5.8xlarge', help='EC2 instance type')
+    parser.add_argument('--num_nodes', type=int, default=4, help='Number of nodes for distributed training')
+    parser.add_argument('--gpu_per_node', type=int, default=1, help='Number of GPUs per node')
+    parser.add_argument('--cluster_name', default='', help='EKS cluster name (required)')
+    parser.add_argument('--torchrun_path', default='/opt/conda/bin/torchrun', 
+                       help='Path to torchrun in container')
+    parser.add_argument('--use_hyperpod_cli', default='auto', 
+                       help='Use HyperPod CLI: auto, true, or false')
     parser.add_argument('--monitor', type=lambda x: x.lower() == 'true',
-                       default=True, help='Monitor job')
+                       default=True, help='Monitor job after deployment')
     parser.add_argument('--auto_retry', type=lambda x: x.lower() == 'true',
-                       default=True, help='Auto-retry on failures')
+                       default=True, help='Auto-retry on known failures')
     parser.add_argument('--save_config', type=lambda x: x.lower() == 'true',
-                       default=True, help='Save config')
-    parser.add_argument('--sns_topic', default='', help='SNS topic ARN')
+                       default=True, help='Save config to ConfigMap')
+    parser.add_argument('--hf_token', default='', help='HuggingFace token for gated models')
+    parser.add_argument('--sns_topic', default='', help='SNS topic ARN for notifications')
     
     args = parser.parse_args()
     
@@ -60,17 +67,24 @@ def main():
     else:
         logger.success(f"Image verified: {image_uri}")
     
-    # Build job config
+    # Build job config with torchrun support
     job_config = {
         'job_name': args.job_name,
         'image_uri': image_uri,
         'instance_type': args.instance_type,
         'num_nodes': args.num_nodes,
-        'gpu_per_node': 1,
+        'gpu_per_node': args.gpu_per_node,
         'efa_per_node': 1,
         'cluster_name': args.cluster_name,
+        'torchrun_path': args.torchrun_path,
         'model_type': 'llama_v3',
-        'max_steps': 100
+        'max_steps': 100,
+        'hf_token': args.hf_token if args.hf_token else None,
+        'tokenizer': 'hf-internal-testing/llama-tokenizer',  # Public tokenizer to avoid gated model issues
+        'dataset': 'allenai/c4',
+        'dataset_config_name': 'en',
+        'sharding_strategy': 'full',
+        'checkpoint_dir': '/checkpoints'
     }
     
     # Generate manifest
@@ -87,6 +101,8 @@ def main():
     print(f"Name: {job_config['job_name']}")
     print(f"Image: {job_config['image_uri']}")
     print(f"Nodes: {job_config['num_nodes']} x {job_config['instance_type']}")
+    print(f"GPUs: {job_config['num_nodes']} nodes x {job_config['gpu_per_node']} GPUs = {job_config['num_nodes'] * job_config['gpu_per_node']} total GPUs")
+    print(f"Torchrun: {job_config['torchrun_path']}")
     print(f"Format: {format_type}")
     print("="*80)
     

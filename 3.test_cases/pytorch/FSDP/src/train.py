@@ -3,6 +3,8 @@
 
 import functools
 import math
+import os
+import re
 import time
 
 import torch
@@ -134,10 +136,24 @@ def train(
             
 
 def main(args):
-    dist.init_process_group()
-    global_rank = dist.get_rank()
-    device = global_rank % torch.cuda.device_count()
-    world_size = dist.get_world_size()
+    # Initialize distributed process group with environment variables
+    # These are set by PyTorchJob/Kubeflow
+    rank = int(os.environ.get('RANK', '0'))
+    world_size = int(os.environ.get('WORLD_SIZE', '1'))
+    local_rank = int(os.environ.get('LOCAL_RANK', '0'))
+    
+    # Initialize process group - needed for FSDP even with single GPU
+    if torch.cuda.is_available():
+        dist.init_process_group(
+            backend='nccl',
+            init_method='env://',
+            world_size=world_size,
+            rank=rank
+        )
+    
+    global_rank = dist.get_rank() if dist.is_initialized() else 0
+    device = local_rank % torch.cuda.device_count() if torch.cuda.is_available() else 0
+    world_size = dist.get_world_size() if dist.is_initialized() else 1
     
     if args.bf16:
         dtype = torch.bfloat16

@@ -60,9 +60,15 @@ class JobDeployer:
             return self._generate_kubectl_manifest(config)
     
     def _generate_kubectl_manifest(self, config: Dict) -> str:
-        """Generate kubectl apply compatible manifest."""
+        """Generate kubectl apply compatible manifest with torchrun support."""
         job_name = config.get('job_name', 'fsdp-training')
         namespace = config.get('namespace', 'kubeflow')
+        num_nodes = config.get('num_nodes', 8)
+        gpu_per_node = config.get('gpu_per_node', 1)
+        
+        # Build torchrun command with distributed training arguments
+        # torchrun is typically at /opt/conda/bin/torchrun in PyTorch images
+        torchrun_path = config.get('torchrun_path', '/opt/conda/bin/torchrun')
         
         manifest = {
             'apiVersion': 'kubeflow.org/v1',
@@ -74,28 +80,29 @@ class JobDeployer:
             'spec': {
                 'pytorchReplicaSpecs': {
                     'Worker': {
-                        'replicas': config.get('num_nodes', 8),
+                        'replicas': num_nodes,
                         'template': {
                             'spec': {
                                 'containers': [{
                                     'name': 'pytorch',
                                     'image': config.get('image_uri'),
-                                    'command': ['/fsdp/train.py'],
-                                    'args': self._build_training_args(config),
+                                    'command': [torchrun_path],
+                                    'args': self._build_torchrun_args(config) + ['/fsdp/train.py'] + self._build_training_args(config),
                                     'resources': {
                                         'limits': {
-                                            'nvidia.com/gpu': config.get('gpu_per_node', 1),
+                                            'nvidia.com/gpu': gpu_per_node,
                                             'vpc.amazonaws.com/efa': config.get('efa_per_node', 1)
                                         },
                                         'requests': {
-                                            'nvidia.com/gpu': config.get('gpu_per_node', 1),
+                                            'nvidia.com/gpu': gpu_per_node,
                                             'vpc.amazonaws.com/efa': config.get('efa_per_node', 1)
                                         }
                                     },
                                     'env': self._build_env_vars(config),
                                     'volumeMounts': [
                                         {'name': 'local', 'mountPath': '/local'},
-                                        {'name': 'shm', 'mountPath': '/dev/shm'}
+                                        {'name': 'shm', 'mountPath': '/dev/shm'},
+                                        {'name': 'checkpoints', 'mountPath': '/checkpoints'}
                                     ]
                                 }],
                                 'volumes': [
@@ -106,6 +113,10 @@ class JobDeployer:
                                     {
                                         'name': 'shm',
                                         'hostPath': {'path': '/dev/shm', 'type': 'Directory'}
+                                    },
+                                    {
+                                        'name': 'checkpoints',
+                                        'hostPath': {'path': '/mnt/k8s-disks/0/checkpoints'}
                                     }
                                 ],
                                 'restartPolicy': 'OnFailure'
@@ -118,15 +129,40 @@ class JobDeployer:
         
         return yaml.dump(manifest, default_flow_style=False)
     
+    def _build_torchrun_args(self, config: Dict) -> List[str]:
+        """Build torchrun arguments for distributed training.
+        
+        These arguments configure torchrun for multi-node distributed training.
+        PyTorchJob automatically sets environment variables (RANK, WORLD_SIZE, etc.)
+        that torchrun uses to coordinate workers.
+        """
+        num_nodes = config.get('num_nodes', 8)
+        gpu_per_node = config.get('gpu_per_node', 1)
+        
+        args = [
+            f'--nproc_per_node={gpu_per_node}',
+            f'--nnodes={num_nodes}',
+            '--node_rank=$(RANK)',  # PyTorchJob sets RANK env var
+            '--master_addr=$(MASTER_ADDR)',  # PyTorchJob sets this
+            '--master_port=$(MASTER_PORT)',  # PyTorchJob sets this
+            '--rdzv_id=job-$(JOB_NAME)',  # Use job name for rendezvous
+            '--rdzv_backend=c10d',
+            '--rdzv_endpoint=$(MASTER_ADDR):$(MASTER_PORT)'
+        ]
+        
+        return args
+    
     def _generate_hyperpod_manifest(self, config: Dict) -> str:
-        """Generate HyperPod CLI compatible manifest."""
-        # HyperPod uses a different YAML structure
+        """Generate HyperPod CLI compatible manifest with torchrun support."""
+        # HyperPod uses a different YAML structure with torchrun launcher
+        torchrun_path = config.get('torchrun_path', '/opt/conda/bin/torchrun')
+        
         manifest = {
             'defaults': ['- override hydra/job_logging: stdout'],
             'hydra': {'run': {'dir': '.', 'output_subdir': None}},
             'training_cfg': {
-                'entry_script': '/fsdp/train.py',
-                'script_args': self._build_training_args_dict(config)
+                'entry_script': torchrun_path,
+                'script_args': self._build_torchrun_args_dict(config) + ['/fsdp/train.py'] + self._build_training_args_dict(config)
             },
             'run': {
                 'name': config.get('job_name', 'fsdp-training'),
@@ -145,6 +181,11 @@ class JobDeployer:
                             'volumeName': 'local',
                             'hostPath': '/mnt/k8s-disks/0',
                             'mountPath': '/local'
+                        },
+                        {
+                            'volumeName': 'checkpoints',
+                            'hostPath': '/mnt/k8s-disks/0/checkpoints',
+                            'mountPath': '/checkpoints'
                         }
                     ]
                 }
@@ -155,6 +196,22 @@ class JobDeployer:
         }
         
         return yaml.dump(manifest, default_flow_style=False)
+    
+    def _build_torchrun_args_dict(self, config: Dict) -> Dict:
+        """Build torchrun arguments as dictionary for HyperPod CLI."""
+        num_nodes = config.get('num_nodes', 8)
+        gpu_per_node = config.get('gpu_per_node', 1)
+        
+        return {
+            '--nproc_per_node': gpu_per_node,
+            '--nnodes': num_nodes,
+            '--node_rank': '$(RANK)',
+            '--master_addr': '$(MASTER_ADDR)',
+            '--master_port': '$(MASTER_PORT)',
+            '--rdzv_id': 'job-$(JOB_NAME)',
+            '--rdzv_backend': 'c10d',
+            '--rdzv_endpoint': '$(MASTER_ADDR):$(MASTER_PORT)'
+        }
     
     def _build_training_args(self, config: Dict) -> List[str]:
         """Build training script arguments."""
@@ -215,32 +272,47 @@ class JobDeployer:
     
     def _build_env_vars(self, config: Dict) -> List[Dict]:
         """Build environment variables for containers."""
+        job_name = config.get('job_name', 'fsdp-training')
+        
         env_vars = [
             {'name': 'NCCL_DEBUG', 'value': 'INFO'},
             {'name': 'NCCL_SOCKET_IFNAME', 'value': '^lo'},
             {'name': 'FI_PROVIDER', 'value': config.get('fi_provider', 'efa')},
             {'name': 'FI_EFA_FORK_SAFE', 'value': '1'},
-            {'name': 'PYTHONUNBUFFERED', 'value': '1'}
+            {'name': 'PYTHONUNBUFFERED', 'value': '1'},
+            {'name': 'JOB_NAME', 'value': job_name},
+            {'name': 'TOKENIZERS_PARALLELISM', 'value': 'false'}
         ]
         
         # Add HuggingFace token if provided
         if config.get('hf_token'):
             env_vars.append({'name': 'HF_TOKEN', 'value': config.get('hf_token')})
         
+        # Add PyTorch distributed debug if requested
+        if config.get('pytorch_debug'):
+            env_vars.append({'name': 'TORCH_DISTRIBUTED_DEBUG', 'value': 'DETAIL'})
+        
         return env_vars
     
     def _build_env_vars_dict(self, config: Dict) -> Dict:
         """Build environment variables as dictionary."""
+        job_name = config.get('job_name', 'fsdp-training')
+        
         env_vars = {
             'NCCL_DEBUG': 'INFO',
             'NCCL_SOCKET_IFNAME': '^lo',
             'FI_PROVIDER': config.get('fi_provider', 'efa'),
             'FI_EFA_FORK_SAFE': '1',
-            'PYTHONUNBUFFERED': '1'
+            'PYTHONUNBUFFERED': '1',
+            'JOB_NAME': job_name,
+            'TOKENIZERS_PARALLELISM': 'false'
         }
         
         if config.get('hf_token'):
             env_vars['HF_TOKEN'] = config.get('hf_token')
+        
+        if config.get('pytorch_debug'):
+            env_vars['TORCH_DISTRIBUTED_DEBUG'] = 'DETAIL'
         
         return env_vars
     
