@@ -49,116 +49,92 @@ class TestResult:
 class CodeBuildTester:
     """Test Docker images using CodeBuild - no local Docker required!"""
     
-    def __init__(self, logger, region: str = "us-west-2"):
+    def __init__(self, logger, region: str = "us-west-2", project_name: str = "verl-rlvr"):
         self.logger = logger
         self.region = region
+        self.project_name = project_name
+        self.original_source = None
     
     def create_test_buildspec(self, image_uri: str, test_level: str = "standard") -> str:
-        """Create a buildspec for testing the image."""
+        """Create a buildspec YAML for testing the image."""
         
-        # Define test scripts based on level
+        # Define test commands based on level
         if test_level == "quick":
             test_commands = [
                 "echo 'Running quick tests (imports only)...'",
-                "python3 -c \"import torch; import transformers; import datasets; print('✓ All imports successful')\""
+                "docker run --rm ${IMAGE_URI} python3 -c \"import torch; import transformers; import datasets; print('✓ All imports successful')\""
             ]
         elif test_level == "standard":
             test_commands = [
                 "echo 'Running standard tests...'",
-                "python3 -c \"import torch; print(f'PyTorch: {torch.__version__}')\"",
-                "python3 -c \"import torch; print(f'CUDA available: {torch.cuda.is_available()}')\"",
-                "python3 -c \"from transformers import AutoConfig; print('✓ Transformers config loading works')\"",
-                "python3 -c \"from datasets import load_dataset_builder; print('✓ Datasets import works')\""
+                "docker run --rm ${IMAGE_URI} python3 -c \"import torch; print('PyTorch:', torch.__version__)\"",
+                "docker run --rm ${IMAGE_URI} python3 -c \"import torch; print('CUDA available:', torch.cuda.is_available())\"",
+                "docker run --rm ${IMAGE_URI} python3 -c \"from transformers import AutoConfig; print('Transformers OK')\"",
+                "docker run --rm ${IMAGE_URI} python3 -c \"from datasets import load_dataset_builder; print('Datasets OK')\"",
+                "docker run --rm ${IMAGE_URI} python3 -c \"import verl; print('VERL OK')\"",
+                "echo 'All tests passed!'"
             ]
         else:  # full
             test_commands = [
                 "echo 'Running full tests...'",
-                "python3 -c \"import torch; print(f'PyTorch: {torch.__version__}')\"",
-                "python3 -c \"import torch; print(f'CUDA available: {torch.cuda.is_available()}')\"",
-                "python3 -c \"from transformers import AutoConfig; print('✓ Transformers config loading works')\"",
-                "python3 -c \"from datasets import load_dataset_builder; print('✓ Datasets import works')\"",
-                "python3 -c \"from transformers import AutoModelForCausalLM; print('✓ Model loading works')\"",
+                "docker run --rm ${IMAGE_URI} python3 -c \"import torch; print('PyTorch:', torch.__version__)\"",
+                "docker run --rm ${IMAGE_URI} python3 -c \"import torch; print('CUDA available:', torch.cuda.is_available())\"",
+                "docker run --rm ${IMAGE_URI} python3 -c \"from transformers import AutoConfig; print('Transformers OK')\"",
+                "docker run --rm ${IMAGE_URI} python3 -c \"from datasets import load_dataset_builder; print('Datasets OK')\"",
+                "docker run --rm ${IMAGE_URI} python3 -c \"from transformers import AutoModelForCausalLM; print('Model loading OK')\"",
+                "docker run --rm ${IMAGE_URI} python3 -c \"import verl; print('VERL OK')\"",
                 "echo 'All tests passed!'"
             ]
         
-        buildspec = {
-            "version": "0.2",
-            "env": {
-                "variables": {
-                    "IMAGE_URI": image_uri,
-                    "TEST_LEVEL": test_level
-                }
-            },
-            "phases": {
-                "pre_build": {
-                    "commands": [
-                        "echo \"Testing image: ${IMAGE_URI}\"",
-                        "echo \"Test level: ${TEST_LEVEL}\"",
-                        "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com || true"
-                    ]
-                },
-                "build": {
-                    "commands": test_commands
-                }
-            }
-        }
+        buildspec = f"""version: 0.2
+
+env:
+  variables:
+    IMAGE_URI: "{image_uri}"
+
+phases:
+  pre_build:
+    commands:
+      - echo "Testing image ${{IMAGE_URI}}"
+      - aws ecr get-login-password --region ${{AWS_REGION}} | docker login --username AWS --password-stdin $(echo ${{IMAGE_URI}} | cut -d'/' -f1)
+      - docker pull ${{IMAGE_URI}}
+  build:
+    commands:
+{chr(10).join(['      - ' + cmd for cmd in test_commands])}
+"""
+        return buildspec
+    
+    def create_test_zip(self, buildspec: str) -> Tuple[str, str]:
+        """Create a zip file containing buildspec.yml."""
+        temp_dir = tempfile.mkdtemp()
         
-        return json.dumps(buildspec, indent=2)
-    
-    def create_s3_bucket(self, bucket_name: str) -> Tuple[bool, str]:
-        """Create S3 bucket for test artifacts."""
         try:
-            # Check if bucket exists
-            result = subprocess.run(
-                ['aws', 's3api', 'head-bucket', 
-                 '--bucket', bucket_name,
-                 '--region', self.region],
-                capture_output=True,
-                timeout=10
-            )
-            
-            if result.returncode == 0:
-                return True, f"Bucket '{bucket_name}' already exists"
-            
-            # Create bucket
-            result = subprocess.run(
-                ['aws', 's3', 'mb', 
-                 f's3://{bucket_name}',
-                 '--region', self.region],
-                capture_output=True,
-                text=True,
-                timeout=30
-            )
-            
-            if result.returncode == 0:
-                return True, f"Created bucket: {bucket_name}"
-            else:
-                return False, result.stderr
-        except Exception as e:
-            return False, str(e)
-    
-    def upload_buildspec(self, buildspec: str, bucket_name: str, key: str = "test-buildspec.json") -> Tuple[bool, str]:
-        """Upload buildspec to S3."""
-        try:
-            # Create temp file
-            temp_dir = tempfile.mkdtemp()
-            buildspec_path = os.path.join(temp_dir, 'buildspec.json')
-            
+            # Write buildspec to temp directory
+            buildspec_path = os.path.join(temp_dir, 'buildspec.yml')
             with open(buildspec_path, 'w') as f:
                 f.write(buildspec)
             
-            # Upload to S3
+            # Create zip file
+            zip_path = os.path.join(temp_dir, 'test-source.zip')
+            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+                zf.write(buildspec_path, 'buildspec.yml')
+            
+            return zip_path, temp_dir
+        except Exception as e:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+            raise e
+    
+    def upload_to_s3(self, local_path: str, bucket_name: str, key: str) -> Tuple[bool, str]:
+        """Upload file to S3."""
+        try:
             s3_uri = f"s3://{bucket_name}/{key}"
             
             result = subprocess.run(
-                ['aws', 's3', 'cp', buildspec_path, s3_uri,
-                 '--region', self.region],
+                ['aws', 's3', 'cp', local_path, s3_uri, '--region', self.region],
                 capture_output=True,
                 text=True,
-                timeout=30
+                timeout=60
             )
-            
-            shutil.rmtree(temp_dir)
             
             if result.returncode == 0:
                 return True, s3_uri
@@ -167,8 +143,74 @@ class CodeBuildTester:
         except Exception as e:
             return False, str(e)
     
-    def run_inline_test(self, image_uri: str, test_level: str = "standard") -> Tuple[bool, str]:
-        """Run tests inline using CodeBuild without creating a project."""
+    def get_project_source(self) -> Optional[Dict]:
+        """Get current project source configuration."""
+        try:
+            result = subprocess.run(
+                ['aws', 'codebuild', 'batch-get-projects',
+                 '--names', self.project_name,
+                 '--region', self.region,
+                 '--query', 'projects[0].source',
+                 '--output', 'json'],
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+            
+            if result.returncode == 0:
+                return json.loads(result.stdout)
+            return None
+        except Exception as e:
+            self.logger.warning(f"Could not get project source: {e}")
+            return None
+    
+    def update_project_source(self, s3_location: str) -> bool:
+        """Update CodeBuild project to use S3 source."""
+        try:
+            # Strip s3:// prefix if present - CodeBuild expects just bucket/key
+            if s3_location.startswith('s3://'):
+                s3_location = s3_location[5:]
+            
+            result = subprocess.run(
+                ['aws', 'codebuild', 'update-project',
+                 '--name', self.project_name,
+                 '--source', f'type=S3,location={s3_location}',
+                 '--region', self.region],
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+            
+            return result.returncode == 0
+        except Exception as e:
+            self.logger.error(f"Failed to update project: {e}")
+            return False
+    
+    def restore_project_source(self) -> bool:
+        """Restore original project source configuration."""
+        if not self.original_source:
+            return True
+        
+        try:
+            source_type = self.original_source.get('type', 'S3')
+            source_location = self.original_source.get('location', '')
+            
+            cmd = [
+                'aws', 'codebuild', 'update-project',
+                '--name', self.project_name,
+                '--source', f'type={source_type},location={source_location}',
+                '--region', self.region
+            ]
+            
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            return result.returncode == 0
+        except Exception as e:
+            self.logger.warning(f"Could not restore project source: {e}")
+            return False
+    
+    def run_test(self, image_uri: str, test_level: str = "standard", 
+                 bucket_name: Optional[str] = None) -> Tuple[bool, str]:
+        """Run tests using CodeBuild with proper S3 source."""
         
         self.logger.info(f"Testing image: {image_uri}")
         self.logger.info(f"Test level: {test_level}")
@@ -176,46 +218,79 @@ class CodeBuildTester:
         # Create buildspec
         buildspec = self.create_test_buildspec(image_uri, test_level)
         
-        # Create temp file for buildspec
-        temp_dir = tempfile.mkdtemp()
-        buildspec_path = os.path.join(temp_dir, 'buildspec.json')
-        
-        with open(buildspec_path, 'w') as f:
-            f.write(buildspec)
+        # Create zip file with buildspec
+        self.logger.info("Creating test source package...")
+        try:
+            zip_path, temp_dir = self.create_test_zip(buildspec)
+        except Exception as e:
+            return False, f"Failed to create test zip: {e}"
         
         try:
-            # Run CodeBuild locally with buildspec override
-            # This requires a CodeBuild project to exist
+            # Determine bucket name
+            if not bucket_name:
+                # Try to find existing bucket from project
+                account_id = self._get_account_id()
+                bucket_name = f"{self.project_name}-build-artifacts-{account_id}"
+            
+            # Upload zip to S3
+            self.logger.info(f"Uploading test package to S3: {bucket_name}")
+            timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
+            s3_key = f"test-source/test-{timestamp}.zip"
+            
+            success, msg = self.upload_to_s3(zip_path, bucket_name, s3_key)
+            if not success:
+                return False, f"Failed to upload to S3: {msg}"
+            
+            s3_uri = msg
+            self.logger.success(f"Uploaded to: {s3_uri}")
+            
+            # Save original source configuration
+            self.logger.info("Saving original project configuration...")
+            self.original_source = self.get_project_source()
+            
+            # Update project to use test source
+            self.logger.info("Updating CodeBuild project...")
+            if not self.update_project_source(s3_uri):
+                return False, "Failed to update CodeBuild project"
+            
+            # Start build
             self.logger.info("Starting CodeBuild test...")
-            
-            # For inline testing, we'll use the existing project but override the buildspec
-            # This is a workaround since CodeBuild doesn't support true inline builds
-            
-            # Alternative: Use AWS CLI to start a build with inline buildspec
-            cmd = [
-                'aws', 'codebuild', 'start-build',
-                '--project-name', 'pytorch-fsdp',  # Use existing project
-                '--region', self.region,
-                '--buildspec-override', buildspec_path
-            ]
-            
             result = subprocess.run(
-                cmd,
+                ['aws', 'codebuild', 'start-build',
+                 '--project-name', self.project_name,
+                 '--region', self.region],
                 capture_output=True,
                 text=True,
                 timeout=30
             )
             
-            if result.returncode == 0:
-                build_info = json.loads(result.stdout)
-                build_id = build_info.get('build', {}).get('id', 'unknown')
-                self.logger.success(f"Test build triggered: {build_id}")
-                return True, build_id
-            else:
-                return False, result.stderr
-                
+            if result.returncode != 0:
+                # Restore original source
+                self.restore_project_source()
+                return False, f"Failed to start build: {result.stderr}"
+            
+            build_info = json.loads(result.stdout)
+            build_id = build_info.get('build', {}).get('id', 'unknown')
+            self.logger.success(f"Test build triggered: {build_id}")
+            
+            return True, build_id
+            
         finally:
-            shutil.rmtree(temp_dir)
+            # Cleanup temp directory
+            shutil.rmtree(temp_dir, ignore_errors=True)
+    
+    def _get_account_id(self) -> str:
+        """Get AWS account ID."""
+        try:
+            result = subprocess.run(
+                ['aws', 'sts', 'get-caller-identity', '--query', 'Account', '--output', 'text'],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            return result.stdout.strip()
+        except:
+            return "unknown"
     
     def wait_for_test(self, build_id: str, timeout: int = 600) -> Tuple[bool, str, List[TestCase]]:
         """Wait for test build to complete and parse results."""
@@ -225,54 +300,59 @@ class CodeBuildTester:
         start_time = time.time()
         tests = []
         
-        while time.time() - start_time < timeout:
-            try:
-                result = subprocess.run(
-                    ['aws', 'codebuild', 'batch-get-builds',
-                     '--ids', build_id,
-                     '--region', self.region,
-                     '--query', 'builds[0].{status:buildStatus,phase:currentPhase}',
-                     '--output', 'json'],
-                    capture_output=True,
-                    text=True,
-                    timeout=10
-                )
-                
-                if result.returncode == 0:
-                    build_status = json.loads(result.stdout)
-                    status = build_status.get('status', 'UNKNOWN')
-                    phase = build_status.get('phase', 'UNKNOWN')
+        try:
+            while time.time() - start_time < timeout:
+                try:
+                    result = subprocess.run(
+                        ['aws', 'codebuild', 'batch-get-builds',
+                         '--ids', build_id,
+                         '--region', self.region,
+                         '--query', 'builds[0].{status:buildStatus,phase:currentPhase}',
+                         '--output', 'json'],
+                        capture_output=True,
+                        text=True,
+                        timeout=10
+                    )
                     
-                    self.logger.info(f"Test status: {status}, Phase: {phase}")
-                    
-                    if status == 'SUCCEEDED':
-                        tests.append(TestCase(
-                            name="codebuild_test",
-                            category="validation",
-                            description="CodeBuild test execution",
-                            passed=True,
-                            message="All tests passed in CodeBuild"
-                        ))
-                        return True, "Tests passed", tests
-                    elif status in ['FAILED', 'STOPPED', 'TIMED_OUT']:
-                        tests.append(TestCase(
-                            name="codebuild_test",
-                            category="validation",
-                            description="CodeBuild test execution",
-                            passed=False,
-                            message=f"Tests {status.lower()} in CodeBuild"
-                        ))
-                        return False, f"Tests {status.lower()}", tests
-                    
-                    time.sleep(10)
-                else:
+                    if result.returncode == 0:
+                        build_status = json.loads(result.stdout)
+                        status = build_status.get('status', 'UNKNOWN')
+                        phase = build_status.get('phase', 'UNKNOWN')
+                        
+                        self.logger.info(f"Test status: {status}, Phase: {phase}")
+                        
+                        if status == 'SUCCEEDED':
+                            tests.append(TestCase(
+                                name="codebuild_test",
+                                category="validation",
+                                description="CodeBuild test execution",
+                                passed=True,
+                                message="All tests passed in CodeBuild"
+                            ))
+                            return True, "Tests passed", tests
+                        elif status in ['FAILED', 'STOPPED', 'TIMED_OUT']:
+                            tests.append(TestCase(
+                                name="codebuild_test",
+                                category="validation",
+                                description="CodeBuild test execution",
+                                passed=False,
+                                message=f"Tests {status.lower()} in CodeBuild"
+                            ))
+                            return False, f"Tests {status.lower()}", tests
+                        
+                        time.sleep(10)
+                    else:
+                        time.sleep(5)
+                        
+                except Exception as e:
+                    self.logger.warning(f"Error checking test status: {e}")
                     time.sleep(5)
-                    
-            except Exception as e:
-                self.logger.warning(f"Error checking test status: {e}")
-                time.sleep(5)
-        
-        return False, "Test timeout", tests
+            
+            return False, "Test timeout", tests
+        finally:
+            # Always restore original source
+            self.logger.info("Restoring original project configuration...")
+            self.restore_project_source()
     
     def get_test_logs(self, build_id: str, tail: int = 100) -> str:
         """Get test logs from CloudWatch."""
@@ -307,7 +387,11 @@ class ImageTester:
     def __init__(self, args):
         self.args = args
         self.logger = create_logger('docker-image-tester', verbose=args.verbose)
-        self.codebuild_tester = CodeBuildTester(self.logger, region=args.region)
+        self.codebuild_tester = CodeBuildTester(
+            self.logger, 
+            region=args.region,
+            project_name=args.project
+        )
     
     def validate_prerequisites(self) -> bool:
         """Check prerequisites."""
@@ -364,10 +448,11 @@ class ImageTester:
         """Test image using CodeBuild."""
         self.logger.section("CodeBuild Image Test")
         
-        # Run inline test
-        success, msg = self.codebuild_tester.run_inline_test(
+        # Run test
+        success, msg = self.codebuild_tester.run_test(
             self.args.image,
-            self.args.level
+            self.args.level,
+            self.args.bucket
         )
         
         if not success:
@@ -458,6 +543,14 @@ def main():
     # Image to test
     parser.add_argument('--image', required=True,
                        help='Docker image URI to test (e.g., 123456789.dkr.ecr.us-west-2.amazonaws.com/fsdp:latest)')
+    
+    # CodeBuild project
+    parser.add_argument('--project', default='verl-rlvr',
+                       help='CodeBuild project name (default: verl-rlvr)')
+    
+    # S3 bucket for test source
+    parser.add_argument('--bucket', default=None,
+                       help='S3 bucket for test source (auto-detected if not specified)')
     
     # Test options
     parser.add_argument('--level', default='standard',

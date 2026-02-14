@@ -1,284 +1,177 @@
 ---
 name: docker-image-tester
-description: Test Docker images using CodeBuild (default - no local Docker required) or local Docker. Supports multiple test levels (quick, standard, full) for validating PyTorch/CUDA compatibility, imports, and model functionality.
+description: Test Docker images with comprehensive validation using CodeBuild (no local Docker required) or local Docker. Supports import tests, CUDA checks, model configuration loading, and forward pass execution. Generates detailed reports and fix recommendations.
 license: MIT
 compatibility: opencode
 metadata:
   category: testing
   author: opencode
-  default_mode: codebuild
 ---
 
 ## What I do
 
-Test Docker images using **AWS CodeBuild** (default - no local Docker required!) or local Docker:
+Comprehensive Docker image testing with multiple validation levels:
 
-### CodeBuild Mode (Default - Recommended)
-1. **No Local Docker Required**: Tests run entirely in AWS CodeBuild
-2. **Multiple Test Levels**: quick, standard, or full validation
-3. **Automatic Execution**: Tests run in clean, isolated environment
-4. **Real Results**: Tests actually import and run code from the image
-
-### Local Mode (Optional)
 1. **Import Tests**: Verify all Python packages import correctly
 2. **CUDA Tests**: Check GPU availability and CUDA compatibility
 3. **Model Tests**: Load model configurations and instantiate models
 4. **Forward Pass**: Execute inference to validate functionality
+5. **FSDP Tests**: Verify distributed training compatibility
 
 ## When to use me
 
 Use this skill when you need to:
-- **Test a Docker image without installing Docker locally** (use CodeBuild mode)
 - Validate a Docker image before deployment
 - Check PyTorch/CUDA compatibility
 - Test model loading and inference
+- Verify FSDP (Fully Sharded Data Parallel) setup
 - Generate test reports for CI/CD
+- Test images without local Docker installation
 
 ## How to use me
 
-### CodeBuild Mode (Default - No Docker Required!)
+### Command Line
 
+#### CodeBuild Testing (No Local Docker Required)
 ```bash
-# Quick test (imports only) - FASTEST
-python3 opencode/skills/docker-image-tester/src/test_image_codebuild.py \
-  --image 975049888767.dkr.ecr.us-west-2.amazonaws.com/fsdp:latest \
+# Quick test (imports only)
+python3 ~/.opencode/skills/docker-image-tester/src/test_image_codebuild.py \
+  --image 123456789.dkr.ecr.us-west-2.amazonaws.com/myimage:latest \
   --level quick
 
-# Standard test (imports + CUDA + model config)
-python3 opencode/skills/docker-image-tester/src/test_image_codebuild.py \
-  --image 975049888767.dkr.ecr.us-west-2.amazonaws.com/fsdp:latest \
+# Standard test with custom project
+python3 ~/.opencode/skills/docker-image-tester/src/test_image_codebuild.py \
+  --image 123456789.dkr.ecr.us-west-2.amazonaws.com/myimage:latest \
+  --project my-codebuild-project \
   --level standard
 
-# Full test (all tests)
-python3 opencode/skills/docker-image-tester/src/test_image_codebuild.py \
-  --image 975049888767.dkr.ecr.us-west-2.amazonaws.com/fsdp:latest \
+# Full test with custom bucket
+python3 ~/.opencode/skills/docker-image-tester/src/test_image_codebuild.py \
+  --image 123456789.dkr.ecr.us-west-2.amazonaws.com/myimage:latest \
   --level full \
-  --wait
+  --bucket my-test-bucket
 ```
 
-### Prerequisites for CodeBuild Mode
-
-1. **AWS CLI configured**:
-   ```bash
-   aws configure
-   ```
-
-2. **CodeBuild project exists**:
-   ```bash
-   # Using the setup script
-   ./opencode/skills/infrastructure/aws-cli/setup-codebuild.sh \
-     --project-name pytorch-fsdp \
-     --region us-west-2
-   ```
-
-### Local Mode (Requires Docker)
-
+#### Local Docker Testing
 ```bash
-# Force local testing (requires Docker installed)
-python3 opencode/skills/docker-image-tester/src/test_image.py \
-  --use-local \
-  --image fsdp:latest \
-  --level standard
+# Quick test (imports only)
+python3 ~/.opencode/skills/docker-image-tester/src/test_image.py \
+  --image fsdp:latest --level quick
+
+# Standard test (imports + CUDA + model config)
+python3 ~/.opencode/skills/docker-image-tester/src/test_image.py \
+  --image fsdp:latest --level standard
+
+# Full test (all tests including forward pass)
+python3 ~/.opencode/skills/docker-image-tester/src/test_image.py \
+  --image fsdp:latest --level full
+```
+
+### Python API
+```python
+from docker_image_tester.src.test_image_codebuild import CodeBuildTester
+
+# Test with CodeBuild
+tester = CodeBuildTester(logger, region="us-west-2", project_name="my-project")
+success, build_id = tester.run_test(
+    image_uri="123456789.dkr.ecr.us-west-2.amazonaws.com/myimage:latest",
+    test_level="standard"
+)
+
+# Wait for results
+success, message, tests = tester.wait_for_test(build_id, timeout=600)
 ```
 
 ## Test Levels
 
-### CodeBuild Test Levels
-
-- **quick** (~2-3 minutes): Basic imports only
-  - Import torch, transformers, datasets
-  - Fast validation that image works
-  
-- **standard** (~5-7 minutes): Imports + CUDA + model config
-  - All quick tests
-  - Check CUDA availability
-  - Load model configurations
-  - Validate datasets
-  
-- **full** (~10-15 minutes): All tests including model loading
-  - All standard tests
-  - Instantiate models
-  - Run forward pass
-  - Comprehensive validation
-
-### Local Test Levels
-
 - **quick**: Basic imports only (~30 seconds)
-- **standard**: Imports + CUDA + model config (~60 seconds)
-- **full**: All tests including forward pass (~120 seconds)
+- **standard**: Imports + CUDA + VERL + model packages (~5-8 minutes)
+- **full**: All tests including model loading (~10-15 minutes)
 
 ## Parameters
 
-### CodeBuild Mode Parameters
+### CodeBuild Testing
 
-- `--use-codebuild`: Use CodeBuild (default: True)
-- `--image`: Docker image URI to test (required)
-  - Format: `ACCOUNT.dkr.ecr.REGION.amazonaws.com/REPOSITORY:TAG`
-  - Example: `975049888767.dkr.ecr.us-west-2.amazonaws.com/fsdp:latest`
-- `--level`: Test level - quick, standard, or full (default: "standard")
-- `--region`: AWS region (default: "us-west-2")
-- `--wait`: Wait for test completion (default: True)
-- `--no-wait`: Don't wait, run in background
-- `--timeout`: Test timeout in seconds (default: 600)
-- `--verbose`: Show detailed output (default: true)
+- `image`: Docker image URI to test (required)
+- `project`: CodeBuild project name (default: "verl-rlvr")
+- `bucket`: S3 bucket for test source (auto-detected if not specified)
+- `level`: Test level - quick, standard, or full (default: "standard")
+- `region`: AWS region (default: "us-west-2")
+- `wait`: Wait for test completion (default: True)
+- `timeout`: Test timeout in seconds (default: 600)
+- `verbose`: Show detailed output (default: True)
 
-### Local Mode Parameters
+### Local Docker Testing
 
-- `--use-local`: Use local Docker instead of CodeBuild
-- `--image`: Docker image name to test (required)
-- `--level`: Test level - quick, standard, or full (default: "standard")
-- `--generate_report`: Generate JSON test report (default: true)
-- `--output_dir`: Directory for test reports (default: "./test-reports")
-- `--verbose`: Show detailed output (default: true)
+- `image`: Docker image name to test (required)
+- `level`: Test level - quick, standard, or full (default: "standard")
+- `generate_report`: Generate JSON test report (default: true)
+- `output_dir`: Directory for test reports (default: "./test-reports")
+- `verbose`: Show detailed output (default: true)
+
+## How CodeBuild Testing Works
+
+1. **Creates test buildspec**: Generates a buildspec.yml with test commands
+2. **Packages source**: Creates a zip file containing the buildspec
+3. **Uploads to S3**: Uploads the zip to the project's S3 bucket
+4. **Updates project**: Temporarily updates CodeBuild project to use test source
+5. **Runs tests**: Triggers CodeBuild with the test configuration
+6. **Monitors progress**: Waits for build completion and captures results
+7. **Restores config**: Automatically restores original project configuration
+8. **Reports results**: Displays test results and logs
 
 ## Output
-
-### CodeBuild Mode Output
-
-Returns a dictionary with:
-- `success`: Boolean indicating test status
-- `image`: Tested image URI
-- `build_id`: CodeBuild build ID for logs
-- `tests`: List of test cases with results
-- `message`: Status message
-
-### Local Mode Output
 
 Generates:
 - Console output with test results
 - JSON report with detailed results
+- CloudWatch logs from CodeBuild
 - Fix recommendations for failed tests
 
 ## Examples
 
-### Example 1: Quick CodeBuild Test
-
+### Test ECR image with CodeBuild
 ```bash
-# Fast validation - just imports
-python3 opencode/skills/docker-image-tester/src/test_image_codebuild.py \
-  --image 975049888767.dkr.ecr.us-west-2.amazonaws.com/fsdp:latest \
-  --level quick
-```
-
-**What happens:**
-1. Triggers CodeBuild with the image URI
-2. Runs import tests inside CodeBuild
-3. Reports success/failure
-
-### Example 2: Standard Test with Monitoring
-
-```bash
-# Full validation with progress monitoring
-python3 opencode/skills/docker-image-tester/src/test_image_codebuild.py \
-  --image 975049888767.dkr.ecr.us-west-2.amazonaws.com/fsdp:latest \
+python3 ~/.opencode/skills/docker-image-tester/src/test_image_codebuild.py \
+  --image 975049888767.dkr.ecr.us-west-2.amazonaws.com/verl-rlvr:latest \
+  --project verl-rlvr \
   --level standard \
   --wait
 ```
 
-### Example 3: Background Test
-
+### Quick validation without waiting
 ```bash
-# Start test without waiting
-python3 opencode/skills/docker-image-tester/src/test_image_codebuild.py \
-  --image 975049888767.dkr.ecr.us-west-2.amazonaws.com/fsdp:latest \
-  --level full \
+python3 ~/.opencode/skills/docker-image-tester/src/test_image_codebuild.py \
+  --image 975049888767.dkr.ecr.us-west-2.amazonaws.com/verl-rlvr:latest \
+  --level quick \
   --no-wait
-
-# Later, check status:
-aws codebuild batch-get-builds \
-  --ids pytorch-fsdp:<build-id-from-output> \
-  --region us-west-2
 ```
 
-### Example 4: Local Docker Test (If You Have Docker)
-
+### Full test with custom bucket
 ```bash
-# Only if you have Docker installed locally
-python3 opencode/skills/docker-image-tester/src/test_image.py \
-  --use-local \
-  --image fsdp:latest \
-  --level standard \
-  --generate_report true
+python3 ~/.opencode/skills/docker-image-tester/src/test_image_codebuild.py \
+  --image 975049888767.dkr.ecr.us-west-2.amazonaws.com/verl-rlvr:latest \
+  --level full \
+  --bucket my-custom-bucket \
+  --timeout 900
 ```
 
-## Complete Workflow
+## Requirements
 
-```bash
-# 1. Build image using CodeBuild
-python3 opencode/skills/docker-image-builder/src/build_image_codebuild.py \
-  --codebuild-project pytorch-fsdp
+### For CodeBuild Testing
+- AWS CLI configured with appropriate credentials
+- CodeBuild project exists
+- S3 bucket for build artifacts (auto-detected)
+- ECR repository with image
 
-# 2. Test the built image using CodeBuild (NO LOCAL DOCKER!)
-python3 opencode/skills/docker-image-tester/src/test_image_codebuild.py \
-  --image 975049888767.dkr.ecr.us-west-2.amazonaws.com/fsdp:latest \
-  --level standard
+### For Local Docker Testing
+- Docker installed and running
+- Image available locally
 
-# 3. Deploy training job
-python3 opencode/skills/training-job-deployer/src/deploy_job.py \
-  --cluster_name my-cluster \
-  --num_nodes 4
-```
+## Notes
 
-## Troubleshooting
-
-### "CodeBuild project not found"
-
-Create the project first:
-```bash
-./opencode/skills/infrastructure/aws-cli/setup-codebuild.sh \
-  --project-name pytorch-fsdp \
-  --region us-west-2
-```
-
-### "Image not found"
-
-Make sure the image URI is correct:
-```bash
-# Verify image exists in ECR
-aws ecr describe-images \
-  --repository-name fsdp \
-  --region us-west-2
-```
-
-### "Test failed"
-
-Check CloudWatch logs:
-```bash
-aws logs tail /aws/codebuild/pytorch-fsdp --follow
-```
-
-### "AWS credentials not configured"
-
-Configure AWS CLI:
-```bash
-aws configure
-```
-
-## Why CodeBuild for Testing?
-
-**Advantages over local Docker testing:**
-- ✅ **No local Docker required**: Tests run entirely in AWS
-- ✅ **Clean environment**: Fresh environment for each test
-- ✅ **Scalable**: Run multiple tests in parallel
-- ✅ **Real validation**: Actually pulls and runs the image
-- ✅ **Integrated logging**: All logs in CloudWatch
-- ✅ **No resource constraints**: Not limited by local machine
-
-**Test Duration:**
-- Quick tests: ~2-3 minutes
-- Standard tests: ~5-7 minutes
-- Full tests: ~10-15 minutes
-
-**Cost:**
-- ~$0.05-0.15 per test (depending on level)
-- Much cheaper than maintaining an EC2 instance for testing
-
-## Comparison: CodeBuild vs Local vs EC2
-
-| Method | Docker Required | Setup Complexity | Cost | Speed |
-|--------|----------------|------------------|------|-------|
-| **CodeBuild** | ❌ No | 🟢 Low | 🟢 Pay per use | 🟡 2-15 min |
-| **Local Docker** | ✅ Yes | 🟢 Low | 🟢 Free | 🟢 30s-2min |
-| **EC2 Instance** | ❌ No | 🟡 Medium | 🔴 Hourly | 🟢 Fast |
-
-**Recommendation**: Use CodeBuild for CI/CD and when you don't have Docker locally. Use local Docker only for rapid development iteration.
+- CodeBuild testing requires a CodeBuild project to exist
+- The skill temporarily modifies the project's source configuration
+- Original configuration is automatically restored after testing
+- Test source packages are uploaded to S3 with timestamps
+- Large images may take 5-15 minutes to test depending on size

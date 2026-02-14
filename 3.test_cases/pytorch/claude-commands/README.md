@@ -29,7 +29,49 @@ build_docker_image(dockerfile="Dockerfile.gpu", tag="v1.0")
 build_docker_image(auto_fix=False)
 ```
 
-### 2. manage_eks_cluster
+### 2. test_docker_image
+Test Docker images using CodeBuild (default - no local Docker required) or local Docker.
+
+```python
+test_docker_image(
+    image="975049888767.dkr.ecr.us-west-2.amazonaws.com/fsdp:latest",
+    level="standard",              # quick, standard, or full
+    codebuild_project="pytorch-fsdp",
+    region="us-west-2",
+    use_codebuild=True,            # Use CodeBuild (default)
+    wait=True,                     # Wait for completion
+    timeout=600                    # Timeout in seconds
+)
+```
+
+**Test Levels:**
+- **quick** (~2-3 min): Basic imports only
+- **standard** (~5-7 min): Imports + CUDA + model config
+- **full** (~10-15 min): All tests including model loading
+
+**Example:**
+```python
+# Quick test
+ test_docker_image(
+    image="975049888767.dkr.ecr.us-west-2.amazonaws.com/fsdp:latest",
+    level="quick"
+)
+
+# Standard test with monitoring
+test_docker_image(
+    image="975049888767.dkr.ecr.us-west-2.amazonaws.com/fsdp:latest",
+    level="standard",
+    wait=True
+)
+
+# Full test
+ test_docker_image(
+    image="975049888767.dkr.ecr.us-west-2.amazonaws.com/fsdp:latest",
+    level="full"
+)
+```
+
+### 3. manage_eks_cluster
 Discover, validate, and manage EKS clusters for training.
 
 ```python
@@ -54,7 +96,7 @@ manage_eks_cluster(cluster_name="my-cluster", auto_fix=True)
 manage_eks_cluster(create_if_missing=True)
 ```
 
-### 3. deploy_training_job
+### 4. deploy_training_job
 Deploy distributed training jobs to EKS with automatic torchrun configuration.
 
 ```python
