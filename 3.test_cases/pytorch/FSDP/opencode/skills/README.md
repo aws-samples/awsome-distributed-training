@@ -1,273 +1,331 @@
-# Opencode Skills - Docker & ECR Automation
+# OpenCode Skills for PyTorch FSDP
 
-A comprehensive suite of autonomous skills for Docker image management and AWS ECR operations.
+A comprehensive suite of skills for building, testing, and deploying PyTorch FSDP training workloads on Amazon EKS using OpenCode.
 
-## Skills Overview
+## 📦 Available Skills
 
-### 🔨 docker-image-builder
-Intelligently builds Docker images with automatic conflict detection and resolution.
+| Skill | Purpose | Location |
+|-------|---------|----------|
+| **docker-image-builder** | Build Docker images with auto-fix | `docker-image-builder/` |
+| **docker-image-tester** | Test Docker images | `docker-image-tester/` |
+| **ecr-image-pusher** | Push images to ECR | `ecr-image-pusher/` |
+| **eks-cluster-manager** | Manage EKS clusters | `eks-cluster-manager/` |
+| **training-job-deployer** | Deploy training jobs | `training-job-deployer/` |
 
-**Capabilities**:
-- Analyzes Dockerfile and requirements.txt for compatibility issues
-- Detects PyTorch/CUDA version mismatches
-- Auto-fixes dependency conflicts
+## 🚀 Quick Start
+
+### Installation
+
+Copy skills to your OpenCode skills directory:
+
+```bash
+# Create skills directory
+mkdir -p ~/.config/opencode/skills
+
+# Copy all skills from this repo
+cp -r /path/to/repo/opencode/skills/* ~/.config/opencode/skills/
+
+# Or copy specific skills
+cp -r opencode/skills/docker-image-builder ~/.config/opencode/skills/
+cp -r opencode/skills/training-job-deployer ~/.config/opencode/skills/
+```
+
+### Usage
+
+Once installed, OpenCode automatically discovers these skills.
+
+**Using the skill tool:**
+```python
+# Load a skill
+skill("docker-image-builder")
+
+# Or reference in conversation:
+"Build a Docker image for PyTorch FSDP training"
+```
+
+**Direct execution:**
+```bash
+# Build Docker image
+python3 ~/.config/opencode/skills/docker-image-builder/src/build_image.py --auto_fix
+
+# Deploy training job
+python3 ~/.config/opencode/skills/training-job-deployer/src/deploy_job.py \
+  --cluster_name my-cluster --num_nodes 4
+```
+
+## 📖 Skill Details
+
+### Docker Image Builder
+
+Builds Docker images with automatic conflict detection and resolution.
+
+**Features:**
+- PyTorch/CUDA compatibility analysis
+- Auto-fix dependency conflicts
 - Smart base image selection
-- Auto-rebuild on failure (max 3 attempts)
-- Real-time status updates
+- Retry logic (up to 3 attempts)
 
-**Location**: `docker-image-builder/`
+**Files:**
+- `SKILL.md` - OpenCode skill definition
+- `src/build_image.py` - Main builder
+- `src/conflict_analyzer.py` - Conflict detection
+- `src/base_image_selector.py` - Base image selection
+- `src/smoke_test.py` - Quick validation
 
-### 🧪 docker-image-tester
-Comprehensive testing framework with automatic fix recommendations.
+**Usage:**
+```bash
+python3 opencode/skills/docker-image-builder/src/build_image.py \
+  --dockerfile Dockerfile \
+  --auto_fix true
+```
 
-**Capabilities**:
+### Docker Image Tester
+
+Comprehensive Docker image testing framework.
+
+**Features:**
 - Multiple test levels (quick, standard, full)
-- Import testing for all dependencies
-- Model configuration validation
-- Model instantiation and forward pass tests
-- Generates detailed test reports
-- Provides fix recommendations for failures
+- Import validation
+- CUDA availability checks
+- Model configuration tests
+- Forward pass validation
 
-**Location**: `docker-image-tester/`
+**Files:**
+- `SKILL.md` - Skill definition
+- `src/test_image.py` - Test suite
 
-### 🚀 ecr-image-pusher
-Securely pushes Docker images to Amazon ECR.
+**Usage:**
+```bash
+python3 opencode/skills/docker-image-tester/src/test_image.py \
+  --image fsdp:latest \
+  --level full
+```
 
-**Capabilities**:
-- Automatic ECR repository discovery
-- Multiple tagging strategies (auto, semantic, git-sha)
-- Semantic versioning support
+### ECR Image Pusher
+
+Pushes Docker images to Amazon ECR.
+
+**Features:**
+- Automatic ECR authentication
+- Smart tagging (semantic, git-sha, latest)
+- Repository creation
 - Push verification
-- Multi-region support
-- AWS credential management
 
-**Location**: `ecr-image-pusher/`
+**Files:**
+- `SKILL.md` - Skill definition
+- `src/push_image.py` - Pusher logic
 
-## Shared Utilities
-
-Common utilities used by all skills:
-
-- **aws_utils.py** - AWS API helpers (ECR, S3, CodeBuild)
-- **docker_utils.py** - Docker operations and analysis
-- **logger.py** - Consistent logging and status reporting
-
-**Location**: `shared/`
-
-## Infrastructure Templates
-
-Ready-to-use infrastructure as code:
-
-### AWS CLI Setup Script
-One-command setup using AWS CLI:
+**Usage:**
 ```bash
-infrastructure/aws-cli/setup-codebuild.sh \
-  --project-name pytorch-fsdp \
-  --repository-name fsdp \
-  --region us-west-2
+python3 opencode/skills/ecr-image-pusher/src/push_image.py \
+  --image fsdp:latest \
+  --repository fsdp
 ```
 
-### CloudFormation Template
-Deploy using CloudFormation:
+### EKS Cluster Manager
+
+Manages and validates Amazon EKS clusters.
+
+**Features:**
+- Cluster discovery
+- GPU operator validation
+- EFA checks
+- Auto-fix common issues
+
+**Files:**
+- `SKILL.md` - Skill definition
+- `src/manage_cluster.py` - Manager logic
+
+**Usage:**
 ```bash
-aws cloudformation create-stack \
-  --stack-name pytorch-fsdp \
-  --template-file infrastructure/cloudformation/fsdp-codebuild.yaml \
-  --parameters file://infrastructure/cloudformation/parameters.json
+python3 opencode/skills/eks-cluster-manager/src/manage_cluster.py \
+  --cluster_name my-cluster \
+  --auto_fix
 ```
 
-### Terraform Module
-Deploy using Terraform:
+### Training Job Deployer
+
+Deploys distributed PyTorch training jobs on EKS.
+
+**Features:**
+- Automatic torchrun configuration
+- PyTorchJob integration
+- Multi-node support
+- Real-time monitoring
+- Auto-retry on failures
+
+**Files:**
+- `SKILL.md` - Skill definition
+- `src/deploy_job.py` - Deployer logic
+
+**Usage:**
 ```bash
-cd infrastructure/terraform
-terraform init
-terraform apply
+python3 opencode/skills/training-job-deployer/src/deploy_job.py \
+  --cluster_name my-cluster \
+  --num_nodes 4 \
+  --job_name llama-training
 ```
 
-## Installation
-
-### Automatic Installation
-
-The skills are automatically available when using opencode with the proper configuration.
-
-### Manual Installation
-
-1. Clone or copy skills to `~/.opencode/skills/`
-2. Ensure Python 3.8+ is installed
-3. Install dependencies: `pip install boto3 awscli`
-
-### Project-Specific Setup
-
-Copy skills to your project:
-```bash
-mkdir -p .opencode/skills
-cp -r ~/.opencode/skills/* .opencode/skills/
-```
-
-## Usage
-
-### Command Line
-
-Each skill can be run standalone:
-
-```bash
-# Build
-python3 ~/.opencode/skills/docker-image-builder/src/build_image.py \
-  --dockerfile Dockerfile --auto_fix
-
-# Test
-python3 ~/.opencode/skills/docker-image-tester/src/test_image.py \
-  --image myapp:latest --level standard
-
-# Push
-python3 ~/.opencode/skills/ecr-image-pusher/src/push_image.py \
-  --repository fsdp --tags auto
-```
-
-### As Opencode Skills
-
-Trigger via opencode commands:
-
-```bash
-/build-docker-image --dockerfile Dockerfile --verbose
-/test-docker-image --image myapp:latest --level full
-/push-to-ecr --repository fsdp --region us-west-2
-```
-
-## Configuration
-
-### Environment Variables
-
-```bash
-# AWS
-AWS_PROFILE=default
-AWS_REGION=us-west-2
-
-# Docker
-DOCKERFILE=Dockerfile
-BUILD_CONTEXT=.
-
-# Testing
-TEST_LEVEL=standard
-GENERATE_REPORT=true
-
-# ECR
-ECR_REPOSITORY=fsdp
-TAG_STRATEGY=auto
-```
-
-### Skill Configuration Files
-
-Each skill has a `skill.yaml` with:
-- Parameters and defaults
-- Trigger patterns
-- Dependencies
-- Examples
-
-## Architecture
+## 📂 Directory Structure
 
 ```
-~/.opencode/skills/
+opencode/skills/
 ├── docker-image-builder/
-│   ├── skill.yaml
-│   ├── src/
-│   │   ├── build_image.py
-│   │   ├── conflict_analyzer.py
-│   │   ├── base_image_selector.py
-│   │   └── smoke_test.py
-│   └── README.md
+│   ├── SKILL.md              # OpenCode skill definition
+│   ├── README.md             # Detailed documentation
+│   ├── skill.yaml            # Legacy definition (for reference)
+│   └── src/                  # Source code
+│       ├── build_image.py
+│       ├── conflict_analyzer.py
+│       ├── base_image_selector.py
+│       └── smoke_test.py
 ├── docker-image-tester/
+│   ├── SKILL.md
+│   ├── README.md
 │   ├── skill.yaml
-│   ├── src/
-│   │   └── test_image.py
-│   └── README.md
+│   └── src/
+│       └── test_image.py
 ├── ecr-image-pusher/
+│   ├── SKILL.md
+│   ├── README.md
 │   ├── skill.yaml
-│   ├── src/
-│   │   └── push_image.py
-│   └── README.md
-├── shared/
+│   └── src/
+│       └── push_image.py
+├── eks-cluster-manager/
+│   ├── SKILL.md
+│   └── src/
+│       └── manage_cluster.py
+├── training-job-deployer/
+│   ├── SKILL.md
+│   ├── skill.yaml
+│   └── src/
+│       └── deploy_job.py
+├── shared/                   # Common utilities
 │   ├── __init__.py
 │   ├── aws_utils.py
 │   ├── docker_utils.py
+│   ├── k8s_utils.py
 │   └── logger.py
-└── infrastructure/
-    ├── aws-cli/
-    ├── cloudformation/
-    └── terraform/
+├── infrastructure/           # AWS infrastructure
+│   └── aws-cli/
+│       └── setup-codebuild.sh
+├── README.md                 # This file
+└── IMPLEMENTATION_SUMMARY.md # Implementation details
 ```
 
-## Development
+## 🔧 Prerequisites
 
-### Adding New Tests
+### For All Skills
+- Python 3.8+
+- AWS CLI configured: `aws configure`
+- boto3: `pip install boto3`
 
-Edit `docker-image-tester/src/test_image.py`:
+### For Docker Skills
+- Docker installed (for local builds)
+- Or use CodeBuild (recommended)
 
-```python
-def test_my_custom_test(self) -> TestCase:
-    test = TestCase(
-        name="my_test",
-        category="custom",
-        description="My custom test"
-    )
-    # Test logic here
-    return test
-```
+### For EKS Skills
+- kubectl installed
+- EKS cluster access
 
-### Adding New Tagging Strategies
+## 🎯 Complete Workflow
 
-Edit `ecr-image-pusher/src/push_image.py`:
-
-```python
-def generate_tags_custom(self, image_name: str) -> List[str]:
-    return ["custom-tag-1", "custom-tag-2"]
-```
-
-### Adding New Conflict Detectors
-
-Edit `docker-image-builder/src/conflict_analyzer.py`:
-
-```python
-def check_my_conflict(self, line: str, line_num: int):
-    if "some-pattern" in line:
-        issues.append({
-            'type': 'my_conflict',
-            'message': 'Description of issue'
-        })
-```
-
-## Testing
-
-Run skill tests:
+Complete workflow from build to deployment:
 
 ```bash
-# Test conflict analyzer
-python3 docker-image-builder/src/conflict_analyzer.py Dockerfile requirements.txt
+# 1. Build Docker image
+python3 opencode/skills/docker-image-builder/src/build_image.py \
+  --dockerfile Dockerfile \
+  --auto_fix true
 
-# Test base image selector
-python3 docker-image-builder/src/base_image_selector.py 2.5
+# 2. Test the image
+python3 opencode/skills/docker-image-tester/src/test_image.py \
+  --image fsdp:latest \
+  --level standard
 
-# Test smoke tester
-python3 docker-image-builder/src/smoke_test.py myimage:latest
+# 3. Push to ECR
+python3 opencode/skills/ecr-image-pusher/src/push_image.py \
+  --image fsdp:latest \
+  --repository fsdp
+
+# 4. Validate EKS cluster
+python3 opencode/skills/eks-cluster-manager/src/manage_cluster.py \
+  --cluster_name my-cluster \
+  --auto_fix
+
+# 5. Deploy training job
+python3 opencode/skills/training-job-deployer/src/deploy_job.py \
+  --cluster_name my-cluster \
+  --num_nodes 4 \
+  --job_name llama32-1b-training \
+  --monitor
 ```
 
-## Contributing
+## 📝 SKILL.md Format
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests
-5. Submit a pull request
+Each skill includes a `SKILL.md` file following OpenCode format:
 
-## License
+```markdown
+---
+name: skill-name
+description: Brief description of what the skill does
+license: MIT
+compatibility: opencode
+metadata:
+  category: build
+  author: opencode
+---
 
-MIT License - See individual skill README files for details.
+## What I do
+Description of skill capabilities...
 
-## Support
+## When to use me
+When to use this skill...
 
-For issues, questions, or contributions:
-- Check individual skill README files
-- Review logs and test reports
-- Open an issue in the repository
+## How to use me
+Usage examples...
+
+## Parameters
+- param1: Description
+- param2: Description
+```
+
+## 🔍 Troubleshooting
+
+### Skills Not Loading
+1. Verify skills are in `~/.config/opencode/skills/`
+2. Check that each skill has a `SKILL.md` file
+3. Restart OpenCode
+
+### Permission Errors
+1. Ensure AWS credentials: `aws configure`
+2. Check IAM permissions for ECR, EKS, CodeBuild
+3. Verify kubectl: `kubectl get nodes`
+
+### Build Failures
+1. Check Docker is running (for local builds)
+2. Review CloudWatch logs (for CodeBuild)
+3. Verify base image exists
+
+## 📚 Additional Documentation
+
+- [Main README](../../README.md) - Project overview
+- [USAGE.md](../../USAGE.md) - Complete usage guide
+- [CODEBUILD_TEST_SESSION.md](../../CODEBUILD_TEST_SESSION.md) - CodeBuild testing
+- [IMPLEMENTATION_SUMMARY.md](IMPLEMENTATION_SUMMARY.md) - Implementation details
+
+## 🤝 Contributing
+
+To add new skills:
+1. Create directory: `opencode/skills/your-skill/`
+2. Add `SKILL.md` with proper frontmatter
+3. Add source code in `src/`
+4. Add documentation in `README.md`
+5. Update this README
+
+## 📄 License
+
+MIT License - See LICENSE file for details
 
 ---
 
