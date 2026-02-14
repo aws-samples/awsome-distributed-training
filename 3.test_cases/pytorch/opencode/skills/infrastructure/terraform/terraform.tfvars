@@ -1,0 +1,10 @@
+project_name     = "pytorch-fsdp"
+repository_name  = "fsdp"
+github_repository = ""
+github_branch    = "main"
+region           = "us-west-2"
+build_timeout    = 60
+compute_type     = "BUILD_GENERAL1_MEDIUM"
+enable_webhook   = true
+enable_scheduled_builds = true
+schedule_expression = "cron(0 2 * * ? *)"
