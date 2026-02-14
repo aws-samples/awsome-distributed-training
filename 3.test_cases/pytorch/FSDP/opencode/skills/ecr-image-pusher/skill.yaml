@@ -1,0 +1,99 @@
+name: ecr-image-pusher
+version: 1.0.0
+description: |
+  Securely pushes Docker images to Amazon ECR with automatic 
+  repository discovery, semantic versioning, and push verification.
+  Supports multiple tagging strategies and cross-region pushes.
+
+triggers:
+  - type: command
+    pattern: "/push-to-ecr"
+    description: "Push Docker image to ECR"
+  - type: post_test
+    pattern: "docker-image-tester"
+    description: "Auto-trigger after successful tests"
+
+parameters:
+  - name: image
+    type: string
+    default: ""
+    description: "Image to push (uses recently tested if empty)"
+  
+  - name: repository
+    type: string
+    default: "fsdp"
+    description: "ECR repository name"
+  
+  - name: region
+    type: string
+    default: "us-west-2"
+    description: "AWS region"
+  
+  - name: profile
+    type: string
+    default: ""
+    description: "AWS profile name"
+  
+  - name: tags
+    type: string
+    default: "auto"
+    description: "Tags to apply (auto, latest, git-sha, semantic)"
+  
+  - name: create_repository
+    type: boolean
+    default: true
+    description: "Create repository if it doesn't exist"
+  
+  - name: verify_push
+    type: boolean
+    default: true
+    description: "Verify image was pushed successfully"
+  
+  - name: verbose
+    type: boolean
+    default: true
+    description: "Show detailed output"
+  
+  - name: use_sudo
+    type: boolean
+    default: false
+    description: "Use sudo for Docker commands"
+
+outputs:
+  - name: repository_uri
+    type: string
+    description: "Full ECR repository URI"
+  
+  - name: image_digest
+    type: string
+    description: "Image digest (sha256)"
+  
+  - name: tags_pushed
+    type: array
+    description: "List of tags pushed"
+  
+  - name: push_time
+    type: string
+    description: "Time taken to push"
+  
+  - name: success
+    type: boolean
+    description: "Whether push succeeded"
+
+dependencies:
+  - docker
+  - aws-cli
+  - python3
+
+examples:
+  - command: "/push-to-ecr"
+    description: "Push with auto-detected settings"
+  
+  - command: "/push-to-ecr --image myapp:v1.0 --repository production"
+    description: "Push specific image to production repo"
+  
+  - command: "/push-to-ecr --region us-east-1 --tags semantic"
+    description: "Push to us-east-1 with semantic versioning"
+
+author: opencode
+license: MIT

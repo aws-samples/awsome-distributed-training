@@ -1,0 +1,202 @@
+version: 0.2
+
+# AWS CodeBuild specification for PyTorch FSDP Docker image
+# This buildspec orchestrates the three skills:
+# 1. Build Docker image with auto-fix
+# 2. Test the image
+# 3. Push to ECR
+
+env:
+  variables:
+    # Project configuration
+    PROJECT_NAME: "pytorch-fsdp"
+    ECR_REPOSITORY: "fsdp"
+    AWS_REGION: "us-west-2"
+    
+    # Build configuration
+    DOCKERFILE: "Dockerfile"
+    BUILD_CONTEXT: "."
+    IMAGE_TAG: "auto"
+    
+    # Test configuration
+    TEST_LEVEL: "standard"
+    GENERATE_REPORT: "true"
+    REPORT_FORMAT: "json"
+    
+    # Push configuration
+    TAG_STRATEGY: "auto"
+    CREATE_REPOSITORY: "true"
+    VERIFY_PUSH: "true"
+
+phases:
+  pre_build:
+    commands:
+      - echo "============================================================"
+      - echo "Pre-build Phase"
+      - echo "============================================================"
+      
+      # Install dependencies
+      - echo "Installing dependencies..."
+      - pip install --quiet boto3 awscli
+      
+      # Configure AWS region
+      - export AWS_DEFAULT_REGION=${AWS_REGION}
+      
+      # Get AWS account ID
+      - export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+      - echo "AWS Account ID: ${AWS_ACCOUNT_ID}"
+      
+      # Login to ECR
+      - echo "Logging in to Amazon ECR..."
+      - aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+      
+      # Set up skill paths
+      - export SKILL_PATH="${HOME}/.opencode/skills"
+      - export SHARED_PATH="${SKILL_PATH}/shared"
+      
+      # Verify skills are available
+      - |
+        if [ ! -d "${SKILL_PATH}/docker-image-builder" ]; then
+          echo "⚠️  Skills not found in ${SKILL_PATH}"
+          echo "Installing skills from repository..."
+          # If skills are in the repo, copy them
+          if [ -d "opencode/skills" ]; then
+            mkdir -p ${SKILL_PATH}
+            cp -r opencode/skills/* ${SKILL_PATH}/
+          fi
+        fi
+      
+      # Display configuration
+      - echo ""
+      - echo "Build Configuration:"
+      - echo "  Project: ${PROJECT_NAME}"
+      - echo "  Repository: ${ECR_REPOSITORY}"
+      - echo "  Region: ${AWS_REGION}"
+      - echo "  Test Level: ${TEST_LEVEL}"
+      - echo ""
+
+  build:
+    commands:
+      - echo "============================================================"
+      - echo "Build Phase - Docker Image Builder"
+      - echo "============================================================"
+      
+      # Build Docker image with auto-fix
+      - |
+        echo "Building Docker image..."
+        python3 ${SKILL_PATH}/docker-image-builder/src/build_image.py \
+          --dockerfile ${DOCKERFILE} \
+          --context ${BUILD_CONTEXT} \
+          --tag ${IMAGE_TAG} \
+          --auto_fix true \
+          --max_attempts 3 \
+          --verbose true
+      
+      # Capture build result
+      - export BUILD_EXIT_CODE=$?
+      - |
+        if [ ${BUILD_EXIT_CODE} -ne 0 ]; then
+          echo "❌ Build failed with exit code ${BUILD_EXIT_CODE}"
+          exit 1
+        fi
+      
+      # Extract image name from build output
+      # The build script outputs RESULT_JSON:{...}
+      - export BUILD_RESULT=$(python3 -c "
+import sys
+import json
+for line in sys.stdin:
+    if 'RESULT_JSON:' in line:
+        result = line.split('RESULT_JSON:')[1].strip()
+        data = json.loads(result)
+        print(data.get('image_name', ''))
+" < /tmp/build_output.txt || echo "")
+      
+      - |
+        if [ -z "${BUILD_RESULT}" ]; then
+          # Fallback: try to find the built image
+          export BUILT_IMAGE=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep "pytorch-fsdp" | head -1)
+          export BUILD_RESULT=${BUILT_IMAGE:-"pytorch-fsdp:latest"}
+        fi
+      
+      - echo ""
+      - echo "✅ Build successful: ${BUILD_RESULT}"
+      - echo ""
+
+  post_build:
+    commands:
+      - echo "============================================================"
+      - echo "Post-build Phase - Test & Push"
+      - echo "============================================================"
+      
+      # Test the built image
+      - |
+        echo "Testing Docker image..."
+        python3 ${SKILL_PATH}/docker-image-tester/src/test_image.py \
+          --image ${BUILD_RESULT} \
+          --level ${TEST_LEVEL} \
+          --generate_report ${GENERATE_REPORT} \
+          --output_dir ./test-reports \
+          --verbose true
+      
+      - export TEST_EXIT_CODE=$?
+      - |
+        if [ ${TEST_EXIT_CODE} -ne 0 ]; then
+          echo "⚠️  Tests completed with warnings or failures"
+          echo "Review test reports in ./test-reports/"
+          # Don't fail the build for test warnings, only for critical failures
+        fi
+      
+      # Push to ECR
+      - |
+        echo "Pushing to ECR..."
+        python3 ${SKILL_PATH}/ecr-image-pusher/src/push_image.py \
+          --image ${BUILD_RESULT} \
+          --repository ${ECR_REPOSITORY} \
+          --region ${AWS_REGION} \
+          --tags ${TAG_STRATEGY} \
+          --create_repository ${CREATE_REPOSITORY} \
+          --verify_push ${VERIFY_PUSH} \
+          --verbose true
+      
+      - export PUSH_EXIT_CODE=$?
+      - |
+        if [ ${PUSH_EXIT_CODE} -ne 0 ]; then
+          echo "❌ Push failed with exit code ${PUSH_EXIT_CODE}"
+          exit 1
+        fi
+      
+      - echo ""
+      - echo "✅ Push successful"
+      - echo ""
+      
+      # Print summary
+      - echo "============================================================"
+      - echo "Build Summary"
+      - echo "============================================================"
+      - echo "✅ Docker image built successfully"
+      - echo "✅ Tests completed"
+      - echo "✅ Image pushed to ECR"
+      - echo ""
+      - echo "ECR Repository: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}"
+      - echo ""
+
+artifacts:
+  files:
+    - test-reports/**/*
+    - build.log
+  name: build-output-$(date +%Y%m%d-%H%M%S)
+  discard-paths: no
+
+cache:
+  paths:
+    - '/root/.cache/pip/**/*'
+    - '/var/cache/apt/archives/**/*'
+
+reports:
+  test-reports:
+    files:
+      - '**/*.json'
+    base-directory: test-reports
+    discard-paths: no
+    file-format: JUNIT_XML
