@@ -3,8 +3,12 @@ EKS Cluster Manager - High-level cluster operations.
 """
 
 from typing import Optional, Dict, List, Tuple
-from .k8s_utils import EKSClient, K8sClient, ClusterValidator
-from .logger import create_logger
+try:
+    from .k8s_utils import EKSClient, K8sClient, ClusterValidator
+    from .logger import create_logger
+except ImportError:
+    from k8s_utils import EKSClient, K8sClient, ClusterValidator
+    from logger import create_logger
 
 
 class ClusterManager:

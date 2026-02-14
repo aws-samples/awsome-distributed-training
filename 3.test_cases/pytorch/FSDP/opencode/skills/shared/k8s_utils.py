@@ -488,3 +488,83 @@ class ClusterValidator:
             result['suggestion'] = 'Add GPU node group to cluster'
         
         return result
+
+
+class ConfigMapManager:
+    """Manage job configurations in ConfigMaps."""
+    
+    def __init__(self, k8s_client: K8sClient, namespace: str = 'kubeflow'):
+        self.k8s = k8s_client
+        self.namespace = namespace
+    
+    def save_config(self, name: str, config: Dict) -> bool:
+        """Save configuration to ConfigMap."""
+        import yaml
+        
+        config_yaml = yaml.dump(config)
+        
+        # Create ConfigMap manifest
+        manifest = {
+            'apiVersion': 'v1',
+            'kind': 'ConfigMap',
+            'metadata': {
+                'name': f'job-config-{name}',
+                'namespace': self.namespace
+            },
+            'data': {
+                'config.yaml': config_yaml
+            }
+        }
+        
+        # Write to temp file and apply
+        import tempfile
+        import json
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+            json.dump(manifest, f)
+            temp_path = f.name
+        
+        success, output = self.k8s.apply_manifest(temp_path)
+        
+        import os
+        os.unlink(temp_path)
+        
+        return success
+    
+    def load_config(self, name: str) -> Optional[Dict]:
+        """Load configuration from ConfigMap."""
+        returncode, stdout, stderr = self.k8s._kubectl([
+            'get', 'configmap', f'job-config-{name}', 
+            '-n', self.namespace,
+            '-o', 'jsonpath={.data.config\\.yaml}'
+        ])
+        
+        if returncode != 0:
+            return None
+        
+        try:
+            import yaml
+            return yaml.safe_load(stdout)
+        except Exception:
+            return None
+    
+    def list_configs(self) -> List[str]:
+        """List all saved configurations."""
+        returncode, stdout, stderr = self.k8s._kubectl([
+            'get', 'configmaps', '-n', self.namespace,
+            '-l', 'app=training-job-config',
+            '-o', 'jsonpath={.items[*].metadata.name}'
+        ])
+        
+        if returncode != 0:
+            return []
+        
+        return stdout.split()
+    
+    def delete_config(self, name: str) -> bool:
+        """Delete configuration ConfigMap."""
+        returncode, stdout, stderr = self.k8s._kubectl([
+            'delete', 'configmap', f'job-config-{name}',
+            '-n', self.namespace
+        ])
+        
+        return returncode == 0

@@ -9,8 +9,12 @@ import time
 import tempfile
 from typing import Optional, Dict, List, Tuple
 from pathlib import Path
-from .k8s_utils import K8sClient, ConfigMapManager
-from .logger import create_logger
+try:
+    from .k8s_utils import K8sClient, ConfigMapManager
+    from .logger import create_logger
+except ImportError:
+    from k8s_utils import K8sClient, ConfigMapManager
+    from logger import create_logger
 
 
 class JobDeployer:
