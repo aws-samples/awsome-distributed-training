@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security Vulnerability
+    url: http://aws.amazon.com/security/vulnerability-reporting/
+    about: To report a security vulnerability, please use the AWS vulnerability reporting page. Do NOT create a public GitHub issue.
+  - name: Questions & General Help
+    url: https://repost.aws/tags/TAi2VaFBqbTHmyOOoBC7rRjg/aws-distributed-training
+    about: For general questions and help, please use AWS re:Post.

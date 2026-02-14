@@ -1,0 +1,95 @@
+name: "New Test Case Proposal"
+description: Propose a new distributed training test case.
+title: "[Test Case]: "
+labels: ["new-test-case"]
+body:
+  - type: input
+    id: name
+    attributes:
+      label: Test Case Name
+      description: A concise name for the proposed test case.
+      placeholder: e.g., "Llama 3.1 70B pre-training with FSDP2 on p5.48xlarge"
+    validations:
+      required: true
+  - type: dropdown
+    id: framework
+    attributes:
+      label: Training Framework
+      description: Which training framework will this test case use?
+      options:
+        - PyTorch DDP
+        - PyTorch FSDP
+        - PyTorch FSDP2
+        - Megatron-LM
+        - NeMo
+        - DeepSpeed
+        - JAX
+        - Neuronx Distributed
+        - Optimum Neuron
+        - TorchTitan
+        - PicoTron
+        - TRL
+        - vERL
+        - MosaicML Composer
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: model-task
+    attributes:
+      label: Model & Task Description
+      description: Describe the model architecture, size, and training task.
+      placeholder: |
+        - Model architecture: [e.g., Llama, GPT, Mixtral]
+        - Model size: [e.g., 7B, 70B, 405B parameters]
+        - Task: [e.g., pre-training, fine-tuning, RLHF, distillation]
+    validations:
+      required: true
+  - type: textarea
+    id: infrastructure
+    attributes:
+      label: Target Infrastructure
+      description: Describe the target AWS infrastructure for this test case.
+      value: |
+        - AWS Service: [e.g., SageMaker HyperPod / ParallelCluster / EKS / EC2]
+        - Instance type: [e.g., p5.48xlarge]
+        - Number of nodes: [e.g., 4]
+        - GPUs per node: [e.g., 8x H100]
+        - Networking: [e.g., EFA 4x400 Gbps]
+        - Parallelism strategy: [e.g., TP=4, PP=2, DP=8]
+    validations:
+      required: true
+  - type: checkboxes
+    id: deliverables
+    attributes:
+      label: Deliverables Checklist
+      description: >
+        Per the [contribution guidelines](https://github.com/aws-samples/awsome-distributed-training/blob/main/CONTRIBUTING.md),
+        all test cases must meet these requirements.
+      options:
+        - label: Self-contained with documentation and scripts; external dependencies pinned to a specific version/tag.
+          required: true
+        - label: README in markdown format with prerequisites, instructions, and known issues.
+          required: true
+        - label: Scripts numbered in sequence of usage order (e.g., `0.setup.sh`, `1.train.sh`, `2.evaluate.sh`).
+          required: true
+        - label: Tested at the target scale listed above.
+          required: true
+  - type: textarea
+    id: metrics
+    attributes:
+      label: Expected Performance Metrics
+      description: Optional — expected throughput, convergence, or other performance metrics.
+      placeholder: |
+        - Throughput: [e.g., X TFLOPS/GPU, Y tokens/sec]
+        - Time to train: [e.g., Z hours on N nodes]
+        - MFU: [e.g., X%]
+    validations:
+      required: false
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Add any other context, references, or related issues.
+    validations:
+      required: false

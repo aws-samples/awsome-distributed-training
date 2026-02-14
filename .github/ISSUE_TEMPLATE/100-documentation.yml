@@ -1,0 +1,37 @@
+name: "Documentation Issue"
+description: Report an issue or improvement for project documentation.
+title: "[Docs]: "
+labels: ["documentation"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Documentation Issue
+      description: Describe the documentation issue or improvement.
+      placeholder: What is wrong or missing in the documentation?
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Documentation Area
+      description: Which area of the documentation is affected?
+      options:
+        - "0.docs"
+        - "1.architectures"
+        - "2.ami_and_containers"
+        - "3.test_cases"
+        - "4.validation_and_observability"
+        - "micro-benchmarks"
+        - "README / CONTRIBUTING"
+        - "Other"
+    validations:
+      required: true
+  - type: textarea
+    id: suggested-fix
+    attributes:
+      label: Suggested Fix
+      description: If you have a suggestion for how to fix the issue, describe it here.
+      placeholder: How should this be fixed?
+    validations:
+      required: false

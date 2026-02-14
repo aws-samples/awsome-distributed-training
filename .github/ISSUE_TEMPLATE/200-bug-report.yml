@@ -1,0 +1,97 @@
+name: "Bug Report"
+description: Report a bug to help us improve.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: >
+        #### Before submitting a bug report, please make sure you have searched [existing issues](https://github.com/aws-samples/awsome-distributed-training/issues).
+
+
+        **IMPORTANT:** Please redact any AWS account IDs, access keys, secret keys, session tokens,
+        or other sensitive information from your bug report and log output.
+  - type: checkboxes
+    id: prerequisites
+    attributes:
+      label: Prerequisites
+      options:
+        - label: I have searched existing issues to make sure this bug has not already been reported.
+          required: true
+        - label: I have verified the issue against the latest `main` branch.
+          required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: >
+        Provide details about your environment. Fill in the relevant fields below.
+      value: |
+        - AWS Service: [e.g., SageMaker HyperPod / ParallelCluster / EKS / EC2]
+        - Instance type: [e.g., p5.48xlarge]
+        - Number of nodes: [e.g., 4]
+        - OS / AMI: [e.g., Ubuntu 22.04 / DLAMI]
+        - Training framework: [e.g., PyTorch 2.3, Megatron-LM, NeMo, DeepSpeed]
+        - CUDA / Driver version: [e.g., CUDA 12.4 / Driver 550.xx]
+        - NCCL version: [e.g., 2.21.5]
+        - EFA installer version: [e.g., 1.30.0]
+        - Container image (if applicable): [e.g., nvcr.io/nvidia/pytorch:24.04-py3]
+        - Scheduler (if applicable): [e.g., Slurm 23.11]
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Which component or area of the repository is affected?
+      options:
+        - "1.architectures"
+        - "2.ami_and_containers"
+        - "3.test_cases/pytorch/ddp"
+        - "3.test_cases/pytorch/FSDP"
+        - "3.test_cases/pytorch/deepspeed"
+        - "3.test_cases/pytorch/torchtitan"
+        - "3.test_cases/pytorch/picotron"
+        - "3.test_cases/pytorch/neuronx-distributed"
+        - "3.test_cases/pytorch/optimum-neuron"
+        - "3.test_cases/pytorch/trl"
+        - "3.test_cases/pytorch/verl"
+        - "3.test_cases/megatron"
+        - "3.test_cases/jax"
+        - "4.validation_and_observability"
+        - "micro-benchmarks"
+        - "Other"
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: Describe the bug. Include what you expected to happen and what actually happened.
+      placeholder: |
+        **Expected behavior:**
+
+        **Actual behavior:**
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: Provide the steps to reproduce the bug.
+      placeholder: |
+        1. Run script ...
+        2. With configuration ...
+        3. See error ...
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Log Output
+      description: >
+        Paste any relevant log output here. This will be automatically formatted as code.
+        **Remember to redact sensitive information.**
+      render: shell
+    validations:
+      required: false
