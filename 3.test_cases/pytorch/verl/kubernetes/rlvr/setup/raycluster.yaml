@@ -1,0 +1,173 @@
+apiVersion: ray.io/v1
+kind: RayCluster
+metadata:
+  name: rayml-efa
+  labels:
+    controller-tools.k8s.io: "1.0"
+  annotations:
+    karpenter.sh/do-not-disrupt: "true"
+spec:
+  # Ray head pod template
+  headGroupSpec:
+    # The `rayStartParams` are used to configure the `ray start` command.
+    # See https://github.com/ray-project/kuberay/blob/master/docs/guidance/rayStartParams.md for the default settings of `rayStartParams` in KubeRay.
+    # See https://docs.ray.io/en/latest/cluster/cli.html#ray-start for all available options in `rayStartParams`.
+    rayStartParams:
+      dashboard-host: '0.0.0.0'
+      metrics-export-port: '8080'  # Explicitly set metrics port
+    #pod template
+    template:
+      spec:
+        nodeSelector:
+          node.kubernetes.io/instance-type: PLACEHOLDER_INSTANCE_TYPE
+          sagemaker.amazonaws.com/node-health-status: Schedulable
+        securityContext:
+          runAsUser: 0
+          runAsGroup: 0
+          fsGroup: 0
+        containers:
+        - name: ray-head
+          image: PLACEHOLDER_IMAGE     ## IMAGE: Here you may choose which image your head pod will run
+          env:                                ## ENV: Here is where you can send stuff to the head pod
+            ## PROMETHEUS AND GRAFANA - AWS MANAGED SERVICES
+            - name: RAY_GRAFANA_IFRAME_HOST
+              value: http://localhost:3000
+            - name: RAY_GRAFANA_HOST
+              value: http://prometheus-grafana.prometheus-system.svc:80
+            - name: RAY_PROMETHEUS_HOST
+              value: http://prometheus-kube-prometheus-prometheus.prometheus-system.svc:9090
+            ## EFA AND NCCL CONFIGURATION
+            - name: FI_PROVIDER
+              value: "efa"
+            - name: FI_EFA_USE_DEVICE_RDMA
+              value: "1"
+            - name: FI_EFA_FORK_SAFE
+              value: "1"
+            - name: NCCL_PROTO
+              value: "simple"
+            - name: NCCL_SOCKET_IFNAME
+              value: "^docker,lo,veth"
+            - name: NCCL_DEBUG
+              value: "INFO"
+            - name: TORCH_NCCL_DUMP_ON_TIMEOUT
+              value: "1"
+            - name: TORCH_NCCL_ASYNC_ERROR_HANDLING
+              value: "1"
+            - name: HF_TOKEN
+              value: PLACEHOLDER_HF_TOKEN
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh","-c","ray stop"]
+          resources:
+            limits:                                    ## LIMITS: Set resource limits for your head pod
+              cpu: 8
+              memory: 32Gi
+            requests:                                    ## REQUESTS: Set resource requests for your head pod
+              cpu: 8
+              memory: 32Gi
+          ports:
+          - containerPort: 6379
+            name: gcs-server
+          - containerPort: 8265
+            name: dashboard
+          - containerPort: 10001
+            name: client
+          - containerPort: 8000
+            name: serve
+          - containerPort: 8080
+            name: metrics
+          volumeMounts:                                    ## VOLUMEMOUNTS: Mount your S3 CSI EKS Add-On to head pod
+          - name: fsx-storage
+            mountPath: /fsx
+          - name: ray-logs
+            mountPath: /tmp/ray
+          # - name: checkpoint-logs
+          #   mountPath: /var/log/sagemaker_checkpointing
+        volumes:
+          - name: ray-logs
+            emptyDir: {}
+          - name: fsx-storage
+            persistentVolumeClaim:
+              claimName: fsx-claim
+          # - name: checkpoint-logs
+          #   hostPath:
+          #     path: /var/logs/sagemaker_checkpointing
+          #     type: DirectoryOrCreate
+  workerGroupSpecs:
+  # the pod replicas in this group typed worker
+  - replicas: PLACEHOLDER_NUM_NODES                                    ## REPLICAS: How many worker pods you want 
+    minReplicas: 1
+    maxReplicas: 10
+    # logical group name, for this called small-group, also can be functional
+    groupName: gpu-group
+    rayStartParams:
+      num-gpus: "PLACEHOLDER_NUM_GPU_PER_NODE"
+      metrics-export-port: '8080'  # Explicitly set metrics port for workers
+    #pod template
+    template:
+      spec:
+        nodeSelector:
+          node.kubernetes.io/instance-type: PLACEHOLDER_INSTANCE_TYPE
+          sagemaker.amazonaws.com/node-health-status: Schedulable
+        securityContext:
+          runAsUser: 0
+          runAsGroup: 0
+          fsGroup: 0
+        containers:
+        - name: ray-worker
+          image: PLACEHOLDER_IMAGE             ## IMAGE: Here you may choose which image your head node will run
+          env:
+            - name: FI_PROVIDER
+              value: "efa"
+            - name: FI_EFA_USE_DEVICE_RDMA
+              value: "1"
+            - name: FI_EFA_FORK_SAFE
+              value: "1"
+            - name: NCCL_PROTO
+              value: "simple"
+            - name: NCCL_SOCKET_IFNAME
+              value: "^docker,lo,veth"
+            - name: NCCL_DEBUG
+              value: "INFO"
+            - name: TORCH_NCCL_DUMP_ON_TIMEOUT
+              value: "1"
+            - name: TORCH_NCCL_ASYNC_ERROR_HANDLING
+              value: "1"
+            - name: HF_TOKEN
+              value: PLACEHOLDER_HF_TOKEN
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh","-c","ray stop"]
+          resources:
+            limits:                                    ## LIMITS: Set resource limits for your worker pods
+              cpu: 16
+              memory: 200Gi
+              nvidia.com/gpu: PLACEHOLDER_NUM_GPU_PER_NODE
+              vpc.amazonaws.com/efa: PLACEHOLDER_NUM_EFA_PER_NODE
+            requests:                                    ## REQUESTS: Set resource requests for your worker pods
+              cpu: 16
+              memory: 200Gi
+              nvidia.com/gpu: PLACEHOLDER_NUM_GPU_PER_NODE
+              vpc.amazonaws.com/efa: PLACEHOLDER_NUM_EFA_PER_NODE
+          ports:
+          - containerPort: 8080
+            name: metrics
+          volumeMounts:                                    ## VOLUMEMOUNTS: Mount your S3 CSI EKS Add-On to worker pods
+          - name: ray-logs
+            mountPath: /tmp/ray
+          - name: fsx-storage
+            mountPath: /fsx
+          # - name: checkpoint-logs
+          #   mountPath: /var/log/sagemaker_checkpointing
+        volumes:
+        - name: fsx-storage
+          persistentVolumeClaim:
+            claimName: fsx-claim
+        - name: ray-logs
+          emptyDir: {}
+        # - name: checkpoint-logs
+        #   hostPath:
+        #     path: /var/logs/sagemaker_checkpointing
+        #     type: DirectoryOrCreate
