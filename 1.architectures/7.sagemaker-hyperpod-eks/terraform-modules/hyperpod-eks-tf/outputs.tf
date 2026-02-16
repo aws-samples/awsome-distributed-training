@@ -25,14 +25,14 @@ output "nat_gateway_id" {
 }
 
 # Private Subnet Outputs
-output "private_subnet_id" {
+output "private_subnet_ids" {
   description = "ID of the private subnet"
-  value       = var.create_private_subnet_module ? module.private_subnet[0].private_subnet_id : var.existing_private_subnet_id
+  value       = var.create_private_subnet_module ? module.private_subnet[0].private_subnet_ids : var.existing_private_subnet_ids
 }
 
-output "private_route_table_id" {
+output "private_route_table_ids" {
   description = "ID of the private route table"
-  value       = var.create_private_subnet_module ? module.private_subnet[0].private_route_table_id : var.existing_private_route_table_id
+  value       = var.create_private_subnet_module ? module.private_subnet[0].private_route_table_ids : var.existing_private_route_table_ids
 }
 
 # Security Group Outputs
@@ -66,18 +66,30 @@ output "eks_cluster_certificate_authority" {
 # S3 Bucket Outputs
 output "s3_bucket_name" {
   description = "Name of the S3 bucket"
-  value       = var.create_s3_bucket_module ? module.s3_bucket[0].s3_bucket_name : var.existing_s3_bucket_name
+  value       = !local.rig_mode ? (var.create_s3_bucket_module ? module.s3_bucket[0].s3_bucket_name : var.existing_s3_bucket_name) : null
 }
 
 output "s3_bucket_arn" {
   description = "ARN of the S3 bucket"
-  value       = var.create_s3_bucket_module ? module.s3_bucket[0].s3_bucket_arn : (var.existing_s3_bucket_name != "" ? data.aws_s3_bucket.existing_s3_bucket[0].arn : null)
+  value = !local.rig_mode ? (var.create_s3_bucket_module ? module.s3_bucket[0].s3_bucket_arn : (var.existing_s3_bucket_name != "" ? data.aws_s3_bucket.existing_s3_bucket[0].arn : null)) : null
 }
 
-# S3 Endpoint Outputs
-output "s3_endpoint_id" {
+# S3 VPC Endpoints Outputs
+output "s3_vpc_endpoint_id" {
   description = "ID of the S3 VPC endpoint"
-  value       = var.create_s3_endpoint_module ? module.s3_endpoint[0].vpc_endpoint_id : null
+  value       = var.create_vpc_endpoints_module ? module.vpc_endpoints[0].s3_vpc_endpoint_id : null
+}
+
+# Lambda VPC Endpoint Outputs
+output "lambda_vpc_endpoint_id" {
+  description = "ID of the Lambda VPC endpoint"
+  value       = var.create_vpc_endpoints_module ? module.vpc_endpoints[0].lambda_vpc_endpoint_id : null
+}
+
+# SQS VPC Endpoint Outputs
+output "sqs_vpc_endpoint_id" {
+  description = "ID of the SQS VPC endpoint"
+  value       = var.create_vpc_endpoints_module ? module.vpc_endpoints[0].sqs_vpc_endpoint_id : null
 }
 
 # SageMaker IAM Role Outputs
@@ -121,5 +133,5 @@ output "hyperpod_cluster_status" {
 # Region Output
 output "aws_region" {
   description = "AWS region"
-  value       = data.aws_region.current.id
+  value       = var.aws_region
 }

@@ -21,6 +21,12 @@ variable "public_subnet_2_cidr" {
   default     = "10.192.11.0/24"
 }
 
+variable "closed_network" {
+  description = "Whether to deploy in closed network mode (no internet gateway, NAT gateway, or public subnets)"
+  type        = bool
+  default     = false
+}
+
 variable "tags" {
   description = "Additional tags for all resources"
   type        = map(string)

@@ -41,12 +41,12 @@ def get_nccl_version(container=[]):
 
 def get_aws_ofi_nccl_version(container=[]):
     try:
-        version = subprocess.check_output(container + ['strings', '/opt/amazon/ofi-nccl/lib/x86_64-linux-gnu/libnccl-net.so'])
+        lib_path = subprocess.check_output(container + ['cat', '/etc/ld.so.conf.d/100_ofinccl.conf']).decode().strip()
+        version = subprocess.check_output(container + ['strings', f'{lib_path}/libnccl-net.so'])
         version = version.decode('utf-8')
         version = re.search(r'NET/OFI Initializing aws-ofi-nccl (\d+\.\d+\.\d+)', version).group(1)
         return version
     except Exception as e:
-        
         print(f'Error: {e}')
         return None
 
