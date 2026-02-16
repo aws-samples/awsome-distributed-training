@@ -85,6 +85,47 @@ run_check() {
                     "Found ${inactive_links} inactive NVLink(s)"
             fi
         fi
+
+        # Step 3a: Check Fabric Manager status
+        log_info "Checking nvidia-fabricmanager service status"
+        if systemctl list-unit-files nvidia-fabricmanager.service 2>/dev/null | grep -q nvidia-fabricmanager; then
+            local fm_status
+            fm_status=$(systemctl is-active nvidia-fabricmanager 2>/dev/null || true)
+            if [[ "${fm_status}" != "active" ]]; then
+                check_fail "${CHECK_NAME}" \
+                    "nvidia-fabricmanager service is not running (status: ${fm_status})" "RESET"
+                failures=$((failures + 1))
+            else
+                log_verbose "nvidia-fabricmanager is active"
+            fi
+        else
+            log_verbose "nvidia-fabricmanager service not found -- skipping"
+        fi
+
+        # Step 3b: Query NVLink error counters
+        log_info "Querying NVLink error counters"
+        local nvlink_error_output
+        if nvlink_error_output=$(nvidia-smi nvlink -e 2>/dev/null); then
+            echo "${nvlink_error_output}" > "${RESULTS_DIR}/nvlink-errors.txt"
+
+            # Parse for non-zero error counts across Replay, Recovery, and CRC fields
+            local replay_errors=0 recovery_errors=0 crc_errors=0
+            replay_errors=$(echo "${nvlink_error_output}" \
+                | grep -iE "Replay Errors" | awk -F: '{sum += $NF} END {print sum+0}' || echo 0)
+            recovery_errors=$(echo "${nvlink_error_output}" \
+                | grep -iE "Recovery Errors" | awk -F: '{sum += $NF} END {print sum+0}' || echo 0)
+            crc_errors=$(echo "${nvlink_error_output}" \
+                | grep -iE "CRC Error" | awk -F: '{sum += $NF} END {print sum+0}' || echo 0)
+
+            if [[ "${replay_errors}" -gt 0 || "${recovery_errors}" -gt 0 || "${crc_errors}" -gt 0 ]]; then
+                check_warn "${CHECK_NAME}" \
+                    "NVLink errors detected: ${replay_errors} replay, ${recovery_errors} recovery, ${crc_errors} CRC errors across links"
+            else
+                log_verbose "No NVLink errors detected"
+            fi
+        else
+            log_warn "nvidia-smi nvlink -e failed -- NVLink error counters not available"
+        fi
     fi
 
     # Step 4: Validate PCIe switch groupings

@@ -14,6 +14,8 @@ source "${SCRIPT_DIR}/../lib/common.sh"
 CHECK_NAME="5-nccl-allreduce"
 NCCL_CONTAINER="${NCCL_CONTAINER:-public.ecr.aws/hpc-cloud/nccl-tests:latest}"
 NCCL_TIMEOUT="${NCCL_TIMEOUT:-1800}"  # 30-minute timeout
+NCCL_ISOLATION_TESTS="${NCCL_ISOLATION_TESTS:-0}"
+NCCL_ISOLATION_TIMEOUT="${NCCL_ISOLATION_TIMEOUT:-600}"  # 10-minute timeout per isolation sub-test
 
 # Minimum expected bus bandwidth (GB/s) per instance type.
 # These are conservative defaults; override with NCCL_MIN_BUS_BW env var
@@ -58,6 +60,115 @@ run_check() {
         echo -e "${YELLOW}[DRY-RUN]${NC}   all_reduce_perf -b 8 -e 128M -f 2 -g ${gpus_per_node}" >&2
         check_pass "${CHECK_NAME}" "Dry-run: NCCL all_reduce skipped"
         return 0
+    fi
+
+    # Compute bandwidth threshold early (used by both isolation sub-tests and main test)
+    local min_expected
+    min_expected=$(get_min_bus_bw "${INSTANCE_TYPE}")
+
+    # ── Optional NCCL isolation sub-tests ────────────────────────────────────
+    if [[ "${NCCL_ISOLATION_TESTS}" == "1" ]]; then
+        log_info "Running NCCL isolation sub-tests (NCCL_ISOLATION_TESTS=1)"
+
+        # NVLink-only thresholds (GB/s)
+        local nvlink_only_threshold=0
+        case "${INSTANCE_TYPE}" in
+            p4d.24xlarge)      nvlink_only_threshold=200 ;;
+            p5.48xlarge)       nvlink_only_threshold=500 ;;
+            p5e.48xlarge)      nvlink_only_threshold=500 ;;
+            p5en.48xlarge)     nvlink_only_threshold=500 ;;
+            p6-b200.48xlarge)  nvlink_only_threshold=600 ;;
+        esac
+
+        # NVLink-only test (always runs, single-node per-process)
+        log_info "Running NVLink-only isolation test"
+        local nvlink_test_output=""
+        local nvlink_test_exit=0
+
+        if srun --help 2>&1 | grep -q "container-image"; then
+            nvlink_test_output=$(NCCL_P2P_LEVEL=NVL NCCL_NET=Socket \
+                timeout "${NCCL_ISOLATION_TIMEOUT}" \
+                srun --ntasks-per-node=1 \
+                     --container-image="${NCCL_CONTAINER}" \
+                     all_reduce_perf -g "${gpus_per_node}" -b 256M -e 256M \
+                2>&1) || nvlink_test_exit=$?
+        elif command -v all_reduce_perf > /dev/null 2>&1; then
+            nvlink_test_output=$(NCCL_P2P_LEVEL=NVL NCCL_NET=Socket \
+                timeout "${NCCL_ISOLATION_TIMEOUT}" \
+                srun --ntasks-per-node=1 \
+                     all_reduce_perf -g "${gpus_per_node}" -b 256M -e 256M \
+                2>&1) || nvlink_test_exit=$?
+        fi
+
+        if [[ ${nvlink_test_exit} -eq 124 ]]; then
+            log_warn "NVLink-only isolation test timed out after ${NCCL_ISOLATION_TIMEOUT}s -- proceeding to full test"
+        elif [[ ${nvlink_test_exit} -ne 0 ]]; then
+            log_warn "NVLink-only isolation test failed (exit ${nvlink_test_exit}) -- proceeding to full test"
+        fi
+
+        if [[ -n "${nvlink_test_output}" ]]; then
+            echo "${nvlink_test_output}" > "${RESULTS_DIR}/nccl-nvlink-only.txt"
+            local nvlink_busbw
+            nvlink_busbw=$(echo "${nvlink_test_output}" | grep -E "^\s+[0-9]" | awk '{print $NF}' \
+                | sort -n | tail -1 || echo "0")
+
+            if [[ "${nvlink_only_threshold}" -gt 0 ]]; then
+                local nvlink_bw_int
+                nvlink_bw_int=$(echo "${nvlink_busbw}" | awk '{printf "%d", $1}')
+                if [[ "${nvlink_bw_int}" -lt "${nvlink_only_threshold}" ]]; then
+                    check_warn "${CHECK_NAME}" \
+                        "NVLink-only bandwidth ${nvlink_busbw} GB/s below expected ${nvlink_only_threshold} GB/s"
+                else
+                    log_verbose "NVLink-only bandwidth ${nvlink_busbw} GB/s OK (threshold: ${nvlink_only_threshold} GB/s)"
+                fi
+            fi
+        fi
+
+        # EFA-only test (only when >= 2 nodes)
+        if [[ "${num_nodes}" -ge 2 ]]; then
+            log_info "Running EFA-only isolation test"
+            local efa_test_output=""
+            local efa_test_exit=0
+
+            if srun --help 2>&1 | grep -q "container-image"; then
+                efa_test_output=$(NCCL_P2P_DISABLE=1 NCCL_SHM_DISABLE=1 NCCL_NET='AWS Libfabric' \
+                    timeout "${NCCL_ISOLATION_TIMEOUT}" \
+                    srun --ntasks-per-node=1 \
+                         --container-image="${NCCL_CONTAINER}" \
+                         all_reduce_perf -g "${gpus_per_node}" -b 256M -e 256M \
+                    2>&1) || efa_test_exit=$?
+            elif command -v all_reduce_perf > /dev/null 2>&1; then
+                efa_test_output=$(NCCL_P2P_DISABLE=1 NCCL_SHM_DISABLE=1 NCCL_NET='AWS Libfabric' \
+                    timeout "${NCCL_ISOLATION_TIMEOUT}" \
+                    srun --ntasks-per-node=1 \
+                         all_reduce_perf -g "${gpus_per_node}" -b 256M -e 256M \
+                    2>&1) || efa_test_exit=$?
+            fi
+
+            if [[ ${efa_test_exit} -eq 124 ]]; then
+                log_warn "EFA-only isolation test timed out after ${NCCL_ISOLATION_TIMEOUT}s -- proceeding to full test"
+            elif [[ ${efa_test_exit} -ne 0 ]]; then
+                log_warn "EFA-only isolation test failed (exit ${efa_test_exit}) -- proceeding to full test"
+            fi
+
+            if [[ -n "${efa_test_output}" ]]; then
+                echo "${efa_test_output}" > "${RESULTS_DIR}/nccl-efa-only.txt"
+                local efa_busbw
+                efa_busbw=$(echo "${efa_test_output}" | grep -E "^\s+[0-9]" | awk '{print $NF}' \
+                    | sort -n | tail -1 || echo "0")
+
+                if [[ "${min_expected}" -gt 0 ]]; then
+                    local efa_bw_int
+                    efa_bw_int=$(echo "${efa_busbw}" | awk '{printf "%d", $1}')
+                    if [[ "${efa_bw_int}" -lt "${min_expected}" ]]; then
+                        check_warn "${CHECK_NAME}" \
+                            "EFA-only bandwidth ${efa_busbw} GB/s below expected ${min_expected} GB/s"
+                    else
+                        log_verbose "EFA-only bandwidth ${efa_busbw} GB/s OK (threshold: ${min_expected} GB/s)"
+                    fi
+                fi
+            fi
+        fi
     fi
 
     # Set NCCL/EFA environment variables
@@ -127,8 +238,6 @@ run_check() {
     log_info "Maximum bus bandwidth: ${max_busbw} GB/s"
 
     # Compare against minimum threshold
-    local min_expected
-    min_expected=$(get_min_bus_bw "${INSTANCE_TYPE}")
     if [[ "${min_expected}" -gt 0 ]]; then
         local busbw_int
         busbw_int=$(echo "${max_busbw}" | awk '{printf "%d", $1}')

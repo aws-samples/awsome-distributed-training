@@ -29,10 +29,28 @@ run_check() {
 
     if [[ -n "${EXPECTED_EFA_COUNT}" && "${EXPECTED_EFA_COUNT}" -gt 0 ]]; then
         if [[ "${efa_pci_count}" -ne "${EXPECTED_EFA_COUNT}" ]]; then
-            check_fail "${CHECK_NAME}" \
-                "EFA PCI device count mismatch: expected=${EXPECTED_EFA_COUNT}, detected=${efa_pci_count}" \
-                "ISOLATE"
-            failures=$((failures + 1))
+            # P5en instances have known late EFA initialization -- retry
+            if [[ "${DRY_RUN}" != "1" && "${INSTANCE_TYPE}" == p5en* ]]; then
+                log_info "P5en detected -- retrying EFA count (known late initialization)"
+                local retry
+                for retry in 1 2 3; do
+                    sleep 5
+                    efa_pci_count=$(lspci | grep -ci "EFA" || true)
+                    log_verbose "Retry ${retry}: EFA PCI devices found: ${efa_pci_count}"
+                    if [[ "${efa_pci_count}" -eq "${EXPECTED_EFA_COUNT}" ]]; then
+                        break
+                    fi
+                done
+            fi
+
+            if [[ "${efa_pci_count}" -ne "${EXPECTED_EFA_COUNT}" ]]; then
+                check_fail "${CHECK_NAME}" \
+                    "EFA PCI device count mismatch: expected=${EXPECTED_EFA_COUNT}, detected=${efa_pci_count}" \
+                    "ISOLATE"
+                failures=$((failures + 1))
+            else
+                log_verbose "EFA PCI device count matches expected: ${efa_pci_count}"
+            fi
         else
             log_verbose "EFA PCI device count matches expected: ${efa_pci_count}"
         fi
@@ -96,6 +114,61 @@ run_check() {
         echo -e "${YELLOW}[DRY-RUN]${NC} ls /dev/infiniband/uverbs*" >&2
     fi
     log_verbose "uverbs device nodes found: ${uverbs_count}"
+
+    # Step 5: Validate required kernel modules
+    log_info "Checking EFA kernel modules"
+    if [[ "${DRY_RUN}" != "1" ]]; then
+        local required_modules=("efa" "ib_uverbs" "ib_core")
+        for mod in "${required_modules[@]}"; do
+            if ! lsmod | grep -qw "${mod}"; then
+                check_warn "${CHECK_NAME}" "EFA kernel module ${mod} not loaded"
+            fi
+        done
+
+        # Optional: check gdrdrv if GDRCopy is installed
+        if [[ -d /opt/gdrcopy ]]; then
+            if ! lsmod | grep -qw "gdrdrv"; then
+                check_warn "${CHECK_NAME}" \
+                    "gdrdrv module not loaded -- GPUDirect RDMA may fall back to slower paths"
+            fi
+        fi
+    else
+        echo -e "${YELLOW}[DRY-RUN]${NC} lsmod | grep -qw {efa,ib_uverbs,ib_core}" >&2
+    fi
+
+    # Step 6: GDRCopy validation
+    if [[ -x /opt/gdrcopy/bin/sanity ]]; then
+        log_info "Running GDRCopy sanity check"
+        if [[ "${DRY_RUN}" != "1" ]]; then
+            if run_with_timeout 30 /opt/gdrcopy/bin/sanity -v > /dev/null 2>&1; then
+                log_verbose "GDRCopy sanity check passed"
+            else
+                check_warn "${CHECK_NAME}" \
+                    "GDRCopy sanity check failed -- GPUDirect RDMA may not function"
+            fi
+        else
+            echo -e "${YELLOW}[DRY-RUN]${NC} /opt/gdrcopy/bin/sanity -v" >&2
+        fi
+    fi
+
+    # Step 7: Memory locking limits
+    log_info "Checking memory lock limits"
+    if [[ "${DRY_RUN}" != "1" ]]; then
+        local memlock
+        memlock=$(ulimit -l 2>/dev/null || echo "0")
+        if [[ "${memlock}" != "unlimited" ]]; then
+            if [[ "${memlock}" -lt 16777216 ]]; then
+                check_warn "${CHECK_NAME}" \
+                    "Memory lock limit ${memlock} KB is below 16 GiB -- EFA performance may be degraded"
+            else
+                log_verbose "Memory lock limit OK"
+            fi
+        else
+            log_verbose "Memory lock limit OK"
+        fi
+    else
+        echo -e "${YELLOW}[DRY-RUN]${NC} ulimit -l" >&2
+    fi
 
     # Final result
     if [[ ${failures} -gt 0 ]]; then

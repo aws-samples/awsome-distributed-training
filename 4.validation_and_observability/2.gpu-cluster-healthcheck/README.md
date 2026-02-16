@@ -121,8 +121,19 @@ To add a new instance type, append a line to `instance-profiles.conf`:
 Verifies basic GPU driver functionality:
 - Confirms `nvidia-smi` executes and returns zero exit code
 - Counts detected GPUs and compares against the instance profile
-- Scans `dmesg` for Xid errors from the last 10 minutes
+- Scans `dmesg` for Xid errors with severity-aware classification:
+
+| Group | Xid Codes | Severity | Rationale |
+|---|---|---|---|
+| FATAL | 64, 79, 81, 125, 154 | ISOLATE | Permanent hardware failure, replace |
+| RECOVERABLE | 48, 63, 74, 94, 95, 126 | RESET | Hardware issue, reboot may resolve |
+| GSP_FIRMWARE | 119, 120, 143 | RESET | Firmware issue, reboot then possibly retire |
+| APP_FAULT | 13, 31, 43 | MONITOR | Possibly app-caused, debug first |
+| ECC_WARNING | 92 | MONITOR | Degrading memory, monitor |
+
+- Scans `dmesg` for SXid (NVSwitch) errors; SXid alongside Xid 74 indicates NVSwitch root cause
 - Checks GPU persistence mode status
+- Captures GPU serial numbers and UUIDs to `gpu-uuids.csv` for asset tracking
 
 ```bash
 ./gpu-healthcheck.sh --check 0
@@ -157,9 +168,14 @@ DCGM_TIMEOUT=600 ./gpu-healthcheck.sh --check dcgm-l2
 
 Validates EFA network infrastructure:
 - Counts EFA PCI devices via `lspci` and compares against instance profile
+  - On `p5en` instances, retries up to 3 times with 5-second intervals for known late EFA initialization
 - Lists RDMA devices via `ibv_devices`
 - Verifies libfabric EFA provider via `fi_info -p efa`
 - Checks `/dev/infiniband/uverbs*` device node presence
+- Validates required kernel modules: `efa`, `ib_uverbs`, `ib_core`
+  - Checks for `gdrdrv` module when GDRCopy is installed (`/opt/gdrcopy`)
+- Runs GDRCopy sanity check (`/opt/gdrcopy/bin/sanity -v`) if available
+- Checks memory lock limits (`ulimit -l`) — warns if below 16 GiB
 
 ```bash
 ./gpu-healthcheck.sh --check 2
@@ -174,6 +190,8 @@ Validates EFA network infrastructure:
 Validates GPU interconnect topology:
 - Captures `nvidia-smi topo -m` matrix and checks for disconnected links
 - Validates NVLink presence and status per GPU pair
+- Checks `nvidia-fabricmanager` service status (RESET severity if not running)
+- Queries NVLink error counters (`nvidia-smi nvlink -e`) and warns on non-zero replay, recovery, or CRC errors
 - Verifies PCIe switch groupings
 - On B200 instances: additional `nvidia-smi topo -p2p rwn` check
 
@@ -216,6 +234,12 @@ Runs `all_reduce_perf` from the NCCL tests container to validate multi-node GPU 
 - Verifies EFA provider selection via `NCCL_DEBUG=INFO`
 - Compares measured bus bandwidth against per-instance-type thresholds
 
+**Optional isolation sub-tests** (`NCCL_ISOLATION_TESTS=1`):
+- **NVLink-only test:** Forces `NCCL_P2P_LEVEL=NVL NCCL_NET=Socket` to isolate intra-node NVLink performance. Thresholds: p4d=200 GB/s, p5/p5e/p5en=500 GB/s, p6-b200=600 GB/s
+- **EFA-only test:** Forces `NCCL_P2P_DISABLE=1 NCCL_SHM_DISABLE=1 NCCL_NET='AWS Libfabric'` to isolate inter-node EFA performance (requires >= 2 nodes)
+- Both sub-tests produce MONITOR-level warnings only — the full-stack test remains the authoritative pass/fail
+- Each sub-test has its own timeout: `NCCL_ISOLATION_TIMEOUT` (default: 600s / 10 min)
+
 Environment variables set automatically:
 ```bash
 FI_PROVIDER=efa
@@ -228,6 +252,9 @@ NCCL_DEBUG=INFO
 # Must be run within a multi-node Slurm allocation
 salloc -N 2 --exclusive
 ./gpu-healthcheck.sh --check 5
+
+# With isolation sub-tests enabled
+NCCL_ISOLATION_TESTS=1 ./gpu-healthcheck.sh --check 5
 ```
 
 ### Check 6: EFA Loopback Bandwidth/Latency
@@ -238,12 +265,18 @@ Tests each EFA device individually:
 - Iterates over all RDMA devices discovered via `ibv_devices`
 - Runs `fi_pingpong` or `ib_write_bw` in loopback mode per device
 - Reports bandwidth and latency per device
-- Flags devices performing below instance-type thresholds
+- Compares per-device bandwidth against instance-type thresholds (default: 20 Gbps for all supported types)
+  - Override with `EFA_MIN_BW` env var (in Gbps)
+- Collects EFA statistics via `rdma -p statistic show` and warns on `rx_drops` or `retrans_timeout_events`
+  - Statistics saved to `efa-statistics.txt`
 
 ```bash
 ./gpu-healthcheck.sh --check 6
 # or
 ./gpu-healthcheck.sh --check efa-loopback
+
+# With custom bandwidth threshold (Gbps)
+EFA_MIN_BW=25 ./gpu-healthcheck.sh --check 6
 ```
 
 ## DCGM Operational Guide
@@ -451,6 +484,29 @@ The guiding principle is **replace, don't repair**. On AWS, the primary remediat
 - Check NVSwitch status (p5/p5e): `nvidia-smi nvlink --status`
 - Verify PCIe ACS is disabled (can interfere with P2P): `setpci -s '*:*' ECAP_ACS+6.w`
 - Check for recent Xid errors indicating NVLink failures: `dmesg | grep -i xid`
+
+### Xid errors classified as ISOLATE
+
+Fatal Xid codes (64, 79, 81, 125, 154) indicate permanent hardware failure and produce ISOLATE severity. The node should be drained and the instance replaced. Review `dmesg` for the specific Xid error and affected GPU:
+```bash
+dmesg | grep -i "NVRM.*Xid"
+```
+
+### NVLink error counters show non-zero values
+
+Non-zero replay, recovery, or CRC errors indicate NVLink degradation. Check individual link status:
+```bash
+nvidia-smi nvlink -e        # Error counters
+nvidia-smi nvlink --status  # Link status
+```
+If errors are persistent across reboots, the node should be replaced.
+
+### GDRCopy sanity check failed
+
+GDRCopy enables GPU memory registration for RDMA. If the sanity check fails:
+- Verify the `gdrdrv` kernel module is loaded: `lsmod | grep gdrdrv`
+- Check GDRCopy installation: `/opt/gdrcopy/bin/sanity -v`
+- NCCL may fall back to slower CPU-bounce-buffer paths without GDRCopy
 
 ### MIG prevents DCGM L4
 

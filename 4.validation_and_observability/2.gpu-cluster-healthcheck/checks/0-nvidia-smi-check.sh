@@ -39,7 +39,7 @@ run_check() {
         log_verbose "GPU count matches expected: ${detected_gpus}"
     fi
 
-    # Step 3: Check for Xid errors in dmesg (last 10 minutes)
+    # Step 3: Check for Xid errors in dmesg with severity classification
     log_info "Checking dmesg for recent Xid errors"
     local xid_errors=""
     if [[ "${DRY_RUN}" != "1" ]]; then
@@ -52,13 +52,75 @@ run_check() {
     fi
 
     if [[ -n "${xid_errors}" ]]; then
+        # Extract unique Xid codes from dmesg lines
+        local xid_codes
+        xid_codes=$(echo "${xid_errors}" | grep -oP 'Xid.*?:\s*\K[0-9]+' | sort -un || true)
+
+        # Classify each Xid code by severity
+        local highest_severity="MONITOR"
+        local severity_details=""
+
+        for code in ${xid_codes}; do
+            local code_severity="MONITOR"
+            local code_group="UNKNOWN"
+            case "${code}" in
+                64|79|81|125|154) code_severity="ISOLATE"; code_group="FATAL" ;;
+                48|63|74|94|95|126) code_severity="RESET"; code_group="RECOVERABLE" ;;
+                119|120|143) code_severity="RESET"; code_group="GSP_FIRMWARE" ;;
+                13|31|43) code_severity="MONITOR"; code_group="APP_FAULT" ;;
+                92) code_severity="MONITOR"; code_group="ECC_WARNING" ;;
+                *) code_severity="MONITOR"; code_group="UNKNOWN" ;;
+            esac
+
+            if [[ -n "${severity_details}" ]]; then
+                severity_details+=", "
+            fi
+            severity_details+="Xid ${code} (${code_severity}/${code_group})"
+
+            # Track highest severity: ISOLATE > RESET > MONITOR
+            if [[ "${code_severity}" == "ISOLATE" ]]; then
+                highest_severity="ISOLATE"
+            elif [[ "${code_severity}" == "RESET" && "${highest_severity}" != "ISOLATE" ]]; then
+                highest_severity="RESET"
+            fi
+        done
+
         local xid_count
         xid_count=$(echo "${xid_errors}" | wc -l | tr -d ' ')
-        check_warn "${CHECK_NAME}" "Found ${xid_count} Xid error(s) in dmesg"
+
+        if [[ "${highest_severity}" == "ISOLATE" || "${highest_severity}" == "RESET" ]]; then
+            check_fail "${CHECK_NAME}" \
+                "Found ${xid_count} Xid error(s): ${severity_details}" "${highest_severity}"
+        else
+            check_warn "${CHECK_NAME}" "Found ${xid_count} Xid error(s): ${severity_details}"
+        fi
         log_verbose "Recent Xid errors:\\n${xid_errors}"
     fi
 
-    # Step 4: Check GPU persistence mode
+    # Step 4: Check for SXid (NVSwitch) errors in dmesg
+    log_info "Checking dmesg for SXid (NVSwitch) errors"
+    local sxid_errors=""
+    if [[ "${DRY_RUN}" != "1" ]]; then
+        sxid_errors=$(dmesg 2>/dev/null | grep -i "SXid" | tail -20 || true)
+    else
+        echo -e "${YELLOW}[DRY-RUN]${NC} dmesg | grep -i SXid" >&2
+    fi
+
+    if [[ -n "${sxid_errors}" ]]; then
+        local sxid_count
+        sxid_count=$(echo "${sxid_errors}" | wc -l | tr -d ' ')
+        local sxid_msg="Found ${sxid_count} SXid (NVSwitch) error(s) in dmesg"
+
+        # SXid alongside Xid 74 suggests NVSwitch root cause
+        if [[ -n "${xid_errors}" ]] && echo "${xid_errors}" | grep -qP 'Xid.*?:\s*74\b'; then
+            sxid_msg+="; SXid with Xid 74 indicates likely NVSwitch root cause (recommend RESET)"
+        fi
+
+        check_warn "${CHECK_NAME}" "${sxid_msg}"
+        log_verbose "Recent SXid errors:\\n${sxid_errors}"
+    fi
+
+    # Step 5: Check GPU persistence mode
     local persist_mode
     if persist_mode=$(run_cmd nvidia-smi --query-gpu=persistence_mode \
         --format=csv,noheader 2>/dev/null); then
@@ -68,6 +130,21 @@ run_check() {
             check_warn "${CHECK_NAME}" \
                 "Persistence mode disabled on ${disabled_count} GPU(s) -- recommend enabling"
         fi
+    fi
+
+    # Step 6: Capture GPU UUIDs (informational)
+    log_info "Capturing GPU UUIDs"
+    local uuid_output=""
+    if uuid_output=$(run_cmd nvidia-smi --query-gpu=index,serial,uuid \
+        --format=csv,noheader 2>/dev/null); then
+        if [[ -n "${uuid_output}" ]]; then
+            echo "${uuid_output}" > "${RESULTS_DIR}/gpu-uuids.csv"
+            local uuid_count
+            uuid_count=$(echo "${uuid_output}" | wc -l | tr -d ' ')
+            log_info "Captured UUIDs for ${uuid_count} GPU(s)"
+        fi
+    else
+        log_verbose "nvidia-smi UUID query failed -- skipping UUID capture"
     fi
 
     check_pass "${CHECK_NAME}" \

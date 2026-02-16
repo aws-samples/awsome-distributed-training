@@ -13,6 +13,20 @@ source "${SCRIPT_DIR}/../lib/common.sh"
 CHECK_NAME="6-efa-loopback"
 EFA_TEST_TIMEOUT="${EFA_TEST_TIMEOUT:-120}"  # Per-device timeout
 
+# Minimum expected EFA bandwidth (Gbps) per device per instance type.
+# Override with EFA_MIN_BW env var.
+get_min_efa_bw() {
+    if [[ -n "${EFA_MIN_BW:-}" ]]; then echo "${EFA_MIN_BW}"; return; fi
+    case "$1" in
+        p4d.24xlarge)      echo 20 ;;
+        p5.48xlarge)       echo 20 ;;
+        p5e.48xlarge)      echo 20 ;;
+        p5en.48xlarge)     echo 20 ;;
+        p6-b200.48xlarge)  echo 20 ;;
+        *)                 echo 0 ;;
+    esac
+}
+
 run_check() {
     init_check "${CHECK_NAME}"
 
@@ -29,9 +43,10 @@ run_check() {
     fi
 
     local devices
-    devices=$(ibv_devices 2>/dev/null | grep -oE "rdma[0-9]+" || \
-              ibv_devices 2>/dev/null | grep -oE "efa_[0-9]+" || \
-              ibv_devices 2>/dev/null | awk '/^\s/{print $1}' || true)
+    # ibv_devices has 2 header lines; skip them before parsing device names
+    devices=$(ibv_devices 2>/dev/null | tail -n +3 | grep -oE "rdma[0-9]+" || \
+              ibv_devices 2>/dev/null | tail -n +3 | grep -oE "efa_[0-9]+" || \
+              ibv_devices 2>/dev/null | tail -n +3 | awk 'NF{print $1}' || true)
 
     if [[ -z "${devices}" ]]; then
         check_fail "${CHECK_NAME}" "No RDMA devices found" "ISOLATE"
@@ -43,6 +58,9 @@ run_check() {
     log_info "Testing ${device_count} RDMA device(s)"
 
     local failures=0
+    local degraded=0
+    local min_efa_bw
+    min_efa_bw=$(get_min_efa_bw "${INSTANCE_TYPE}")
     local results_json="["
 
     while IFS= read -r device; do
@@ -95,6 +113,18 @@ run_check() {
                 | tail -1 | awk '{print $(NF-1), $NF}' || echo "N/A")
 
             log_verbose "Device ${device}: bw=${bw_value}, lat=${lat_value}"
+
+            # Check bandwidth against per-instance threshold
+            if [[ "${min_efa_bw}" -gt 0 && "${bw_value}" != "N/A" ]]; then
+                local bw_numeric
+                bw_numeric=$(echo "${bw_value}" | grep -oE '[0-9]+\.?[0-9]*' | head -1 || echo "0")
+                local bw_int
+                bw_int=$(echo "${bw_numeric}" | awk '{printf "%d", $1}')
+                if [[ "${bw_int}" -lt "${min_efa_bw}" ]]; then
+                    log_warn "Device ${device}: bandwidth ${bw_value} below threshold ${min_efa_bw} Gbps"
+                    degraded=$((degraded + 1))
+                fi
+            fi
         else
             log_warn "Device ${device}: test failed or timed out (exit ${test_exit})"
             failures=$((failures + 1))
@@ -120,6 +150,40 @@ ENDJSON
 
     # Save per-device results
     echo "${results_json}" > "${RESULTS_DIR}/efa-loopback-results.json"
+
+    # Report degraded devices (below bandwidth threshold)
+    if [[ ${degraded} -gt 0 ]]; then
+        check_warn "${CHECK_NAME}" \
+            "${degraded} device(s) below bandwidth threshold (${min_efa_bw} Gbps)"
+    fi
+
+    # Collect EFA statistics
+    log_info "Collecting EFA statistics"
+    if command -v rdma > /dev/null 2>&1; then
+        local efa_stats
+        if efa_stats=$(rdma -p statistic show 2>/dev/null); then
+            echo "${efa_stats}" > "${RESULTS_DIR}/efa-statistics.txt"
+
+            local rx_drops
+            rx_drops=$(echo "${efa_stats}" | grep -oP 'rx_drops\s+\K[0-9]+' | awk '{sum+=$1} END {print sum+0}') || rx_drops=0
+            local retrans_timeouts
+            retrans_timeouts=$(echo "${efa_stats}" | grep -oP 'retrans_timeout_events\s+\K[0-9]+' | awk '{sum+=$1} END {print sum+0}') || retrans_timeouts=0
+
+            if [[ "${rx_drops}" -gt 0 ]]; then
+                check_warn "${CHECK_NAME}" "EFA rx_drops detected (${rx_drops}) -- possible network issues"
+            fi
+            if [[ "${retrans_timeouts}" -gt 0 ]]; then
+                check_warn "${CHECK_NAME}" "EFA retransmission timeouts detected (${retrans_timeouts})"
+            fi
+            if [[ "${rx_drops}" -eq 0 && "${retrans_timeouts}" -eq 0 ]]; then
+                log_verbose "EFA statistics clean -- no drops or retransmissions"
+            fi
+        else
+            log_verbose "rdma statistic show failed -- EFA statistics skipped"
+        fi
+    else
+        log_verbose "rdma tool not found -- EFA statistics skipped"
+    fi
 
     if [[ ${failures} -gt 0 ]]; then
         check_fail "${CHECK_NAME}" \
