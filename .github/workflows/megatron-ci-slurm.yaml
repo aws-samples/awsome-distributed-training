@@ -13,6 +13,18 @@ on:
 
   workflow_dispatch:
 
+env:
+  AWS_REGION: us-east-1
+  SLURM_HOST: p5en.smml.aiml.aws.dev
+  SLURM_USER: ghactions
+  AWS_ROLE_ARN: arn:aws:iam::159553542841:role/awslabs-AOSH-GitHubActionsRole
+  BASE_PATH: /fsx/agents/pr-reviews
+  HOME_PATH: /home/ghactions
+
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   build:
     strategy: 
@@ -20,45 +32,148 @@ jobs:
       max-parallel: 3
       matrix:
         cluster: [p5]
-    runs-on: [self-hosted, "${{ matrix.cluster }}"]
+    runs-on: ubuntu-latest
     concurrency:
-      group: ${{ github.workflow }}-${{ matrix.cluster }}
+      group: ${{ github.workflow }}-${{ matrix.cluster }}-build
       cancel-in-progress: false      
-    timeout-minutes: 60
+    timeout-minutes: 75
+    outputs:
+      enroot_image_path: ${{ steps.build.outputs.enroot_image_path }}
+      remote_build_path: ${{ steps.setup.outputs.remote_build_path }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          path: ${{ github.run_id }}
+          path: source-code
 
-      - name: Set env vars
-        run: |
-          HOME_DIR="/home/github"
-          BUILD_ID="${{ github.run_id }}"
-          CASE_DIR="$(pwd)/${BUILD_ID}/3.test_cases/megatron/megatron-lm"
-          CONTAINER_DIR="${HOME_DIR}/regression-container-${BUILD_ID}-${{ matrix.cluster }}"
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
 
-          echo "HOME_DIR=$HOME_DIR" >> $GITHUB_ENV
-          echo "BUILD_ID=$BUILD_ID" >> $GITHUB_ENV
-          echo "CASE_DIR=$CASE_DIR" >> $GITHUB_ENV
-          echo "CONTAINER_DIR=$CONTAINER_DIR" >> $GITHUB_ENV
-          echo "Env vars set successfully!"
- 
-      - name: Create directories
+      - name: Setup SSH Key
+        id: setup
         run: |
-          mkdir -p ${{ env.CONTAINER_DIR }}
-          chmod 755 ${{ env.CONTAINER_DIR }}
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SLURM_SSH_KEY }}" > ~/.ssh/slurm_key
+          chmod 600 ~/.ssh/slurm_key
+          
+          # Add host to known hosts with retry
+          for i in {1..5}; do
+            if ssh-keyscan -H ${{ env.SLURM_HOST }} >> ~/.ssh/known_hosts 2>/dev/null; then
+              echo "SSH keyscan successful"
+              break
+            fi
+            echo "SSH keyscan attempt $i failed, retrying..."
+            sleep 5
+          done
+          
+          REMOTE_BUILD_PATH="${{ env.BASE_PATH }}/megatron-builds/${{ github.run_id }}-${{ matrix.cluster }}"
+          echo "remote_build_path=$REMOTE_BUILD_PATH" >> $GITHUB_OUTPUT
+          echo "REMOTE_BUILD_PATH=$REMOTE_BUILD_PATH" >> $GITHUB_ENV
 
-      - name: Build container [on head node]
-        working-directory: ${{ env.CASE_DIR }}
+      - name: Transfer Code to Cluster
         run: |
-          echo "Building FSDP image"
-          docker build  -f aws-megatron-lm.Dockerfile -t aws-megatron-lm .
-          echo "FSDP Image built!"
+          # Create remote directory
+          ssh -i ~/.ssh/slurm_key -o StrictHostKeyChecking=no -o ConnectTimeout=30 \
+            ${{ env.SLURM_USER }}@${{ env.SLURM_HOST }} \
+            "mkdir -p ${{ env.REMOTE_BUILD_PATH }}"
+          
+          # Transfer code with retry
+          for i in {1..3}; do
+            if scp -i ~/.ssh/slurm_key -o StrictHostKeyChecking=no -o ConnectTimeout=30 -r \
+              source-code/* ${{ env.SLURM_USER }}@${{ env.SLURM_HOST }}:${{ env.REMOTE_BUILD_PATH }}/; then
+              echo "Code transfer successful"
+              break
+            fi
+            echo "Transfer attempt $i failed, retrying..."
+            sleep 10
+          done
 
-      - name: Convert built container to squash file [on head node]
-        working-directory: ${{ env.CASE_DIR }}
+      - name: Build container on cluster
+        id: build
+        working-directory: source-code
         run: |
-          echo "Converting container to squash file..."
-          enroot import -o ${{ env.CONTAINER_DIR }}/aws-megatron-lm.sqsh dockerd://aws-megatron-lm 
-          echo "Container converted to squash file successfully!"
+          MEGATRON_DIR="${{ env.REMOTE_BUILD_PATH }}/3.test_cases/megatron/megatron-lm"
+          ENROOT_IMAGE="${{ env.BASE_PATH }}/enroot-images/megatron-${{ github.run_id }}-${{ matrix.cluster }}.sqsh"
+          
+          echo "Building Megatron-LM image on cluster..."
+          ssh -i ~/.ssh/slurm_key -o StrictHostKeyChecking=no -o ConnectTimeout=30 \
+            ${{ env.SLURM_USER }}@${{ env.SLURM_HOST }} << EOF
+            set -e
+            cd $MEGATRON_DIR
+            echo "Building Docker image..."
+            docker build -f aws-megatron-lm.Dockerfile -t aws-megatron-lm .
+            echo "Converting to enroot image..."
+            mkdir -p ${{ env.BASE_PATH }}/enroot-images
+            enroot import -o $ENROOT_IMAGE dockerd://aws-megatron-lm
+            echo "Enroot image created at: $ENROOT_IMAGE"
+            # Clean up Docker image to save space
+            docker rmi aws-megatron-lm || true
+EOF
+          
+          echo "enroot_image_path=$ENROOT_IMAGE" >> $GITHUB_OUTPUT
+          echo "Container build completed successfully!"
+
+      - name: Verify Container Build
+        run: |
+          # Verify the enroot image exists
+          ssh -i ~/.ssh/slurm_key -o StrictHostKeyChecking=no -o ConnectTimeout=30 \
+            ${{ env.SLURM_USER }}@${{ env.SLURM_HOST }} << EOF
+            ENROOT_IMAGE="${{ steps.build.outputs.enroot_image_path }}"
+            if [ -f "\$ENROOT_IMAGE" ]; then
+              echo "✓ Enroot image exists: \$ENROOT_IMAGE"
+              ls -lh \$ENROOT_IMAGE
+            else
+              echo "✗ Enroot image not found: \$ENROOT_IMAGE"
+              exit 1
+            fi
+EOF
+
+      - name: Cleanup Build Directory
+        if: always()
+        run: |
+          ssh -i ~/.ssh/slurm_key -o StrictHostKeyChecking=no -o ConnectTimeout=30 \
+            ${{ env.SLURM_USER }}@${{ env.SLURM_HOST }} \
+            "rm -rf ${{ env.REMOTE_BUILD_PATH }}" || true
+          
+          # Note: Enroot image is kept for potential test jobs
+          # It should be cleaned up by a separate cleanup job or scheduled task
+          echo "Build directory cleaned up. Enroot image kept at: ${{ steps.build.outputs.enroot_image_path }}"
+
+  # Optional: Add a test job here if you want to run Megatron training tests
+  # Similar to the FSDP container workflow's run-tests job
+  # For now, this workflow only builds the container as per original design
+
+  cleanup-enroot:
+    name: Cleanup Enroot Images
+    needs: build
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SLURM_SSH_KEY }}" > ~/.ssh/slurm_key
+          chmod 600 ~/.ssh/slurm_key
+          ssh-keyscan -H ${{ env.SLURM_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Remove Enroot Images
+        run: |
+          echo "Cleaning up enroot images..."
+          # Remove all enroot images for this workflow run
+          ssh -i ~/.ssh/slurm_key -o StrictHostKeyChecking=no -o ConnectTimeout=30 \
+            ${{ env.SLURM_USER }}@${{ env.SLURM_HOST }} << EOF
+            echo "Removing Megatron enroot images for run ${{ github.run_id }}..."
+            rm -f ${{ env.BASE_PATH }}/enroot-images/megatron-${{ github.run_id }}-*.sqsh || true
+            echo "Enroot images cleaned up"
+            # List remaining images for verification
+            ls -lh ${{ env.BASE_PATH }}/enroot-images/ | grep megatron || echo "No megatron images remaining"
+EOF
