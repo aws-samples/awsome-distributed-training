@@ -1,5 +1,4 @@
 data "aws_region" "current" {}
-data "aws_caller_identity" "current" {}
 
 data "aws_vpc" "selected" {
   id = var.vpc_id
@@ -13,8 +12,13 @@ data "aws_availability_zones" "available" {
   }
 }
 
+# Conditionally create new subnets or use existing ones
+locals {
+  eks_subnet_ids = var.create_eks_subnets ? aws_subnet.private[*].id : var.existing_eks_subnet_ids
+}
+
 resource "aws_subnet" "private" {
-  count             = length(var.private_subnet_cidrs)
+  count             = var.create_eks_subnets ? length(var.private_subnet_cidrs) : 0
   vpc_id            = data.aws_vpc.selected.id
   cidr_block        = var.private_subnet_cidrs[count.index]
   availability_zone = data.aws_availability_zones.available.names[count.index]
@@ -26,10 +30,19 @@ resource "aws_subnet" "private" {
   }
 }
 
+resource "aws_route_table" "eks_private" {
+  count  = var.create_eks_subnets ? length(var.private_subnet_cidrs) : 0
+  vpc_id = data.aws_vpc.selected.id
+
+  tags = {
+    Name = "${var.resource_name_prefix}-EKS-Private-RT-${count.index + 1}"
+  }
+}
+
 resource "aws_route_table_association" "private" {
-  count          = length(aws_subnet.private)
+  count          = var.create_eks_subnets ? length(aws_subnet.private) : 0
   subnet_id      = aws_subnet.private[count.index].id
-  route_table_id = var.private_route_table_id
+  route_table_id = aws_route_table.eks_private[count.index].id
 }
 
 resource "aws_iam_role" "eks_cluster_role" {
@@ -65,9 +78,10 @@ resource "aws_eks_cluster" "cluster" {
   role_arn = aws_iam_role.eks_cluster_role.arn
 
   vpc_config {
-    subnet_ids              = aws_subnet.private[*].id
+    subnet_ids              = local.eks_subnet_ids
     security_group_ids      = [var.security_group_id]
-    endpoint_public_access  = true
+    endpoint_private_access = var.endpoint_private_access
+    endpoint_public_access  = var.endpoint_public_access
   }
 
   access_config {
@@ -85,11 +99,11 @@ resource "aws_eks_cluster" "cluster" {
 
   depends_on = [
     aws_cloudwatch_log_group.eks_cluster,
-    aws_iam_role_policy_attachment.eks_cluster_policy,
-    aws_subnet.private
+    aws_iam_role_policy_attachment.eks_cluster_policy
   ]
 }
 
+# These EKS addons can become active before nodes are available  
 resource "aws_eks_addon" "vpc_cni" {
   cluster_name      = aws_eks_cluster.cluster.name
   addon_name        = "vpc-cni"
@@ -111,12 +125,12 @@ resource "aws_eks_addon" "pod_identity" {
   resolve_conflicts_on_update = "OVERWRITE"
 }
 
+# This EKS addons will remain degraded until nodes are available
 # Add CoreDNS using AWS CLI so that Terraform doesn't wait for it to be active
 resource "null_resource" "coredns_addon" {
   provisioner "local-exec" {
-    command = "aws eks create-addon --region ${data.aws_region.current.id} --cluster-name ${aws_eks_cluster.cluster.name} --addon-name coredns"
+    command = "aws eks create-addon --region ${data.aws_region.current.region} --cluster-name ${aws_eks_cluster.cluster.name} --addon-name coredns"
   }
   
   depends_on = [aws_eks_cluster.cluster]
 }
-

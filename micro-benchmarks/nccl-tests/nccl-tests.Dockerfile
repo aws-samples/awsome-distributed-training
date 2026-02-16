@@ -1,13 +1,12 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
-ARG CUDA_VERSION=12.8.1
+ARG CUDA_VERSION=12.9.1
 FROM nvcr.io/nvidia/cuda:${CUDA_VERSION}-devel-ubuntu22.04
 
 ARG GDRCOPY_VERSION=v2.5.1
-ARG EFA_INSTALLER_VERSION=1.43.2
-ARG AWS_OFI_NCCL_VERSION=v1.16.3
-ARG NCCL_VERSION=v2.27.7-1
-ARG NCCL_TESTS_VERSION=v2.16.9
+ARG EFA_INSTALLER_VERSION=1.47.0
+ARG NCCL_VERSION=v2.29.3-1
+ARG NCCL_TESTS_VERSION=v2.17.9
 
 RUN apt-get update -y && apt-get upgrade -y
 RUN apt-get remove -y --allow-change-held-packages \
@@ -45,7 +44,6 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -y --allow-unauthenticated \
     openssh-server \
     pkg-config \
     python3-distutils \
-    libhwloc-dev \
     vim
 RUN apt-get purge -y cuda-compat-*
 
@@ -53,6 +51,10 @@ RUN mkdir -p /var/run/sshd
 RUN sed -i 's/[ #]\(.*StrictHostKeyChecking \).*/ \1no/g' /etc/ssh/ssh_config && \
     echo "    UserKnownHostsFile /dev/null" >> /etc/ssh/ssh_config && \
     sed -i 's/#\(StrictModes \).*/\1no/g' /etc/ssh/sshd_config
+
+# Set paths for both aarch64 and x86_64
+ENV LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:/opt/amazon/openmpi/lib:/opt/nccl/build/lib:/opt/amazon/efa/lib:/opt/amazon/ofi-nccl/lib/aarch64-linux-gnu:/opt/amazon/ofi-nccl/lib/x86_64-linux-gnu:/usr/local/lib:$LD_LIBRARY_PATH
+ENV PATH=/opt/amazon/openmpi/bin/:/opt/amazon/efa/bin:/usr/bin:/usr/local/bin:$PATH
 
 RUN curl https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py \
     && python3 /tmp/get-pip.py \
@@ -65,10 +67,10 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py \
 ## that the cuda-compat-xx-x package is the latest.
 RUN git clone -b ${GDRCOPY_VERSION} https://github.com/NVIDIA/gdrcopy.git /tmp/gdrcopy \
     && cd /tmp/gdrcopy \
-    && make prefix=/opt/gdrcopy install \
-    && echo "/opt/gdrcopy/lib" > /etc/ld.so.conf.d/000_gdrcopy.conf \
-    && ldconfig
+    && make prefix=/opt/gdrcopy install
 
+ENV LD_LIBRARY_PATH=/opt/gdrcopy/lib:$LD_LIBRARY_PATH
+ENV LIBRARY_PATH=/opt/gdrcopy/lib:$LIBRARY_PATH
 ENV CPATH=/opt/gdrcopy/include:$CPATH
 ENV PATH=/opt/gdrcopy/bin:$PATH
 
@@ -79,23 +81,14 @@ RUN cd $HOME \
     && tar -xf $HOME/aws-efa-installer-${EFA_INSTALLER_VERSION}.tar.gz \
     && cd aws-efa-installer \
     && ./efa_installer.sh -y -g -d --skip-kmod --skip-limit-conf --no-verify \
-    && rm -rf $HOME/aws-efa-installer \
-    && echo "/opt/amazon/openmpi/lib" > /etc/ld.so.conf.d/000_efa_ompi.conf \
-    && ldconfig
-
-# For ofi-nccl set paths for both aarch64 and x86_64
-ENV LD_LIBRARY_PATH=/opt/amazon/ofi-nccl/lib/aarch64-linux-gnu:/opt/amazon/ofi-nccl/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH
-
-ENV PATH=/opt/amazon/openmpi/bin:/opt/amazon/efa/bin:$PATH
+    && rm -rf $HOME/aws-efa-installer
 
 ###################################################
 ## Install NCCL
 RUN git clone -b ${NCCL_VERSION} https://github.com/NVIDIA/nccl.git  /opt/nccl \
     && cd /opt/nccl \
     && make -j $(nproc) src.build CUDA_HOME=/usr/local/cuda \
-    NVCC_GENCODE="-gencode=arch=compute_80,code=sm_80 -gencode=arch=compute_86,code=sm_86 -gencode=arch=compute_89,code=sm_89 -gencode=arch=compute_90,code=sm_90 -gencode=arch=compute_100,code=sm_100" \
-    && echo "/opt/nccl/build/lib" > /etc/ld.so.conf.d/000_nccl.conf \
-    && ldconfig
+    NVCC_GENCODE="-gencode=arch=compute_80,code=sm_80 -gencode=arch=compute_86,code=sm_86 -gencode=arch=compute_89,code=sm_89 -gencode=arch=compute_90,code=sm_90 -gencode=arch=compute_100,code=sm_100"
 
 ###################################################
 ## Install NCCL-tests
@@ -107,25 +100,6 @@ RUN git clone -b ${NCCL_TESTS_VERSION} https://github.com/NVIDIA/nccl-tests.git 
     CUDA_HOME=/usr/local/cuda \
     NCCL_HOME=/opt/nccl/build \
     NVCC_GENCODE="-gencode=arch=compute_80,code=sm_80 -gencode=arch=compute_86,code=sm_86 -gencode=arch=compute_89,code=sm_89 -gencode=arch=compute_90,code=sm_90 -gencode=arch=compute_100,code=sm_100"
-
-###################################################
-## Install AWS OFI NCCL
-RUN git clone -b ${AWS_OFI_NCCL_VERSION} https://github.com/aws/aws-ofi-nccl.git /opt/aws-ofi-nccl && \
-    cd /opt/aws-ofi-nccl && \
-    ./autogen.sh && \
-    ./configure \
-    --with-libfabric=/opt/amazon/efa \
-    --prefix=/opt/aws-ofi-nccl/build \
-    --with-nccl=/opt/nccl/build \
-    --with-mpi=/opt/amazon/openmpi \
-    --enable-platform-aws \
-    --with-cuda=/usr/local/cuda \
-    --enable-cudart-dynamic \
-    --disable-tests \
-    --without-lttng \
-    --without-valgrind \
-    --disable-werror && \
-    make -j $(nproc) && make install
 
 RUN rm -rf /var/lib/apt/lists/*
 

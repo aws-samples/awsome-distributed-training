@@ -1,6 +1,6 @@
 FROM nvcr.io/nvidia/nemo:25.07.00
-ARG GDRCOPY_VERSION=v2.5.1
-ARG EFA_INSTALLER_VERSION=1.43.2
+ARG GDRCOPY_VERSION=v2.5
+ARG EFA_INSTALLER_VERSION=1.47.0
 # ARG AWS_OFI_NCCL_VERSION=v1.13.2-aws    # OFI NCCL already packaged into EFA installation (/opt/amazon/ofi-nccl) cf. https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa-changelog.html
 ARG NCCL_VERSION=v2.27.7-1
 ARG NCCL_TESTS_VERSION=v2.16.9

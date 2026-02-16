@@ -1,9 +1,5 @@
 # ML Training Reference Architectures & Tests <!-- omit from toc -->
 
-> **Warning**
-> We are currently undergoing a major refactoring of this repository, particularly focused on the test cases section. If you prefer to use the previous directory structure and deprecated test cases, please refer to [v1.1.0](https://github.com/aws-samples/awsome-distributed-training/releases/tag/v1.1.0).
-
-
 This repository contains reference architectures and test cases for distributed model training with [Amazon SageMaker Hyperpod](https://docs.aws.amazon.com/sagemaker/latest/dg/sagemaker-hyperpod.html), [AWS ParallelCluster](https://docs.aws.amazon.com/parallelcluster/latest/ug/what-is-aws-parallelcluster.html), [AWS Batch](https://docs.aws.amazon.com/batch/latest/userguide/what-is-batch.html), and [Amazon EKS](https://docs.aws.amazon.com/eks/latest/userguide/getting-started-console.html). The test cases cover different types and sizes of models as well as different frameworks and parallel optimizations (Pytorch DDP/FSDP, MegatronLM, NemoMegatron...).
 
 The major components of this directory are:
@@ -25,9 +21,8 @@ You can follow the workshop below to train models on AWS. Each contains examples
 
 | Name                                                                           | Comments
 | ------------------------------------------------------------------------------ | ------------------------------------------------------------------- |
-| [Amazon SageMaker HyperPod](https://catalog.workshops.aws/sagemaker-hyperpod/en-US)   | Workshop for SageMaker HyperPod, shows how to deploy and monitor it |
+| [AI on SageMaker HyperPod](https://awslabs.github.io/ai-on-sagemaker-hyperpod/)   | Workshop for SageMaker HyperPod, shows how to deploy and monitor it |
 | [AWS ParallelCluster](https://catalog.workshops.aws/ml-on-aws-parallelcluster) | Similar workshop as HyperPod but on ParallelCluster                 |
-| [Amazon SageMaker HyperPod EKS](https://catalog.workshops.aws/sagemaker-hyperpod-eks)   | Workshop for SageMaker HyperPod EKS, shows how to deploy and monitor it |
 
 ## 1. Architectures
 
@@ -82,7 +77,7 @@ Utilities scripts and micro-benchmarks examples are set under `4.validation_scri
 | --------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
 | [`1.pytorch-env-validation`](./4.validation_and_observability/1.pytorch-env-validation) | Validates your PyTorch environment                              |
 | [`3.efa-node-exporter`](./4.validation_and_observability/3.efa-node-exporter)           | Node exporter with Amazon EFA monitoring modules                |
-| [`4.prometheus-grafana`](./4.validation_and_observability/4.prometheus-grafana)         | Deployment assets to monitor SageMaker Hyperpod Clusters        |
+| [`4.prometheus-grafana`](./4.validation_and_observability/4.prometheus-grafana)         | Monitoring for SageMaker HyperPod and EKS GPU clusters          |
 | [`5.nsight`](./4.validation_and_observability/5.nsight)                                 | Shows how to run Nvidia Nsight Systems to profile your workload |
 | [`efa-versions.py`](./1.architectures/efa-versions.py)                                  | Get the versions of Nvidia libraries, drivers and EFA drivers   |
 

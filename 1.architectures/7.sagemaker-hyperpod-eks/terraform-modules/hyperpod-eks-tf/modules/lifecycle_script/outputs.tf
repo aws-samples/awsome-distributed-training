@@ -1,9 +1,9 @@
-output "s3_object_key" {
-  description = "The key of the uploaded script in S3"
-  value       = aws_s3_object.script.key
+output "s3_object_keys" {
+  description = "Map of uploaded script keys in S3"
+  value       = { for k, v in aws_s3_object.scripts : k => v.key }
 }
 
-output "s3_object_version_id" {
-  description = "The version ID of the uploaded script (if bucket versioning is enabled)"
-  value       = aws_s3_object.script.version_id
+output "s3_object_version_ids" {
+  description = "Map of version IDs of the uploaded scripts (if bucket versioning is enabled)"
+  value       = { for k, v in aws_s3_object.scripts : k => v.version_id }
 }
