@@ -1,12 +1,10 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: MIT-0
 
-import datetime
 import functools
 import math
 import time
 
-import numpy as np
 import torch
 from torch import optim
 import torch.distributed as dist
@@ -18,7 +16,6 @@ from datasets import load_dataset
 from torch.distributed.fsdp import fully_shard, MixedPrecisionPolicy, CPUOffloadPolicy
 from torch.utils.data import DataLoader
 
-from model_utils.concat_dataset import ConcatTokensDataset
 from model_utils.train_utils import (get_model_config, 
                                    compute_num_params,
                                    get_transformer_layer,
@@ -257,7 +254,7 @@ def main(args):
     val_dataloader = create_streaming_dataloader(args.dataset, 
                                                   args.tokenizer, 
                                                   name=args.dataset_config_name, 
-                                                  batch_size=args.train_batch_size, 
+                                                  batch_size=args.val_batch_size, 
                                                   split='validation')
     
     train(model, 
