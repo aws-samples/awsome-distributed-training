@@ -63,12 +63,23 @@ run_check() {
         for code in ${xid_codes}; do
             local code_severity="MONITOR"
             local code_group="UNKNOWN"
+            # Classification aligned with NVIDIA XID Errors r590 catalog
+            # "Resolution Bucket (Immediate Action)" column
             case "${code}" in
-                64|79|81|125|154) code_severity="ISOLATE"; code_group="FATAL" ;;
-                48|63|74|94|95|126) code_severity="RESET"; code_group="RECOVERABLE" ;;
-                119|120|143) code_severity="RESET"; code_group="GSP_FIRMWARE" ;;
-                13|31|43) code_severity="MONITOR"; code_group="APP_FAULT" ;;
-                92) code_severity="MONITOR"; code_group="ECC_WARNING" ;;
+                # ISOLATE: bare-metal restart required
+                79) code_severity="ISOLATE"; code_group="RESTART_BM" ;;
+                # RESET: GPU reset or node reboot required
+                64|95|119|120|143) code_severity="RESET"; code_group="RESET_GPU" ;;
+                # RESET: workflow-driven (co-occurrence may change action)
+                48|74) code_severity="RESET"; code_group="WORKFLOW" ;;
+                # MONITOR: application restart recommended
+                13|31|94|126) code_severity="MONITOR"; code_group="RESTART_APP" ;;
+                # MONITOR: informational / ignore class
+                43|63|92) code_severity="MONITOR"; code_group="IGNORE_OR_INFO" ;;
+                # MONITOR: recovery action summary (meta-Xid, not a standalone failure)
+                154) code_severity="MONITOR"; code_group="RECOVERY_ACTION_CHANGED" ;;
+                # MONITOR: unused/deprecated codes in r590 — escalate to humans
+                81|125) code_severity="MONITOR"; code_group="CONTACT_SUPPORT" ;;
                 *) code_severity="MONITOR"; code_group="UNKNOWN" ;;
             esac
 
@@ -84,6 +95,27 @@ run_check() {
                 highest_severity="RESET"
             fi
         done
+
+        # Co-occurrence escalation: Xid 48 + (63 or 64) → DRAIN_AND_RESET
+        # Per NVIDIA WORKFLOW_XID_48 guidance
+        if echo "${xid_codes}" | grep -qw '48'; then
+            if echo "${xid_codes}" | grep -qwE '63|64'; then
+                severity_details+=", Co-occurrence: Xid 48 with 63/64 -> DRAIN_AND_RESET"
+                if [[ "${highest_severity}" != "ISOLATE" ]]; then
+                    highest_severity="RESET"
+                fi
+            fi
+        fi
+
+        # Frequency-based escalation: repeated Xid 13/31 suggests hardware correlation
+        local xid_13_31_count
+        xid_13_31_count=$(echo "${xid_errors}" | grep -cP 'Xid.*?:\s*(13|31)\b' || true)
+        if [[ "${xid_13_31_count}" -ge 5 ]]; then
+            severity_details+=", Xid 13/31 frequency: ${xid_13_31_count} occurrences -> escalate to RESET"
+            if [[ "${highest_severity}" == "MONITOR" ]]; then
+                highest_severity="RESET"
+            fi
+        fi
 
         local xid_count
         xid_count=$(echo "${xid_errors}" | wc -l | tr -d ' ')

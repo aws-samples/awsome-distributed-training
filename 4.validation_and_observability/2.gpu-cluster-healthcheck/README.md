@@ -121,16 +121,20 @@ To add a new instance type, append a line to `instance-profiles.conf`:
 Verifies basic GPU driver functionality:
 - Confirms `nvidia-smi` executes and returns zero exit code
 - Counts detected GPUs and compares against the instance profile
-- Scans `dmesg` for Xid errors with severity-aware classification:
+- Scans `dmesg` for Xid errors with severity-aware classification aligned with [NVIDIA XID Errors r590](https://docs.nvidia.com/deploy/pdf/XID_Errors.pdf):
 
-| Group | Xid Codes | Severity | Rationale |
-|---|---|---|---|
-| FATAL | 64, 79, 81, 125, 154 | ISOLATE | Permanent hardware failure, replace |
-| RECOVERABLE | 48, 63, 74, 94, 95, 126 | RESET | Hardware issue, reboot may resolve |
-| GSP_FIRMWARE | 119, 120, 143 | RESET | Firmware issue, reboot then possibly retire |
-| APP_FAULT | 13, 31, 43 | MONITOR | Possibly app-caused, debug first |
-| ECC_WARNING | 92 | MONITOR | Degrading memory, monitor |
+| Group | Xid Codes | Severity | NVIDIA r590 Action | Rationale |
+|---|---|---|---|---|
+| RESTART_BM | 79 | ISOLATE | RESTART_BM | GPU fallen off bus; bare-metal restart required |
+| RESET_GPU | 64, 95, 119, 120, 143 | RESET | RESET_GPU | GPU reset or node reboot clears the error |
+| WORKFLOW | 48, 74 | RESET | WORKFLOW_XID_48, WORKFLOW_NVLINK_ERR | Workflow-driven; co-occurrence may change action |
+| RESTART_APP | 13, 31, 94, 126 | MONITOR | RESTART_APP | Application-level fault; restart job, not node |
+| IGNORE_OR_INFO | 43, 63, 92 | MONITOR | IGNORE | Informational or normal operation |
+| RECOVERY_ACTION_CHANGED | 154 | MONITOR | Informational | Meta-Xid; co-occurring codes drive severity |
+| CONTACT_SUPPORT | 81, 125 | MONITOR | CONTACT_SUPPORT (Unused) | Deprecated/unused; escalate to humans if seen |
 
+- Co-occurrence escalation: Xid 48 with Xid 63 or 64 escalates to DRAIN_AND_RESET (per NVIDIA WORKFLOW_XID_48)
+- Frequency-based escalation: 5+ occurrences of Xid 13/31 in dmesg escalates from MONITOR to RESET
 - Scans `dmesg` for SXid (NVSwitch) errors; SXid alongside Xid 74 indicates NVSwitch root cause
 - Checks GPU persistence mode status
 - Captures GPU serial numbers and UUIDs to `gpu-uuids.csv` for asset tracking
@@ -485,9 +489,19 @@ The guiding principle is **replace, don't repair**. On AWS, the primary remediat
 - Verify PCIe ACS is disabled (can interfere with P2P): `setpci -s '*:*' ECAP_ACS+6.w`
 - Check for recent Xid errors indicating NVLink failures: `dmesg | grep -i xid`
 
-### Xid errors classified as ISOLATE
+### Xid errors classified as ISOLATE or RESET
 
-Fatal Xid codes (64, 79, 81, 125, 154) indicate permanent hardware failure and produce ISOLATE severity. The node should be drained and the instance replaced. Review `dmesg` for the specific Xid error and affected GPU:
+Xid severity classification is aligned with the [NVIDIA XID Errors r590](https://docs.nvidia.com/deploy/pdf/XID_Errors.pdf) catalog:
+
+- **ISOLATE** (Xid 79): GPU fallen off bus. Drain the node and replace the instance.
+- **RESET** (Xid 64, 95, 119, 120, 143): GPU reset or node reboot required. Reboot and re-test; escalate to replacement if recurring.
+- **RESET/WORKFLOW** (Xid 48, 74): Workflow-driven. Xid 48 with Xid 63/64 escalates to DRAIN_AND_RESET. Xid 74 with SXid indicates NVSwitch root cause.
+- **MONITOR** (Xid 13, 31, 94, 126): Application-level fault. Restart the job, not the node. 5+ occurrences of Xid 13/31 in dmesg escalates to RESET (hardware correlation).
+- **MONITOR** (Xid 43, 63, 92): Informational or normal operation. No action required.
+- **MONITOR** (Xid 154): Meta-Xid (recovery action summary). Co-occurring codes drive severity.
+- **MONITOR** (Xid 81, 125): Unused/deprecated in r590. Escalate to humans if observed.
+
+Review `dmesg` for the specific Xid error and affected GPU:
 ```bash
 dmesg | grep -i "NVRM.*Xid"
 ```
