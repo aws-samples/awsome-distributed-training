@@ -1,0 +1,39 @@
+name: "New Test Case Proposal"
+description: Propose a new distributed training test case.
+title: "[Test Case]: "
+labels: ["new-test-case"]
+body:
+  - type: input
+    id: name
+    attributes:
+      label: Test Case Name
+      description: A concise name for the proposed test case.
+      placeholder: e.g., "Llama 3.1 70B pre-training with FSDP2 on p5.48xlarge"
+    validations:
+      required: true
+  - type: input
+    id: framework
+    attributes:
+      label: Training Framework
+      description: Which training framework will this test case use?
+      placeholder: e.g., PyTorch FSDP2, Megatron-LM, NeMo, DeepSpeed, JAX
+    validations:
+      required: true
+  - type: textarea
+    id: model-task
+    attributes:
+      label: Model & Task Description
+      description: Describe the model architecture, size, and training task.
+      placeholder: |
+        - Model architecture: [e.g., Llama, GPT, Mixtral]
+        - Model size: [e.g., 7B, 70B, 405B parameters]
+        - Task: [e.g., pre-training, fine-tuning, RLHF, distillation]
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Add any other context, references, or related issues.
+    validations:
+      required: false

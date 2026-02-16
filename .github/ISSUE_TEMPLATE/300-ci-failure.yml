@@ -1,0 +1,70 @@
+name: "CI Failure Report"
+description: Report a CI/CD pipeline failure.
+title: "[CI]: "
+labels: ["ci-failure"]
+body:
+  - type: textarea
+    id: workflow
+    attributes:
+      label: Failing Workflow
+      description: Name of the failing GitHub Actions workflow.
+      placeholder: e.g., "Run Tests" or "Build and Push Container"
+    validations:
+      required: true
+  - type: textarea
+    id: job
+    attributes:
+      label: Failing Job / Matrix Entry
+      description: Which specific job or matrix configuration is failing?
+      placeholder: e.g., "test (ubuntu-latest, python-3.10)" or "build-container / p5"
+    validations:
+      required: true
+  - type: input
+    id: run-url
+    attributes:
+      label: GitHub Actions Run URL
+      description: Link to the failing GitHub Actions run.
+      placeholder: https://github.com/aws-samples/awsome-distributed-training/actions/runs/...
+    validations:
+      required: false
+  - type: dropdown
+    id: characteristics
+    attributes:
+      label: Failure Characteristics
+      description: What best describes this failure?
+      options:
+        - Consistent / always fails
+        - Flaky / intermittent
+        - Reproducible locally
+        - External dependency issue
+        - Infrastructure / runner issue
+        - Unknown
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Failure Description
+      description: Describe the failure. Include error messages and relevant context.
+      placeholder: |
+        What is failing and what error do you see?
+    validations:
+      required: true
+  - type: textarea
+    id: history
+    attributes:
+      label: Failure History
+      description: When did this start failing? Is it related to a recent change?
+      placeholder: |
+        - First noticed: [date or PR/commit]
+        - Previously passing: [yes/no/unknown]
+    validations:
+      required: false
+  - type: textarea
+    id: cc
+    attributes:
+      label: CC List
+      description: Tag relevant maintainers or contributors (optional).
+      placeholder: "@username1 @username2"
+    validations:
+      required: false

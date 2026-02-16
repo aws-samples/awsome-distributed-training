@@ -1,0 +1,63 @@
+name: "RFC (Request for Comments)"
+description: Propose a significant change for community discussion.
+title: "[RFC]: "
+labels: ["RFC"]
+body:
+  - type: markdown
+    attributes:
+      value: >
+        Use this template to propose significant changes that affect the project's
+        architecture, conventions, or direction. RFCs allow the community to provide
+        feedback before implementation begins.
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: Why is this change needed? What problem does it solve?
+      placeholder: |
+        Describe the problem or opportunity this RFC addresses.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed Change
+      description: Describe the proposed change in detail.
+      placeholder: |
+        What exactly are you proposing? Include technical details, API changes, or new conventions.
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact & Scope
+      description: What parts of the project are affected? Are there any breaking changes?
+      placeholder: |
+        - Affected areas: [e.g., test cases, architectures, CI/CD]
+        - Breaking changes: [yes/no — describe if yes]
+        - Migration needed: [yes/no — describe if yes]
+    validations:
+      required: false
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: What other approaches were considered and why were they not chosen?
+    validations:
+      required: false
+  - type: input
+    id: feedback-period
+    attributes:
+      label: Feedback Period
+      description: How long should the community have to provide feedback?
+      placeholder: e.g., 2 weeks
+    validations:
+      required: false
+  - type: textarea
+    id: cc
+    attributes:
+      label: CC List
+      description: Tag relevant maintainers or contributors for review (optional).
+      placeholder: "@username1 @username2"
+    validations:
+      required: false

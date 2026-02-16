@@ -1,0 +1,21 @@
+name: "Documentation Issue"
+description: Report an issue or improvement for project documentation.
+title: "[Docs]: "
+labels: ["documentation"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Documentation Issue
+      description: Describe the documentation issue or improvement.
+      placeholder: What is wrong or missing in the documentation?
+    validations:
+      required: true
+  - type: textarea
+    id: suggested-fix
+    attributes:
+      label: Suggested Fix
+      description: If you have a suggestion for how to fix the issue, describe it here.
+      placeholder: How should this be fixed?
+    validations:
+      required: false
