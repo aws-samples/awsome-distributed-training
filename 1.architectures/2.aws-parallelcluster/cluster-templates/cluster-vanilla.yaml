@@ -28,8 +28,8 @@ HeadNode:
         - Script: 'https://raw.githubusercontent.com/aws-samples/aws-parallelcluster-post-install-scripts/main/docker/postinstall.sh'
         - Script: 'https://raw.githubusercontent.com/aws-samples/aws-parallelcluster-post-install-scripts/main/nccl/postinstall.sh'
           Args:
-            - v2.26.6-1 # NCCL version
-            - v1.14.2   # AWS OFI NCCL version
+            - v2.27.7-1 # NCCL version
+            - v1.16.3   # AWS OFI NCCL version
         - Script: 'https://raw.githubusercontent.com/aws-samples/aws-parallelcluster-post-install-scripts/main/pyxis/postinstall.sh'
   Imds:
     Secured: false
@@ -74,8 +74,8 @@ Scheduling:
             - Script: 'https://raw.githubusercontent.com/aws-samples/aws-parallelcluster-post-install-scripts/main/docker/postinstall.sh'
             - Script: 'https://raw.githubusercontent.com/aws-samples/aws-parallelcluster-post-install-scripts/main/nccl/postinstall.sh'
               Args:
-                - v2.26.6-1 # NCCL version
-                - v1.14.2   # AWS OFI NCCL version
+                - v2.27.7-1 # NCCL version
+                - v1.16.3   # AWS OFI NCCL version
         OnNodeStart:
           Sequence:
             - Script: 'https://raw.githubusercontent.com/aws-samples/aws-parallelcluster-post-install-scripts/main/pyxis/postinstall.sh'
