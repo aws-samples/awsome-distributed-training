@@ -34,5 +34,3 @@
 - [ ] The contribution is self-contained with documentation and scripts.
 - [ ] External dependencies are pinned to a specific version or tag (no `latest`).
 - [ ] A README is included or updated with prerequisites, instructions, and known issues.
-- [ ] Scripts are numbered in sequence of usage order (e.g., `0.setup.sh`, `1.train.sh`).
-- [ ] Changes have been tested at the target scale.
