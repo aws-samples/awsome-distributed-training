@@ -24,8 +24,9 @@ SEVERITY_MAP = {
 
 # Action mapping for each severity level
 ACTIONS = {
-    "ISOLATE": "Drain node from Slurm, initiate replacement",
-    "RESET":   "Reboot node, rerun lightweight suite",
+    "ISOLATE": "Drain node from Slurm, initiate instance replacement",
+    "REBOOT":  "Drain/cordon node, reboot (scontrol reboot nextstate=resume)",
+    "RESET":   "Attempt GPU reset via nvidia-smi --gpu-reset",
     "MONITOR": "Keep in service, flag for review",
     "PASS":    "No action required",
 }

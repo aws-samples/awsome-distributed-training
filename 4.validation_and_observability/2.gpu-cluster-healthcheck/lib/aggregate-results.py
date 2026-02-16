@@ -16,7 +16,8 @@ import os
 from datetime import datetime, timezone
 
 SEVERITY_PRIORITY = {
-    "ISOLATE": 3,
+    "ISOLATE": 4,
+    "REBOOT": 3,
     "RESET": 2,
     "MONITOR": 1,
     "PASS": 0,
@@ -25,8 +26,9 @@ SEVERITY_PRIORITY = {
 }
 
 ACTIONS = {
-    "ISOLATE": "Drain node from Slurm, initiate replacement",
-    "RESET":   "Reboot node, rerun lightweight suite",
+    "ISOLATE": "Drain node from Slurm, initiate instance replacement",
+    "REBOOT":  "Drain/cordon node, reboot (scontrol reboot nextstate=resume)",
+    "RESET":   "Attempt GPU reset via nvidia-smi --gpu-reset",
     "MONITOR": "Keep in service, flag for review",
     "PASS":    "No action required",
 }

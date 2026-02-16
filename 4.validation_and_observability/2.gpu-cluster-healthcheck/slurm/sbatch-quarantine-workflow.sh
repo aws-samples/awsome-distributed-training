@@ -106,8 +106,8 @@ try:
     # Check individual check results for severity
     import glob, os
     max_sev = 0
-    sev_map = {'ISOLATE': 3, 'RESET': 2, 'MONITOR': 1, 'PASS': 0}
-    rev_map = {3: 'ISOLATE', 2: 'RESET', 1: 'MONITOR', 0: 'PASS'}
+    sev_map = {'ISOLATE': 4, 'REBOOT': 3, 'RESET': 2, 'MONITOR': 1, 'PASS': 0}
+    rev_map = {4: 'ISOLATE', 3: 'REBOOT', 2: 'RESET', 1: 'MONITOR', 0: 'PASS'}
     for f in glob.glob(os.path.join('${LIGHTWEIGHT_DIR}', 'check-*.json')):
         with open(f) as fh:
             r = json.load(fh)
@@ -146,6 +146,31 @@ ENDJSON
         echo "Action: Replace instance (do not attempt repair)"
         echo "Results: ${JOB_RESULTS_DIR}"
         exit 1
+        ;;
+
+    REBOOT)
+        echo ""
+        echo "╔══════════════════════════════════════════════════════════════╗"
+        echo "║  SEVERITY: REBOOT -- Node reboot required                   ║"
+        echo "║  Proceeding to intensive suite after reboot check           ║"
+        echo "╚══════════════════════════════════════════════════════════════╝"
+
+        cat > "${JOB_RESULTS_DIR}/recommendation.json" <<ENDJSON
+{
+  "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+  "hostname": "${HOSTNAME}",
+  "phase_completed": "lightweight",
+  "overall_result": "FAIL",
+  "severity": "REBOOT",
+  "recommendation": "REBOOT_NODE",
+  "action": "scontrol reboot nextstate=resume ${HOSTNAME}",
+  "evidence": "${LIGHTWEIGHT_DIR}"
+}
+ENDJSON
+
+        echo ""
+        echo "Severity: REBOOT -- proceeding to intensive suite after reboot check"
+        echo ""
         ;;
 
     MONITOR)

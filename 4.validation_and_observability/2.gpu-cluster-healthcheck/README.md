@@ -86,12 +86,13 @@ The suite organizes checks into two suites based on operational impact and runti
 
 ### Severity Classification
 
-All check results are classified into three severity levels that map directly to operational actions:
+All check results are classified into four severity levels that map directly to operational actions:
 
 | Severity | Meaning | Action |
 |----------|---------|--------|
-| **ISOLATE** | Critical hardware fault confirmed | Drain node from Slurm, initiate instance replacement |
-| **RESET** | Potentially recoverable issue | Reboot node, rerun lightweight suite |
+| **ISOLATE** | Critical hardware fault confirmed | Drain node, initiate instance replacement |
+| **REBOOT** | Node reboot required to clear error | Drain/cordon node, reboot (`scontrol reboot nextstate=resume`) |
+| **RESET** | GPU reset may resolve the issue | Attempt GPU reset (`nvidia-smi --gpu-reset`); may require power-cycle |
 | **MONITOR** | Minor anomaly, not service-affecting | Keep in service, flag for review |
 
 ## Instance Profiles
@@ -121,21 +122,32 @@ To add a new instance type, append a line to `instance-profiles.conf`:
 Verifies basic GPU driver functionality:
 - Confirms `nvidia-smi` executes and returns zero exit code
 - Counts detected GPUs and compares against the instance profile
-- Scans `dmesg` for Xid errors with severity-aware classification aligned with [NVIDIA XID Errors r590](https://docs.nvidia.com/deploy/pdf/XID_Errors.pdf):
+- Scans kernel log (`journalctl -k` with `dmesg` fallback) for Xid errors with severity-aware classification aligned with [NVIDIA XID Errors r590](https://docs.nvidia.com/deploy/pdf/XID_Errors.pdf):
 
 | Group | Xid Codes | Severity | NVIDIA r590 Action | Rationale |
 |---|---|---|---|---|
-| RESTART_BM | 79 | ISOLATE | RESTART_BM | GPU fallen off bus; bare-metal restart required |
-| RESET_GPU | 64, 95, 119, 120, 143 | RESET | RESET_GPU | GPU reset or node reboot clears the error |
-| WORKFLOW | 48, 74 | RESET | WORKFLOW_XID_48, WORKFLOW_NVLINK_ERR | Workflow-driven; co-occurrence may change action |
+| CHECK_MECHANICALS | 54 | ISOLATE | CHECK_MECHANICALS | Hardware / mechanical fault detected |
+| RESTART_BM | 79 | REBOOT | RESTART_BM | GPU fallen off bus; bare-metal restart required |
+| RESTART_VM | 151 | REBOOT | RESTART_VM | VM restart required |
+| BOOT_REATTEMPT | 168 | REBOOT | BOOT_REATTEMPT_OR_ENABLE_ECC | Boot reattempt or enable ECC |
+| WORKFLOW_XID_48 | 48 | RESET | WORKFLOW_XID_48 | Workflow-driven; Xid 154 parsing may escalate |
+| DRAM_RETIREMENT | 64 | RESET (A100→REBOOT) | RESET_GPU | DRAM retirement failure; A100 needs reboot |
+| RESET_GPU | 95 | RESET (A100+MIG_off→REBOOT) | RESET_GPU | GPU reset required; A100 w/o MIG needs reboot |
+| RESET_GPU | 109, 110, 119, 120, 136, 140, 143, 155, 156, 158 | RESET | RESET_GPU | GPU reset or node reboot clears the error |
+| WORKFLOW_NVLINK | 74 | `NVLINK_DEFAULT` | WORKFLOW_NVLINK_ERR | NVLink error; configurable (default: RESET) |
+| WORKFLOW_NVLINK5 | 144-150 | `NVLINK5_DEFAULT` | WORKFLOW_NVLINK5_ERR | Blackwell NVLink5; configurable (default: MONITOR) |
+| CHECK_UVM | 159 | RESET if UVM in use, else MONITOR | CHECK_UVM | C2C/CHI UVM error; conditional |
+| PSHC_INFO | 162, 163 | MONITOR | PSHC_INFO | PSHC informational |
+| PSHC_LOW_LIFETIME | 164 | MONITOR | PSHC_LOW_LIFETIME | PSHC low lifetime warning |
+| PSHC_ZERO_LIFETIME | 165 | MONITOR (`STRICT_PSHC=1`→ISOLATE) | PSHC_ZERO_LIFETIME | PSHC zero lifetime; strict mode isolates |
 | RESTART_APP | 13, 31, 94, 126 | MONITOR | RESTART_APP | Application-level fault; restart job, not node |
-| IGNORE_OR_INFO | 43, 63, 92 | MONITOR | IGNORE | Informational or normal operation |
-| RECOVERY_ACTION_CHANGED | 154 | MONITOR | Informational | Meta-Xid; co-occurring codes drive severity |
-| CONTACT_SUPPORT | 81, 125 | MONITOR | CONTACT_SUPPORT (Unused) | Deprecated/unused; escalate to humans if seen |
+| IGNORE | 43, 63, 92, 121 | MONITOR | IGNORE | Informational or normal operation |
+| XID_154_INFO | 154 | MONITOR (+ derived action parsing) | Informational | Meta-Xid; derived action text may escalate to REBOOT or RESET |
+| CONTACT_SUPPORT | 81, 125, 157 | MONITOR | CONTACT_SUPPORT | Deprecated/unused; escalate to humans if seen |
 
-- Co-occurrence escalation: Xid 48 with Xid 63 or 64 escalates to DRAIN_AND_RESET (per NVIDIA WORKFLOW_XID_48)
-- Frequency-based escalation: 5+ occurrences of Xid 13/31 in dmesg escalates from MONITOR to RESET
-- Scans `dmesg` for SXid (NVSwitch) errors; SXid alongside Xid 74 indicates NVSwitch root cause
+- **Xid 154 derived action parsing**: Xid 154 lines carry authoritative recovery action text. The check parses for "Node Reboot Required" (→REBOOT), "GPU Reset Required" / "Drain and Reset" / "Drain P2P" (→RESET). Unrecognized or "(None)" stays MONITOR.
+- **Tunables**: `KERNEL_LOG_LINES` (default: 4000), `NVIDIA_LOG_TAIL` (default: 200), `STRICT_PSHC` (default: 0), `NVLINK5_DEFAULT` (default: MONITOR), `NVLINK_DEFAULT` (default: RESET). NVLink tunables accept MONITOR, RESET, or REBOOT.
+- Scans kernel log for SXid (NVSwitch) errors; SXid alongside Xid 74 indicates NVSwitch root cause
 - Checks GPU persistence mode status
 - Captures GPU serial numbers and UUIDs to `gpu-uuids.csv` for asset tracking
 
@@ -314,9 +326,9 @@ DCGM diagnostic results include a `warning_level` field per test per GPU:
 
 | Warning Level | Severity | Action |
 |--------------|----------|--------|
-| 3 | **ISOLATE** | Drain node, initiate instance replacement |
-| 2 | **RESET** | Reboot node, rerun lightweight suite |
-| 1 | **MONITOR** | Keep in service, log for review |
+| 3 | **ISOLATE** | Drain node from Slurm, initiate instance replacement |
+| 2 | **RESET** | Attempt GPU reset via `nvidia-smi --gpu-reset` |
+| 1 | **MONITOR** | Keep in service, flag for review |
 | 0 | **PASS** | No action required |
 
 The `parse-dcgm-results.py` script converts raw DCGM JSON into this classification automatically.
@@ -422,17 +434,17 @@ The recommended operational workflow for handling suspected GPU issues:
      │ Return to│    │Check Severity│
      │ Service  │    └──────┬───────┘
      └──────────┘           │
-                    ┌───────┼──────┐
-                    │       │      │
-              ISOLATE   RESET   MONITOR
-                    │       │      │
-                    ▼       ▼      ▼
-              ┌────────┐ ┌─────┐ ┌────────┐
-              │Replace │ │Reboot│ │Return +│
-              │Instance│ │Node  │ │ Flag   │
-              └────────┘ └──┬──┘ └────────┘
-                            │
-                            ▼
+                 ┌──────┬───┴────┬───────┐
+                 │      │        │       │
+            ISOLATE  REBOOT   RESET   MONITOR
+                 │      │        │       │
+                 ▼      ▼        ▼       ▼
+           ┌────────┐ ┌──────┐ ┌─────┐ ┌────────┐
+           │Replace │ │Reboot│ │GPU  │ │Return +│
+           │Instance│ │Node  │ │Reset│ │ Flag   │
+           └────────┘ └──┬───┘ └──┬──┘ └────────┘
+                         │        │
+                         ▼        ▼
                      ┌─────────────┐
                      │ Intensive   │  gpu-healthcheck.sh --suite intensive
                      │ Suite (4-6) │
@@ -489,21 +501,20 @@ The guiding principle is **replace, don't repair**. On AWS, the primary remediat
 - Verify PCIe ACS is disabled (can interfere with P2P): `setpci -s '*:*' ECAP_ACS+6.w`
 - Check for recent Xid errors indicating NVLink failures: `dmesg | grep -i xid`
 
-### Xid errors classified as ISOLATE or RESET
+### Xid errors classified as ISOLATE, REBOOT, or RESET
 
-Xid severity classification is aligned with the [NVIDIA XID Errors r590](https://docs.nvidia.com/deploy/pdf/XID_Errors.pdf) catalog:
+Xid severity classification is aligned with the [NVIDIA XID Errors r590](https://docs.nvidia.com/deploy/pdf/XID_Errors.pdf) catalog. The four severity tiers are:
 
-- **ISOLATE** (Xid 79): GPU fallen off bus. Drain the node and replace the instance.
-- **RESET** (Xid 64, 95, 119, 120, 143): GPU reset or node reboot required. Reboot and re-test; escalate to replacement if recurring.
-- **RESET/WORKFLOW** (Xid 48, 74): Workflow-driven. Xid 48 with Xid 63/64 escalates to DRAIN_AND_RESET. Xid 74 with SXid indicates NVSwitch root cause.
-- **MONITOR** (Xid 13, 31, 94, 126): Application-level fault. Restart the job, not the node. 5+ occurrences of Xid 13/31 in dmesg escalates to RESET (hardware correlation).
-- **MONITOR** (Xid 43, 63, 92): Informational or normal operation. No action required.
-- **MONITOR** (Xid 154): Meta-Xid (recovery action summary). Co-occurring codes drive severity.
-- **MONITOR** (Xid 81, 125): Unused/deprecated in r590. Escalate to humans if observed.
+- **ISOLATE** (Xid 54; Xid 165 with `STRICT_PSHC=1`): Critical hardware fault. Drain the node and replace the instance.
+- **REBOOT** (Xid 79, 151, 168; Xid 64 on A100; Xid 95 on A100 w/o MIG): Node reboot required. Reboot and re-test; escalate to replacement if recurring.
+- **RESET** (Xid 48, 109, 110, 119, 120, 136, 140, 143, 155, 156, 158; Xid 64, 95 on non-A100): GPU reset required. Attempt `nvidia-smi --gpu-reset`; may require power-cycle.
+- **MONITOR** (Xid 13, 31, 43, 63, 81, 92, 94, 121, 125, 126, 154, 157, 162-164): Application-level fault or informational. No node action required.
 
-Review `dmesg` for the specific Xid error and affected GPU:
+Xid 154 carries authoritative recovery action text — the check parses it for "Node Reboot Required" (→REBOOT) or "GPU Reset Required" / "Drain and Reset" / "Drain P2P" (→RESET).
+
+Review kernel log for the specific Xid error and affected GPU:
 ```bash
-dmesg | grep -i "NVRM.*Xid"
+journalctl -k | grep -i "NVRM.*Xid"
 ```
 
 ### NVLink error counters show non-zero values
