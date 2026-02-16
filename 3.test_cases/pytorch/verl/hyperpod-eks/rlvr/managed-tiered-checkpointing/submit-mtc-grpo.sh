@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
 set -xeuo pipefail
 
+# Load environment variables
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/../setup/env_vars"
+
 # Project configuration
-project_name='GRPO'
-exp_name="GRPO-${MODEL_NAME}"
+project_name='verl_grpo_example_gsm8k'
+exp_name='qwen3_0.6b_function_rm'
 
 # GRPO Algorithm parameters
 adv_estimator=grpo
@@ -20,38 +24,32 @@ filter_overlong_prompts=True
 truncation='error'
 
 # Training configuration
-train_prompt_bsz=${TRAIN_BATCH_SIZE:-32}  # Reduced from 256 for faster testing
+train_prompt_bsz=${TRAIN_BATCH_SIZE:-32}  # Total batch size
 gen_prompt_bsz=${GEN_BATCH_SIZE:-$train_prompt_bsz}
-n_resp_per_prompt=${N_RESP_PER_PROMPT:-2}  # Reduced from 5 for faster testing
-train_prompt_mini_bsz=16  # Must be <= train_prompt_bsz
+n_resp_per_prompt=${N_RESP_PER_PROMPT:-5}
+train_prompt_mini_bsz=32  # Must be <= train_batch_size
 train_prompt_micro_bsz_per_gpu=1
 
-# Ray configuration from env_vars
+# Ray configuration
 RAY_ADDRESS=${RAY_ADDRESS:-"http://localhost:8265"}
-WORKING_DIR=${WORKING_DIR:-"${PWD}"}
-# RUNTIME_ENV=${RUNTIME_ENV:-"${WORKING_DIR}/verl/trainer/runtime_env.yaml"}
 
-# Cluster configuration from env_vars
+# Cluster configuration
 NNODES=${NUM_NODES:-4}
-GPUS_PER_NODE=${NUM_GPU_PER_NODE:-8}
+GPUS_PER_NODE=${NUM_GPU_PER_NODE:-4}
 
-# Model and data paths from env_vars
-MODEL_NAME=${MODEL_NAME:-"Qwen3-8B"}
-MODEL_PATH=${MODEL_PATH:-"Qwen/Qwen3-8B"}
+# Model and data paths
+MODEL_PATH=${MODEL_PATH:-"Qwen/Qwen3-0.6B"}
 RAY_DATA_HOME=${RAY_DATA_HOME:-"/fsx/verl"}
-CKPTS_DIR="${RAY_DATA_HOME}/ckpts/${project_name}/${exp_name}"
 
 # Data files - using GSM8K dataset
 TRAIN_FILE="${RAY_DATA_HOME}/data/gsm8k/train.parquet"
 TEST_FILE="${RAY_DATA_HOME}/data/gsm8k/test.parquet"
 
-# S3 checkpoint configuration (for managed tiered checkpointing)
-S3_CHECKPOINT_BASE=${S3_CHECKPOINT_BASE:-"s3://sagemaker-mvincig-rlvr-e66849d3-bucket/checkpoints"}
-CHECKPOINT_NAMESPACE="${exp_name}-$(date +%s)"
-
-# Checkpoint configuration
-CHECKPOINT_ASYNC_SAVE=True  # Enable async checkpointing
-CHECKPOINT_SAVE_TO_S3_FREQ=5  # Save to S3 every N steps (in addition to in-memory)
+# S3 checkpoint configuration for Managed Tiered Checkpointing (MTC)
+# MTC enables asynchronous checkpointing to CPU memory with automatic background sync to S3
+# This reduces checkpoint overhead during training and provides faster recovery
+# Learn more: https://docs.aws.amazon.com/sagemaker/latest/dg/managed-tier-checkpointing.html
+S3_CHECKPOINT_BASE=${S3_CHECKPOINT_BASE:?Error: S3_CHECKPOINT_BASE not set. Please configure in env_vars file.}
 
 # Performance parameters
 gen_tp=2
@@ -64,21 +62,21 @@ optimizer_offload=False
 ref_param_offload=True
 
 # Print configuration for verification
-echo "=== GRPO Training Configuration ==="
+echo "=== MTC GRPO Training Configuration ==="
 echo "Project: ${project_name}"
 echo "Experiment: ${exp_name}"
-echo "Model: ${MODEL_NAME} (${MODEL_PATH})"
+echo "Model: ${MODEL_PATH}"
 echo "Nodes: ${NNODES}"
 echo "GPUs per node: ${GPUS_PER_NODE}"
 echo "Total GPUs: $((NNODES * GPUS_PER_NODE))"
 echo "Data home: ${RAY_DATA_HOME}"
-echo "Checkpoints: ${CKPTS_DIR}"
 echo "S3 Checkpoints: ${S3_CHECKPOINT_BASE}"
 echo "Ray address: ${RAY_ADDRESS}"
 echo "=================================="
 
 # Submit Ray job
 ray job submit --no-wait \
+    --address "${RAY_ADDRESS}" \
     --working-dir "${WORKING_DIR}" \
     -- python3 -m verl.trainer.main_ppo \
     algorithm.adv_estimator=${adv_estimator} \
@@ -102,6 +100,12 @@ ray job submit --no-wait \
     actor_rollout_ref.actor.entropy_coeff=${entropy_coeff} \
     actor_rollout_ref.actor.fsdp_config.param_offload=${param_offload} \
     actor_rollout_ref.actor.fsdp_config.optimizer_offload=${optimizer_offload} \
+    # MTC Configuration: S3 base path for tiered checkpoint storage
+    # Checkpoints are first saved to CPU memory, then asynchronously synced to S3
+    actor_rollout_ref.actor.checkpoint.s3_base_path=${S3_CHECKPOINT_BASE} \
+    # MTC Configuration: Unique namespace for this training job
+    # Used to organize checkpoints in S3 and enable recovery
+    actor_rollout_ref.actor.checkpoint.ckpt_namespace=mtc-grpo-$(date +%s) \
     actor_rollout_ref.rollout.log_prob_micro_batch_size_per_gpu=${log_prob_micro_bsz_per_gpu} \
     actor_rollout_ref.rollout.tensor_model_parallel_size=${gen_tp} \
     actor_rollout_ref.rollout.name=vllm \
@@ -116,7 +120,12 @@ ray job submit --no-wait \
     trainer.experiment_name="${exp_name}" \
     trainer.n_gpus_per_node=${GPUS_PER_NODE} \
     trainer.nnodes=${NNODES} \
-    trainer.default_local_dir="${CKPTS_DIR}" \
     trainer.save_freq=1 \
     trainer.test_freq=2 \
-    trainer.total_epochs=2 
+    trainer.total_epochs=5 \
+    # MTC Configuration: S3 base path for trainer-level checkpoints (e.g., critic)
+    trainer.s3_base_path=${S3_CHECKPOINT_BASE}
+
+echo ""
+echo "Job submitted! Check status with: ray job status <job-id>"
+echo "Or view logs with: ray job logs <job-id> --follow"

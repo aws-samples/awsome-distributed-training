@@ -23,6 +23,8 @@ export VERL_HOME="fsx/verl"
 export RAY_DASHBOARD_PORT=8265 # Local port for Ray dashboard (forwarded from cluster)
 export RAY_ADDRESS="http://localhost:${RAY_DASHBOARD_PORT}"
 export WORKING_DIR="$(pwd)/verl"
+export RAY_NAMESPACE="default"  # Namespace where RayCluster runs
+
 
 # Job Env Vars (using NUM_NODES for consistency)
 export HF_TOKEN=<your-huggingface-token>
@@ -31,16 +33,16 @@ export NCCL_DEBUG=INFO
 # Memory optimization settings
 export RAY_memory_usage_threshold=0.85
 
-# Add these to reduce I/O pressure
-export TRAIN_BATCH_SIZE=32    # Reduced from 512
-export GEN_BATCH_SIZE=384      # Reduced from 1536
-export N_RESP_PER_PROMPT=2     # Reduced from 16
+# Training parameters
+export TRAIN_BATCH_SIZE=32    
+export GEN_BATCH_SIZE=384      
+export N_RESP_PER_PROMPT=2     
 
-# Observability with HyperPod - Amazon Managed Prometheus & Grafana
-export AMP_WORKSPACE_ID="ws-xxxxxxxxxxxxxxxxx"
-export AMP_ENDPOINT="https://aps-workspaces.${AWS_REGION}.amazonaws.com/workspaces/${AMP_WORKSPACE_ID}"
-export GRAFANA_WORKSPACE_ID="g-xxxxxxxxxxxxxxxxx"
-export GRAFANA_ENDPOINT="https://${GRAFANA_WORKSPACE_ID}.grafana-workspace.${AWS_REGION}.amazonaws.com"
-export CLUSTER_ID="<your-cluster-id>"
-export CLUSTER_NAME="<your-cluster-name>"
-export RAY_NAMESPACE="default"  # Namespace where RayCluster runs
+# Managed Tiered Checkpointing with HyperPod
+# S3 checkpoint configuration
+export S3_BUCKET_NAME="<your S3 bucket name>"
+export S3_BUCKET_ARN="arn:aws:s3:::${S3_BUCKET_NAME}"
+export S3_CHECKPOINT_BASE="s3://${S3_BUCKET_NAME}/checkpoints"
+
+
+
