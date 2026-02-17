@@ -4,6 +4,17 @@ This directory contains Claude Code compatible commands for managing Docker imag
 
 ## Available Commands
 
+### Command Overview
+
+| Command | Purpose | Key Features |
+|---------|---------|--------------|
+| `build_docker_image` | Build Docker images | Auto-conflict detection, multi-attempt builds |
+| `test_docker_image` | Test Docker images | CodeBuild/local testing, multiple test levels |
+| `manage_eks_cluster` | Manage EKS clusters | Auto-discovery, validation, auto-fix |
+| `deploy_training_job` | Deploy training jobs | PyTorchJob/Ray support, auto-monitoring |
+| `manage_pytorchjob` | Manage PyTorchJobs | CRUD operations, status monitoring |
+| `monitor_training` | Monitor training jobs | Real-time logs, metrics collection |
+
 ### 1. build_docker_image
 Build Docker images with automatic conflict detection and resolution.
 
@@ -180,6 +191,181 @@ deploy_training_job(
 )
 ```
 
+### 5. manage_pytorchjob
+Manage PyTorchJobs with operations for create, delete, list, and status monitoring.
+
+```python
+manage_pytorchjob(
+    action="list",                 # create, delete, list, status
+    job_name=None,                 # Required for create/delete/status
+    namespace="default",
+    image_uri=None,                # Required for create
+    instance_type="ml.g5.8xlarge", # Required for create
+    num_nodes=4,                   # Required for create
+    gpu_per_node=1,                # Required for create
+    cluster_name=None,             # Required for create
+    torchrun_path="/opt/conda/bin/torchrun",
+    hf_token=None,
+    wait=False,                    # Wait for job completion
+    timeout=3600                   # Timeout in seconds
+)
+```
+
+**Actions:**
+- **create** - Create a new PyTorchJob
+- **delete** - Delete an existing PyTorchJob
+- **list** - List all PyTorchJobs in namespace
+- **status** - Get detailed status of a specific job
+
+**Key Features:**
+- ✅ **CRUD operations** - Full lifecycle management of PyTorchJobs
+- ✅ **Auto-discovery** - Auto-detect cluster and image if not specified
+- ✅ **Status monitoring** - Real-time status with pod conditions
+- ✅ **Namespace support** - Work across different Kubernetes namespaces
+- ✅ **Resource validation** - Validate resources before job creation
+
+**Examples:**
+```python
+# List all PyTorchJobs
+manage_pytorchjob(action="list")
+
+# Create a new PyTorchJob
+manage_pytorchjob(
+    action="create",
+    job_name="my-training-job",
+    image_uri="975049888767.dkr.ecr.us-west-2.amazonaws.com/fsdp:latest",
+    instance_type="ml.g5.8xlarge",
+    num_nodes=4,
+    cluster_name="my-cluster",
+    wait=True
+)
+
+# Get job status
+manage_pytorchjob(
+    action="status",
+    job_name="my-training-job"
+)
+
+# Delete a job
+manage_pytorchjob(
+    action="delete",
+    job_name="my-training-job"
+)
+
+# Create with HuggingFace token
+manage_pytorchjob(
+    action="create",
+    job_name="llama-training",
+    num_nodes=8,
+    hf_token="hf_...",
+    wait=True
+)
+```
+
+### 6. monitor_training
+Monitor training jobs with real-time logs, metrics tracking, and status updates.
+
+```python
+monitor_training(
+    job_name,                      # Required: Job to monitor
+    namespace="default",
+    follow_logs=True,              # Stream logs in real-time
+    metrics_interval=10,           # Metrics collection interval (seconds)
+    timeout=None,                  # Monitoring timeout (None = indefinite)
+    save_metrics=True,             # Save metrics to file
+    metrics_file=None,             # Custom metrics file path
+    alert_on_failure=True          # Alert when job fails
+)
+```
+
+**Key Features:**
+- ✅ **Real-time log streaming** - Live logs from all worker pods
+- ✅ **Metrics collection** - Track loss, throughput, GPU utilization
+- ✅ **Multi-pod monitoring** - Monitor all workers simultaneously
+- ✅ **Persistent metrics** - Save training metrics to JSON/CSV
+- ✅ **Failure detection** - Automatic alerts on job failures
+- ✅ **Resource tracking** - Monitor CPU, memory, GPU usage
+
+**Metrics Tracked:**
+- Training loss (per batch and epoch)
+- Samples per second (throughput)
+- GPU utilization (if nvidia-smi available)
+- Memory usage
+- Job phase transitions
+- Pod status and conditions
+
+**Examples:**
+```python
+# Basic monitoring with log streaming
+monitor_training(job_name="my-training-job")
+
+# Monitor with custom timeout and metrics saving
+monitor_training(
+    job_name="my-training-job",
+    timeout=3600,
+    save_metrics=True,
+    metrics_file="./training_metrics.json"
+)
+
+# Monitor without log streaming (metrics only)
+monitor_training(
+    job_name="my-training-job",
+    follow_logs=False,
+    metrics_interval=30
+)
+
+# Monitor with alerts disabled
+monitor_training(
+    job_name="my-training-job",
+    alert_on_failure=False
+)
+```
+
+## Sub-Skills Integration
+
+The `deploy_training_job` command now integrates with sub-skills for enhanced functionality:
+
+### Integration with manage_pytorchjob
+When deploying a training job, `deploy_training_job` can leverage `manage_pytorchjob` for:
+- **Pre-deployment validation** - Verify cluster resources and image availability
+- **Job lifecycle management** - Create, monitor, and cleanup jobs
+- **Status checking** - Validate job status before and after deployment
+
+### Integration with monitor_training
+After deployment, `deploy_training_job` automatically invokes `monitor_training` when `monitor=True`:
+- **Seamless monitoring** - No separate monitoring command needed
+- **Automatic metrics collection** - Training metrics captured from start
+- **Failure detection** - Immediate alerts if deployment fails
+
+### Usage with Sub-Skills
+```python
+# Deploy with automatic monitoring (uses monitor_training sub-skill)
+deploy_training_job(
+    job_name="llama32-1b-training",
+    num_nodes=4,
+    cluster_name="my-cluster",
+    monitor=True  # Automatically invokes monitor_training
+)
+
+# Deploy then manually manage with manage_pytorchjob
+deploy_training_job(
+    job_name="llama32-1b-training",
+    num_nodes=4,
+    cluster_name="my-cluster",
+    monitor=False  # Skip auto-monitoring
+)
+
+# Later: Check status using manage_pytorchjob
+manage_pytorchjob(action="status", job_name="llama32-1b-training")
+
+# Later: Monitor manually using monitor_training
+monitor_training(
+    job_name="llama32-1b-training",
+    follow_logs=True,
+    save_metrics=True
+)
+```
+
 ## Torchrun Configuration
 
 The training job deployer automatically configures torchrun for distributed training:
@@ -224,6 +410,7 @@ dist.init_process_group(
 
 ## Complete Workflow Example
 
+### Basic Workflow
 ```python
 # 1. Build Docker image
 build_docker_image(auto_fix=True)
@@ -234,7 +421,7 @@ manage_eks_cluster(
     auto_fix=True
 )
 
-# 3. Deploy training job
+# 3. Deploy training job with monitoring
 deploy_training_job(
     job_name="llama32-1b-training",
     num_nodes=4,
@@ -243,10 +430,62 @@ deploy_training_job(
     monitor=True,
     auto_retry=True
 )
+```
 
-# 4. Check job status (in another session)
-# kubectl get pytorchjobs
-# kubectl logs -f llama32-1b-training-worker-0
+### Advanced Workflow with Sub-Skills
+```python
+# 1. Build and test Docker image
+build_docker_image(auto_fix=True)
+test_docker_image(level="standard", wait=True)
+
+# 2. Validate EKS cluster
+manage_eks_cluster(
+    cluster_name="sagemaker-test-cluster",
+    auto_fix=True
+)
+
+# 3. Create PyTorchJob using manage_pytorchjob
+manage_pytorchjob(
+    action="create",
+    job_name="llama32-1b-training",
+    image_uri="975049888767.dkr.ecr.us-west-2.amazonaws.com/fsdp:latest",
+    instance_type="ml.g5.8xlarge",
+    num_nodes=4,
+    cluster_name="sagemaker-test-cluster",
+    hf_token="hf_...",
+    wait=False  # Don't wait, we'll monitor separately
+)
+
+# 4. Monitor training with metrics collection
+monitor_training(
+    job_name="llama32-1b-training",
+    follow_logs=True,
+    save_metrics=True,
+    metrics_file="./llama32_1b_metrics.json",
+    timeout=7200  # 2 hour timeout
+)
+
+# 5. Check job status anytime
+manage_pytorchjob(action="status", job_name="llama32-1b-training")
+
+# 6. List all jobs
+manage_pytorchjob(action="list")
+
+# 7. Cleanup when done
+manage_pytorchjob(action="delete", job_name="llama32-1b-training")
+```
+
+### Monitoring an Existing Job
+```python
+# Check status of running job
+manage_pytorchjob(action="status", job_name="llama32-1b-training")
+
+# Stream logs from running job
+monitor_training(
+    job_name="llama32-1b-training",
+    follow_logs=True,
+    metrics_interval=5
+)
 ```
 
 ## Training Results
