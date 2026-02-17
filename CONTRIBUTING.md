@@ -21,6 +21,14 @@ reported the issue. Please try to include as much information as you can. Detail
 
 
 ## Contributing via Pull Requests
+
+> **Prerequisite**: This repository uses [Git LFS](https://git-lfs.github.com/) for large binary files (images, archives). Before cloning, install Git LFS:
+> ```bash
+> # macOS: brew install git-lfs
+> # Ubuntu/Debian: sudo apt-get install git-lfs
+> git lfs install
+> ```
+
 Contributions via pull requests are much appreciated. Before sending us a pull request, please ensure that:
 
 1. You are working against the latest source on the *main* branch.
