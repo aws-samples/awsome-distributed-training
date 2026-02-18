@@ -241,6 +241,7 @@ def deploy_with_checkpoints(
     cmd = [
         'python3',
         skill_path,
+        '--cluster_name', cluster_name,
         '--job_name', job_name,
         '--image_uri', image_uri,
         '--num_nodes', str(num_nodes),
@@ -281,33 +282,43 @@ def monitor_training_job(
         str: Monitoring status
     """
     
-    skill_path = os.path.join(
+    monitor_skill_src = os.path.join(
         os.path.dirname(__file__), '..', 'opencode', 'skills',
-        'training-job-deployer', 'src', 'monitor_training.py'
+        'training-monitor', 'src'
     )
+    sys.path.insert(0, monitor_skill_src)
     
-    # Note: monitor_training.py is a standalone script that runs interactively
-    # We'll return instructions on how to run it
-    return f"""📊 Training Monitor
-
-To start monitoring with auto-restart:
-
-    python3 {skill_path}
-
-The monitor will:
-- Watch job status every 30 seconds
-- Automatically restart on failure
-- Resume from latest checkpoint
-- Retry up to {max_retries} times
-
-Current configuration:
-- Head pod: {head_pod}
-- Checkpoint dir: {checkpoint_dir}
-- Max retries: {max_retries}
-- Retry delay: {retry_delay}s
-
-To modify settings, edit the monitor_training.py script directly.
-"""
+    try:
+        from monitor import auto_restart
+        
+        result = auto_restart(
+            head_pod=head_pod,
+            job_name=job_name,
+            checkpoint_dir=checkpoint_dir,
+            max_retries=max_retries,
+            retry_delay=retry_delay
+        )
+        
+        if result.get('success'):
+            return (
+                f"Training completed successfully!\n"
+                f"  Final step: {result.get('final_step')}\n"
+                f"  Total retries: {result.get('total_retries')}\n"
+                f"  Job ID: {result.get('job_id')}"
+            )
+        else:
+            return (
+                f"Training ended: {result.get('reason')}\n"
+                f"  Final step: {result.get('final_step')}\n"
+                f"  Total retries: {result.get('total_retries')}\n"
+                f"  Job ID: {result.get('job_id')}"
+            )
+    except ImportError as e:
+        return f"Error: Could not import training monitor: {e}"
+    except KeyboardInterrupt:
+        return "Monitoring stopped by user"
+    except Exception as e:
+        return f"Error: {str(e)}"
 
 
 if __name__ == '__main__':

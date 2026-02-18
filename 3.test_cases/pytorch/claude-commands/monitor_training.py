@@ -28,17 +28,18 @@ import sys
 import json
 from pathlib import Path
 
-# Add the skill to the path
-SKILL_PATH = Path(__file__).parent.parent / "opencode" / "skills" / "training-monitor"
-sys.path.insert(0, str(SKILL_PATH.parent.parent))
+# Add the skill src/ directory to path so we can import monitor.py directly
+SKILL_SRC_PATH = Path(__file__).parent.parent / "opencode" / "skills" / "training-monitor" / "src"
+sys.path.insert(0, str(SKILL_SRC_PATH))
 
 
 def run_skill_function(function_name: str, *args, **kwargs):
     """Run a function from the training-monitor skill."""
     try:
-        from training_monitor.src.monitor import (
+        from monitor import (
             auto_restart, monitor_job, check_job_status, get_current_step,
-            detect_stall, check_gpu_utilization, verify_ray_resources
+            detect_stall, check_gpu_utilization, verify_ray_resources,
+            get_training_health, print_training_health, check_efa_utilization
         )
         
         functions = {
@@ -49,6 +50,9 @@ def run_skill_function(function_name: str, *args, **kwargs):
             'detect_stall': detect_stall,
             'check_gpu_utilization': check_gpu_utilization,
             'verify_ray_resources': verify_ray_resources,
+            'get_training_health': get_training_health,
+            'print_training_health': print_training_health,
+            'check_efa_utilization': check_efa_utilization,
         }
         
         if function_name not in functions:
@@ -106,7 +110,7 @@ Examples:
     parser.add_argument('--job-id', help='Ray job ID (for monitoring existing jobs)')
     parser.add_argument('--checkpoint-dir', help='Directory containing checkpoints')
     parser.add_argument('--action', default='monitor',
-                       choices=['monitor', 'status', 'step', 'stall', 'gpu', 'resources', 'logs'],
+                       choices=['monitor', 'status', 'step', 'stall', 'gpu', 'resources', 'logs', 'health', 'efa'],
                        help='Action to perform (default: monitor)')
     parser.add_argument('--max-retries', type=int, default=10, help='Maximum restart attempts')
     parser.add_argument('--retry-delay', type=int, default=60, help='Seconds between retries')
@@ -232,6 +236,41 @@ Examples:
             sys.exit(1)
         
         result = watch_logs(args.head_pod, args.job_id, follow=True)
+    
+    elif args.action == 'health':
+        if not args.checkpoint_dir:
+            print("Error: --checkpoint-dir required for health check")
+            sys.exit(1)
+        
+        result = run_skill_function(
+            'get_training_health',
+            head_pod=args.head_pod,
+            checkpoint_dir=args.checkpoint_dir,
+            namespace=args.namespace
+        )
+        
+        if not args.json:
+            if isinstance(result, dict) and 'healthy' in result:
+                run_skill_function('print_training_health', result)
+            else:
+                print(f"Health Check Failed: {result}")
+    
+    elif args.action == 'efa':
+        result = run_skill_function(
+            'check_efa_utilization',
+            head_pod=args.head_pod,
+            namespace=args.namespace
+        )
+        
+        if not args.json:
+            if isinstance(result, dict):
+                active = "ACTIVE (EFA)" if result.get('efa_active') else "INACTIVE"
+                print(f"EFA Status: {active}")
+                print(f"Transport: {result.get('transport', 'unknown')}")
+                if result.get('details'):
+                    print(f"Details: {result['details']}")
+            else:
+                print(f"EFA Check Failed: {result}")
     
     # Output JSON if requested
     if args.json:

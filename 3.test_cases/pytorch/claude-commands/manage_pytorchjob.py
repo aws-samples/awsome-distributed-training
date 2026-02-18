@@ -18,35 +18,38 @@ import os
 from typing import Optional, Dict, Any
 from pathlib import Path
 
-# Add skill path
+# Add skill src path for direct imports
 SKILL_PATH = Path(__file__).parent.parent / "opencode" / "skills" / "pytorchjob-manager" / "src"
 sys.path.insert(0, str(SKILL_PATH))
 
 
 def _run_skill_function(func_name: str, *args, **kwargs) -> Any:
-    """Run a skill function using subprocess to avoid import issues."""
-    skill_script = SKILL_PATH / "pytorchjob_manager.py"
-    
-    # Build command to execute function
-    cmd = [
-        sys.executable, "-c",
-        f"""
-import sys
-sys.path.insert(0, '{SKILL_PATH}')
-from pytorchjob_manager import {func_name}
-import json
-result = {func_name}(*{args}, **{kwargs})
-print(json.dumps(result, default=str))
-"""
-    ]
-    
+    """Run a skill function via direct import."""
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-        return json.loads(result.stdout.strip())
-    except subprocess.CalledProcessError as e:
-        return {"error": e.stderr}
-    except json.JSONDecodeError:
-        return {"result": result.stdout.strip()}
+        from pytorchjob_manager import (
+            check_pytorchjob_crd, generate_pytorchjob_yaml, deploy_pytorchjob,
+            get_pytorchjob_status, delete_pytorchjob, list_pytorchjobs,
+            get_pytorchjob_logs
+        )
+        
+        functions = {
+            'check_pytorchjob_crd': check_pytorchjob_crd,
+            'generate_pytorchjob_yaml': generate_pytorchjob_yaml,
+            'deploy_pytorchjob': deploy_pytorchjob,
+            'get_pytorchjob_status': get_pytorchjob_status,
+            'delete_pytorchjob': delete_pytorchjob,
+            'list_pytorchjobs': list_pytorchjobs,
+            'get_pytorchjob_logs': get_pytorchjob_logs,
+        }
+        
+        if func_name not in functions:
+            return {"error": f"Unknown function: {func_name}"}
+        
+        return functions[func_name](*args, **kwargs)
+    except ImportError as e:
+        return {"error": f"Failed to import pytorchjob_manager: {e}"}
+    except Exception as e:
+        return {"error": str(e)}
 
 
 def check_crd() -> str:
@@ -255,8 +258,8 @@ def manage_pytorchjob(
     Create, delete, list, or get status of PyTorchJobs for distributed training.
     
     Args:
-        action: One of "create", "delete", "list", "status", "check_crd"
-        name: Job name (required for create, delete, status)
+        action: One of "create", "delete", "list", "status", "logs", "check_crd"
+        name: Job name (required for create, delete, status, logs)
         namespace: Kubernetes namespace (default: "default")
         image: Container image (required for create)
         num_workers: Number of workers (default: 2)
@@ -270,6 +273,7 @@ def manage_pytorchjob(
         "manage_pytorchjob('check_crd')"
         "manage_pytorchjob('list')"
         "manage_pytorchjob('status', name='my-job')"
+        "manage_pytorchjob('logs', name='my-job')"
         "manage_pytorchjob('delete', name='my-job')"
         "manage_pytorchjob('create', name='training', image='pytorch/pytorch:latest', num_workers=4)"
     """
@@ -286,6 +290,14 @@ def manage_pytorchjob(
         if not name:
             return "❌ Job name required for status action"
         return get_status(name, namespace)
+    
+    elif action == "logs":
+        if not name:
+            return "❌ Job name required for logs action"
+        result = _run_skill_function('get_pytorchjob_logs', name=name, namespace=namespace)
+        if isinstance(result, dict) and 'error' in result:
+            return f"❌ Failed to get logs: {result['error']}"
+        return str(result) if result else "No logs found"
     
     elif action == "delete":
         if not name:
@@ -312,7 +324,7 @@ def manage_pytorchjob(
         )
     
     else:
-        return f"❌ Unknown action: {action}. Use: create, delete, list, status, check_crd"
+        return f"❌ Unknown action: {action}. Use: create, delete, list, status, logs, check_crd"
 
 
 # Claude Code tool registration
@@ -340,7 +352,7 @@ if __name__ == '__main__':
     import argparse
     
     parser = argparse.ArgumentParser(description='Manage PyTorchJobs on EKS')
-    parser.add_argument('action', choices=['create', 'delete', 'list', 'status', 'check_crd'])
+    parser.add_argument('action', choices=['create', 'delete', 'list', 'status', 'logs', 'check_crd'])
     parser.add_argument('--name', default=None, help='Job name')
     parser.add_argument('--namespace', default='default', help='Kubernetes namespace')
     parser.add_argument('--image', default=None, help='Container image (for create)')
