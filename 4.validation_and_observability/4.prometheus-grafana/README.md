@@ -4,12 +4,12 @@ This directory provides comprehensive guides for deploying observability stacks 
 
 ## Available Solutions
 
-### 🚀 [EKS Managed Observability](./eks-managed-observability/)
+### [EKS Managed Observability](./eks-managed-observability/)
 Monitor Amazon EKS GPU workloads using Amazon Managed Prometheus and Amazon Managed Grafana with ADOT Collector. This solution provides minimal in-cluster overhead and supports multi-cluster monitoring.
 
 **Best for:** EKS clusters, multi-cluster monitoring, minimal resource overhead
 
-### 📊 SageMaker HyperPod Monitoring (This Document)
+### SageMaker HyperPod Monitoring (This Document)
 Monitor SageMaker HyperPod clusters with SLURM-exporter, DCGM-exporter, and EFA-node-exporter. This solution uses lifecycle scripts to bootstrap monitoring on HyperPod nodes.
 
 **Best for:** SageMaker HyperPod with SLURM workload manager
@@ -23,7 +23,7 @@ This guide provides a comprehensive approach for deploying an observability stac
 
 To get started, you will initiate the provisioning of an Amazon CloudFormation Stack within your AWS Account. You can find the complete stack template in [cluster-observability.yaml](./cluster-observability.yaml). This CloudFormation stack will orchestrate the deployment of the following resources dedicated to cluster monitoring in your AWS environment:
 
-  * [Amazon Manged Prometheus WorkSpace](https://aws.amazon.com/prometheus/)
+  * [Amazon Managed Prometheus WorkSpace](https://aws.amazon.com/prometheus/)
   * [Amazon Managed Grafana Workspace](https://aws.amazon.com/grafana/)
   * Associated IAM roles and permissions
 
@@ -36,27 +36,27 @@ The solution uses SageMaker HyperPod [Lifecycle Scripts](https://github.com/aws-
 
 | Name                                                               | Script Deployment Target | Metrics Description                                             |
 | ------------------------------------------------------------------ | -------- | --------------------------------------------------- |
-| [`0.Prometheus Slurm Exporter`](https://github.com/vpenso/prometheus-slurm-exporter)                                   | controller-node  | SLURM Accounting metrics (sinfo, sacct)                                |
+| [`0.Prometheus Slurm Exporter`](https://github.com/SckyzO/slurm_exporter)                                   | controller-node  | SLURM Accounting metrics (sinfo, sacct)                                |
 | [`1.EFA-Node-Exporter`](https://github.com/aws-samples/awsome-distributed-training/tree/main/4.validation_and_observability/3.efa-node-exporter)                 | cluster-nodes  | Fork of Node exporter to include metrics from emitted from EFA         |
 | [`2.NVIDIA-DCGM-Exporter`](https://github.com/NVIDIA/dcgm-exporter) | cluster-nodes  | Nvidia DCGM Metrics about Nvidia Enabled GPUs |
 
 ### Prerequisites 
 To enable these exporter services, modify the [config.py](https://github.com/aws-samples/awsome-distributed-training/blob/main/1.architectures/5.sagemaker-hyperpod/LifecycleScripts/base-config/config.py) file to configure `enable_observability = True`. Save this file, and [upload it to the s3 bucket path](https://catalog.workshops.aws/sagemaker-hyperpod/en-US/01-cluster/03-s3) referenced in your [`cluster-config.json`](https://catalog.workshops.aws/sagemaker-hyperpod/en-US/01-cluster/04-create-cluster#create-cluster) file. By modifying `config.py` and uploading to S3, this will ensure that any new nodes added or replaced in the HyperPod cluster will also be created with the metric exporter scripts running  
 
-If you have already created your HyperPod cluster, you can follow [these instructions](https://catalog.workshops.aws/sagemaker-hyperpod/en-US/06-observability/09-update) to update your existing HyperPod cluster with Observabiltiy. 
+If you have already created your HyperPod cluster, you can follow [these instructions](https://catalog.workshops.aws/sagemaker-hyperpod/en-US/06-observability/09-update) to update your existing HyperPod cluster with Observability. 
 
 > [!IMPORTANT]
 >Before proceeding, you will need to add the following AWS Managed IAM Policies to your AmazonSagemakerClusterExecutionRole:
 >* [AmazonPrometheusRemoteWriteAccess](https://us-east-1.console.aws.amazon.com/iam/home?/policies/details/arn%3Aaws%3Aiam%3A%3Aaws%3Apolicy%2FAmazonPrometheusRemoteWriteAccess?section=permissions#/policies/details/arn%3Aaws%3Aiam%3A%3Aaws%3Apolicy%2FAmazonPrometheusRemoteWriteAccess?section=permissions): *this will give the control node access to write cluster metrics to the Amazon Managed Prometheus Workspace you will create.*
->* [AWSCloudFormatinoReadOnlyAccess](https://us-east-1.console.aws.amazon.com/iam/home?policies/details/arn%3Aaws%3Aiam%3A%3Aaws%3Apolicy%2FAWSCloudFormationReadOnlyAccess?section=permissions#/policies/details/arn%3Aaws%3Aiam%3A%3Aaws%3Apolicy%2FAWSCloudFormationReadOnlyAccess?section=permissions) *this will give the install_prometheus.sh file permissions to read stack outputs (remotewriteurl, region) from your cloudformation stack*
+>* [AWSCloudFormationReadOnlyAccess](https://us-east-1.console.aws.amazon.com/iam/home?policies/details/arn%3Aaws%3Aiam%3A%3Aaws%3Apolicy%2FAWSCloudFormationReadOnlyAccess?section=permissions#/policies/details/arn%3Aaws%3Aiam%3A%3Aaws%3Apolicy%2FAWSCloudFormationReadOnlyAccess?section=permissions) *this will give the install_prometheus.sh file permissions to read stack outputs (remotewriteurl, region) from your cloudformation stack*
 
 ### Deploy the CloudFormation Stack 
 
-[<kbd> <br> 1-Click Deploy 🚀 <br> </kbd>](https://console.aws.amazon.com/cloudformation/home?#/stacks/quickcreate?templateURL=https://awsome-distributed-training.s3.amazonaws.com/templates/cluster-observability.yaml&stackName=Cluster-Observability)
+[<kbd> <br> 1-Click Deploy <br> </kbd>](https://console.aws.amazon.com/cloudformation/home?#/stacks/quickcreate?templateURL=https://awsome-distributed-training.s3.amazonaws.com/templates/cluster-observability.yaml&stackName=Cluster-Observability)
 
 Alternatively, you can deploy OS Grafana stack.
 
-[<kbd> <br> 1-Click Deploy 🚀 <br> </kbd>](https://console.aws.amazon.com/cloudformation/home?#/stacks/quickcreate?templateURL=https://awsome-distributed-training.s3.amazonaws.com/templates/cluster-observability-os-grafana.yaml&stackName=Cluster-Observability-OS-Grafana)
+[<kbd> <br> 1-Click Deploy <br> </kbd>](https://console.aws.amazon.com/cloudformation/home?#/stacks/quickcreate?templateURL=https://awsome-distributed-training.s3.amazonaws.com/templates/cluster-observability-os-grafana.yaml&stackName=Cluster-Observability-OS-Grafana)
 
 >[!IMPORTANT]
 > It is strongly recommended you deploy this stack into the same region and same account as your SageMaker HyperPod Cluster.This will ensure successful execution of the Lifecycle Scripts, specifically `install_prometheus.sh`, which relies on AWS CLI commands that assume same account and same region. 
@@ -77,7 +77,7 @@ sudo systemctl status prometheus
 The output should show active (running):
 ![prometheus_running](./assets/prometheus_running.png)
 
-You can validate the prometheus confiugration file with: 
+You can validate the prometheus configuration file with: 
 ```bash
 cat /etc/prometheus/prometheus.yml
 ```
@@ -106,7 +106,7 @@ scrape_configs:
           - '<ComputeNodeIP>:9100'
 
 remote_write:
-  - url: <AMPReoteWriteURL>
+  - url: <AMPRemoteWriteURL>
     queue_config:
       max_samples_per_send: 1000
       max_shards: 200
@@ -115,7 +115,7 @@ remote_write:
       region: <Region>
 ```
 
-You can curl for relevant Promtetheus metrics on the controller nodes using: 
+You can curl for relevant Prometheus metrics on the controller nodes using: 
 ```bash
 curl -s http://localhost:9090/metrics | grep -E 'slurm|dcgm|efa'
 ```
@@ -135,11 +135,11 @@ In the Authentication Tab, configure Authentication using AWS IAM Identity Cente
 
 ![grafana users admin](./assets/grafana_users_admin.png)
 
-Within the DataSources Tab of your Grafana workspace, click the “Configure in Grafana” link to Configure Prometheus as a data source. 
+Within the DataSources Tab of your Grafana workspace, click the "Configure in Grafana" link to Configure Prometheus as a data source. 
 
 ![grafana datasources](./assets/grafana-datasource.png)
 
-You will prompted to authenticate to the Grafana workspace with the IAM Identity Center Username and Password. This is the you set up for the workspace. 
+You will be prompted to authenticate to the Grafana workspace with the IAM Identity Center Username and Password. This is the user you set up for the workspace. 
 
 >[!NOTE]
 >If you have forgotten username and password, you can find and reset them within [IAM Identity Center](https://us-east-1.console.aws.amazon.com/singlesignon/identity)
@@ -181,7 +181,7 @@ https://grafana.com/grafana/dashboards/21645-gpu-health-cluster/
 ![GPUHealth Dashboard](./assets/gpu-health.png)
 
 
-#### GPU Health (Xid) ny Node Dashboard:
+#### GPU Health (Xid) by Node Dashboard:
 
 https://grafana.com/grafana/dashboards/21646-gpu-health-filter-by-host/
 
