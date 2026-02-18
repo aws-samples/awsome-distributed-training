@@ -4,7 +4,7 @@ Monitor EKS GPU workloads using Amazon Managed Prometheus (AMP) and Amazon Manag
 
 ## Architecture
 
-**Data Flow:** DCGM Exporter → ADOT Collector → Amazon Managed Prometheus → Amazon Managed Grafana
+**Data Flow:** DCGM Exporter -> ADOT Collector -> Amazon Managed Prometheus -> Amazon Managed Grafana
 
 **Key Benefits:**
 - No in-cluster Prometheus/Grafana deployment (minimal resource overhead ~200-500MB)
@@ -167,7 +167,7 @@ export AMP_ENDPOINT=$(aws cloudformation describe-stacks \
 
 export GRAFANA_WORKSPACE_URL=$(aws cloudformation describe-stacks \
   --stack-name $STACK_NAME \
-  --query 'Stacks[0].Outputs[?OutputKey==`GrafanWorkspaceURL`].OutputValue' \
+  --query 'Stacks[0].Outputs[?OutputKey==`GrafanaWorkspaceURL`].OutputValue' \
   --output text \
   --region $AWS_REGION_AMGP)
 
@@ -366,7 +366,7 @@ pkill -f "port-forward.*9400"
 
 1. Open your Grafana workspace URL (from `$GRAFANA_WORKSPACE_URL`)
 2. Sign in with AWS IAM Identity Center credentials
-3. Navigate to **Configuration** → **Data Sources**
+3. Navigate to **Configuration** -> **Data Sources**
 4. Click **Add data source**
 5. Select **Amazon Managed Service for Prometheus**
 6. Configure:
@@ -376,7 +376,7 @@ pkill -f "port-forward.*9400"
 
 #### Import DCGM Dashboard
 
-1. Navigate to **Dashboards** → **Import**
+1. Navigate to **Dashboards** -> **Import**
 2. Enter dashboard ID: **12239** (NVIDIA DCGM Exporter Dashboard)
 3. Select your Prometheus data source
 4. Click **Import**
