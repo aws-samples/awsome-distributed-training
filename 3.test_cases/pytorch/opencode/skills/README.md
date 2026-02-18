@@ -1,6 +1,6 @@
-# OpenCode Skills for PyTorch FSDP
+# OpenCode Skills for Distributed PyTorch Training
 
-A comprehensive suite of skills for building, testing, and deploying PyTorch FSDP training workloads on Amazon EKS using OpenCode.
+A comprehensive suite of skills for building, testing, and deploying distributed PyTorch training workloads on Amazon EKS (including HyperPod EKS) using OpenCode.
 
 ## Cross-Provider Compatibility
 
@@ -15,17 +15,31 @@ These skills follow the open [Agent Skills](https://agentskills.io) standard and
 
 The `SKILL.md` format is identical across all providers -- only the directory placement differs.
 
-## 📦 Available Skills
+## Available Skills
 
+### Build & Deploy Pipeline
 | Skill | Purpose | Location |
 |-------|---------|----------|
 | **docker-image-builder** | Build Docker images with auto-fix | `docker-image-builder/` |
 | **docker-image-tester** | Test Docker images | `docker-image-tester/` |
 | **ecr-image-pusher** | Push images to ECR | `ecr-image-pusher/` |
 | **eks-cluster-manager** | Manage EKS clusters | `eks-cluster-manager/` |
-| **training-job-deployer** | Deploy training jobs | `training-job-deployer/` |
 
-## 🚀 Quick Start
+### Training Deployment (Modular Architecture)
+
+The training deployment is split into a thin orchestrator + 6 focused sub-skills:
+
+| Skill | Purpose | Location |
+|-------|---------|----------|
+| **training-job-deployer** | Orchestrator - delegates to sub-skills below | `training-job-deployer/` |
+| **k8s_cluster_manager** | Cluster health, GPU/EFA validation | `k8s_cluster_manager/` |
+| **ray-cluster-manager** | Ray/KubeRay lifecycle and YAML generation | `ray-cluster-manager/` |
+| **pytorchjob-manager** | Kubeflow PyTorchJob management | `pytorchjob-manager/` |
+| **checkpoint-manager** | Storage, PVC setup, checkpoint discovery | `checkpoint-manager/` |
+| **training-monitor** | GPU utilization, EFA, health reporting | `training-monitor/` |
+| **hyperpod-manager** | HyperPod node discovery, labels, AMP | `hyperpod-manager/` |
+
+## Quick Start
 
 ### Installation
 
@@ -38,9 +52,14 @@ mkdir -p ~/.config/opencode/skills
 # Copy all skills from this repo
 cp -r /path/to/repo/opencode/skills/* ~/.config/opencode/skills/
 
-# Or copy specific skills
-cp -r opencode/skills/docker-image-builder ~/.config/opencode/skills/
+# Or copy specific skills (e.g., just the training sub-skills)
 cp -r opencode/skills/training-job-deployer ~/.config/opencode/skills/
+cp -r opencode/skills/k8s_cluster_manager ~/.config/opencode/skills/
+cp -r opencode/skills/ray-cluster-manager ~/.config/opencode/skills/
+cp -r opencode/skills/pytorchjob-manager ~/.config/opencode/skills/
+cp -r opencode/skills/checkpoint-manager ~/.config/opencode/skills/
+cp -r opencode/skills/training-monitor ~/.config/opencode/skills/
+cp -r opencode/skills/hyperpod-manager ~/.config/opencode/skills/
 ```
 
 ### Usage
@@ -66,7 +85,7 @@ python3 ~/.config/opencode/skills/training-job-deployer/src/deploy_job.py \
   --cluster_name my-cluster --num_nodes 4
 ```
 
-## 📖 Skill Details
+## Skill Details
 
 ### Docker Image Builder
 
@@ -77,20 +96,6 @@ Builds Docker images with automatic conflict detection and resolution.
 - Auto-fix dependency conflicts
 - Smart base image selection
 - Retry logic (up to 3 attempts)
-
-**Files:**
-- `SKILL.md` - OpenCode skill definition
-- `src/build_image.py` - Main builder
-- `src/conflict_analyzer.py` - Conflict detection
-- `src/base_image_selector.py` - Base image selection
-- `src/smoke_test.py` - Quick validation
-
-**Usage:**
-```bash
-python3 opencode/skills/docker-image-builder/src/build_image.py \
-  --dockerfile Dockerfile \
-  --auto_fix true
-```
 
 ### Docker Image Tester
 
@@ -103,17 +108,6 @@ Comprehensive Docker image testing framework.
 - Model configuration tests
 - Forward pass validation
 
-**Files:**
-- `SKILL.md` - Skill definition
-- `src/test_image.py` - Test suite
-
-**Usage:**
-```bash
-python3 opencode/skills/docker-image-tester/src/test_image.py \
-  --image fsdp:latest \
-  --level full
-```
-
 ### ECR Image Pusher
 
 Pushes Docker images to Amazon ECR.
@@ -123,17 +117,6 @@ Pushes Docker images to Amazon ECR.
 - Smart tagging (semantic, git-sha, latest)
 - Repository creation
 - Push verification
-
-**Files:**
-- `SKILL.md` - Skill definition
-- `src/push_image.py` - Pusher logic
-
-**Usage:**
-```bash
-python3 opencode/skills/ecr-image-pusher/src/push_image.py \
-  --image fsdp:latest \
-  --repository fsdp
-```
 
 ### EKS Cluster Manager
 
@@ -145,88 +128,134 @@ Manages and validates Amazon EKS clusters.
 - EFA checks
 - Auto-fix common issues
 
-**Files:**
-- `SKILL.md` - Skill definition
-- `src/manage_cluster.py` - Manager logic
+### Training Job Deployer (Orchestrator)
 
-**Usage:**
-```bash
-python3 opencode/skills/eks-cluster-manager/src/manage_cluster.py \
-  --cluster_name my-cluster \
-  --auto_fix
-```
+Thin orchestrator that delegates to the 6 sub-skills below. Provides a single entry point for deploying distributed training jobs.
 
-### Training Job Deployer
+**Flow:**
+1. Validate cluster (k8s_cluster_manager)
+2. Setup storage (checkpoint-manager)
+3. Deploy Ray cluster (ray-cluster-manager + hyperpod-manager)
+4. Start training via `kubectl exec` on Ray head pod
+5. Monitor training (training-monitor)
 
-Deploys distributed PyTorch training jobs on EKS.
+### k8s_cluster_manager (Sub-Skill)
+
+Kubernetes cluster health and readiness validation.
+
+**Key Functions:** `check_gpu_operator()`, `check_efa_plugin()`, `get_cluster_capacity()`, `check_kubeflow_operator()`
+
+**Learnings Baked In:**
+- Correct HyperPod label selectors (`sagemaker.amazonaws.com/compute-type`)
+- Correct device plugin labels (`app.kubernetes.io/name=nvidia-device-plugin`)
+- CPU millicore and memory unit parsing
+
+### ray-cluster-manager (Sub-Skill)
+
+Ray/KubeRay cluster lifecycle management.
+
+**Key Functions:** `generate_raycluster_yaml()`, `get_ray_status()`, `verify_gpu_utilization()`, `get_ray_job_command()`
+
+**Learnings Baked In:**
+- EFA environment variables in RayCluster YAML
+- Do NOT use `ray job submit` for multi-GPU training
+
+### pytorchjob-manager (Sub-Skill)
+
+Kubeflow PyTorchJob creation and management.
+
+**Key Functions:** `create_pytorchjob()`, `get_job_status()`, `stream_logs()`
+
+**Learnings Baked In:**
+- Correct log label: `training.kubeflow.org/job-name`
+- `num_workers=1` edge case handling
+
+### checkpoint-manager (Sub-Skill)
+
+Persistent storage and checkpoint management.
+
+**Key Functions:** `create_checkpoint_pvc()`, `find_latest_checkpoint_on_pod()`, `list_checkpoints_on_pod()`
+
+**Learnings Baked In:**
+- Remote checkpoint discovery via `kubectl exec`
+- Shared PVC across Ray head + workers
+
+### training-monitor (Sub-Skill)
+
+Combined health monitoring for running training jobs.
+
+**Key Functions:** `get_training_health()`, `print_training_health()`, `check_gpu_utilization()`, `check_efa_utilization()`, `verify_ray_resources()`
 
 **Features:**
-- Automatic torchrun configuration
-- PyTorchJob integration
-- Multi-node support
-- Real-time monitoring
-- Auto-retry on failures
+- Single-call health report combining GPU, EFA, checkpoints, Ray resources
+- Pretty-printed output for quick diagnosis
 
-**Files:**
-- `SKILL.md` - Skill definition
-- `src/deploy_job.py` - Deployer logic
+### hyperpod-manager (Sub-Skill)
 
-**Usage:**
-```bash
-python3 opencode/skills/training-job-deployer/src/deploy_job.py \
-  --cluster_name my-cluster \
-  --num_nodes 4 \
-  --job_name llama-training
-```
+HyperPod-specific node discovery and management.
 
-## 📂 Directory Structure
+**Key Functions:** `get_hyperpod_nodes()`, `get_instance_type()`, `query_amp()`
+
+**Learnings Baked In:**
+- Correct HyperPod label selectors
+- Region parameter for AMP API calls
+
+## Directory Structure
 
 ```
 opencode/skills/
-├── docker-image-builder/
-│   ├── SKILL.md              # OpenCode skill definition
-│   ├── README.md             # Detailed documentation
-│   ├── skill.yaml            # Legacy definition (for reference)
-│   └── src/                  # Source code
-│       ├── build_image.py
-│       ├── conflict_analyzer.py
-│       ├── base_image_selector.py
-│       └── smoke_test.py
-├── docker-image-tester/
-│   ├── SKILL.md
-│   ├── README.md
-│   ├── skill.yaml
-│   └── src/
-│       └── test_image.py
-├── ecr-image-pusher/
-│   ├── SKILL.md
-│   ├── README.md
-│   ├── skill.yaml
-│   └── src/
-│       └── push_image.py
-├── eks-cluster-manager/
+├── docker-image-builder/        # Build pipeline
 │   ├── SKILL.md
 │   └── src/
-│       └── manage_cluster.py
-├── training-job-deployer/
+├── docker-image-tester/         # Test pipeline
 │   ├── SKILL.md
-│   ├── skill.yaml
 │   └── src/
-│       └── deploy_job.py
-├── shared/                   # Common utilities
-│   ├── __init__.py
+├── ecr-image-pusher/            # Push pipeline
+│   ├── SKILL.md
+│   └── src/
+├── eks-cluster-manager/         # EKS management
+│   ├── SKILL.md
+│   └── src/
+├── training-job-deployer/       # Orchestrator (thin)
+│   ├── SKILL.md
+│   └── src/
+│       └── deploy.py
+├── k8s_cluster_manager/         # Sub-skill: cluster validation
+│   ├── SKILL.md
+│   └── src/
+│       └── cluster_manager.py
+├── ray-cluster-manager/         # Sub-skill: Ray/KubeRay
+│   ├── SKILL.md
+│   └── src/
+│       └── ray_manager.py
+├── pytorchjob-manager/          # Sub-skill: Kubeflow
+│   ├── SKILL.md
+│   └── src/
+│       └── pytorchjob_manager.py
+├── checkpoint-manager/          # Sub-skill: storage
+│   ├── SKILL.md
+│   └── src/
+│       └── checkpoint_manager.py
+├── training-monitor/            # Sub-skill: monitoring
+│   ├── SKILL.md
+│   └── src/
+│       └── monitor.py
+├── hyperpod-manager/            # Sub-skill: HyperPod
+│   ├── SKILL.md
+│   └── src/
+│       └── hyperpod_manager.py
+├── shared/                      # Legacy (deprecated - sub-skills are standalone)
 │   ├── aws_utils.py
-│   ├── docker_utils.py
 │   ├── k8s_utils.py
 │   └── logger.py
-├── infrastructure/           # AWS infrastructure
+├── infrastructure/              # AWS infrastructure setup
 │   └── aws-cli/
 │       └── setup-codebuild.sh
-├── README.md                 # This file
-└── IMPLEMENTATION_SUMMARY.md # Implementation details
+├── README.md                    # This file
+└── IMPLEMENTATION_SUMMARY.md    # Full implementation details + learnings
 ```
 
-## 🔧 Prerequisites
+## Prerequisites
 
 ### For All Skills
 - Python 3.8+
@@ -241,7 +270,7 @@ opencode/skills/
 - kubectl installed
 - EKS cluster access
 
-## 🎯 Complete Workflow
+## Complete Workflow
 
 Complete workflow from build to deployment:
 
@@ -274,7 +303,7 @@ python3 opencode/skills/training-job-deployer/src/deploy_job.py \
   --monitor
 ```
 
-## 📝 SKILL.md Format
+## SKILL.md Format
 
 Each skill includes a `SKILL.md` file following OpenCode format:
 
@@ -303,7 +332,7 @@ Usage examples...
 - param2: Description
 ```
 
-## 🔍 Troubleshooting
+## Troubleshooting
 
 ### Skills Not Loading
 1. Verify skills are in `~/.config/opencode/skills/`
@@ -320,26 +349,27 @@ Usage examples...
 2. Review CloudWatch logs (for CodeBuild)
 3. Verify base image exists
 
-## 📚 Additional Documentation
+## Additional Documentation
 
 - [Main README](../../README.md) - Project overview
 - [USAGE.md](../../USAGE.md) - Complete usage guide
 - [CODEBUILD_TEST_SESSION.md](../../CODEBUILD_TEST_SESSION.md) - CodeBuild testing
 - [IMPLEMENTATION_SUMMARY.md](IMPLEMENTATION_SUMMARY.md) - Implementation details
 
-## 🤝 Contributing
+## Contributing
 
 To add new skills:
 1. Create directory: `opencode/skills/your-skill/`
 2. Add `SKILL.md` with proper frontmatter
 3. Add source code in `src/`
-4. Add documentation in `README.md`
-5. Update this README
+4. Each skill should be standalone (~100-200 lines, no `shared/` dependencies)
+5. Use inline `logging.getLogger(__name__)` instead of importing from `logger.py`
+6. Update this README with the new skill in the table
 
-## 📄 License
+## License
 
 MIT License - See LICENSE file for details
 
 ---
 
-**Built with ❤️ for the PyTorch FSDP community**
+**Built for the distributed PyTorch training community**
