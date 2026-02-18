@@ -69,7 +69,7 @@ aws cloudformation wait stack-create-complete \
   --stack-name $STACK_NAME \
   --region $AWS_REGION_AMGP
 
-echo -e "${GREEN}✓ CloudFormation stack created${NC}"
+echo -e "${GREEN}CloudFormation stack created${NC}"
 
 # Get stack outputs
 export AMP_ENDPOINT=$(aws cloudformation describe-stacks \
@@ -86,7 +86,7 @@ export AMP_QUERY_ENDPOINT=$(aws cloudformation describe-stacks \
 
 export GRAFANA_WORKSPACE_URL=$(aws cloudformation describe-stacks \
   --stack-name $STACK_NAME \
-  --query 'Stacks[0].Outputs[?OutputKey==`GrafanWorkspaceURL`].OutputValue' \
+  --query 'Stacks[0].Outputs[?OutputKey==`GrafanaWorkspaceURL`].OutputValue' \
   --output text \
   --region $AWS_REGION_AMGP)
 
@@ -106,7 +106,7 @@ POD_IDENTITY_STATUS=$(aws eks describe-addon \
   --output text 2>/dev/null || echo "NOT_FOUND")
 
 if [ "$POD_IDENTITY_STATUS" = "ACTIVE" ]; then
-    echo -e "${GREEN}✓ Pod Identity Agent already installed and active${NC}"
+    echo -e "${GREEN}Pod Identity Agent already installed and active${NC}"
 elif [ "$POD_IDENTITY_STATUS" = "NOT_FOUND" ]; then
     aws eks create-addon \
       --cluster-name $CLUSTER_NAME \
@@ -119,7 +119,7 @@ elif [ "$POD_IDENTITY_STATUS" = "NOT_FOUND" ]; then
       --addon-name eks-pod-identity-agent \
       --region $AWS_REGION
 
-    echo -e "${GREEN}✓ Pod Identity Agent installed${NC}"
+    echo -e "${GREEN}Pod Identity Agent installed${NC}"
 else
     echo "Pod Identity Agent status: $POD_IDENTITY_STATUS"
     echo "Waiting for it to become active..."
@@ -127,7 +127,7 @@ else
       --cluster-name $CLUSTER_NAME \
       --addon-name eks-pod-identity-agent \
       --region $AWS_REGION
-    echo -e "${GREEN}✓ Pod Identity Agent is now active${NC}"
+    echo -e "${GREEN}Pod Identity Agent is now active${NC}"
 fi
 echo ""
 
@@ -142,7 +142,7 @@ kubectl wait --for=condition=ready pod \
   -n cert-manager \
   --timeout=300s
 
-echo -e "${GREEN}✓ cert-manager installed${NC}"
+echo -e "${GREEN}cert-manager installed${NC}"
 echo ""
 
 echo -e "${YELLOW}Step 5: Install ADOT Operator${NC}"
@@ -191,7 +191,7 @@ ADOT_STATUS=$(aws eks describe-addon \
   --output text 2>/dev/null || echo "NOT_FOUND")
 
 if [ "$ADOT_STATUS" = "ACTIVE" ]; then
-    echo -e "${GREEN}✓ ADOT add-on already installed and active${NC}"
+    echo -e "${GREEN}ADOT add-on already installed and active${NC}"
 elif [ "$ADOT_STATUS" = "NOT_FOUND" ]; then
     # Install ADOT add-on
     aws eks create-addon \
@@ -206,7 +206,7 @@ elif [ "$ADOT_STATUS" = "NOT_FOUND" ]; then
       --addon-name adot \
       --region $AWS_REGION
 
-    echo -e "${GREEN}✓ ADOT add-on installed${NC}"
+    echo -e "${GREEN}ADOT add-on installed${NC}"
 else
     echo "ADOT add-on status: $ADOT_STATUS"
     echo "Waiting for it to become active..."
@@ -214,7 +214,7 @@ else
       --cluster-name $CLUSTER_NAME \
       --addon-name adot \
       --region $AWS_REGION
-    echo -e "${GREEN}✓ ADOT add-on is now active${NC}"
+    echo -e "${GREEN}ADOT add-on is now active${NC}"
 fi
 
 # Create Pod Identity association
@@ -225,7 +225,7 @@ aws eks create-pod-identity-association \
   --role-arn $ADOT_ROLE_ARN \
   --region $AWS_REGION 2>/dev/null || echo "Pod Identity association already exists"
 
-echo -e "${GREEN}✓ ADOT Operator installed${NC}"
+echo -e "${GREEN}ADOT Operator installed${NC}"
 echo ""
 
 echo -e "${YELLOW}Step 6: Deploy ADOT Collector${NC}"
@@ -352,7 +352,7 @@ kubectl wait --for=condition=ready pod \
   -n adot-col \
   --timeout=120s 2>/dev/null || echo "Collector starting..."
 
-echo -e "${GREEN}✓ ADOT Collector deployed${NC}"
+echo -e "${GREEN}ADOT Collector deployed${NC}"
 echo ""
 
 echo -e "${YELLOW}Step 7: Configure Custom DCGM Metrics${NC}"
@@ -384,7 +384,7 @@ kubectl rollout restart daemonset/nvidia-dcgm-exporter -n gpu-operator
 echo "Waiting for DCGM Exporter rollout..."
 kubectl rollout status daemonset/nvidia-dcgm-exporter -n gpu-operator --timeout=120s
 
-echo -e "${GREEN}✓ Custom DCGM metrics configured${NC}"
+echo -e "${GREEN}Custom DCGM metrics configured${NC}"
 echo ""
 
 echo -e "${GREEN}========================================${NC}"
@@ -397,12 +397,12 @@ echo "1. Access Grafana:"
 echo "   ${GRAFANA_WORKSPACE_URL}"
 echo ""
 echo "2. Add AMP data source in Grafana:"
-echo "   - AWS icon → Amazon Managed Service for Prometheus"
+echo "   - AWS icon -> Amazon Managed Service for Prometheus"
 echo "   - Select region: $AWS_REGION_AMGP"
 echo "   - Select your workspace"
 echo ""
 echo "3. Import NVIDIA DCGM dashboard:"
-echo "   - Dashboards → Import → ID: 12239"
+echo "   - Dashboards -> Import -> ID: 12239"
 echo ""
 echo "4. Add custom metric panels for:"
 echo "   - XID Errors: DCGM_EXP_XID_ERRORS_COUNT_total"
