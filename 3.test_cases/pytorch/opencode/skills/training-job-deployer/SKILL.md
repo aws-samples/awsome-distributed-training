@@ -318,6 +318,30 @@ kubectl exec <head-pod> -- nvidia-smi
 # Expected: GPUs should show >0% utilization within 2 minutes
 ```
 
+### EFA Silent Fallback to TCP Sockets
+
+**Issue**: EFA device can be present and ACTIVE on all nodes, but NCCL silently falls back to TCP sockets. This causes:
+- Slower inter-node communication
+- NCCL timeout errors under heavy load (ALLGATHER timeouts after 600s)
+- Training failures at scale
+
+**Root Cause**: Without `NCCL_NET=ofi` and correct `LD_LIBRARY_PATH`, NCCL doesn't load the aws-ofi-nccl plugin.
+
+**Required Environment Variables**:
+```bash
+NCCL_NET=ofi
+LD_LIBRARY_PATH=/opt/amazon/ofi-nccl/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH
+FI_PROVIDER=efa
+FI_EFA_USE_DEVICE_RDMA=0   # g5 instances (no GPUDirect RDMA)
+FI_EFA_USE_DEVICE_RDMA=1   # p4d/p5 instances (full GPUDirect RDMA)
+```
+
+**Verification**: Check NCCL logs for:
+```bash
+kubectl exec <head-pod> -- grep 'NET/OFI' /tmp/ray/session_latest/logs/worker*.out
+# Should see: "NET/OFI Selected provider is efa"
+```
+
 ## Best Practices
 
 1. **Always use --auto_monitor for long training** - Handles EFA failures and restarts automatically

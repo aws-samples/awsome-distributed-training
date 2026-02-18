@@ -8,12 +8,14 @@ from typing import Any
 
 import yaml
 
-try:
-    from .logger import get_logger
-except ImportError:
-    from logger import get_logger
-
-logger = get_logger()
+import logging
+logger = logging.getLogger("pytorchjob_manager")
+if not logger.handlers:
+    import sys as _sys
+    _h = logging.StreamHandler(_sys.stdout)
+    _h.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S"))
+    logger.addHandler(_h)
+    logger.setLevel(logging.INFO)
 
 
 def check_pytorchjob_crd() -> bool:
@@ -96,6 +98,51 @@ def generate_pytorchjob_yaml(config: dict[str, Any]) -> str:
         })
     
     # Build the PyTorchJob spec
+    replica_specs = {
+        "Master": {
+            "replicas": 1,
+            "restartPolicy": "OnFailure",
+            "template": {
+                "spec": {
+                    "containers": [
+                        {
+                            "name": "pytorch",
+                            "image": image,
+                            "command": command,
+                            "env": env_list,
+                            "resources": resource_reqs,
+                            "volumeMounts": volume_mounts if volume_mounts else None
+                        }
+                    ],
+                    "volumes": volumes_spec if volumes_spec else None
+                }
+            }
+        }
+    }
+    
+    # Only add Worker spec when there are workers to create
+    worker_replicas = num_workers - 1 if num_workers > 1 else 0
+    if worker_replicas > 0:
+        replica_specs["Worker"] = {
+            "replicas": worker_replicas,
+            "restartPolicy": "OnFailure",
+            "template": {
+                "spec": {
+                    "containers": [
+                        {
+                            "name": "pytorch",
+                            "image": image,
+                            "command": command,
+                            "env": env_list,
+                            "resources": resource_reqs,
+                            "volumeMounts": volume_mounts if volume_mounts else None
+                        }
+                    ],
+                    "volumes": volumes_spec if volumes_spec else None
+                }
+            }
+        }
+    
     pytorchjob = {
         "apiVersion": "kubeflow.org/v1",
         "kind": "PyTorchJob",
@@ -104,46 +151,7 @@ def generate_pytorchjob_yaml(config: dict[str, Any]) -> str:
             "namespace": namespace
         },
         "spec": {
-            "pytorchReplicaSpecs": {
-                "Master": {
-                    "replicas": 1,
-                    "restartPolicy": "OnFailure",
-                    "template": {
-                        "spec": {
-                            "containers": [
-                                {
-                                    "name": "pytorch",
-                                    "image": image,
-                                    "command": command,
-                                    "env": env_list,
-                                    "resources": resource_reqs,
-                                    "volumeMounts": volume_mounts if volume_mounts else None
-                                }
-                            ],
-                            "volumes": volumes_spec if volumes_spec else None
-                        }
-                    }
-                },
-                "Worker": {
-                    "replicas": num_workers - 1 if num_workers > 1 else 1,
-                    "restartPolicy": "OnFailure",
-                    "template": {
-                        "spec": {
-                            "containers": [
-                                {
-                                    "name": "pytorch",
-                                    "image": image,
-                                    "command": command,
-                                    "env": env_list,
-                                    "resources": resource_reqs,
-                                    "volumeMounts": volume_mounts if volume_mounts else None
-                                }
-                            ],
-                            "volumes": volumes_spec if volumes_spec else None
-                        }
-                    }
-                }
-            }
+            "pytorchReplicaSpecs": replica_specs
         }
     }
     
@@ -318,7 +326,7 @@ def get_pytorchjob_logs(name: str, namespace: str = "default", follow: bool = Fa
         Logs as string, or empty string if failed
     """
     try:
-        cmd = ["kubectl", "logs", "-l", f"job-name={name}", "-n", namespace]
+        cmd = ["kubectl", "logs", "-l", f"training.kubeflow.org/job-name={name}", "-n", namespace]
         if follow:
             cmd.append("-f")
         

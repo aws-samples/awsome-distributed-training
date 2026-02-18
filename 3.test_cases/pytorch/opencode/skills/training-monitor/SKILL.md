@@ -52,6 +52,29 @@ resources = verify_ray_resources('head-pod-name')
 print(f"GPUs used: {resources['gpus_used']}/{resources['gpus_available']}")
 ```
 
+### Verify EFA is Being Used (Not Just Present)
+
+**Problem**: An EFA device being present and ACTIVE does **not** mean NCCL is using it. NCCL can silently fall back to TCP sockets, causing NCCL timeout errors (ALLGATHER timeouts) during distributed training.
+
+**How to check**:
+```bash
+# Look in NCCL logs for transport type
+kubectl exec <head-pod> -- grep -i 'NET/OFI\|NET/Socket' /tmp/ray/session_latest/logs/worker*.out
+```
+
+- `NET/OFI Selected provider is efa` = EFA is working
+- `NET/Socket` or no output = Fallen back to TCP
+
+**Fix**: Ensure `NCCL_NET=ofi` and `LD_LIBRARY_PATH` includes `/opt/amazon/ofi-nccl/lib/x86_64-linux-gnu` in pod environment variables.
+
+```python
+from training_monitor.src.monitor import check_efa_utilization
+
+efa = check_efa_utilization('head-pod-name')
+if not efa['efa_active']:
+    print(f"WARNING: EFA not active! Transport: {efa['transport']}")
+```
+
 ## Installation
 
 The skill is self-contained. Just import and use:
@@ -61,6 +84,35 @@ from training_monitor.src.monitor import auto_restart
 ```
 
 ## Quick Start
+
+### Full Training Health Report
+
+One call to get GPU utilization, EFA status, checkpoint progress, and Ray resources:
+
+```python
+from training_monitor.src.monitor import get_training_health, print_training_health
+
+report = get_training_health(
+    head_pod='verl-grpo-training-head-pgbtb',
+    checkpoint_dir='/checkpoints/GRPO/verl-grpo-training-500',
+    all_pods=[
+        'verl-grpo-training-head-pgbtb',
+        'verl-grpo-training-worker-worker-group-8v7pg',
+        'verl-grpo-training-worker-worker-group-nqvvq',
+        'verl-grpo-training-worker-worker-group-v5rz4',
+    ]
+)
+
+# Pretty-print the report
+print_training_health(report)
+
+# Or access fields directly
+print(f"Healthy: {report['healthy']}")
+print(f"GPU avg: {report['gpu']['avg_utilization']:.0f}%")
+print(f"EFA: {report['efa']['transport']}")
+print(f"Latest checkpoint: step {report['checkpoints']['latest_step']}")
+print(f"Issues: {report['issues']}")
+```
 
 ### Basic Auto-Restart
 

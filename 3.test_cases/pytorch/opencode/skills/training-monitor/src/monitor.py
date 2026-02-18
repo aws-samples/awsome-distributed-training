@@ -881,6 +881,272 @@ def verify_ray_resources(head_pod: str, namespace: str = "default") -> Dict[str,
         }
 
 
+def check_efa_utilization(head_pod: str, namespace: str = "default") -> Dict[str, Any]:
+    """
+    Check if NCCL is using EFA (OFI) or falling back to TCP sockets.
+    
+    Examines NCCL initialization logs in Ray worker output to determine
+    the actual transport being used.
+    
+    Args:
+        head_pod: Name of the Ray head pod
+        namespace: Kubernetes namespace
+        
+    Returns:
+        Dictionary with EFA status:
+        {
+            'efa_active': bool,      # True if NCCL is using EFA/OFI
+            'transport': str,        # 'ofi' or 'socket'
+            'details': str           # Relevant log lines
+        }
+    """
+    try:
+        returncode, stdout, stderr = run_kubectl_command(
+            head_pod,
+            ['bash', '-c', 
+             "grep -i 'NET/OFI\\|NET/Socket' /tmp/ray/session_latest/logs/worker*.out 2>/dev/null | head -10"],
+            timeout=10
+        )
+        
+        if returncode != 0 or not stdout.strip():
+            return {
+                'efa_active': False,
+                'transport': 'unknown',
+                'details': 'No NCCL transport logs found. Training may not have initialized NCCL yet.'
+            }
+        
+        if 'NET/OFI' in stdout:
+            return {
+                'efa_active': True,
+                'transport': 'ofi',
+                'details': stdout.strip()
+            }
+        elif 'NET/Socket' in stdout:
+            return {
+                'efa_active': False,
+                'transport': 'socket',
+                'details': stdout.strip()
+            }
+        else:
+            return {
+                'efa_active': False,
+                'transport': 'unknown',
+                'details': stdout.strip()
+            }
+            
+    except Exception as e:
+        return {
+            'efa_active': False,
+            'transport': 'unknown',
+            'details': f'Error checking EFA: {str(e)}'
+        }
+
+
+def get_training_health(
+    head_pod: str,
+    checkpoint_dir: str,
+    all_pods: Optional[List[str]] = None,
+    namespace: str = "default"
+) -> Dict[str, Any]:
+    """
+    Get a comprehensive training health report in a single call.
+    
+    Combines GPU utilization, EFA status, checkpoint progress, and Ray
+    resource allocation into one report. Use this instead of running
+    multiple ad-hoc kubectl commands.
+    
+    Args:
+        head_pod: Name of the Ray head pod
+        checkpoint_dir: Path to checkpoint directory in the pod
+        all_pods: List of all pod names (head + workers). If None, only checks head.
+        namespace: Kubernetes namespace
+        
+    Returns:
+        Dictionary with full health report:
+        {
+            'healthy': bool,
+            'gpu': {
+                'total_gpus': int,
+                'avg_utilization': float,
+                'per_node': [{'pod': str, 'util': float, 'mem_used': int, 'mem_total': int}]
+            },
+            'efa': {
+                'active': bool,
+                'transport': str,
+                'channels': str
+            },
+            'checkpoints': {
+                'latest_step': int,
+                'checkpoint_count': int,
+                'checkpoint_dir': str
+            },
+            'ray': {
+                'gpus_used': float,
+                'gpus_available': float,
+                'cpus_used': float,
+                'cpus_available': float
+            },
+            'issues': [str]   # List of detected problems
+        }
+    """
+    report = {
+        'healthy': True,
+        'gpu': {'total_gpus': 0, 'avg_utilization': 0.0, 'per_node': []},
+        'efa': {'active': False, 'transport': 'unknown', 'channels': ''},
+        'checkpoints': {'latest_step': 0, 'checkpoint_count': 0, 'checkpoint_dir': checkpoint_dir},
+        'ray': {'gpus_used': 0, 'gpus_available': 0, 'cpus_used': 0, 'cpus_available': 0},
+        'issues': []
+    }
+    
+    pods_to_check = all_pods if all_pods else [head_pod]
+    
+    # --- GPU Utilization ---
+    gpu_utils = []
+    for pod in pods_to_check:
+        try:
+            returncode, stdout, _ = run_kubectl_command(
+                pod,
+                ['nvidia-smi', '--query-gpu=utilization.gpu,memory.used,memory.total',
+                 '--format=csv,noheader,nounits'],
+                timeout=10
+            )
+            if returncode == 0 and stdout.strip():
+                for line in stdout.strip().split('\n'):
+                    parts = line.split(',')
+                    if len(parts) >= 3:
+                        util = float(parts[0].strip())
+                        mem_used = int(parts[1].strip())
+                        mem_total = int(parts[2].strip())
+                        gpu_utils.append(util)
+                        report['gpu']['per_node'].append({
+                            'pod': pod.split('-')[-1] if '-' in pod else pod,
+                            'util': util,
+                            'mem_used': mem_used,
+                            'mem_total': mem_total
+                        })
+        except Exception:
+            pass
+    
+    if gpu_utils:
+        report['gpu']['total_gpus'] = len(gpu_utils)
+        report['gpu']['avg_utilization'] = sum(gpu_utils) / len(gpu_utils)
+        if report['gpu']['avg_utilization'] < 5.0:
+            report['issues'].append('GPU utilization < 5% -- training may not be running')
+            report['healthy'] = False
+    else:
+        report['issues'].append('Could not read GPU utilization from any node')
+        report['healthy'] = False
+    
+    # --- EFA Status ---
+    try:
+        returncode, stdout, _ = run_kubectl_command(
+            head_pod,
+            ['bash', '-c',
+             "grep -E 'NET/OFI|NET/Socket|via NET/' /tmp/ray/session_latest/logs/worker*.out 2>/dev/null | tail -15"],
+            timeout=10
+        )
+        if returncode == 0 and stdout.strip():
+            if 'NET/OFI' in stdout:
+                report['efa']['active'] = True
+                report['efa']['transport'] = 'ofi (EFA)'
+                # Extract channel info
+                channels = [l.strip() for l in stdout.split('\n') if 'via NET/OFI' in l]
+                report['efa']['channels'] = f"{len(channels)} channels via NET/OFI"
+            elif 'NET/Socket' in stdout:
+                report['efa']['transport'] = 'socket (TCP fallback)'
+                report['issues'].append('EFA not active -- NCCL using TCP sockets. Set NCCL_NET=ofi')
+            else:
+                report['efa']['transport'] = 'unknown'
+        else:
+            report['efa']['transport'] = 'no NCCL logs yet'
+    except Exception:
+        pass
+    
+    # --- Checkpoint Progress ---
+    try:
+        returncode, stdout, _ = run_kubectl_command(
+            head_pod,
+            ['bash', '-c', f'ls -1 {checkpoint_dir} 2>/dev/null | grep global_step | sort -V'],
+            timeout=10
+        )
+        if returncode == 0 and stdout.strip():
+            steps = []
+            for line in stdout.strip().split('\n'):
+                if line.startswith('global_step_'):
+                    try:
+                        steps.append(int(line.replace('global_step_', '')))
+                    except ValueError:
+                        pass
+            if steps:
+                report['checkpoints']['latest_step'] = max(steps)
+                report['checkpoints']['checkpoint_count'] = len(steps)
+    except Exception:
+        pass
+    
+    # --- Ray Resources ---
+    try:
+        returncode, stdout, _ = run_kubectl_command(
+            head_pod,
+            ['ray', 'status'],
+            timeout=10
+        )
+        if returncode == 0:
+            for line in stdout.split('\n'):
+                if 'GPU' in line and '/' in line:
+                    match = re.search(r'(\d+\.?\d*)/(\d+\.?\d*)\s+GPU', line)
+                    if match:
+                        report['ray']['gpus_used'] = float(match.group(1))
+                        report['ray']['gpus_available'] = float(match.group(2))
+                if 'CPU' in line and '/' in line and 'GPU' not in line:
+                    match = re.search(r'(\d+\.?\d*)/(\d+\.?\d*)\s+CPU', line)
+                    if match:
+                        report['ray']['cpus_used'] = float(match.group(1))
+                        report['ray']['cpus_available'] = float(match.group(2))
+            
+            if report['ray']['gpus_available'] > 0 and report['ray']['gpus_used'] == 0:
+                report['issues'].append('Ray has GPUs available but none allocated')
+                report['healthy'] = False
+    except Exception:
+        pass
+    
+    return report
+
+
+def print_training_health(report: Dict[str, Any]) -> None:
+    """Pretty-print a training health report to stdout."""
+    status = "HEALTHY" if report['healthy'] else "UNHEALTHY"
+    print(f"\n{'='*60}")
+    print(f"  Training Health: {status}")
+    print(f"{'='*60}")
+    
+    # GPU
+    print(f"\n  GPU Utilization (avg: {report['gpu']['avg_utilization']:.0f}%)")
+    for node in report['gpu']['per_node']:
+        bar = '#' * int(node['util'] / 5) + '.' * (20 - int(node['util'] / 5))
+        print(f"    {node['pod']:>10}: [{bar}] {node['util']:.0f}%  {node['mem_used']}/{node['mem_total']} MiB")
+    
+    # EFA
+    efa = report['efa']
+    efa_icon = "OK" if efa['active'] else "!!"
+    print(f"\n  EFA: [{efa_icon}] {efa['transport']}  {efa.get('channels', '')}")
+    
+    # Checkpoints
+    ckpt = report['checkpoints']
+    print(f"\n  Checkpoints: step {ckpt['latest_step']} ({ckpt['checkpoint_count']} saved)")
+    
+    # Ray
+    ray = report['ray']
+    print(f"  Ray: {ray['gpus_used']}/{ray['gpus_available']} GPU, {ray['cpus_used']}/{ray['cpus_available']} CPU")
+    
+    # Issues
+    if report['issues']:
+        print(f"\n  Issues:")
+        for issue in report['issues']:
+            print(f"    - {issue}")
+    
+    print(f"{'='*60}\n")
+
+
 def start_background_monitor(
     head_pod: str,
     job_id: str,

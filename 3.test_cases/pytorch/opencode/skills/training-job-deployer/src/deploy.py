@@ -14,7 +14,7 @@ from typing import Dict, Optional, Tuple
 from datetime import datetime
 
 # Add sub-skills to path
-SKILLS_BASE = os.path.expanduser('~/.opencode/skills')
+SKILLS_BASE = os.path.expanduser('~/.config/opencode/skills')
 sys.path.insert(0, os.path.join(SKILLS_BASE, 'k8s_cluster_manager', 'src'))
 sys.path.insert(0, os.path.join(SKILLS_BASE, 'ray-cluster-manager', 'src'))
 sys.path.insert(0, os.path.join(SKILLS_BASE, 'pytorchjob-manager', 'src'))
@@ -27,9 +27,9 @@ try:
     from check_cluster import check_cluster_health, check_gpu_availability, check_efa_availability
     from ray_manager import check_kuberay_installed, install_kuberay, create_raycluster, generate_raycluster_yaml
     from pytorchjob_manager import check_pytorchjob_crd, generate_pytorchjob_yaml, deploy_pytorchjob
-    from checkpoint_manager import create_pvc, find_latest_checkpoint
-    from monitor import auto_restart
-    from hyperpod_manager import is_hyperpod_cluster
+    from checkpoint_manager import create_pvc, find_latest_checkpoint, find_latest_checkpoint_on_pod
+    from monitor import auto_restart, get_training_health, print_training_health
+    from hyperpod_manager import is_hyperpod_cluster, get_hyperpod_nodes
 except ImportError as e:
     print(f"Error: Missing sub-skill. {e}")
     print("Please ensure all sub-skills are installed:")
@@ -398,8 +398,8 @@ python3 -m verl.trainer.main_ppo algorithm.adv_estimator=grpo data.train_files="
             f"torchrun "
             f"--nnodes={self.args.num_nodes} "
             f"--nproc_per_node={self.args.gpu_per_node} "
-            f"--master_addr=\$MASTER_ADDR "
-            f"--master_port=\$MASTER_PORT "
+            f"--master_addr=$MASTER_ADDR "
+            f"--master_port=$MASTER_PORT "
             f"train.py "
             f"--model_path={self.args.model_path} "
             f"--batch_size={self.args.batch_size}"
