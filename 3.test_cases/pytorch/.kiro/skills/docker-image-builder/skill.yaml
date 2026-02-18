@@ -1,0 +1,159 @@
+name: docker-image-builder
+version: 2.0.0
+description: |
+  Unified Docker image builder with automatic environment detection.
+  If Docker is available locally, builds with conflict analysis, auto-fix, and smoke tests.
+  If Docker is NOT available, falls back to AWS CodeBuild (warns about charges).
+  Single entry point: build_image.py
+
+triggers:
+  - type: command
+    pattern: "/build-docker-image"
+    description: "Build a Docker image with auto-detection (local Docker or CodeBuild)"
+  - type: file_change
+    pattern: "Dockerfile"
+    description: "Auto-trigger on Dockerfile changes"
+
+parameters:
+  # Build mode
+  - name: force_local
+    type: boolean
+    default: false
+    description: "Force local Docker build (fail if Docker not available)"
+
+  - name: force_codebuild
+    type: boolean
+    default: false
+    description: "Force CodeBuild build (warn about charges)"
+
+  # Source options
+  - name: context
+    type: string
+    default: "."
+    description: "Build context path"
+
+  - name: dockerfile
+    type: string
+    default: "Dockerfile"
+    description: "Path to Dockerfile relative to context"
+
+  # Image naming
+  - name: image_name
+    type: string
+    default: ""
+    description: "Image name (default: current directory name)"
+
+  - name: image_tag
+    type: string
+    default: "latest"
+    description: "Image tag"
+
+  # Auto-fix
+  - name: auto_fix
+    type: boolean
+    default: true
+    description: "Automatically fix detected conflicts"
+
+  - name: smoke_test
+    type: boolean
+    default: true
+    description: "Run smoke tests after local build"
+
+  - name: max_attempts
+    type: integer
+    default: 3
+    description: "Maximum rebuild attempts for local builds"
+
+  - name: base_image
+    type: string
+    default: ""
+    description: "Override base image (auto-detect if empty)"
+
+  # Local Docker options
+  - name: use_sudo
+    type: boolean
+    default: false
+    description: "Use sudo for Docker commands"
+
+  # CodeBuild options
+  - name: codebuild_project
+    type: string
+    default: "pytorch-fsdp"
+    description: "CodeBuild project name"
+
+  - name: s3_bucket
+    type: string
+    default: ""
+    description: "S3 bucket for source code (auto-generated if empty)"
+
+  - name: region
+    type: string
+    default: "us-west-2"
+    description: "AWS region for CodeBuild"
+
+  - name: wait
+    type: boolean
+    default: true
+    description: "Wait for CodeBuild completion"
+
+  - name: timeout
+    type: integer
+    default: 3600
+    description: "CodeBuild timeout in seconds"
+
+  - name: verbose
+    type: boolean
+    default: true
+    description: "Show detailed status updates"
+
+outputs:
+  - name: success
+    type: boolean
+    description: "Whether build succeeded"
+
+  - name: image_name
+    type: string
+    description: "Name of the built image"
+
+  - name: mode
+    type: string
+    description: "Build mode used: 'local' or 'codebuild'"
+
+  - name: build_id
+    type: string
+    description: "CodeBuild build ID (CodeBuild mode only)"
+
+  - name: build_time
+    type: string
+    description: "Total build time"
+
+  - name: attempts
+    type: integer
+    description: "Number of build attempts"
+
+  - name: fixes_applied
+    type: array
+    description: "List of fixes applied"
+
+dependencies:
+  - python3
+  - git
+  # One of the following is required (auto-detected):
+  # - docker (for local builds)
+  # - aws-cli (for CodeBuild builds)
+
+examples:
+  - command: "/build-docker-image"
+    description: "Build with auto-detection (local Docker preferred)"
+
+  - command: "/build-docker-image --force-codebuild"
+    description: "Force CodeBuild (useful when Docker not installed)"
+
+  - command: "/build-docker-image --context ./FSDP --image-name fsdp --image-tag v1.0"
+    description: "Build from specific context with custom tag"
+
+  - command: "/build-docker-image --force-local --no-smoke-test"
+    description: "Quick local build without smoke tests"
+
+author: opencode
+license: MIT
