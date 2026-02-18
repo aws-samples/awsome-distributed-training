@@ -2,6 +2,19 @@
 
 This directory contains Claude Code compatible commands for managing Docker images, EKS clusters, and training jobs for PyTorch FSDP workloads with automatic torchrun configuration for distributed training.
 
+## Cross-Provider Compatibility
+
+The underlying skills follow the open [Agent Skills](https://agentskills.io) standard. While this directory provides Claude Code command wrappers, the same functionality is available for other AI coding tools:
+
+| Provider | Location | Format |
+|----------|----------|--------|
+| **Claude Code** | `claude-commands/` (this directory) | Python command wrappers calling skills |
+| **OpenCode** | `opencode/skills/` | `SKILL.md` + Python scripts (canonical source) |
+| **Kiro** | `kiro/skills/` + `kiro/steering/` | `SKILL.md` + steering files for persistent context |
+| **Codex (OpenAI)** | Copy skills to `.agents/skills/` | Same `SKILL.md` format |
+
+The skills at `opencode/skills/` are the canonical implementation. Claude commands in this directory are thin wrappers that invoke those skills.
+
 ## Available Commands
 
 ### Command Overview

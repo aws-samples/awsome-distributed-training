@@ -2,6 +2,19 @@
 
 A comprehensive suite of skills for building, testing, and deploying PyTorch FSDP training workloads on Amazon EKS using OpenCode.
 
+## Cross-Provider Compatibility
+
+These skills follow the open [Agent Skills](https://agentskills.io) standard and work across multiple AI coding tools:
+
+| Provider | Location | Auto-discovery | Setup |
+|----------|----------|----------------|-------|
+| **OpenCode** | `opencode/skills/` | Yes (via `~/.config/opencode/skills/`) | Copy to `~/.config/opencode/skills/` |
+| **Kiro** | `kiro/skills/` | Yes (via `.kiro/skills/`) | Symlink `kiro/` to `.kiro/` |
+| **Claude Code** | Copy to `.claude/skills/` | Yes | `cp -r opencode/skills/* .claude/skills/` |
+| **Codex (OpenAI)** | Copy to `.agents/skills/` | Yes | `cp -r opencode/skills/* .agents/skills/` |
+
+The `SKILL.md` format is identical across all providers -- only the directory placement differs.
+
 ## 📦 Available Skills
 
 | Skill | Purpose | Location |
