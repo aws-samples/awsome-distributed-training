@@ -33,10 +33,11 @@ unset _var
 
 severity_rank() {
     case "${1:-}" in
-        MONITOR)  echo 0 ;;
-        RESET)    echo 1 ;;
-        REBOOT)   echo 2 ;;
-        ISOLATE)  echo 3 ;;
+        PASS)     echo 0 ;;
+        MONITOR)  echo 1 ;;
+        RESET)    echo 2 ;;
+        REBOOT)   echo 3 ;;
+        ISOLATE)  echo 4 ;;
         *)        echo 0 ;;
     esac
 }
@@ -140,9 +141,11 @@ run_check() {
 
     # Step 3a: Xid classification
     if [[ -n "${xid_errors}" ]]; then
-        # Extract unique Xid codes using sed (no GNU grep -P dependency)
+        # Extract unique Xid codes using sed (no GNU grep -P dependency).
+        # The NVIDIA kernel log format is: NVRM: Xid (PCI:0000:xx:00): <code>, ...
+        # We skip past the closing parenthesis to avoid matching the PCI bus number.
         local xid_codes
-        xid_codes=$(echo "${xid_errors}" | sed -nE 's/.*Xid[^:]*:[[:space:]]*([0-9]+).*/\1/p' | sort -un || true)
+        xid_codes=$(echo "${xid_errors}" | sed -nE 's/.*Xid[^)]*\):[[:space:]]*([0-9]+).*/\1/p' | sort -un || true)
 
         local highest_severity="MONITOR"
         local severity_details=""
@@ -282,7 +285,7 @@ run_check() {
         local sxid_msg="Found ${sxid_count} SXid (NVSwitch) error(s) in kernel log"
 
         # SXid alongside Xid 74 suggests NVSwitch root cause
-        if [[ -n "${xid_errors}" ]] && echo "${xid_errors}" | sed -nE 's/.*Xid[^:]*:[[:space:]]*([0-9]+).*/\1/p' | grep -qw '74'; then
+        if [[ -n "${xid_errors}" ]] && echo "${xid_errors}" | sed -nE 's/.*Xid[^)]*\):[[:space:]]*([0-9]+).*/\1/p' | grep -qw '74'; then
             sxid_msg+="; SXid with Xid 74 indicates likely NVSwitch root cause (recommend RESET)"
         fi
 
@@ -315,6 +318,76 @@ run_check() {
         fi
     else
         log_verbose "nvidia-smi UUID query failed -- skipping UUID capture"
+    fi
+
+    # Step 6: GPU ECC and retired pages check
+    # Detects uncorrectable memory errors and page retirements that indicate
+    # degrading GPU memory health. DBE (double-bit errors) are unrecoverable.
+    local MAX_RETIRED_PAGES_SBE="${MAX_RETIRED_PAGES_SBE:-60}"
+
+    log_info "Checking GPU ECC errors and retired pages"
+    local ecc_output=""
+    if ecc_output=$(run_cmd nvidia-smi \
+        --query-gpu=index,ecc.errors.uncorrected.volatile.total,ecc.errors.uncorrected.aggregate.total,retired_pages.pending,retired_pages.sbe,retired_pages.dbe \
+        --format=csv,noheader 2>/dev/null); then
+
+        if [[ -n "${ecc_output}" ]]; then
+            echo "${ecc_output}" > "${RESULTS_DIR}/ecc-status.csv"
+
+            local ecc_severity="PASS"
+            local ecc_details=""
+
+            while IFS=', ' read -r gpu_idx uncorr_vol uncorr_agg retire_pending retire_sbe retire_dbe; do
+                # Skip GPUs that don't support ECC (fields report "N/A")
+                if [[ "${uncorr_vol}" == "N/A" || "${uncorr_vol}" == "[N/A]" ]]; then
+                    continue
+                fi
+
+                # Strip any whitespace from parsed fields
+                uncorr_vol="${uncorr_vol// /}"
+                uncorr_agg="${uncorr_agg// /}"
+                retire_pending="${retire_pending// /}"
+                retire_sbe="${retire_sbe// /}"
+                retire_dbe="${retire_dbe// /}"
+
+                # DBE (double-bit errors) > 0 → ISOLATE (unrecoverable memory errors)
+                if [[ "${retire_dbe}" =~ ^[0-9]+$ && "${retire_dbe}" -gt 0 ]]; then
+                    ecc_severity=$(bump_severity "${ecc_severity}" "ISOLATE")
+                    ecc_details+="GPU ${gpu_idx}: ${retire_dbe} double-bit retired page(s); "
+                fi
+
+                # Retired pages pending → REBOOT (pending retirement needs reboot to take effect)
+                if [[ "${retire_pending}" == "Yes" ]]; then
+                    ecc_severity=$(bump_severity "${ecc_severity}" "REBOOT")
+                    ecc_details+="GPU ${gpu_idx}: retired pages pending reboot; "
+                fi
+
+                # Uncorrected volatile errors > 0 → RESET
+                if [[ "${uncorr_vol}" =~ ^[0-9]+$ && "${uncorr_vol}" -gt 0 ]]; then
+                    ecc_severity=$(bump_severity "${ecc_severity}" "RESET")
+                    ecc_details+="GPU ${gpu_idx}: ${uncorr_vol} uncorrected volatile ECC error(s); "
+                fi
+
+                # SBE retired pages approaching limit (NVIDIA limit is 64) → MONITOR
+                if [[ "${retire_sbe}" =~ ^[0-9]+$ && "${retire_sbe}" -gt "${MAX_RETIRED_PAGES_SBE}" ]]; then
+                    ecc_severity=$(bump_severity "${ecc_severity}" "MONITOR")
+                    ecc_details+="GPU ${gpu_idx}: ${retire_sbe} SBE retired pages (threshold: ${MAX_RETIRED_PAGES_SBE}); "
+                fi
+            done <<< "${ecc_output}"
+
+            if [[ "${ecc_severity}" != "PASS" ]]; then
+                if [[ "${ecc_severity}" == "MONITOR" ]]; then
+                    check_warn "${CHECK_NAME}" "ECC/retired pages: ${ecc_details}"
+                else
+                    check_fail "${CHECK_NAME}" "ECC/retired pages: ${ecc_details}" "${ecc_severity}"
+                    check_exit_code=1
+                fi
+            else
+                log_verbose "ECC and retired pages: all GPUs healthy"
+            fi
+        fi
+    else
+        log_verbose "nvidia-smi ECC query not supported -- skipping ECC check"
     fi
 
     # Emit final result (only PASS if no prior failures)

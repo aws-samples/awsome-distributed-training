@@ -109,7 +109,7 @@ run_check() {
         if [[ -n "${nvlink_test_output}" ]]; then
             echo "${nvlink_test_output}" > "${RESULTS_DIR}/nccl-nvlink-only.txt"
             local nvlink_busbw
-            nvlink_busbw=$(echo "${nvlink_test_output}" | grep -E "^\s+[0-9]" | awk '{print $NF}' \
+            nvlink_busbw=$(echo "${nvlink_test_output}" | grep -E "^\s+[0-9]" | awk '{print $(NF-1)}' \
                 | sort -n | tail -1 || echo "0")
 
             if [[ "${nvlink_only_threshold}" -gt 0 ]]; then
@@ -154,7 +154,7 @@ run_check() {
             if [[ -n "${efa_test_output}" ]]; then
                 echo "${efa_test_output}" > "${RESULTS_DIR}/nccl-efa-only.txt"
                 local efa_busbw
-                efa_busbw=$(echo "${efa_test_output}" | grep -E "^\s+[0-9]" | awk '{print $NF}' \
+                efa_busbw=$(echo "${efa_test_output}" | grep -E "^\s+[0-9]" | awk '{print $(NF-1)}' \
                     | sort -n | tail -1 || echo "0")
 
                 if [[ "${min_expected}" -gt 0 ]]; then
@@ -229,10 +229,11 @@ run_check() {
             "EFA provider not confirmed in NCCL output -- performance may be degraded"
     fi
 
-    # Extract maximum bus bandwidth from results
-    # Format: size  count  type  redop  root  time  algbw  busbw  ...
+    # Extract maximum bus bandwidth from results.
+    # NCCL output format: ... algbw  busbw  #wrong  time  algbw  busbw  #wrong
+    # $(NF-1) gets the last busbw column (second-to-last field, before #wrong).
     local max_busbw
-    max_busbw=$(echo "${nccl_output}" | grep -E "^\s+[0-9]" | awk '{print $NF}' \
+    max_busbw=$(echo "${nccl_output}" | grep -E "^\s+[0-9]" | awk '{print $(NF-1)}' \
         | sort -n | tail -1 || echo "0")
 
     log_info "Maximum bus bandwidth: ${max_busbw} GB/s"
