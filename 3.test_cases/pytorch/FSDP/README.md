@@ -1,443 +1,55 @@
-# PyTorch FSDP Training on EKS with Automated Deployment
+# Get Started Training Llama 2, Mixtral 8x7B, and Mistral Mathstral with PyTorch FSDP in 5 Minutes
 
-This repository provides a complete solution for distributed PyTorch FSDP training on Amazon EKS (Elastic Kubernetes Service) with automated deployment using **AWS CodeBuild** (default) or local tools.
+This content provides a quickstart with multinode PyTorch [FSDP](https://pytorch.org/tutorials/intermediate/FSDP_tutorial.html) training on Slurm and Kubernetes.
+It is designed to be simple with no data preparation or tokenizer to download, and uses Python virtual environment.
 
-## 🚀 Quick Start (AWS CodeBuild - Recommended)
+## Prerequisites
 
-The **CodeBuild architecture** is the default and recommended approach. It provides:
-- ✅ Automated builds on every commit
-- ✅ No local Docker required
-- ✅ Scalable, serverless infrastructure
-- ✅ Integrated testing and ECR push
+To run FSDP training, you will need to create a training cluster based on Slurm or Kubermetes with an [Amazon FSx for Lustre](https://docs.aws.amazon.com/fsx/latest/LustreGuide/what-is.html)
+You can find instruction how to create a Amazon SageMaker Hyperpod cluster with [Slurm](https://catalog.workshops.aws/sagemaker-hyperpod/en-US), [Kubernetes](https://catalog.workshops.aws/sagemaker-hyperpod-eks/en-US) or with in [Amazon EKS](../../1.architectures).
 
-### One-Time Setup
+## FSDP Training
 
-```bash
-# Setup AWS infrastructure (ECR, CodeBuild, IAM)
-./opencode/skills/infrastructure/aws-cli/setup-codebuild.sh \
-  --project-name pytorch-fsdp \
-  --region us-west-2
-```
-
-### Deploy Training Job
-
-Once CodeBuild is configured, simply push your code to trigger the pipeline:
-
-```bash
-# Commit and push - CodeBuild handles the rest
-git add .
-git commit -m "feat: Add training configuration"
-git push origin main
-
-# Then deploy the training job
-python claude-commands/deploy_training_job.py \
-  --cluster_name your-cluster \
-  --num_nodes 4 \
-  --job_name llama32-1b-training
-```
-
-Or using Claude Code interactively:
-
-```python
-# Deploy training job (image is built automatically by CodeBuild)
-deploy_training_job(
-    cluster_name="your-cluster",
-    num_nodes=4,
-    job_name="llama32-1b-training",
-    monitor=True
-)
-```
-
-### Alternative: Local Docker Build
-
-If you prefer local builds (requires Docker):
-
-```bash
-# 1. Build locally
-python claude-commands/build_image.py --auto_fix
-
-# 2. Deploy
-python claude-commands/deploy_training_job.py \
-  --cluster_name your-cluster \
-  --num_nodes 4
-```
-
-See [Local Development](#local-development) section below for details.
-
-## 📋 What's Included
-
-### 🤖 Automated Tools
-
-- **Claude Code Commands** (`claude-commands/`)
-  - `build_docker_image` - Build images with auto-fix for PyTorch/CUDA conflicts
-  - `deploy_training_job` - Deploy distributed training with torchrun
-  - `manage_eks_cluster` - Validate and manage EKS clusters
-
-- **opencode Skills** (`opencode/skills/`)
-  - `docker-image-builder` - Automated Docker image building
-  - `training-job-deployer` - PyTorchJob deployment with torchrun
-  - `eks-cluster-manager` - EKS cluster validation and management
-  - `shared/` - Common utilities (K8s client, logger, etc.)
-
-### 🎯 Key Features
-
-✅ **Automatic torchrun Configuration** - No manual distributed setup  
-✅ **PyTorchJob Integration** - Native Kubeflow support  
-✅ **Multi-Node Training** - Scale from 1 to 100+ nodes  
-✅ **Auto-Retry on Failures** - Intelligent retry with fixes  
-✅ **Real-Time Monitoring** - Stream logs and track progress  
-✅ **Checkpoint Persistence** - Automatic checkpoint management  
-✅ **HuggingFace Integration** - Support for gated models  
-
-## 📚 Documentation
-
-- **[USAGE.md](USAGE.md)** - Complete step-by-step guide with examples
-- **[claude-commands/README.md](claude-commands/README.md)** - Command reference
-- **[Test Results](TEST_RESULTS.md)** - Example training run results
-
-## 🏗️ Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                   Development Environment                    │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │         Claude Code Commands / opencode Skills      │   │
-│  │                                                     │   │
-│  │  ┌──────────────┐ ┌──────────────┐ ┌──────────┐   │   │
-│  │  │Build Image   │ │Deploy Job    │ │Manage    │   │   │
-│  │  │              │ │              │ │Cluster   │   │   │
-│  │  └──────────────┘ └──────────────┘ └──────────┘   │   │
-│  └─────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                      AWS Infrastructure                      │
-│  ┌──────────────┐      ┌──────────────┐      ┌──────────┐  │
-│  │     ECR      │      │     EKS      │      │   FSx    │  │
-│  │   (Images)   │      │  (Cluster)   │      │(Storage) │  │
-│  └──────────────┘      └──────────────┘      └──────────┘  │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    EKS Cluster (GPU Nodes)                   │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │              PyTorchJob (Kubeflow)                   │   │
-│  │                                                      │   │
-│  │  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌────────┐ │   │
-│  │  │Worker 0 │  │Worker 1 │  │Worker 2 │  │Worker 3│ │   │
-│  │  │(Master) │  │         │  │         │  │        │ │   │
-│  │  └─────────┘  └─────────┘  └─────────┘  └────────┘ │   │
-│  └─────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### CodeBuild Architecture (Default)
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      Git Repository                          │
-│                    (GitHub/GitLab)                           │
-└──────────────────────┬──────────────────────────────────────┘
-                       │ Webhook / Manual Trigger
-                       ▼
-┌─────────────────────────────────────────────────────────────┐
-│                      AWS CodeBuild                           │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │              Build Environment                       │   │
-│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────┐  │   │
-│  │  │Build Image   │  │Test Image    │  │Push to   │  │   │
-│  │  │(Auto-fix)    │  │(Validation)  │  │ECR       │  │   │
-│  │  └──────────────┘  └──────────────┘  └──────────┘  │   │
-│  └─────────────────────────────────────────────────────┘   │
-└──────────────────────┬──────────────────────────────────────┘
-                       │
-                       ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    Amazon ECR                                │
-│              (Docker Image Repository)                       │
-└──────────────────────┬──────────────────────────────────────┘
-                       │ Pull Image
-                       ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    EKS Training Job                          │
-└─────────────────────────────────────────────────────────────┘
-```
-
-**Why CodeBuild?**
-- **No Local Setup**: No need to install Docker locally
-- **Consistent Environment**: Same environment every build
-- **Auto-Scaling**: Handles multiple builds concurrently
-- **Integrated**: Works with GitHub/GitLab webhooks
-- **Cost-Effective**: Pay only for build minutes used
-
-## 🎓 Supported Models
-
-- **Llama 3.2** (1B, 3B) - Meta's latest small language models
-- **Llama 3.1** (8B, 70B, 405B) - State-of-the-art open models
-- **Llama 2** (7B, 13B, 70B) - Previous generation
-- **Mixtral 8x7B** - Mixture of Experts model
-- **Mistral 7B** - Efficient 7B parameter model
-- **Custom Models** - Any HuggingFace transformers model
-
-## 📊 Example Training Results
-
-**Llama 3.2 1B on 4x ml.g5.8xlarge:**
-
-```
-Configuration:
-- Nodes: 4 x ml.g5.8xlarge (NVIDIA A10G GPUs)
-- GPUs: 4 total (1 per node)
-- Training: 100 steps
-- Dataset: allenai/c4
-- Duration: ~17 minutes
-
-Results:
-- Initial Loss: 12.21
-- Final Loss: 6.87 (43% reduction)
-- Validation Loss: 7.33
-- Speed: 0.67 samples/sec
-- Checkpoint: /checkpoints/llama_v3-100steps
-```
-
-## 🛠️ Prerequisites
-
-### Required Tools (CodeBuild - Default)
-
-For the **CodeBuild architecture** (recommended), you only need:
-
-```bash
-# AWS CLI
-pip install awscli
-aws configure
-
-# kubectl (for deploying training jobs)
-brew install kubectl  # macOS
-# OR download from https://kubernetes.io/docs/tasks/tools/
-
-# Python dependencies
-pip install boto3 pyyaml
-```
-
-**Note**: Docker is NOT required locally when using CodeBuild!
-
-### Required Tools (Local Development - Optional)
-
-For **local Docker builds** (alternative approach):
-
-```bash
-# Docker Desktop or Docker Engine
-# https://docs.docker.com/get-docker/
-
-# Verify Docker is running
-docker --version
-docker info
-```
-
-### AWS Resources
-
-- **CodeBuild Project** - For automated builds (set up via infrastructure scripts)
-- **ECR Repository** - For Docker images
-- **EKS Cluster** - With GPU nodes (ml.g5 family)
-- **IAM Permissions** - CodeBuild, ECR, EKS access
-
-See [USAGE.md](USAGE.md) for detailed setup instructions.
-
-## 🚦 Usage Examples
-
-### Basic Training
-
-```python
-deploy_training_job(
-    cluster_name="my-cluster",
-    num_nodes=4,
-    job_name="basic-training"
-)
-```
-
-### Custom Configuration
-
-```python
-deploy_training_job(
-    job_name="llama3-8b-training",
-    image_uri="123456789.dkr.ecr.us-west-2.amazonaws.com/fsdp:custom",
-    num_nodes=8,
-    gpu_per_node=2,
-    instance_type="ml.g5.12xlarge",
-    cluster_name="my-cluster",
-    max_steps=1000,
-    monitor=True
-)
-```
-
-### Gated Model (Requires HF Token)
-
-```python
-deploy_training_job(
-    job_name="llama3-gated",
-    num_nodes=4,
-    cluster_name="my-cluster",
-    hf_token="hf_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-    tokenizer="meta-llama/Llama-3.2-1B"
-)
-```
-
-## 💻 Local Development (Alternative to CodeBuild)
-
-If you prefer to build Docker images locally instead of using CodeBuild:
-
-### Setup
-
-```bash
-# 1. Install Docker
-# https://docs.docker.com/get-docker/
-
-# 2. Verify Docker is running
-docker --version
-docker info
-
-# 3. Login to ECR
-aws ecr get-login-password --region us-west-2 | \
-  docker login --username AWS --password-stdin \
-  your-account.dkr.ecr.us-west-2.amazonaws.com
-```
-
-### Build Locally
-
-```bash
-# Build with auto-fix
-python claude-commands/build_image.py \
-  --dockerfile Dockerfile \
-  --context . \
-  --auto_fix true \
-  --max_attempts 3
-
-# Test the image
-python claude-commands/test_image.py \
-  --image fsdp:latest \
-  --level full
-
-# Push to ECR
-python claude-commands/push_image.py \
-  --image fsdp:latest \
-  --repository fsdp \
-  --region us-west-2
-```
-
-### When to Use Local Builds?
-
-- **Rapid Iteration**: Testing Dockerfile changes quickly
-- **Offline Development**: Working without AWS access temporarily
-- **Debugging**: Investigating build issues interactively
-- **Custom Base Images**: Testing non-standard base images
-
-**Note**: CodeBuild is still recommended for production builds as it provides consistent environments and automatic testing.
-
-## 🔧 Advanced Features
-
-### Automatic torchrun Configuration
-
-The deployment automatically configures torchrun for distributed training:
-
-```bash
-torchrun \
-  --nproc_per_node=1 \
-  --nnodes=4 \
-  --node_rank=$(RANK) \
-  --master_addr=$(MASTER_ADDR) \
-  --master_port=$(MASTER_PORT) \
-  --rdzv_backend=c10d \
-  /fsdp/train.py \
-  --model_type=llama_v3 \
-  --max_steps=100
-```
-
-### Checkpoint Management
-
-Checkpoints are automatically saved to `/checkpoints/` and persisted to the host:
-
-```bash
-# List checkpoints
-kubectl exec -it training-worker-0 -- ls -la /checkpoints/
-
-# Download checkpoints
-kubectl cp training-worker-0:/checkpoints/ ./local-checkpoints/
-```
-
-### Monitoring & Debugging
-
-```bash
-# Check job status
-kubectl get pytorchjobs
-
-# View logs
-kubectl logs -f training-worker-0
-
-# Check GPU utilization
-kubectl exec -it training-worker-0 -- nvidia-smi
-
-# Describe pod
-kubectl describe pod training-worker-0
-```
-
-## 📁 Repository Structure
-
-```
-.
-├── claude-commands/          # Claude Code compatible commands
-│   ├── build_image.py       # Build Docker images
-│   ├── deploy_training_job.py # Deploy training jobs
-│   ├── manage_eks_cluster.py # Manage EKS clusters
-│   └── README.md            # Command documentation
-│
-├── opencode/skills/         # opencode skills
-│   ├── docker-image-builder/
-│   ├── training-job-deployer/
-│   ├── eks-cluster-manager/
-│   └── shared/              # Shared utilities
-│
-├── src/                     # Training source code
-│   ├── train.py            # Main training script
-│   └── model_utils/        # Model utilities
-│
-├── kubernetes/              # Kubernetes manifests
-├── slurm/                   # Slurm configurations
-├── models/                  # Model definitions
-├── Dockerfile              # Docker image definition
-├── README.md               # This file
-└── USAGE.md               # Complete usage guide
-```
-
-## 🐛 Troubleshooting
-
-See [USAGE.md#troubleshooting](USAGE.md#troubleshooting) for detailed troubleshooting guide.
-
-Common issues:
-- **ImagePullBackOff** - ECR login or image URI mismatch
-- **CrashLoopBackOff** - Missing HF token or CUDA mismatch
-- **NCCL errors** - EFA/network configuration issues
-- **Slow training** - Check GPU utilization and EFA usage
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
-
-## 📄 License
-
-MIT License - See LICENSE file for details
-
-## 🙏 Acknowledgments
-
-- PyTorch FSDP team for the distributed training framework
-- Kubeflow team for PyTorchJob
-- AWS for EKS and SageMaker HyperPod
-- HuggingFace for transformers library
+This fold provides examples on how to train with PyTorch FSDP with Slurm or Kubernetes.
+You will find instructions for [Slurm](slurm) or [Kubernetes](kubernetes) in the subdirectories.
 
 ---
 
-**Ready to start training?** Check out [USAGE.md](USAGE.md) for the complete guide!
+## Automated EKS Deployment (OpenCode / Claude Code)
+
+In addition to the manual Slurm and Kubernetes workflows above, this directory includes automated tooling for deploying FSDP training on Amazon EKS using OpenCode skills and Claude Code commands. These live one level up at `pytorch/opencode/skills/` and `pytorch/claude-commands/`.
+
+See [USAGE.md](USAGE.md) for the complete step-by-step guide.
+
+### Quick Start
+
+```bash
+# Build Docker image (auto-detects local Docker or falls back to CodeBuild)
+python3 ../opencode/skills/docker-image-builder/src/build_image.py --context .
+
+# Deploy training job to EKS
+python3 ../claude-commands/deploy_training_job.py \
+  --cluster_name your-cluster \
+  --image_uri your-account.dkr.ecr.us-west-2.amazonaws.com/fsdp:latest \
+  --num_nodes 4
+```
+
+### What's Available
+
+| Tool | Location | Description |
+|------|----------|-------------|
+| Docker Image Builder | `../opencode/skills/docker-image-builder/` | Build images with auto-fix (local Docker or CodeBuild) |
+| Docker Image Tester | `../opencode/skills/docker-image-tester/` | Test images (import validation, CUDA checks) |
+| ECR Image Pusher | `../opencode/skills/ecr-image-pusher/` | Push images to Amazon ECR |
+| EKS Cluster Manager | `../opencode/skills/eks-cluster-manager/` | Discover, validate, manage EKS clusters |
+| Training Job Deployer | `../opencode/skills/training-job-deployer/` | Deploy PyTorchJob with torchrun |
+| PyTorchJob Manager | `../opencode/skills/pytorchjob-manager/` | CRUD for PyTorchJob resources |
+| Training Monitor | `../opencode/skills/training-monitor/` | Monitor jobs with auto-restart |
+
+### Example Training Results
+
+Llama 3.2 1B on 4x ml.g5.8xlarge (EKS):
+- 100 steps, loss reduced from 12.21 to 6.87 (43% reduction)
+- Validation loss: 7.33
+- Duration: ~17 minutes
+- Checkpoint saved to `/checkpoints/llama_v3-100steps`
