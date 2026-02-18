@@ -1,261 +1,232 @@
 ---
 name: docker-image-builder
-description: Build Docker images using AWS CodeBuild with S3 source (default) or local Docker. Automatically uploads source to S3, triggers CodeBuild, and monitors the build process. No local Docker required!
+description: Build Docker images with automatic environment detection. Uses local Docker when available, falls back to AWS CodeBuild otherwise.
 license: MIT
 compatibility: opencode
 metadata:
   category: build
   author: opencode
-  default_mode: codebuild
+  version: 2.0.0
 ---
 
 ## What I do
 
-Build Docker images using **AWS CodeBuild with S3 source** (default) or local Docker:
+Build Docker images with **automatic environment detection**:
 
-### CodeBuild Mode (Default - Recommended)
-1. **Upload Source**: Automatically zips and uploads your source code to S3
-2. **Trigger CodeBuild**: Starts a build using the uploaded S3 source
-3. **Monitor Progress**: Optionally waits for build completion and streams logs
-4. **No Local Docker Required**: Everything runs in AWS CodeBuild
+1. **Detect Docker**: checks if Docker is installed and running locally
+2. **Local Docker** (if available): builds with conflict analysis, auto-fix, and smoke tests
+3. **CodeBuild fallback** (if no Docker): uploads source to S3, triggers CodeBuild, monitors build (warns about charges)
 
-### Local Mode (Optional)
-1. **Conflict Detection**: Analyzes Dockerfile and requirements.txt
-2. **Auto-Fix**: Resolves PyTorch/CUDA compatibility issues
-3. **Local Build**: Builds image using local Docker daemon
+There is a **single entry point**: `build_image.py`
 
 ## When to use me
 
-Use this skill when you need to:
-- **Build a Docker image without installing Docker locally** (use CodeBuild mode)
 - Build PyTorch FSDP training images
-- Fix PyTorch/CUDA compatibility issues
+- Fix PyTorch/CUDA/torchvision compatibility issues automatically
+- Build images without Docker installed locally (falls back to CodeBuild)
 - Build images in a consistent, reproducible environment
-- Scale builds without local resource constraints
 
 ## How to use me
 
-### CodeBuild Mode (Default)
+### Single entry point (auto-detects environment)
 
 ```bash
-# Basic usage - uploads source to S3 and triggers CodeBuild
-python3 opencode/skills/docker-image-builder/src/build_image_codebuild.py
-
-# With custom project name
-python3 opencode/skills/docker-image-builder/src/build_image_codebuild.py \
-  --codebuild-project my-project \
-  --region us-west-2
-
-# Specify custom S3 bucket (auto-created if doesn't exist)
-python3 opencode/skills/docker-image-builder/src/build_image_codebuild.py \
-  --s3-bucket my-custom-bucket
-
-# Don't wait for build completion (background mode)
-python3 opencode/skills/docker-image-builder/src/build_image_codebuild.py \
-  --no-wait
-```
-
-### Prerequisites for CodeBuild Mode
-
-1. **AWS CLI configured**:
-   ```bash
-   aws configure
-   # Set AWS Access Key ID, Secret Access Key, region (us-west-2)
-   ```
-
-2. **CodeBuild project exists** (create if needed):
-   ```bash
-   # Using the setup script
-   ./opencode/skills/infrastructure/aws-cli/setup-codebuild.sh \
-     --project-name pytorch-fsdp \
-     --region us-west-2
-   
-   # Or manually via AWS Console
-   ```
-
-### Local Mode (Requires Docker)
-
-```bash
-# Force local build (requires Docker installed)
+# Auto-detect: local Docker if available, CodeBuild otherwise
 python3 opencode/skills/docker-image-builder/src/build_image.py \
-  --use-local \
-  --dockerfile Dockerfile \
-  --auto_fix true
+  --context ./FSDP
+
+# Force local Docker
+python3 opencode/skills/docker-image-builder/src/build_image.py \
+  --force-local --context ./FSDP
+
+# Force CodeBuild
+python3 opencode/skills/docker-image-builder/src/build_image.py \
+  --force-codebuild --codebuild-project pytorch-fsdp
+
+# Custom image name and tag
+python3 opencode/skills/docker-image-builder/src/build_image.py \
+  --image-name fsdp --image-tag v1.0.0 --context ./FSDP
 ```
+
+### Prerequisites
+
+**For local Docker builds:**
+- Docker installed and running
+
+**For CodeBuild builds:**
+- AWS CLI configured (`aws configure`)
+- CodeBuild project created:
+  ```bash
+  ./opencode/skills/infrastructure/aws-cli/setup-codebuild.sh \
+    --project-name pytorch-fsdp --region us-west-2
+  ```
 
 ## Parameters
 
-### CodeBuild Mode Parameters
+### Build mode (mutually exclusive, default: auto-detect)
 
-- `--use-codebuild`: Use CodeBuild (default: True)
-- `--codebuild-project`: CodeBuild project name (default: "pytorch-fsdp")
-- `--s3-bucket`: S3 bucket for source code (default: auto-generated as `{project-name}-build-artifacts`)
-- `--region`: AWS region (default: "us-west-2")
-- `--wait`: Wait for build completion (default: True)
-- `--no-wait`: Don't wait, run in background
-- `--timeout`: Build timeout in seconds (default: 3600)
-- `--context`: Build context path (default: ".")
-- `--dockerfile`: Path to Dockerfile (default: "Dockerfile")
-- `--image-name`: Image name (default: current directory name, e.g., "my-project")
-- `--image-tag`: Image tag (default: "latest")
-- `--verbose`: Show detailed output (default: True)
+| Parameter | Description |
+|-----------|-------------|
+| `--force-local` | Force local Docker (fail if not available) |
+| `--force-codebuild` | Force CodeBuild (warn about charges) |
 
-**Image Naming:**
-- By default, the image name is derived from the current directory name
-- Example: If you're in `/home/user/my-training-project`, image will be named `my-training-project:latest`
-- Use `--image-name` to override with a custom name
-- Use `--image-tag` to specify a custom tag (e.g., `v1.0.0`, `2024-01-15`)
+### Source options
 
-### Local Mode Parameters
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `--context` | `.` | Build context path |
+| `--dockerfile` | `Dockerfile` | Path to Dockerfile (relative to context) |
 
-- `--use-local`: Use local Docker instead of CodeBuild
-- `--dockerfile`: Path to Dockerfile (default: "Dockerfile")
-- `--context`: Build context path (default: ".")
-- `--tag`: Image tag - "auto" generates from git/timestamp (default: "auto")
-- `--auto_fix`: Automatically fix detected conflicts (default: true)
-- `--max_attempts`: Maximum rebuild attempts on failure (default: 3)
-- `--base_image`: Override base image (default: auto-detect)
-- `--verbose`: Show detailed status updates (default: true)
+### Image naming
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `--image-name` | directory name | Image name |
+| `--image-tag` | `latest` | Image tag |
+
+### Auto-fix options
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `--auto-fix` / `--no-auto-fix` | `true` | Auto-fix conflicts |
+| `--smoke-test` / `--no-smoke-test` | `true` | Run smoke tests (local only) |
+| `--max-attempts` | `3` | Max rebuild attempts (local only) |
+| `--base-image` | auto-detect | Override base image |
+
+### Local Docker options
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `--use-sudo` | `false` | Use sudo for Docker commands |
+
+### CodeBuild options
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `--codebuild-project` | `pytorch-fsdp` | CodeBuild project name |
+| `--s3-bucket` | auto-generated | S3 bucket for source code |
+| `--region` | `us-west-2` | AWS region |
+| `--wait` / `--no-wait` | `true` | Wait for completion |
+| `--timeout` | `3600` | Build timeout (seconds) |
+
+### Output options
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `--verbose` / `--quiet` | `true` | Verbose output |
 
 ## Output
 
-Returns a dictionary with:
-- `success`: Boolean indicating build status
-- `image_name`: Name of the built image (e.g., "pytorch-fsdp:latest")
-- `build_id`: CodeBuild build ID (for monitoring)
-- `build_time`: Duration in seconds
-- `attempts`: Number of build attempts
-- `fixes_applied`: List of fixes applied (local mode only)
+Returns JSON with:
+
+```json
+{
+  "success": true,
+  "image_name": "fsdp:latest",
+  "mode": "local",
+  "build_time": "45.2s",
+  "attempts": 1,
+  "fixes_applied": [],
+  "build_id": "pytorch-fsdp:abc123"
+}
+```
+
+## Auto-detection logic
+
+```
+1. --force-local?     -> Use local Docker (fail if unavailable)
+2. --force-codebuild? -> Use CodeBuild (warn about charges)
+3. Docker available?  -> Use local Docker
+4. AWS CLI available? -> Use CodeBuild (WARN about charges)
+5. Neither?           -> Error: install Docker or configure AWS CLI
+```
+
+## Conflict analysis
+
+The builder automatically detects and fixes:
+
+- **PyTorch/CUDA mismatches**: e.g., PyTorch 2.7 with CUDA 11.8
+- **torch/torchvision conflicts**: e.g., torch==2.7.1 with torchvision==0.15.0
+- **Missing --no-cache-dir**: warns about increased image size
 
 ## Examples
 
-### Example 1: Quick CodeBuild Build
+### Example 1: Auto-detect build
 
 ```bash
-# Simplest usage - uses default project 'pytorch-fsdp'
-python3 opencode/skills/docker-image-builder/src/build_image_codebuild.py
+python3 opencode/skills/docker-image-builder/src/build_image.py
 ```
 
-**What happens:**
-1. Creates S3 bucket `pytorch-fsdp-build-artifacts` (if needed)
-2. Uploads current directory to S3
-3. Triggers CodeBuild project 'pytorch-fsdp'
-4. Waits for completion and shows logs
+If Docker is running locally, builds locally with auto-fix. Otherwise falls back to CodeBuild.
 
-### Example 2: Custom Project
+### Example 2: CI/CD pipeline (always CodeBuild)
 
 ```bash
-python3 opencode/skills/docker-image-builder/src/build_image_codebuild.py \
-  --codebuild-project my-training-project \
-  --s3-bucket my-training-bucket \
-  --region us-east-1
-```
-
-### Example 3: Custom Image Name
-
-```bash
-# Build with custom image name (instead of using directory name)
-python3 opencode/skills/docker-image-builder/src/build_image_codebuild.py \
-  --image-name llama3-8b-training \
-  --image-tag v1.0.0
-
-# Build with timestamp tag
-python3 opencode/skills/docker-image-builder/src/build_image_codebuild.py \
-  --image-tag $(date +%Y%m%d-%H%M%S)
-```
-
-### Example 4: Background Build
-
-```bash
-# Start build without waiting
-python3 opencode/skills/docker-image-builder/src/build_image_codebuild.py \
-  --no-wait
-
-# Later, check build status:
-aws codebuild batch-get-builds \
-  --ids pytorch-fsdp:<build-id-from-output> \
-  --region us-west-2
-```
-
-### Example 5: Local Build (Requires Docker)
-
-```bash
-# Only if you have Docker installed locally
 python3 opencode/skills/docker-image-builder/src/build_image.py \
-  --use-local \
-  --dockerfile Dockerfile \
-  --auto_fix true \
-  --max_attempts 3
+  --force-codebuild \
+  --codebuild-project pytorch-fsdp \
+  --image-tag $(git rev-parse --short HEAD)
 ```
 
-## Workflow
-
-### Typical CodeBuild Workflow
+### Example 3: Quick local build
 
 ```bash
-# 1. Build image using CodeBuild
-python3 opencode/skills/docker-image-builder/src/build_image_codebuild.py \
-  --codebuild-project pytorch-fsdp
+python3 opencode/skills/docker-image-builder/src/build_image.py \
+  --force-local \
+  --no-smoke-test \
+  --context ./FSDP
+```
 
-# 2. Check the built image in ECR
-aws ecr describe-images \
-  --repository-name fsdp \
-  --region us-west-2
+### Example 4: Background CodeBuild
 
-# 3. Deploy training job using the new image
+```bash
+python3 opencode/skills/docker-image-builder/src/build_image.py \
+  --force-codebuild --no-wait
+
+# Monitor later:
+aws codebuild batch-get-builds --ids pytorch-fsdp:<build-id>
+```
+
+## Typical workflow
+
+```bash
+# 1. Build image
+python3 opencode/skills/docker-image-builder/src/build_image.py \
+  --context ./FSDP --image-name fsdp
+
+# 2. Push to ECR
+python3 opencode/skills/ecr-image-pusher/src/push_image.py \
+  --image fsdp:latest --repository fsdp
+
+# 3. Deploy training job
 python3 opencode/skills/training-job-deployer/src/deploy_job.py \
-  --cluster_name my-cluster \
-  --num_nodes 4
+  --cluster_name my-cluster --num_nodes 4
 ```
 
 ## Troubleshooting
 
+### "Docker not available locally. Falling back to CodeBuild."
+
+This is expected when Docker is not installed. The build will proceed via CodeBuild. Use `--force-local` if you want to fail instead.
+
 ### "CodeBuild project not found"
 
-Create the project first:
+Create the project:
 ```bash
 ./opencode/skills/infrastructure/aws-cli/setup-codebuild.sh \
-  --project-name pytorch-fsdp \
-  --region us-west-2
+  --project-name pytorch-fsdp --region us-west-2
 ```
 
-### "AWS credentials not configured"
+### "Neither Docker nor AWS CLI/credentials are available"
 
-Configure AWS CLI:
+Install Docker for local builds, or configure AWS CLI for CodeBuild:
 ```bash
+# Option A: Install Docker
+# Option B: Configure AWS
 aws configure
 ```
 
-### "Build failed"
+## Cost
 
-Check CloudWatch logs:
-```bash
-aws logs tail /aws/codebuild/pytorch-fsdp --follow
-```
-
-### "S3 permission denied"
-
-Ensure your AWS user/role has these permissions:
-- `s3:CreateBucket`
-- `s3:PutObject`
-- `s3:GetObject`
-- `codebuild:StartBuild`
-- `codebuild:BatchGetBuilds`
-- `logs:GetLogEvents`
-
-## Why CodeBuild?
-
-**Advantages over local Docker builds:**
-- ✅ No need to install Docker locally
-- ✅ Consistent build environment
-- ✅ Scalable (can run multiple builds in parallel)
-- ✅ Integrated with AWS ecosystem
-- ✅ Build history and logs in CloudWatch
-- ✅ Cost-effective (pay per minute)
-
-**Build Time:**
-- PyTorch/CUDA images: ~20-25 minutes (typical)
-- Standard images: ~5-10 minutes
-
-**Cost:**
-- ~$0.10 per build (BUILD_GENERAL1_MEDIUM at $0.012/minute)
+- **Local Docker**: Free (uses your machine)
+- **CodeBuild**: ~$0.10/build (BUILD_GENERAL1_MEDIUM, ~20-25 min for PyTorch images)

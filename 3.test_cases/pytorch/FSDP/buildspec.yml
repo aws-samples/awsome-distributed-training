@@ -9,19 +9,75 @@ env:
 phases:
   pre_build:
     commands:
+      - echo "=== Pre-build: Setup ==="
       - pip install --quiet boto3 awscli
       - export AWS_DEFAULT_REGION=${AWS_REGION}
       - export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
       - aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+      # Conflict analysis: check Dockerfile base image and requirements
+      - echo "=== Conflict Analysis ==="
+      - |
+        python3 -c "
+        import re, sys
+        # Read Dockerfile
+        with open('Dockerfile', 'r') as f:
+            content = f.read()
+        # Check base image CUDA compatibility
+        match = re.search(r'FROM\s+(\S+)', content)
+        if match:
+            base = match.group(1)
+            print(f'Base image: {base}')
+            cuda_match = re.search(r'cuda(\d+\.\d+)', base.lower())
+            pytorch_match = re.search(r'pytorch[:/].*?(\d+\.\d+)', base.lower())
+            if pytorch_match and cuda_match:
+                pt_ver = pytorch_match.group(1)
+                cuda_ver = cuda_match.group(1)
+                print(f'  PyTorch: {pt_ver}, CUDA: {cuda_ver}')
+                if float(pt_ver) >= 2.5 and float(cuda_ver) < 12.1:
+                    print(f'  WARNING: PyTorch {pt_ver} requires CUDA 12.1+')
+        # Check requirements for torch/torchvision conflicts
+        import os
+        for req_path in ['src/requirements.txt', 'requirements.txt']:
+            if os.path.exists(req_path):
+                print(f'Requirements: {req_path}')
+                pkgs = {}
+                with open(req_path) as f:
+                    for line in f:
+                        line = line.strip()
+                        if '==' in line and not line.startswith('#'):
+                            pkg, ver = line.split('==', 1)
+                            pkgs[pkg.lower()] = ver
+                            print(f'  {pkg}=={ver}')
+                torch_ver = pkgs.get('torch', '')
+                tv_ver = pkgs.get('torchvision', '')
+                if torch_ver and tv_ver:
+                    if torch_ver.startswith(('2.7', '2.6')):
+                        if not tv_ver.startswith(('0.22', '0.21')):
+                            print(f'  WARNING: torch=={torch_ver} may conflict with torchvision=={tv_ver}')
+                break
+        print('Conflict analysis complete.')
+        "
 
   build:
     commands:
-      - echo "Building Docker image..."
-      - docker build -t fsdp:test -f Dockerfile .
+      - echo "=== Building Docker image ==="
+      - docker build -t ${ECR_REPOSITORY}:build -f Dockerfile .
+      # Smoke test: verify imports work
+      - echo "=== Smoke Test ==="
+      - |
+        docker run --rm ${ECR_REPOSITORY}:build python3 -c "
+        import sys
+        print(f'Python: {sys.version}')
+        import torch; print(f'PyTorch: {torch.__version__}')
+        import transformers; print(f'Transformers: {transformers.__version__}')
+        import datasets; print(f'Datasets: {datasets.__version__}')
+        print('All imports successful!')
+        " && echo "Smoke test PASSED" || echo "Smoke test FAILED (non-fatal)"
 
   post_build:
     commands:
-      - echo "Tagging and pushing to ECR..."
-      - docker tag fsdp:test ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}:latest
+      - echo "=== Tagging and pushing to ECR ==="
+      - docker tag ${ECR_REPOSITORY}:build ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}:latest
       - docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}:latest
       - echo "Build complete!"
+      - echo "Image URI: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPOSITORY}:latest"
