@@ -55,7 +55,7 @@ while IFS= read -r node; do
         --time=00:20:00 \
         --output="${SWEEP_RESULTS}/${node}-%j.out" \
         --error="${SWEEP_RESULTS}/${node}-%j.err" \
-        --export="HEALTHCHECK_DIR=${HEALTHCHECK_DIR},RESULTS_BASE=${SWEEP_RESULTS}" \
+        --export=ALL,HEALTHCHECK_DIR=${HEALTHCHECK_DIR},RESULTS_BASE=${SWEEP_RESULTS} \
         "${HEALTHCHECK_DIR}/slurm/sbatch-lightweight.sh" \
         2>&1 | grep -oE "[0-9]+" || true)
 

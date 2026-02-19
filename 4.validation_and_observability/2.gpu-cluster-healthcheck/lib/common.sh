@@ -222,6 +222,45 @@ run_with_timeout() {
 
 # ─── Pre-flight: source instance profile on load ────────────────────────────
 
+preflight_checks() {
+    # Verify critical dependencies and log version info for diagnostics.
+    # Returns non-zero if a hard dependency (python3) is missing.
+
+    # python3 is a hard dependency: result formatting, DCGM parsing, and
+    # aggregation all require it.
+    if ! command -v python3 &>/dev/null; then
+        log_error "python3 not found on PATH -- required for result formatting and DCGM parsing"
+        return 1
+    fi
+    local py_version
+    py_version=$(python3 --version 2>&1 || true)
+    log_verbose "Python: ${py_version}"
+
+    # nvidia-smi and driver version (soft dependency -- may not be present in dry-run)
+    if command -v nvidia-smi &>/dev/null; then
+        local driver_version
+        driver_version=$(nvidia-smi --query-gpu=driver_version --format=csv,noheader 2>/dev/null | head -1 || true)
+        if [[ -n "${driver_version}" ]]; then
+            log_info "NVIDIA driver version: ${driver_version}"
+        fi
+    else
+        log_warn "nvidia-smi not found on PATH"
+    fi
+
+    # DCGM version (optional -- only needed for checks 1 and 4)
+    if command -v dcgmi &>/dev/null; then
+        local dcgm_version
+        dcgm_version=$(dcgmi --version 2>/dev/null | grep -i "version" | head -1 || true)
+        if [[ -n "${dcgm_version}" ]]; then
+            log_info "DCGM: ${dcgm_version}"
+        fi
+    else
+        log_verbose "dcgmi not found on PATH (optional -- needed for DCGM checks)"
+    fi
+
+    return 0
+}
+
 init_check() {
     local check_name="$1"
     ensure_results_dir

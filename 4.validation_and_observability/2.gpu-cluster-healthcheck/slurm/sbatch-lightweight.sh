@@ -54,6 +54,9 @@ echo "════════════════════════�
 # Run health checks on each node via srun
 export HEALTHCHECK_DIR SKIP_DCGM
 
+# Disable set -e around srun so that node failures don't prevent aggregation.
+# The exit code is captured explicitly and propagated at the end.
+set +e
 srun --ntasks-per-node=1 bash -c '
     set -euo pipefail
     HOSTNAME=$(hostname)
@@ -72,8 +75,8 @@ srun --ntasks-per-node=1 bash -c '
     echo "[${HOSTNAME}] Completed with exit code: ${EXIT_CODE}"
     exit ${EXIT_CODE}
 '
-
 SRUN_EXIT=$?
+set -e
 
 # Aggregate results
 echo ""
