@@ -2,10 +2,10 @@
 set -e
 
 # Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+RED='[0;31m'
+GREEN='[0;32m'
+YELLOW='[1;33m'
+NC='[0m' # No Color
 
 echo -e "${GREEN}========================================${NC}"
 echo -e "${GREEN}EKS GPU Observability Setup${NC}"
@@ -86,7 +86,7 @@ export AMP_QUERY_ENDPOINT=$(aws cloudformation describe-stacks \
 
 export GRAFANA_WORKSPACE_URL=$(aws cloudformation describe-stacks \
   --stack-name $STACK_NAME \
-  --query 'Stacks[0].Outputs[?OutputKey==`GrafanWorkspaceURL`].OutputValue' \
+  --query 'Stacks[0].Outputs[?OutputKey==`GrafanaWorkspaceURL`].OutputValue' \
   --output text \
   --region $AWS_REGION_AMGP)
 
