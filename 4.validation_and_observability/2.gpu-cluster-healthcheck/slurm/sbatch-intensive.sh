@@ -64,6 +64,8 @@ export HEALTHCHECK_DIR NCCL_CONTAINER
 
 # Run per-node intensive checks (4 and 6) via srun
 # Check 5 (NCCL) runs separately as it requires multi-node coordination
+# Disable set -e around srun so that node failures don't prevent aggregation.
+set +e
 srun --ntasks-per-node=1 bash -c '
     set -euo pipefail
     HOSTNAME=$(hostname)
@@ -84,8 +86,8 @@ srun --ntasks-per-node=1 bash -c '
 
     exit ${EXIT_CODE}
 '
-
 PER_NODE_EXIT=$?
+set -e
 
 # Run multi-node NCCL test (check 5) if more than 1 node
 NCCL_EXIT=0
@@ -130,7 +132,13 @@ if [[ ${#NODE_DIRS[@]} -gt 0 ]]; then
     cat "${JOB_RESULTS_DIR}/cluster-summary.txt"
 fi
 
-FINAL_EXIT=$((PER_NODE_EXIT + NCCL_EXIT))
+# Use boolean exit: 1 if either phase failed, 0 if both passed.
+# Avoid arithmetic addition which can produce exit codes >125 (reserved by bash).
+if [[ ${PER_NODE_EXIT} -ne 0 || ${NCCL_EXIT} -ne 0 ]]; then
+    FINAL_EXIT=1
+else
+    FINAL_EXIT=0
+fi
 echo ""
 echo "Full results: ${JOB_RESULTS_DIR}"
 exit ${FINAL_EXIT}

@@ -283,6 +283,12 @@ main() {
     detect_instance_type > /dev/null 2>&1 || true
     load_instance_profile || true
 
+    # Pre-flight: verify critical dependencies (python3) and log versions
+    if ! preflight_checks; then
+        log_error "Pre-flight checks failed -- cannot continue"
+        exit 1
+    fi
+
     log_info "GPU Health Check Suite"
     log_info "Host: $(hostname) | Instance: ${INSTANCE_TYPE:-unknown}"
     log_info "Results: ${RESULTS_DIR}"
