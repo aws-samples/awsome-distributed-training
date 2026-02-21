@@ -102,7 +102,7 @@ run_check() {
             else
                 log_verbose "nvidia-fabricmanager service not found -- skipping"
             fi
-        elif pgrep -x "nv-fabricmanager" > /dev/null 2>&1; then
+        elif pgrep -f "nv-fabricmanager" > /dev/null 2>&1; then
             log_verbose "nvidia-fabricmanager is running (detected via pgrep)"
         else
             check_fail "${CHECK_NAME}" \
