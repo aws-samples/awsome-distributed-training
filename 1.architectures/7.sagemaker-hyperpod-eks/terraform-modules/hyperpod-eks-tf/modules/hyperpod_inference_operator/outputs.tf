@@ -1,31 +1,21 @@
-output "helm_release_name" {
-  description = "Name of the inference operator Helm release"
-  value       = helm_release.inference_operator.name
-}
-
-output "helm_release_status" {
-  description = "Status of the inference operator Helm release"
-  value       = helm_release.inference_operator.status
-}
-
 output "inference_operator_role_arn" {
   description = "ARN of the inference operator IAM role"
   value       = aws_iam_role.inference_operator.arn
 }
 
-output "gated_role_arn" {
-  description = "ARN of the gated model access IAM role"
-  value       = aws_iam_role.gated.arn
+output "jumpstart_gated_role_arn" {
+  description = "ARN of the JumpStart gated model access IAM role"
+  value       = aws_iam_role.jumpstart_gated.arn
 }
 
-output "alb_controller_sa_role_arn" {
+output "alb_controller_role_arn" {
   description = "ARN of the ALB controller service account IAM role"
-  value       = aws_iam_role.alb_controller_sa.arn
+  value       = aws_iam_role.alb_controller.arn
 }
 
 output "s3_csi_role_arn" {
   description = "ARN of the S3 CSI driver IAM role"
-  value       = aws_iam_role.s3_csi_sa.arn
+  value       = one(aws_iam_role.s3_csi[*].arn)
 }
 
 output "keda_role_arn" {
@@ -41,4 +31,9 @@ output "tls_certificates_bucket_name" {
 output "tls_certificates_bucket_arn" {
   description = "ARN of the TLS certificates S3 bucket"
   value       = aws_s3_bucket.tls_certificates.arn
+}
+
+output "oidc_provider_arn" {
+  description = "ARN of the EKS OIDC provider"
+  value = aws_iam_openid_connect_provider.eks_oidc_provider.arn
 }
