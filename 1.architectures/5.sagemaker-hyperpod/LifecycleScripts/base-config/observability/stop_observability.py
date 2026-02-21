@@ -21,7 +21,9 @@ def stop_observability(node_type):
         subprocess.run( ["docker", "stop", "otel-collector"] )
 
     elif node_type=="login":
-        pass
+
+        subprocess.run( ["docker", "stop", "node-exporter"] )
+        subprocess.run( ["docker", "stop", "otel-collector"] )
 
 
 if __name__ == "__main__":
