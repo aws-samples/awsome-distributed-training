@@ -75,7 +75,8 @@ patch_labels() {
     local status="$1"
     local severity="$2"
     local timestamp
-    timestamp="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+    # K8s label values cannot contain colons -- use compact ISO 8601 basic format
+    timestamp="$(date -u +"%Y-%m-%dT%H%M%SZ")"
 
     if [[ "${ENABLE_LABEL}" != "true" ]]; then
         return 0

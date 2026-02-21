@@ -63,6 +63,37 @@ remove_maintenance_taint() {
     kubectl taint node "${node}" "${MAINTENANCE_TAINT}-" 2>/dev/null || true
 }
 
+# Wait for a Job to reach Complete or Failed condition.
+# kubectl wait --for=condition=complete does not detect Failed jobs, so we poll.
+wait_for_job() {
+    local job_name="$1"
+    local namespace="$2"
+    local timeout="$3"
+    local elapsed=0
+    local poll_interval=10
+
+    while [[ ${elapsed} -lt ${timeout} ]]; do
+        local status
+        status=$(kubectl get job "${job_name}" -n "${namespace}" \
+            -o jsonpath='{.status.conditions[?(@.status=="True")].type}' 2>/dev/null || true)
+
+        if [[ "${status}" == *"Complete"* ]]; then
+            log_info "Job ${job_name} completed successfully"
+            return 0
+        fi
+        if [[ "${status}" == *"Failed"* ]]; then
+            log_warn "Job ${job_name} failed"
+            return 1
+        fi
+
+        sleep ${poll_interval}
+        elapsed=$((elapsed + poll_interval))
+    done
+
+    log_warn "Job ${job_name} did not complete within ${timeout}s"
+    return 1
+}
+
 # Create a per-node DCGM L2 Job
 create_sweep_job() {
     local node="$1"
@@ -108,10 +139,15 @@ spec:
               exit_code=\$?
               # Patch node labels based on result
               if [[ \$exit_code -eq 0 ]]; then
-                kubectl label node ${node} ${LABEL_PREFIX}/status=pass --overwrite
+                if ! kubectl label node ${node} ${LABEL_PREFIX}/status=pass --overwrite 2>&1; then
+                  echo "[WARN] Failed to label node ${node} as pass" >&2
+                fi
               else
-                kubectl label node ${node} ${LABEL_PREFIX}/status=fail --overwrite
-                kubectl taint node ${node} ${LABEL_PREFIX}/unhealthy=true:NoSchedule 2>/dev/null || true
+                if ! kubectl label node ${node} ${LABEL_PREFIX}/status=fail --overwrite 2>&1; then
+                  echo "[WARN] Failed to label node ${node} as fail" >&2
+                fi
+                kubectl taint node ${node} ${LABEL_PREFIX}/unhealthy=true:NoSchedule 2>&1 || \
+                  echo "[WARN] Failed to taint node ${node}" >&2
               fi
               exit \$exit_code
           securityContext:
@@ -195,14 +231,10 @@ main() {
 
     log_info "Created ${#job_names[@]} sweep jobs, waiting for completion"
 
-    # Wait for all jobs to complete
+    # Wait for all jobs to complete or fail
     local failed=0
     for job_name in "${job_names[@]}"; do
-        if ! kubectl wait --for=condition=complete \
-                "job/${job_name}" \
-                -n "${SWEEP_NAMESPACE}" \
-                --timeout="${JOB_TIMEOUT}s" 2>/dev/null; then
-            log_warn "Job ${job_name} did not complete within ${JOB_TIMEOUT}s"
+        if ! wait_for_job "${job_name}" "${SWEEP_NAMESPACE}" "${JOB_TIMEOUT}"; then
             failed=$((failed + 1))
         fi
     done

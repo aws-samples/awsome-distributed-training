@@ -28,14 +28,17 @@ RUN curl -fsSL "https://dl.k8s.io/release/$(curl -fsSL https://dl.k8s.io/release
     && chmod +x /usr/local/bin/kubectl
 
 # Install EFA userspace libraries (skip kernel modules -- host provides them)
-RUN cd /tmp \
+# Re-populate apt lists (cleaned in prior layer) so efa_installer.sh can resolve deps
+RUN apt-get update \
+    && cd /tmp \
     && curl -fsSL https://efa-installer.amazonaws.com/aws-efa-installer-latest.tar.gz \
         -o efa-installer.tar.gz \
     && tar xzf efa-installer.tar.gz \
     && cd aws-efa-installer \
     && ./efa_installer.sh -y -g -d --skip-kmod --skip-limit-conf --no-verify \
     && cd / \
-    && rm -rf /tmp/aws-efa-installer /tmp/efa-installer.tar.gz
+    && rm -rf /tmp/aws-efa-installer /tmp/efa-installer.tar.gz \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy health check suite
 COPY . /opt/gpu-healthcheck
