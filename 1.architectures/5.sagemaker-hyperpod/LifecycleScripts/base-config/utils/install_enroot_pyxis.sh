@@ -119,7 +119,7 @@ while true; do
     ELAPSED_TIME=$((ELAPSED_TIME + CHECK_INTERVAL))
 
     if [[ $ELAPSED_TIME -ge $MAX_WAIT_TIME ]]; then
-        echo "WARN: Timeout reached: dlami-nvme.service did not become active and successful, it is possible enroot default path is /opt/sagemaker. When training larger models, dragons be here. See https://github.com/aws-samples/awsome-distributed-training/issues/427 for corrective actions"
+        echo "WARN: Timeout reached: dlami-nvme.service did not become active and successful, it is possible enroot default path is /opt/sagemaker. When training larger models, dragons be here. See https://github.com/awslabs/awsome-distributed-training/issues/427 for corrective actions"
         break
     fi
 
