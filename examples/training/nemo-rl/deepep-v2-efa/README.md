@@ -261,11 +261,12 @@ publishes none for this path.
 - **Baseline DeepEP gates use explicit SM/QP counts** (trap 2). A probe pass with explicit counts
   is deterministic by design; it does not exercise the fork's auto-sizers, and it certifies nothing
   about *stock* upstream's EFA-blind auto-sizing (the defect the fork fixes in-code).
-- **NCCL topology XML on 32-NIC p5 nodes:** stock NCCL can hit the open issue
+- **NCCL topology XML on 32-NIC p5 nodes:** the pinned NCCL `v2.30.4-1` can hit
   [NVIDIA/nccl#2160](https://github.com/NVIDIA/nccl/issues/2160) (`NCCL_TOPO_XML_MAX_NODES=256`
-  overflow during intra-node XML fusion). If NCCL init fails with a topo-XML error on
-  p5.48xlarge, rebuild Layer 4 with the define raised (documented one-liner in the issue) — not
-  baked here because it is a non-upstream one-off.
+  overflow during intra-node XML fusion). The issue was closed upstream on 2026-10-10, but the
+  commit that references it, `409076ed`, is not in the pinned `v2.30.4-1`. If NCCL init fails with
+  a topo-XML error on p5.48xlarge, rebuild Layer 4 with the define raised (documented one-liner in
+  the issue) — not baked here because it is a local one-off workaround.
 - **No performance numbers.** Dispatch/combine latency and GRPO throughput on this substrate are
   future work; for kernel-level EP benchmarks see
   [`micro-benchmarks/expert-parallelism`](../../../../micro-benchmarks/expert-parallelism) — note
