@@ -40,13 +40,16 @@ PARSE_ERROR = ("Your last message contained a tool call that could not be parsed
 
 def server_generator(a):
     """Generation through llama.cpp's llama-server /completion endpoint (raw prompt, so the
-    prompt is byte-identical to the vLLM path and only the weights/quantization differ)."""
+    prompt is byte-identical to the vLLM path). We also send an explicit sampler order so the
+    nucleus is computed on the same distribution as vLLM (temperature before top_k/top_p);
+    llama-server's default order applies top_k/top_p/min_p before temperature."""
     import urllib.request
 
     def one(prompt, seed):
         body = json.dumps({"prompt": prompt, "n_predict": a.max_tokens,
                            "temperature": a.temperature, "top_p": a.top_p, "top_k": a.top_k,
                            "min_p": 0.0, "seed": seed, "cache_prompt": True,
+                           "samplers": ["top_k", "temperature", "top_p", "min_p"],
                            "return_tokens": False}).encode()
         for attempt in range(5):
             try:
@@ -96,7 +99,12 @@ def main():
     tasks = [json.loads(l) for l in open(f"{a.tasks}/tasks.jsonl")]
     if a.limit:
         tasks = tasks[:a.limit]
-    tok = AutoTokenizer.from_pretrained(a.model)
+    # Pin the base Qwen3-1.7B tokenizer to a specific commit for reproducibility. Only applies
+    # when --model is that exact repo id; for a local merged dir or another repo (e.g. Qwen3-4B)
+    # the revision would be wrong/unsupported, so load those unpinned.
+    _rev = ("70d244cc86ccca08cf5af4e1e306ecf908b1ad5e"
+            if a.model == "Qwen/Qwen3-1.7B" else None)
+    tok = AutoTokenizer.from_pretrained(a.model, revision=_rev)
 
     if a.server_url:
         generate = server_generator(a)

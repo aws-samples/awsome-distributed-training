@@ -15,7 +15,7 @@ spec:
   containers:
     - name: compare
       image: ${VLLM_IMAGE_URI}
-      command: ["bash", "-c", "pip install -q pytest >/dev/null 2>&1; touch /tmp/ready; sleep infinity"]
+      command: ["bash", "-c", "touch /tmp/ready; sleep infinity"]
       readinessProbe:
         exec: {command: ["test", "-f", "/tmp/ready"]}
         periodSeconds: 5

@@ -46,22 +46,6 @@ class GpuMemCallback(TrainerCallback):
               f"elapsed={el:.0f}s sec_per_step={sps:.2f}", flush=True)
 
 
-def _patch_liger():
-    """liger-kernel 0.6.3 + transformers 4.57: the model forwards extra kwargs (e.g.
-    `return_dict`) into liger_fused_linear_cross_entropy, which rejects them. Drop any kwarg
-    the function doesn't accept."""
-    import inspect
-
-    import liger_kernel.transformers.model.loss_utils as lu
-    fn = lu.F.liger_fused_linear_cross_entropy
-    ok = set(inspect.signature(fn).parameters)
-
-    def wrapped(*args, **kw):
-        return fn(*args, **{k: v for k, v in kw.items() if k in ok})
-
-    lu.F.liger_fused_linear_cross_entropy = wrapped
-
-
 @dataclass
 class Args:
     model_id: str = field(default="Qwen/Qwen3-1.7B")
@@ -94,8 +78,6 @@ def collate(batch, pad_id):
 
 def main():
     a, targs = HfArgumentParser((Args, TrainingArguments)).parse_args_into_dataclasses()
-    if targs.use_liger_kernel:
-        _patch_liger()
     set_seed(targs.seed)
     if a.mlflow_tracking_server:  # optional: HF Trainer -> SageMaker managed MLflow
         os.environ["MLFLOW_TRACKING_URI"] = a.mlflow_tracking_server
@@ -105,7 +87,8 @@ def main():
         targs.run_name = os.environ["MLFLOW_RUN_NAME"]
     else:
         targs.report_to = []
-    tok = AutoTokenizer.from_pretrained(a.model_id)
+    tok = AutoTokenizer.from_pretrained(
+        a.model_id, revision="70d244cc86ccca08cf5af4e1e306ecf908b1ad5e")
 
     train = load_from_disk(a.train_path)
     val = load_from_disk(a.eval_path)
@@ -124,7 +107,8 @@ def main():
           f"max={max(lens)} total={sum(lens)} model={a.model_id}", flush=True)
 
     model = AutoModelForCausalLM.from_pretrained(a.model_id, dtype=torch.bfloat16,
-                                                 attn_implementation="sdpa")
+                                                 attn_implementation="sdpa",
+                                                 revision="70d244cc86ccca08cf5af4e1e306ecf908b1ad5e")
     model.config.use_cache = False
     model = get_peft_model(model, LoraConfig(
         r=a.lora_r, lora_alpha=a.lora_alpha, lora_dropout=a.lora_dropout, bias="none",

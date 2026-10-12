@@ -50,22 +50,24 @@ from make_agent_tasks import mutate, run_check, sites, target_fn, test_file, wri
 ROOT = os.environ.get("DATA_ROOT", "/fsx")  # FSx for Lustre mount
 
 TASKS_ROOT = os.environ.get("AGENT_TASKS", f"{ROOT}/agent_tasks/v1")  # set by --tasks too
-# Picked from the recorded 150-task results to show a mix, not just wins (full fine-tune vs base):
-#   HumanEval_7: full fixes, workshop and base don't.  HumanEval_4/5: both fine-tunes fix, base doesn't.
-#   HumanEval_46: all three fix.  HumanEval_57: base fixes, full doesn't.
-#   Live runs are sampled (temperature 0.7), so outcomes can differ on a rerun.
-SHOWCASE = ["HumanEval_7", "HumanEval_4", "HumanEval_5", "HumanEval_46", "HumanEval_57"]
-# Quick scoreboard set: 20 eval tasks chosen (random search over 20-task samples) so their
-# RECORDED 150-task-eval results match the overall rates: base 10% (8.7), workshop fine-tune
-# 35% (33.3), full fine-tune 55% (53.3), base 4B 50% (50.7). Representative, not cherry-picked.
-QUICK_SET = ["HumanEval_4", "HumanEval_11", "HumanEval_15", "HumanEval_20", "HumanEval_31",
-             "HumanEval_44", "HumanEval_53", "HumanEval_56", "HumanEval_68", "HumanEval_69",
-             "HumanEval_74", "HumanEval_79", "HumanEval_87", "HumanEval_90", "HumanEval_112",
-             "HumanEval_123", "HumanEval_132", "HumanEval_146", "HumanEval_150", "HumanEval_163"]
-# 2-way showcase (base vs the workshop-size fine-tune), picked from the recorded 150-task results
-# of the workshop-size adapter as a mix: HumanEval_4/8 fine-tune wins, HumanEval_46 both fix,
-# HumanEval_41 base wins. Used when no full adapter is loaded.
-SHOWCASE_2WAY = ["HumanEval_4", "HumanEval_8", "HumanEval_46", "HumanEval_41"]
+# Curated task ids picked from the recorded 151-task results to show a mix, not just wins
+# (base / workshop fine-tune / full fine-tune):
+#   HumanEval_6: full fixes, workshop and base don't.  HumanEval_5/8: both fine-tunes fix, base doesn't.
+#   HumanEval_4: all three fix.  HumanEval_90: base fixes, full doesn't.
+# These are illustrative; overall resolved rates come from the full agent_eval.py run. Live runs are
+# sampled (temperature 0.7), so an individual outcome can differ on a rerun.
+SHOWCASE = ["HumanEval_6", "HumanEval_5", "HumanEval_8", "HumanEval_4", "HumanEval_90"]
+# Quick scoreboard: 20 tasks chosen so their recorded results track the overall rates (base 10.6%,
+# workshop fine-tune 34.4%, full fine-tune 57.0%, base 4B 53.6% on the 151-task set). A calibrated
+# demo, not an independent estimate for a new adapter.
+QUICK_SET = ["HumanEval_6", "HumanEval_18", "HumanEval_30", "HumanEval_37", "HumanEval_42",
+             "HumanEval_48", "HumanEval_51", "HumanEval_74", "HumanEval_80", "HumanEval_81",
+             "HumanEval_94", "HumanEval_96", "HumanEval_104", "HumanEval_105", "HumanEval_118",
+             "HumanEval_124", "HumanEval_128", "HumanEval_146", "HumanEval_149", "HumanEval_158"]
+# 2-way showcase (base vs the workshop-size fine-tune): HumanEval_5/8 the fine-tune fixes and base
+# doesn't, HumanEval_4 both fix, HumanEval_41 base fixes but the workshop fine-tune doesn't. Used
+# when no full adapter is loaded.
+SHOWCASE_2WAY = ["HumanEval_5", "HumanEval_8", "HumanEval_4", "HumanEval_41"]
 BUG_KINDS = ["comparison", "arithmetic", "boolean", "off_by_one"]
 COLORS = {"base": "red", "yours": "cyan", "full": "green"}
 TITLES = {"base": "BASE Qwen3-1.7B", "yours": "YOUR fine-tune", "full": "FULL fine-tune"}
@@ -90,7 +92,11 @@ class Engine:
                 self.models[name] = LoRARequest(name, i, path)
             else:
                 con.print(f"[yellow]Skipping {TITLES[name]}: no adapter at {path}[/yellow]")
-        self.tok = AutoTokenizer.from_pretrained(a.model)
+        # Pin the base Qwen3-1.7B tokenizer to a specific commit for reproducibility; only when
+        # --model is that exact repo id (a local dir / other repo would reject the revision).
+        _rev = ("70d244cc86ccca08cf5af4e1e306ecf908b1ad5e"
+                if a.model == "Qwen/Qwen3-1.7B" else None)
+        self.tok = AutoTokenizer.from_pretrained(a.model, revision=_rev)
         # vLLM's engine (and the subprocess it starts) logs a lot: send it to a file by pointing
         # fds 1/2 there while the engine starts, then restore the terminal for our output.
         log = open(a.engine_log, "a")
@@ -164,7 +170,8 @@ def run(engine, jobs, max_turns, label=""):
     for e in eps:
         e["grade"] = e["env"].grade()
         pristine = open(f"{e['env'].pristine}/{e['task']['module']}").read()
-        final = open(f"{e['env'].dir}/{e['task']['module']}").read()
+        final_path = f"{e['env'].dir}/{e['task']['module']}"
+        final = open(final_path).read() if os.path.exists(final_path) else ""  # model may delete it
         e["diff"] = "".join(difflib.unified_diff(pristine.splitlines(True), final.splitlines(True),
                                                  "before", "after", n=0))
     return eps
@@ -368,7 +375,7 @@ def mode_showcase(engine, a):
         "Each model gets the same repo with one injected bug and the request:\n"
         f"[italic]{USER.format(fn='<function>')}[/italic]\n\n"
         "These scenarios were picked to show a mix (wins, a tie and a loss). They are sampled "
-        "live, so a rerun can differ. Use the quick scoreboard (menu 4) for real rates.",
+        "live, so a rerun can differ. For overall resolved rates, use the full agent_eval.py run.",
         title="Showcase", expand=False))
     tally = {m: 0 for m in engine.models}
     for i, tid in enumerate(a.scenarios, 1):
@@ -484,8 +491,8 @@ def summary(tally, n, title):
     for m, k in tally.items():
         t.add_row(f"[{COLORS[m]}]{TITLES[m]}[/]", f"{k}/{n}  ({100 * k / n:.0f}%)")
     con.print(t)
-    con.print("[dim]Reference, all 150 eval tasks: base 8.7%, workshop-size fine-tune 33.3%, "
-              "full fine-tune 53.3%. The 20-task scoreboard set is chosen to match these "
+    con.print("[dim]Reference, all 151 eval tasks: base 10.6%, workshop-size fine-tune 34.4%, "
+              "full fine-tune 57.0%. The 20-task scoreboard set is chosen to match these "
               "(recorded: 10% / 35% / 55%).[/dim]")
 
 
@@ -506,7 +513,7 @@ def main():
     ap.add_argument("--tasks", default=TASKS_ROOT, help="agent task dir (tasks.jsonl, humaneval.jsonl)")
     ap.add_argument("--quick", type=int, default=20, help="tasks for the quick scoreboard")
     ap.add_argument("--quick_turns", type=int, default=30,
-                    help="turn limit in the scoreboard (30 = same as the 150-task eval)")
+                    help="turn limit in the scoreboard (30 = same as the 151-task eval)")
     ap.add_argument("--max_turns", type=int, default=20)
     ap.add_argument("--max_tokens", type=int, default=2048)
     ap.add_argument("--max_model_len", type=int, default=32768)

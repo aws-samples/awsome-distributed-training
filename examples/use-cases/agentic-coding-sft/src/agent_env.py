@@ -98,7 +98,9 @@ class TaskEnv:
         for root, dirs, files in os.walk(path):
             os.chown(root, self.uid, self.uid)
             for f in files:
-                os.chown(os.path.join(root, f), self.uid, self.uid)
+                # follow_symlinks=False: chown the link itself, not its target, so the model can't
+                # create a link to a root-owned file outside the repo and take ownership of it.
+                os.chown(os.path.join(root, f), self.uid, self.uid, follow_symlinks=False)
 
     def to_real(self, s):
         return s.replace(VIRTUAL, self.dir)
@@ -275,7 +277,11 @@ class TaskEnv:
         """Copy the final repo, restore pristine tests, run every test file directly."""
         g = self.dir + ".grade"
         shutil.rmtree(g, ignore_errors=True)
-        shutil.copytree(self.dir, g, ignore=shutil.ignore_patterns("__pycache__", ".git"))
+        # symlinks=True: copy links as links so a dangling symlink the model left behind grades as
+        # "not fixed" instead of raising shutil.Error out of the whole eval (and so `ln -s / x`
+        # doesn't copy all of / into the grade dir).
+        shutil.copytree(self.dir, g, symlinks=True,
+                        ignore=shutil.ignore_patterns("__pycache__", ".git"))
         shutil.rmtree(f"{g}/tests", ignore_errors=True)
         shutil.copytree(f"{self.pristine}/tests", f"{g}/tests")
         self._own(g)
@@ -283,10 +289,12 @@ class TaskEnv:
         res = {}
         for n in self.task["modules"]:
             try:
-                r = subprocess.run([sys.executable, f"tests/test_{n}.py"], cwd=g,
+                r = subprocess.run([sys.executable, "-B", f"tests/test_{n}.py"], cwd=g,
                                    capture_output=True, timeout=timeout,
                                    stdin=subprocess.DEVNULL, **kw)
-                res[n] = r.returncode == 0
+                # Require the trailing `OK` (printed only after check() passes): a target that does
+                # `import sys; sys.exit(0)` exits during import before the assertions run.
+                res[n] = r.returncode == 0 and r.stdout.rstrip().endswith(b"OK")
             except subprocess.TimeoutExpired:
                 res[n] = False
         shutil.rmtree(g, ignore_errors=True)

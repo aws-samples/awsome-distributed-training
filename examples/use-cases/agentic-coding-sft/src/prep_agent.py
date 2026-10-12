@@ -124,7 +124,8 @@ def tokenize(messages, tok, max_len):
     think block only on the LAST assistant turn of a training conversation. Without fixing this,
     the model learns "after an empty think block comes the final turn" and, at inference, every
     turn looks like the last one (no reasoning text, early submit). So every assistant turn gets
-    the empty think block, as an unsupervised prefix, exactly as inference presents it.
+    the empty think block, as an unsupervised prefix, matching the generation prefix the model
+    gets when that turn is produced at inference.
     """
     rendered = tok.apply_chat_template(messages, tools=TOOLS, tokenize=False)
     head, end = "<|im_start|>assistant\n", "<|im_end|>"
@@ -167,12 +168,14 @@ def main():
     max_lens = [int(x) for x in a.max_lens.split(",")]
     top = max(max_lens)
 
-    tok = AutoTokenizer.from_pretrained(a.model)
+    tok = AutoTokenizer.from_pretrained(
+        a.model, revision="70d244cc86ccca08cf5af4e1e306ecf908b1ad5e")
     probe = tok.apply_chat_template([{"role": "user", "content": "hi"}], tools=TOOLS,
                                     tokenize=False, add_generation_prompt=True,
                                     enable_thinking=False)
     assert probe.endswith("<|im_start|>assistant\n" + EMPTY_THINK), repr(probe[-80:])
-    ds = load_dataset("SWE-bench/SWE-smith-trajectories", split="tool")
+    ds = load_dataset("SWE-bench/SWE-smith-trajectories", split="tool",
+                      revision="08e109b4a59eaeebf80e4675cd125d42e7ac99a4")
     n_all = len(ds)
     ds = ds.filter(lambda r: bool(r["resolved"]), num_proc=a.num_proc)
     if a.limit:

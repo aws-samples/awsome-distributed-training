@@ -114,13 +114,20 @@ def write_repo(root, modules, tests):
 
 
 def grade_dir(root, names, timeout=20):
-    """{name: passed} running each test file directly (no pytest dependency)."""
+    """{name: passed} running each test file directly (no pytest dependency).
+
+    `-B` disables bytecode caching: without it, the sanity check below rewrites lib/<fn>.py with
+    the canonical source and reruns, but CPython may reuse the stale buggy .pyc (cache key is
+    mtime-in-seconds + size, and many mutations are byte-identical in size), making the kept-task
+    set depend on sub-second write timing. Requiring the trailing `OK` (printed only after check()
+    passes) rejects a test that exits 0 during import before its assertions run.
+    """
     res = {}
     for n in names:
         try:
-            r = subprocess.run([sys.executable, f"tests/test_{n}.py"], cwd=root,
+            r = subprocess.run([sys.executable, "-B", f"tests/test_{n}.py"], cwd=root,
                                capture_output=True, timeout=timeout, stdin=subprocess.DEVNULL)
-            res[n] = r.returncode == 0
+            res[n] = r.returncode == 0 and r.stdout.rstrip().endswith(b"OK")
         except subprocess.TimeoutExpired:
             res[n] = False
     return res
@@ -141,7 +148,8 @@ def main():
     if os.path.isdir(a.humaneval):
         he = list(load_from_disk(a.humaneval))
     else:  # first run: download HumanEval and keep a copy on FSx
-        ds = load_dataset("openai_humaneval", split="test")
+        ds = load_dataset("openai_humaneval", split="test",
+                          revision="7dce6050a7d6d172f3cc5c32aa97f52fa1a2e544")
         ds.save_to_disk(a.humaneval)
         he = list(ds)
     canon = {r["entry_point"]: r["prompt"] + r["canonical_solution"] for r in he}
@@ -153,8 +161,11 @@ def main():
                          "repo_check_failed": 0}
     for idx, r in enumerate(he):
         entry = r["entry_point"]
-        src = canon[entry]
-        if run_check(src, tests[entry], entry) != "pass":
+        # Key the target by its OWN record: HumanEval has 164 problems but only 158 distinct
+        # entry_points (triangle_area, add, etc. repeat), so the name-keyed dicts below would
+        # otherwise hand this task a different problem's source/tests.
+        src, test = r["prompt"] + r["canonical_solution"], r["test"]
+        if run_check(src, test, entry) != "pass":
             skipped["canonical_fails"] += 1
             continue
         n_sites = len(sites(target_fn(ast.parse(src), entry)))
@@ -168,7 +179,7 @@ def main():
             buggy, kind = mutate(src, entry, k)
             if buggy.strip() == ast.unparse(ast.parse(src)).strip():
                 continue
-            if run_check(buggy, tests[entry], entry) == "fail":
+            if run_check(buggy, test, entry) == "fail":
                 bug = (buggy, kind)
                 break
         if bug is None:
@@ -177,7 +188,7 @@ def main():
 
         others = rng.sample([n for n in names if n != entry], a.distractors)
         modules = {entry: bug[0], **{o: canon[o] for o in others}}
-        tfiles = {n: test_file(n, tests[n]) for n in modules}
+        tfiles = {n: test_file(n, test if n == entry else tests[n]) for n in modules}
         task_id = r["task_id"].replace("/", "_")
         repo = f"{a.out}/{task_id}/repo"
         write_repo(repo, modules, tfiles)
@@ -204,6 +215,12 @@ def main():
         for r in he:
             f.write(json.dumps({k: r[k] for k in ("task_id", "entry_point", "prompt",
                                                   "canonical_solution", "test")}) + "\n")
+    # These hold the canonical solutions; the eval/compare pods mount the whole volume and the
+    # sandboxed shell runs as a non-root uid, so lock the answer files to root-only (compare.py
+    # reads humaneval.jsonl as root).
+    os.chmod(f"{a.out}/humaneval.jsonl", 0o600)
+    if os.path.isdir(a.humaneval):
+        os.chmod(a.humaneval, 0o700)
     kinds = {}
     for t in kept:
         kinds[t["mutation"]] = kinds.get(t["mutation"], 0) + 1

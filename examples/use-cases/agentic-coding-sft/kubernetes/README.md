@@ -36,6 +36,7 @@ export VLLM_IMAGE_URI=${REGISTRY}agentic-coding-sft-compare:v1
 ```bash
 cat prep-agent.yaml-template | envsubst > prep-agent.yaml
 kubectl apply -f prep-agent.yaml
+kubectl wait --for=condition=complete job/prep-agent --timeout=2h
 ```
 
 Writes `train-8k`, `train-16k` and `val` under `/fsx/agentic/data/agent/`.
@@ -45,9 +46,10 @@ Writes `train-8k`, `train-16k` and `val` under `/fsx/agentic/data/agent/`.
 ```bash
 cat make-tasks.yaml-template | envsubst > make-tasks.yaml
 kubectl apply -f make-tasks.yaml
+kubectl wait --for=condition=complete job/make-tasks --timeout=30m
 ```
 
-Writes the 150 task repos under `/fsx/agentic/agent_tasks/v1/`.
+Writes the task repos under `/fsx/agentic/agent_tasks/v1/`.
 
 ## 3. Train (GPU)
 
@@ -75,6 +77,8 @@ kubectl logs -f -l job-name=${RUN}
 ```
 
 Outputs land in `/fsx/agentic/runs/${RUN}/` (`adapter/`, `merged/`, `checkpoint-*`, `summary.json`).
+Wait until `kubectl get hyperpodpytorchjob ${RUN}` reports the job complete before evaluating the
+`merged/` model in the next step.
 
 ## 4. Evaluate (GPU)
 
@@ -105,7 +109,8 @@ cat ./agentic-workshop.summary.json
 
 > Note: `kubectl cp` requires a running pod that mounts the FSx volume. If the compare pod from
 > step 5 is up, use it; otherwise any pod with the `fsx-pvc` volume mounted works. The base model's
-> result is at `base.summary.json`. Expect base ~8-10% and the fine-tune ~30%+ `resolved`.
+> result is at `base.summary.json`. The base model barely engages the tools, so expect it in the
+> single digits and the full fine-tune in the 60%+ range on `resolved`.
 
 ## 5. Compare interactively (GPU)
 
@@ -122,8 +127,9 @@ kubectl exec -it compare -- python3 /workspace/compare.py --full "" \
 for a non-interactive run), e.g. append `--mode quick` for the 20-task scoreboard.
 
 > The showcase scenarios are a small, illustrative set sampled at temperature 0.7, so a few tasks
-> can swing either way on any given run and are not a measure of overall quality. For real resolved
-> rates, use the evaluation in step 4 or `--mode quick`.
+> can swing either way on any given run and are not a measure of overall quality. The quick
+> scoreboard (`--mode quick`) is likewise a calibrated 20-task demo, not an independent estimate for
+> a new adapter. For resolved rates, use the full evaluation in step 4.
 
 > If you interrupt the client (`Ctrl-C`) while a comparison is running, the in-pod vLLM engine can
 > stay alive holding the GPU, and a later GPU step may fail with a "Free memory on device ... less

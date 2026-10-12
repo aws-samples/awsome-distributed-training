@@ -11,20 +11,19 @@ turns -- calling the right tool with valid arguments, making edits whose "old te
 exactly, re-running tests, and knowing when to stop. SFT on agent trajectories teaches these
 behaviors.
 
-On a 150-task bug-fix benchmark built from HumanEval (bugs injected by AST mutation, graded by
+On a 151-task bug-fix benchmark built from HumanEval (bugs injected by AST mutation, graded by
 running the original unit tests in a sandbox):
 
 | Model | Bugs fixed |
 | --- | --- |
-| Qwen3-1.7B base | 8.7% |
-| Fine-tuned here (505 trajectories, ~22 min on 1 GPU) | 33.3% |
-| Fine-tuned here (3,460 trajectories, 2 epochs, 4 GPUs) | 53.3% |
-| Qwen3-4B base (reference, >2x the size) | 50.7% |
+| Qwen3-1.7B base | 10.6% |
+| Fine-tuned here (505 trajectories, ~22 min on 1 GPU) | 34.4% |
+| Fine-tuned here (3,460 trajectories, 2 epochs, 4 GPUs) | 57.0% |
+| Qwen3-4B base (reference, >2x the size) | 53.6% |
 
-These are single-run numbers; the evaluation samples at temperature 0.7, so expect a few points of
-run-to-run variance (base typically ~8-10%, the quick fine-tune ~30%+). The fine-tuned 1.7B model
-matches a base model more than twice its size. Quantized to GGUF, the full model scores 54.7% at
-Q8_0 and 42.0% at Q4_K_M.
+These are single-run numbers and the evaluation samples at temperature 0.7, so individual rates move
+a few points from run to run. The fine-tuned 1.7B model exceeds a base model more than twice its
+size. Quantized to GGUF, the full model scores 58.3% at Q8_0 and 41.1% at Q4_K_M.
 
 ## Repository Structure
 
@@ -36,10 +35,10 @@ examples/use-cases/agentic-coding-sft/
 │   ├── requirements.txt
 │   ├── prep_agent.py          # SWE-smith `tool` split -> tokenized train-8k / train-16k / val
 │   ├── train_agent.py         # LoRA SFT (rank 64), multi-node, Liger fused CE, resume-on-restart
-│   ├── make_agent_tasks.py    # build the 150 HumanEval bug-fix task repos
+│   ├── make_agent_tasks.py    # build the 151 HumanEval bug-fix task repos
 │   ├── agent_env.py           # sandboxed tools (bash, str_replace_editor, submit) + test grading
 │   ├── agent_tools.py         # tool schema + system prompt
-│   ├── agent_eval.py          # multi-turn agent evaluation loop (vLLM or an OpenAI-compatible server)
+│   ├── agent_eval.py          # multi-turn agent evaluation loop (vLLM, or llama.cpp llama-server)
 │   ├── compare.py             # interactive base vs. fine-tune comparison
 │   └── show_agent.py          # transcript viewer
 └── kubernetes/
@@ -119,7 +118,7 @@ documented in [kubernetes/README.md](kubernetes/README.md). In short:
    epoch, 1 GPU (~22 minutes); the full run uses `train-16k`, 2 epochs, 4 GPUs. Checkpoints every 10
    steps, resumes automatically on restart, and merges the adapter for GGUF conversion.
 4. **Evaluate** (`agent-eval.yaml-template`): runs the base model and your fine-tune as agents over
-   the 150 tasks and reports the resolved rate.
+   the 151 tasks and reports the resolved rate.
 5. **Compare** (`compare.yaml-template`): an interactive menu -- showcase scenarios, paste your own
    buggy function, inject a bug, or a quick scoreboard -- running base vs. your fine-tune side by side.
 6. **Export to GGUF** (`gguf-convert.yaml-template`): converts the merged model to GGUF and quantizes
@@ -131,9 +130,9 @@ documented in [kubernetes/README.md](kubernetes/README.md). In short:
   on agent trajectories adds is the multi-turn tool-use behavior (valid tool calls, exact edits,
   re-running tests, submitting).
 - **Train == inference.** The data is pre-tokenized with the Qwen3 chat template and an empty think
-  block on every assistant turn, with the loss masked to the assistant turns only, so the training
-  distribution matches how the model is prompted at inference. If you change the model family, re-run
-  `prep_agent.py` -- the tokenization is tied to the tokenizer and template.
+  block on every assistant turn, with the loss masked to the assistant turns only, so each turn is
+  trained with the same generation prefix the model gets at inference. If you change the model family,
+  re-run `prep_agent.py` -- the tokenization is tied to the tokenizer and template.
 - **Execution-based grading.** The evaluation does not score text similarity; it runs the model's
   tool calls in a sandbox and runs the repo's unit tests to decide whether the bug is fixed.
 
@@ -145,7 +144,7 @@ documented in [kubernetes/README.md](kubernetes/README.md). In short:
 | Data size (8K vs 16K) | `AGENT_DATA` env (`train-8k` or `train-16k`) |
 | LoRA rank / alpha | `--lora_r` / `--lora_alpha` in `train-agent.yaml-template` |
 | Epochs, nodes | `EPOCHS`, `NUM_NODES` (keep the effective batch at 8 via `GRAD_ACC`) |
-| On-device / server evaluation | `agent_eval.py --server_url <endpoint>` against an OpenAI-compatible server |
+| On-device / server evaluation | `agent_eval.py --server_url <llama-server URL>` against llama.cpp's `llama-server` (native `/completion` API) |
 
 ## Credits
 

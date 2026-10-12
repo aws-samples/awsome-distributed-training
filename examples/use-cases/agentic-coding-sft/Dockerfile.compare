@@ -5,7 +5,8 @@
 # Uses the AWS vLLM Deep Learning Container from public ECR, so no Docker Hub pulls are needed.
 FROM public.ecr.aws/deep-learning-containers/vllm:0.11.1-gpu-py312-cu129-ubuntu22.04-ec2-v1.0
 
-RUN pip install --no-cache-dir pytest rich
+# pytest runs inside the agent sandbox (its version is part of what the model sees), so pin it.
+RUN pip install --no-cache-dir pytest==8.4.2 rich==14.2.0
 WORKDIR /workspace
 COPY src /workspace
 
