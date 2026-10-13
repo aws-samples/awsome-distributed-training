@@ -1,5 +1,5 @@
 # Pinned versions validated on SageMaker HyperPod EKS.
-transformers==4.57.1
+transformers==5.10.1
 datasets==4.3.0
 peft==0.17.1
 accelerate==1.13.0
