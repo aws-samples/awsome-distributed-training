@@ -1,6 +1,6 @@
 # Pinned versions validated on SageMaker HyperPod EKS.
 transformers==4.57.1
-datasets==4.3.0
+datasets==5.0.1
 peft==0.17.1
 accelerate==1.13.0
 liger-kernel==0.6.4
