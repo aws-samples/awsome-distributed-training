@@ -5,9 +5,11 @@ Target: Ray cluster created via SageMaker Studio on HyperPod (EKS + KubeRay).
 
 Shared storage is Amazon S3 instead of FSx for Lustre:
   - the dataset is read from <s3_base_uri>/datasets/{train,val}/ and copied to local disk
-  - Ray Train checkpoints go to <s3_base_uri>/ray_results (RunConfig.storage_path)
+  - Ray Train checkpoints go to <s3_base_uri>/ray_results/<run_name> (RunConfig.storage_path)
   - the final LoRA adapter and merged model are uploaded by rank 0 to <s3_base_uri>/output/
 The Ray pods get AWS credentials from EKS Pod Identity (no keys in code).
+A gated Hugging Face model needs HF_TOKEN in the pods' environment (see the README);
+never put a token in the YAML config.
 
 Heavy ML imports live inside train_func so the driver (Ray head, CPU image) only
 needs ray, boto3 and pyyaml.
@@ -24,7 +26,6 @@ os.environ.setdefault("TRANSFORMERS_NO_TF", "1")
 
 import logging
 from dataclasses import dataclass, field
-from typing import Optional
 from urllib.parse import urlparse
 
 import yaml
@@ -41,7 +42,6 @@ class ScriptArguments:
     local_data_dir: str = field(default="/tmp/qwen3-medical/data")
     local_checkpoint_dir: str = field(default="/tmp/qwen3-medical/checkpoints")
     local_output_dir: str = field(default="/tmp/qwen3-medical/output")
-    token: Optional[str] = field(default=None)
     attn_implementation: str = field(default="sdpa")
     load_in_4bit: bool = field(default=False)
     lora_r: int = field(default=16)
@@ -61,6 +61,19 @@ def _split_s3_uri(uri: str):
     return parsed.netloc, parsed.path.lstrip("/")
 
 
+def _local_path_for_key(local_dir: str, rel: str) -> str:
+    """Map the part of an S3 key below the prefix to a path inside local_dir.
+
+    S3 keys may contain "../" segments or start with "/" after the prefix, and
+    os.path.join would then point outside local_dir. Refuse those keys.
+    """
+    root = os.path.realpath(local_dir)
+    dest = os.path.realpath(os.path.join(root, rel))
+    if dest == root or os.path.commonpath([root, dest]) != root:
+        raise ValueError(f"Refusing S3 key that resolves outside {local_dir}: {rel!r}")
+    return dest
+
+
 def s3_download_prefix(s3_uri: str, local_dir: str) -> int:
     """Download every object under s3_uri into local_dir. Returns the file count."""
     import boto3
@@ -73,7 +86,7 @@ def s3_download_prefix(s3_uri: str, local_dir: str) -> int:
             rel = obj["Key"][len(prefix):]
             if not rel or rel.endswith("/"):
                 continue
-            dest = os.path.join(local_dir, rel)
+            dest = _local_path_for_key(local_dir, rel)
             os.makedirs(os.path.dirname(dest), exist_ok=True)
             s3.download_file(bucket, obj["Key"], dest)
             count += 1
@@ -137,6 +150,7 @@ def train_func(config: dict):
     )
 
     # 2. Model + LoRA
+    # Hugging Face reads HF_TOKEN from the environment when a model is gated.
     logger.info(f"Loading model: {script_args.model_id}")
     quant_config = None
     if script_args.load_in_4bit:
@@ -152,7 +166,6 @@ def train_func(config: dict):
         quantization_config=quant_config,
         attn_implementation=script_args.attn_implementation,
         torch_dtype=torch.bfloat16,
-        token=script_args.token,
     )
     if script_args.load_in_4bit:
         model = prepare_model_for_kbit_training(model)
@@ -170,7 +183,7 @@ def train_func(config: dict):
     )
     model.print_trainable_parameters()
 
-    tokenizer = AutoTokenizer.from_pretrained(script_args.model_id, token=script_args.token)
+    tokenizer = AutoTokenizer.from_pretrained(script_args.model_id)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
@@ -227,7 +240,20 @@ def train_func(config: dict):
         callbacks=[RayTrainReportCallback()],
     )
 
-    train_result = trainer.train()
+    # After a worker or node failure, Ray Train hands the latest reported checkpoint
+    # (a full HF checkpoint-N folder) to the restarted workers. Resume from it.
+    resume_from = None
+    checkpoint = ray.train.get_checkpoint()
+    if checkpoint:
+        resume_from = checkpoint.to_directory()
+        if not os.path.isfile(os.path.join(resume_from, "trainer_state.json")):
+            raise RuntimeError(
+                f"run_name '{config['run_name']}' already holds a finished run under "
+                f"{s3_base_uri}/ray_results. Set a new run_name in the YAML config."
+            )
+        logger.info(f"[rank {rank}] Resuming from checkpoint {resume_from}")
+
+    train_result = trainer.train(resume_from_checkpoint=resume_from)
     metrics = dict(train_result.metrics)
     if val_dataset is not None:
         metrics.update(trainer.evaluate())
@@ -269,18 +295,24 @@ def main(config_path: str = "args-s3.yaml"):
     config = load_config(config_path)
     script_args = ScriptArguments(**config.get("script_args", {}))
     s3_base_uri = config["s3_base_uri"].rstrip("/")
+    if "<" in s3_base_uri:
+        raise ValueError(f"Set s3_base_uri in {config_path} to your own bucket and prefix.")
+    run_name = config.get("run_name")
+    if not run_name:
+        raise ValueError(f"Set run_name in {config_path} (use a new name for each experiment).")
 
+    use_gpu = config.get("use_gpu", True)
+    resources_per_worker = {"CPU": config.get("cpus_per_worker", 8)}
+    if use_gpu:
+        resources_per_worker["GPU"] = config.get("num_gpus_per_worker", 1)
     scaling_config = ScalingConfig(
         num_workers=config.get("num_workers", 1),
-        use_gpu=config.get("use_gpu", True),
-        resources_per_worker={
-            "GPU": config.get("num_gpus_per_worker", 1),
-            "CPU": config.get("cpus_per_worker", 8),
-        },
+        use_gpu=use_gpu,
+        resources_per_worker=resources_per_worker,
     )
 
     run_config = RunConfig(
-        name="hyperpod-ray-finetune",
+        name=run_name,
         storage_path=f"{s3_base_uri}/ray_results",
         checkpoint_config=CheckpointConfig(num_to_keep=3),
         failure_config=FailureConfig(max_failures=config.get("max_failures", 3)),
@@ -292,6 +324,7 @@ def main(config_path: str = "args-s3.yaml"):
             "script_args": script_args.__dict__,
             "sft_config": config.get("sft_config", {}),
             "s3_base_uri": s3_base_uri,
+            "run_name": run_name,
         },
         scaling_config=scaling_config,
         run_config=run_config,
