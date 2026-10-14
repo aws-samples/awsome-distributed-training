@@ -25,10 +25,17 @@ export NVRX_GPUS_PER_NODE=${SLURM_GPUS_ON_NODE:?}
 export NVRX_MAX_RESTARTS=${NVRX_MAX_RESTARTS:-2}
 export NVRX_SECTION_TIMEOUTS=${NVRX_SECTION_TIMEOUTS:-setup:180,step:60,checkpointing:120}
 export NVRX_LOCAL_TMPDIR=${NVRX_LOCAL_TMPDIR:-/opt/build-tmp}
+export NVRX_LAUNCHER=${NVRX_LAUNCHER:-ft_launcher}
+container_env=NVRX_RUN_DIR,NVRX_RDZV_HOST,NVRX_RDZV_PORT,NVRX_GPUS_PER_NODE,NVRX_MAX_RESTARTS,NVRX_SECTION_TIMEOUTS,NVRX_LOCAL_TMPDIR,NVRX_LAUNCHER
+# Pyxis requires explicitly listed variables to exist, even for normal runs.
+if [[ -v NVRX_INJECT_GPU_FAILURE ]]; then
+    export NVRX_INJECT_GPU_FAILURE
+    container_env+=,NVRX_INJECT_GPU_FAILURE
+fi
 # One launcher per node, not per GPU. Pyxis must preserve the image's PATH and
 # LD_LIBRARY_PATH; pass only the job settings that the launcher needs explicitly.
 srun --ntasks="$SLURM_JOB_NUM_NODES" --ntasks-per-node=1 --kill-on-bad-exit=1 \
     --container-image="$NVRX_IMAGE" --container-mounts="$NVRX_MOUNTS" \
     --container-workdir=/app \
-    --container-env=NVRX_RUN_DIR,NVRX_RDZV_HOST,NVRX_RDZV_PORT,NVRX_GPUS_PER_NODE,NVRX_MAX_RESTARTS,NVRX_SECTION_TIMEOUTS,NVRX_LOCAL_TMPDIR \
+    --container-env="$container_env" \
     bash /app/slurm/1.launch.sh "$@"

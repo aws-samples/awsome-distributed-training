@@ -54,8 +54,10 @@ def parse_args():
     parser.add_argument("--learning-rate", type=float, default=0.001)
     parser.add_argument("--seed", type=int, default=123)
     parser.add_argument("--collective-timeout", type=int, default=120)
-    parser.add_argument("--fault-step", type=int, help="Test only: SIGKILL one rank after this update, on the initial attempt only")
+    parser.add_argument("--fault-step", type=int, help="Test only, initial attempt: kill after this update or stop before it")
+    parser.add_argument("--fault-kind", choices=["kill", "stop"], default="kill")
     parser.add_argument("--fault-rank", type=int, default=1)
+    parser.add_argument("--no-nvrx", action="store_true", help="Explicit torchrun control: disable monitor notifications only")
     args = parser.parse_args()
     if args.tiny == bool(args.model_path or args.tokens_path) or (not args.tiny and not (args.model_path and args.tokens_path)):
         parser.error("Choose --tiny OR both --model-path and --tokens-path")
@@ -74,16 +76,21 @@ def main():
     restart = int(os.environ["TORCHELASTIC_RESTART_COUNT"])
     if args.fault_step is not None and not 0 <= args.fault_rank < world:
         raise ValueError("Fault rank must be in the training world")
-    logging.basicConfig(level=logging.INFO, format=f"[Rank {rank}] %(message)s", force=True)
+    if args.no_nvrx and ("TORCHELASTIC_RUN_ID" not in os.environ or
+                         "FT_RANK_MONITOR_IPC_SOCKET" in os.environ):
+        raise ValueError("--no-nvrx requires torchrun, not ft_launcher")
+    logging.basicConfig(level=logging.INFO, format=f"%(asctime)s [Rank {rank}] %(message)s", force=True)
     device = torch.device("cuda", local_rank) if args.device == "cuda" else torch.device("cpu")
     if device.type == "cuda":
         torch.cuda.set_device(device)
         if args.dtype == "bfloat16" and not torch.cuda.is_bf16_supported():
             raise ValueError("bfloat16 is unsupported on this GPU")
-    from nvidia_resiliency_ext.fault_tolerance import RankMonitorClient
-    ft = RankMonitorClient()
-    ft.init_workload_monitoring()
-    ft.start_section("setup")
+    ft = None
+    if not args.no_nvrx:
+        from nvidia_resiliency_ext.fault_tolerance import RankMonitorClient
+        ft = RankMonitorClient()
+        ft.init_workload_monitoring()
+        ft.start_section("setup")
     try:
         dist.init_process_group(backend="nccl" if device.type == "cuda" else "gloo",
                                 timeout=datetime.timedelta(seconds=args.collective_timeout))
@@ -131,10 +138,15 @@ def main():
             logger.info("LOADED step=%s cursor=%s restart=%s", step, cursor, restart)
         else:
             logger.info("FRESH step=0 restart=%s", restart)
-        ft.end_section("setup")
+        if ft is not None:
+            ft.end_section("setup")
         model.train()
         while step < args.max_steps:
-            ft.start_section("step")
+            if ft is not None:
+                ft.start_section("step")
+            if args.fault_kind == "stop" and restart == 0 and step + 1 == args.fault_step and rank == args.fault_rank:
+                logger.warning("INJECT SIGSTOP before step=%s rank=%s pid=%s", step + 1, rank, os.getpid())
+                os.kill(os.getpid(), signal.SIGSTOP)
             indices = batch_indices(cursor, rank, world, args.batch_size, len(tokens))
             batch = tokens[indices].to(device)
             optimizer.zero_grad(set_to_none=True)
@@ -147,18 +159,22 @@ def main():
             step += 1
             cursor += 1
             logger.info("STEP step=%s samples=%s loss=%.8f", step, indices, loss.item())
-            if restart == 0 and step == args.fault_step and rank == args.fault_rank:
+            if args.fault_kind == "kill" and restart == 0 and step == args.fault_step and rank == args.fault_rank:
                 logger.warning("INJECT SIGKILL step=%s rank=%s", step, rank)
                 os.kill(os.getpid(), signal.SIGKILL)
-            ft.end_section("step")
+            if ft is not None:
+                ft.end_section("step")
             if step % args.checkpoint_interval == 0 or step == args.max_steps:
-                ft.start_section("checkpointing")
+                if ft is not None:
+                    ft.start_section("checkpointing")
                 checkpoint.save(args.run_dir, model, optimizer, scheduler, step, cursor, settings)
                 logger.info("SAVED step=%s", step)
-                ft.end_section("checkpointing")
+                if ft is not None:
+                    ft.end_section("checkpointing")
         logger.info("DONE step=%s", step)
     finally:
-        ft.shutdown_workload_monitoring()
+        if ft is not None:
+            ft.shutdown_workload_monitoring()
         if dist.is_initialized():
             dist.destroy_process_group()
 

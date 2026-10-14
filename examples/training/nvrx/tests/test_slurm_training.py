@@ -1,4 +1,4 @@
-"""Real NVRx two-rank CPU SIGKILL/restart, not a scheduler or launcher simulation."""
+"""Real NVRx two-rank CPU SIGKILL/SIGSTOP recovery, not a scheduler simulation."""
 import os
 from pathlib import Path
 import re
@@ -31,7 +31,7 @@ def train(root, log, env, *args, restarts=1, expected=0, fixture_args=("--tiny",
                "--ft-rank-out-of-section-timeout=30", "--ft-workload-check-interval=1",
                f"--ft-checkpoint-iteration-file={root}/latest_checkpointed_iteration.txt",
                f"--log-dir={log.parent / (log.stem + '-elastic')}", "--tee=3",
-               "src/train_slurm.py", "--run-dir", str(root), "--device=cpu", "--collective-timeout=15",
+               "src/train_slurm.py", "--run-dir", str(root), "--device=cpu", "--collective-timeout=60",
                *fixture_args, *args]
     with log.open("w") as stream:
         result = subprocess.run(command, cwd=ROOT, env=env, stdout=stream, stderr=subprocess.STDOUT, timeout=150)
@@ -57,11 +57,14 @@ def equal(a, b):
         assert a == b
 
 
-def test_sigkill_resume_matches_fresh_control(tmp_path, runtime):
+@pytest.mark.parametrize("fault_kind", ["kill", "stop"])
+def test_signal_resume_matches_fresh_control(tmp_path, runtime, fault_kind):
     normal, recovered = tmp_path / "normal", tmp_path / "recovered"
     train(normal, tmp_path / "normal.log", runtime)
-    text = train(recovered, tmp_path / "recovered.log", runtime, "--fault-step=3")
-    assert text.count("INJECT SIGKILL") == 1
+    text = train(recovered, tmp_path / "recovered.log", runtime, "--fault-step=3", f"--fault-kind={fault_kind}")
+    assert text.count(f"INJECT SIG{fault_kind.upper()}") == 1
+    if fault_kind == "stop":
+        assert "Section 'step' has been open" in text
     assert text.count("LOADED step=2 cursor=2 restart=1") == 2
     for rank in range(2):
         a = torch.load(normal / f"step_6/rank_{rank}.pt", weights_only=False)
@@ -70,7 +73,10 @@ def test_sigkill_resume_matches_fresh_control(tmp_path, runtime):
         assert a["cursor"] == a["step"] == 6
         assert all(value["step"].item() == 6 for value in a["optimizer"]["state"].values())
         replay = re.findall(rf"\[Rank {rank}\] STEP step=3 .*", text)
-        assert len(replay) == 2 and replay[0] == replay[1]
+        if fault_kind == "kill":
+            assert len(replay) == 2 and replay[0] == replay[1]
+        else:
+            assert len(replay) == 1  # STOP is before forward/backward, not after update 3.
     # Requested resume at the target step loads but makes no additional update.
     text = train(recovered, tmp_path / "resume.log", runtime, "--resume")
     assert "STEP step=" not in text and text.count("DONE step=6") == 2
