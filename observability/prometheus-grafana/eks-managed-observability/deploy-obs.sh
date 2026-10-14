@@ -52,11 +52,14 @@ prompt_with_default "EKS Cluster Name" "" CLUSTER_NAME
 prompt_with_default "CloudFormation Stack Name" "eks-observability" STACK_NAME
 prompt_with_default "Scrape DCGM Exporter GPU metrics (y/n)" "y" ENABLE_DCGM_METRICS
 prompt_with_default "Scrape SGLang metrics (y/n)" "n" ENABLE_SGLANG_METRICS
+echo "  (EFA/RDMA metrics need the EFA node exporter, see ../../efa-node-exporter/EKS/README.md)"
+prompt_with_default "Scrape EFA node exporter RDMA metrics (y/n)" "n" ENABLE_EFA_METRICS
 
 # Collect the selected scrape jobs from scrape-configs/
 SCRAPE_CONFIG_FILES=()
 [ "$ENABLE_DCGM_METRICS" = "y" ] && SCRAPE_CONFIG_FILES+=(scrape-configs/dcgm-exporter.yaml)
 [ "$ENABLE_SGLANG_METRICS" = "y" ] && SCRAPE_CONFIG_FILES+=(scrape-configs/sglang.yaml)
+[ "$ENABLE_EFA_METRICS" = "y" ] && SCRAPE_CONFIG_FILES+=(scrape-configs/efa-exporter.yaml)
 if [ ${#SCRAPE_CONFIG_FILES[@]} -eq 0 ]; then
     echo -e "${RED}At least one metrics source must be enabled.${NC}"
     exit 1
@@ -350,7 +353,10 @@ echo ""
 echo "3. Import NVIDIA DCGM dashboard:"
 echo "   - Dashboards → Import → ID: 12239"
 echo ""
-echo "4. Add custom metric panels for:"
+echo "4. (Optional) Import the SGLang PD / EFA RDMA dashboard:"
+echo "   - Dashboards → Import → upload dashboards/sglang-pd.json"
+echo ""
+echo "5. Add custom metric panels for:"
 echo "   - XID Errors: DCGM_EXP_XID_ERRORS_COUNT_total"
 echo "   - Power Violations: DCGM_FI_DEV_POWER_VIOLATION_total"
 echo "   - Thermal Violations: DCGM_FI_DEV_THERMAL_VIOLATION_total"

@@ -133,7 +133,7 @@ The script will prompt for:
 - AMP/AMG region (must support Amazon Managed Grafana)
 - Cluster name
 - CloudFormation stack name
-- Which metrics sources to scrape: DCGM Exporter (default `y`) and SGLang (default `n`). See [Scrape Configs](#scrape-configs)
+- Which metrics sources to scrape: DCGM Exporter (default `y`), SGLang (default `n`) and EFA RDMA counters (default `n`). See [Scrape Configs](#scrape-configs)
 
 **Note:** Custom DCGM metrics are optional. If a `custom-dcgm-metrics.csv` file exists in this directory, the script creates a `custom-dcgm-metrics` ConfigMap and points DCGM Exporter at it. If the file is absent, the script clears any custom override and leaves DCGM Exporter on the GPU Operator's built-in default metrics.
 
@@ -296,8 +296,8 @@ Build `SCRAPE_CONFIGS` from the sources you want (list only those files), then d
 
 ```bash
 export SCRAPE_CONFIGS=$(cat scrape-configs/dcgm-exporter.yaml | sed '1!s/^/          /')
-# DCGM + SGLang:
-# export SCRAPE_CONFIGS=$(cat scrape-configs/dcgm-exporter.yaml scrape-configs/sglang.yaml | sed '1!s/^/          /')
+# DCGM + SGLang + EFA:
+# export SCRAPE_CONFIGS=$(cat scrape-configs/dcgm-exporter.yaml scrape-configs/sglang.yaml scrape-configs/efa-exporter.yaml | sed '1!s/^/          /')
 
 envsubst '${AMP_ENDPOINT} ${AWS_REGION_AMGP} ${SCRAPE_CONFIGS}' \
   < adot-collector-prometheus.yaml | kubectl apply -f -
@@ -327,6 +327,7 @@ Each metrics source is a standalone Prometheus scrape job under `scrape-configs/
 | --- | --- | --- |
 | `dcgm-exporter.yaml` | DCGM Exporter GPU metrics | Scrapes the `gpu-operator` namespace. If you installed DCGM Exporter standalone in a different namespace (e.g., `dcgm-exporter`), update the namespace in this file |
 | `sglang.yaml` | SGLang server metrics (`sglang:*`) | Scraped every 10 seconds; see below |
+| `efa-exporter.yaml` | EFA / RDMA counters (`node_amazonefa_*`) | Needs the EFA node exporter installed first; see below |
 
 To add another source, drop a new scrape job file into `scrape-configs/` and include it when building `SCRAPE_CONFIGS`.
 
@@ -343,6 +344,8 @@ metadata:
 ```
 
 The SGLang examples under [`examples/inference/sglang/`](../../../examples/inference/sglang/) already set these. The pod's `component` label (e.g. `prefill` / `decode`) is copied to the metrics. Verify in Grafana Explore with a query such as `sglang:num_running_reqs`.
+
+The EFA job scrapes the Service of the [EFA node exporter](../../efa-node-exporter/EKS/README.md) (any Service whose name contains `efa-node-exporter`, in any namespace) and keeps only the `node_amazonefa_*` series. Install the exporter before enabling it. The collector appends `_total` to counters, so the series are named like `node_amazonefa_rdma_write_bytes_total`.
 
 ### 7. Configure Custom DCGM Metrics (Optional)
 
@@ -436,6 +439,26 @@ pkill -f "port-forward.*9400"
 4. Click **Import**
 
 Alternative dashboard: Try ID **22515** ("Better NVIDIA DCGM Dashboard") for enhanced visualizations.
+
+#### Import the SGLang PD and EFA RDMA Dashboard (Optional)
+
+[`dashboards/sglang-pd.json`](./dashboards/sglang-pd.json) covers SGLang prefill/decode disaggregation and EFA RDMA throughput. Enable the `sglang` and `efa-exporter` scrape jobs first (see [Scrape Configs](#scrape-configs)).
+
+1. Navigate to **Dashboards** → **New** → **Import** and upload `dashboards/sglang-pd.json`
+2. Select your Prometheus data source and click **Import**
+3. Pick the **Namespace** that runs SGLang (for example `dsv4flash`)
+
+The dashboard has four sections:
+
+- **Autoscaling signals.** Prefill and decode replica counts (`count(up{job="sglang",component=...} == 1)`), TTFT P90, TPOT P90, and the prefill and decode-prealloc queues. The queries and the red threshold lines (TTFT 0.7 s, TPOT 0.015 s, queue 8 per replica) are the ones in the KEDA `ScaledObject`s of [`dsv4flash-pd-KEDA`](../../../examples/inference/sglang/dsv4flash-pd-KEDA/autoscaling/scaledobjects.yaml), so the panels show what the autoscaler sees.
+- **PD pipeline.** Running requests, KV cache usage, PD queues, per-stage latency, and KV transfer latency, speed, and volume.
+- **Throughput and end-to-end latency.** Token throughput, request rate, and end-to-end latency.
+- **EFA / RDMA.** EFA TX/RX and RDMA write/read throughput per node and per device, EFA error counters, and a table of which node each prefill/decode pod runs on.
+
+Notes:
+
+- `sglang:inter_token_latency_seconds` (TPOT) and `sglang:time_to_first_token_seconds` only get samples from streaming requests that reach the decode engine, so those two panels stay empty until streaming traffic arrives.
+- The dashboard uses a core `Prometheus` data source with SigV4. It does not list data sources of the Amazon Managed Service for Prometheus plugin type.
 
 ### 9. Add Custom Metric Panels
 
