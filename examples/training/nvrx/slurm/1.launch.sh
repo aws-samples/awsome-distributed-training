@@ -26,4 +26,4 @@ exec "$launcher" --rdzv-backend=c10d \
     --max-restarts="$NVRX_MAX_RESTARTS" \
     "${ft_args[@]}" \
     --log-dir="${NVRX_RUN_DIR}-logs/$SLURM_JOB_ID/node-$SLURM_NODEID" --tee=3 \
-    /app/src/train_slurm.py --run-dir="$NVRX_RUN_DIR" "${train_args[@]}" "$@"
+    /app/src/train_gpt2.py --run-dir="$NVRX_RUN_DIR" "${train_args[@]}" "$@"

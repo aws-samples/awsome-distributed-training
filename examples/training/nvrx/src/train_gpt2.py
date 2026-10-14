@@ -2,7 +2,7 @@
 # SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 # Adapted from NVRx's sections example: HF training and rank-local checkpoint recovery.
-"""HF GPT-2 training with bounded NVRx worker restart in one Slurm allocation.
+"""HF GPT-2 training with NVRx worker restart and checkpoint recovery.
 
 Start in a nonexistent --run-dir. Use --resume to require its last completed checkpoint on a later invocation. NVRx restarts automatically require that checkpoint too; a failure before the first save fails rather than silently starting over. There is no allocation recovery.
 """
@@ -21,7 +21,7 @@ from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 from torch.nn.parallel import DistributedDataParallel as DDP
 from transformers import AutoModelForCausalLM, GPT2Config, GPT2LMHeadModel
 
-import slurm_checkpoint as checkpoint
+import training_checkpoint as checkpoint
 
 logger = logging.getLogger(__name__)
 

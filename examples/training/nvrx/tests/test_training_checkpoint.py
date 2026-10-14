@@ -1,4 +1,4 @@
-"""Focused single-rank checkpoint and input checks; real restart is in test_slurm_training."""
+"""Focused single-rank checkpoint and input checks; real restart is in test_train_gpt2."""
 import sys
 from pathlib import Path
 
@@ -7,8 +7,8 @@ import torch
 import torch.distributed as dist
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-import slurm_checkpoint as ckpt
-from train_slurm import validate_tokens
+import training_checkpoint as ckpt
+from train_gpt2 import validate_tokens
 
 
 @pytest.fixture

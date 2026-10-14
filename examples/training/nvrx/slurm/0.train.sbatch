@@ -6,7 +6,7 @@
 #SBATCH --exclusive
 #SBATCH --no-requeue
 #SBATCH --time=00:10:00
-# Submit with ordinary sbatch; script arguments are passed to train_slurm.py.
+# Submit with ordinary sbatch; script arguments are passed to train_gpt2.py.
 set -euo pipefail
 : "${NVRX_RUN_DIR:?Set a new shared run directory}" "${NVRX_IMAGE:?Set the immutable Pyxis image path}"
 : "${NVRX_MOUNTS:?Set Pyxis shared filesystem mounts}"

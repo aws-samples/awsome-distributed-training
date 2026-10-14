@@ -31,7 +31,7 @@ def train(root, log, env, *args, restarts=1, expected=0, fixture_args=("--tiny",
                "--ft-rank-out-of-section-timeout=30", "--ft-workload-check-interval=1",
                f"--ft-checkpoint-iteration-file={root}/latest_checkpointed_iteration.txt",
                f"--log-dir={log.parent / (log.stem + '-elastic')}", "--tee=3",
-               "src/train_slurm.py", "--run-dir", str(root), "--device=cpu", "--collective-timeout=60",
+               "src/train_gpt2.py", "--run-dir", str(root), "--device=cpu", "--collective-timeout=60",
                *fixture_args, *args]
     with log.open("w") as stream:
         result = subprocess.run(command, cwd=ROOT, env=env, stdout=stream, stderr=subprocess.STDOUT, timeout=150)

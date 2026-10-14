@@ -25,13 +25,13 @@ RUN pip install --no-cache-dir torch==2.9.0 --index-url https://download.pytorch
 COPY slurm/requirements.txt /opt/requirements.txt
 RUN pip install --no-cache-dir -r /opt/requirements.txt && pip check
 WORKDIR /app
-COPY src/train_slurm.py src/slurm_checkpoint.py /app/src/
+COPY src/train_gpt2.py src/training_checkpoint.py /app/src/
 COPY slurm/ /app/slurm/
 COPY tests/ /app/tests/
 ENV PYTHONPATH=/app/src
 ENV NCCL_DEBUG=INFO
 # Fail the build early if the pinned stack does not import or ft_launcher is missing.
-RUN python -c "from nvidia_resiliency_ext.fault_tolerance import RankMonitorClient; import transformers; import slurm_checkpoint" \
+RUN python -c "from nvidia_resiliency_ext.fault_tolerance import RankMonitorClient; import transformers; import training_checkpoint" \
     && ft_launcher --help >/dev/null
 CMD ["bash"]
 # Isolated image scratch (no host path); Pyxis may run under the submitting UID.
