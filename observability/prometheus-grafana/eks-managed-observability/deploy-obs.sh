@@ -252,6 +252,12 @@ aws eks create-pod-identity-association \
   --role-arn $ADOT_ROLE_ARN \
   --region $AWS_REGION 2>/dev/null || echo "Pod Identity association already exists"
 
+# Pod Identity credentials are injected when a pod is created. Give the new
+# association a few seconds to propagate so the collector pod created in
+# Step 6 gets them; otherwise it falls back to the node role and remote write
+# to AMP fails with 403.
+sleep 10
+
 echo -e "${GREEN}✓ ADOT Operator installed${NC}"
 echo ""
 
@@ -261,6 +267,8 @@ echo ""
 # Render the ADOT Collector template. The scrape jobs are indented to sit
 # under scrape_configs (the first line inherits the placeholder's indent).
 export SCRAPE_CONFIGS=$(cat "${SCRAPE_CONFIG_FILES[@]}" | sed '1!s/^/          /')
+# envsubst only sees exported variables; prompt_with_default does not export.
+export AWS_REGION_AMGP
 envsubst '${AMP_ENDPOINT} ${AWS_REGION_AMGP} ${SCRAPE_CONFIGS}' \
   < adot-collector-prometheus.yaml > adot-collector-prometheus-generated.yaml
 
