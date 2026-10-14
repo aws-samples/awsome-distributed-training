@@ -10,7 +10,7 @@ RULE_TITLE = {"mean": "mean TPOT", "itl-p99": "itl-p99", "worst-itl": "worst-itl
 ARCH_LETTER = {"unified": "U", "disaggregated": "D"}
 WINNER_TEXT = {"unified": "Unified has the higher qualifying rate", "disaggregated": "Disaggregated has the higher qualifying rate",
                "tie": "Tie: same qualifying rate", "neither": "Neither stack has a qualifying rate",
-               "incomparable": "Incomparable: one stack was not measured under this rule"}
+               "incomparable": "Incomparable: not every stack was judged under this rule"}
 
 
 def _esc(x):
@@ -565,7 +565,7 @@ h3{margin:0;font-size:var(--fs-hs);line-height:var(--lh-hs);font-weight:700}
 .sname{font-weight:700;white-space:nowrap}
 .dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--na);margin-right:6px}
 .dot.unified{background:var(--u)}.dot.disaggregated{background:var(--d);border-radius:2px}
-.badge{display:inline-block;white-space:nowrap;align-self:flex-start;font-size:var(--fs-s);line-height:var(--lh-s);font-weight:700;padding:2px 8px;border-radius:var(--r-badge);background:var(--bg-page);color:var(--text-2);border:1px solid var(--grid)}
+.badge{display:inline-block;max-width:100%;align-self:flex-start;font-size:var(--fs-s);line-height:var(--lh-s);font-weight:700;padding:2px 8px;border-radius:var(--r-badge);background:var(--bg-page);color:var(--text-2);border:1px solid var(--grid)}
 .badge.w-unified{color:var(--u-ink);border-color:var(--u)}.badge.w-disaggregated{color:var(--d-ink);border-color:var(--d)}.badge.w-tie{color:var(--tie-ink);border-color:var(--tie)}
 dl.facts{display:grid;grid-template-columns:max-content 1fr;gap:var(--sp-xs) var(--sp-l);margin:0}
 dl.facts dt{color:var(--text-2);font-weight:700}dl.facts dd{margin:0}
