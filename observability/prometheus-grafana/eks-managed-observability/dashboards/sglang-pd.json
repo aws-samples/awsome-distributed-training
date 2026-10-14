@@ -12,9 +12,9 @@
   "panels": [
     {
       "type": "row",
-      "title": "Autoscaling signals (same queries and thresholds as KEDA ScaledObjects)",
+      "title": "basic",
       "collapsed": false,
-      "id": 1,
+      "id": 20,
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -22,420 +22,6 @@
         "y": 0
       },
       "panels": []
-    },
-    {
-      "type": "stat",
-      "title": "Prefill replicas",
-      "id": 2,
-      "description": "Scrape targets that are up: count(up{job=sglang,component=prefill}==1).",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 0,
-        "y": 1
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "count(up{job=\"sglang\",namespace=\"$namespace\",component=\"prefill\"} == 1) or vector(0)",
-          "legendFormat": "",
-          "refId": "A",
-          "range": false,
-          "instant": true
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "color": {
-            "mode": "thresholds"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "colorMode": "value",
-        "graphMode": "area",
-        "textMode": "auto"
-      }
-    },
-    {
-      "type": "stat",
-      "title": "Decode replicas",
-      "id": 3,
-      "description": "Scrape targets that are up: count(up{job=sglang,component=decode}==1).",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 6,
-        "y": 1
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "count(up{job=\"sglang\",namespace=\"$namespace\",component=\"decode\"} == 1) or vector(0)",
-          "legendFormat": "",
-          "refId": "A",
-          "range": false,
-          "instant": true
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "color": {
-            "mode": "thresholds"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "colorMode": "value",
-        "graphMode": "area",
-        "textMode": "auto"
-      }
-    },
-    {
-      "type": "stat",
-      "title": "TTFT P90 (decode engines)",
-      "id": 4,
-      "description": "KEDA trigger ttft_p90, threshold 0.7 s.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 12,
-        "y": 1
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "histogram_quantile(0.9, sum by (le) (rate(sglang:time_to_first_token_seconds_bucket{namespace=\"$namespace\",component=\"decode\"}[1m])))",
-          "legendFormat": "",
-          "refId": "A",
-          "range": false,
-          "instant": true
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 0.7
-              }
-            ]
-          },
-          "color": {
-            "mode": "thresholds"
-          },
-          "decimals": 3
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "colorMode": "value",
-        "graphMode": "area",
-        "textMode": "auto"
-      }
-    },
-    {
-      "type": "stat",
-      "title": "TPOT P90 (decode engines)",
-      "id": 5,
-      "description": "KEDA trigger tpot_p90, threshold 0.015 s.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 18,
-        "y": 1
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "histogram_quantile(0.9, sum by (le) (rate(sglang:inter_token_latency_seconds_bucket{namespace=\"$namespace\",component=\"decode\"}[1m])))",
-          "legendFormat": "",
-          "refId": "A",
-          "range": false,
-          "instant": true
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 0.015
-              }
-            ]
-          },
-          "color": {
-            "mode": "thresholds"
-          },
-          "decimals": 4
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "colorMode": "value",
-        "graphMode": "area",
-        "textMode": "auto"
-      }
-    },
-    {
-      "type": "timeseries",
-      "title": "Replicas over time",
-      "id": 6,
-      "description": "Number of up SGLang targets per role.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "gridPos": {
-        "h": 7,
-        "w": 12,
-        "x": 0,
-        "y": 5
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "count(up{job=\"sglang\",namespace=\"$namespace\",component=\"prefill\"} == 1) or vector(0)",
-          "legendFormat": "prefill",
-          "refId": "A",
-          "range": true,
-          "instant": false
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "count(up{job=\"sglang\",namespace=\"$namespace\",component=\"decode\"} == 1) or vector(0)",
-          "legendFormat": "decode",
-          "refId": "B",
-          "range": true,
-          "instant": false
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "custom": {
-            "drawStyle": "line",
-            "lineWidth": 1,
-            "fillOpacity": 10,
-            "showPoints": "never",
-            "spanNulls": true,
-            "stacking": {
-              "mode": "none",
-              "group": "A"
-            }
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "color": {
-            "mode": "palette-classic"
-          },
-          "min": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "bottom",
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ]
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      }
-    },
-    {
-      "type": "timeseries",
-      "title": "Replicas wanted by the queue triggers",
-      "id": 7,
-      "description": "KEDA uses AverageValue for these triggers: desired replicas = ceil(total queue / threshold), threshold 8.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "gridPos": {
-        "h": 7,
-        "w": 12,
-        "x": 12,
-        "y": 5
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "ceil(sum(sglang:num_queue_reqs{namespace=\"$namespace\",component=\"prefill\"}) / 8)",
-          "legendFormat": "prefill_queue: ceil(total / 8)",
-          "refId": "A",
-          "range": true,
-          "instant": false
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "ceil(sum(sglang:num_decode_prealloc_queue_reqs{namespace=\"$namespace\",component=\"decode\"}) / 8)",
-          "legendFormat": "decode_prealloc_queue: ceil(total / 8)",
-          "refId": "B",
-          "range": true,
-          "instant": false
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "custom": {
-            "drawStyle": "line",
-            "lineWidth": 1,
-            "fillOpacity": 10,
-            "showPoints": "never",
-            "spanNulls": true,
-            "stacking": {
-              "mode": "none",
-              "group": "A"
-            }
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "color": {
-            "mode": "palette-classic"
-          },
-          "min": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "bottom",
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ]
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      }
     },
     {
       "type": "timeseries",
@@ -450,7 +36,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 12
+        "y": 1
       },
       "targets": [
         {
@@ -551,7 +137,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 12
+        "y": 1
       },
       "targets": [
         {
@@ -641,18 +227,18 @@
     },
     {
       "type": "timeseries",
-      "title": "prefill_queue: requests waiting for prefill",
-      "id": 10,
-      "description": "sglang:num_queue_reqs{component=prefill}. Red line: threshold 8 per replica (AverageValue).",
+      "title": "Token throughput",
+      "id": 21,
+      "description": "",
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
       },
       "gridPos": {
         "h": 7,
-        "w": 12,
+        "w": 8,
         "x": 0,
-        "y": 20
+        "y": 9
       },
       "targets": [
         {
@@ -660,8 +246,8 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(sglang:num_queue_reqs{namespace=\"$namespace\",component=\"prefill\"})",
-          "legendFormat": "total (KEDA query)",
+          "expr": "sum(rate(sglang:prompt_tokens_total{namespace=\"$namespace\",component=\"prefill\"}[1m]))",
+          "legendFormat": "prompt tokens/s (prefill)",
           "refId": "A",
           "range": true,
           "instant": false
@@ -671,8 +257,8 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(sglang:num_queue_reqs{namespace=\"$namespace\",component=\"prefill\"}) / clamp_min(count(up{job=\"sglang\",namespace=\"$namespace\",component=\"prefill\"} == 1) or vector(0), 1)",
-          "legendFormat": "per prefill replica",
+          "expr": "sum(rate(sglang:generation_tokens_total{namespace=\"$namespace\",component=\"decode\"}[1m]))",
+          "legendFormat": "generated tokens/s (decode)",
           "refId": "B",
           "range": true,
           "instant": false
@@ -690,9 +276,6 @@
             "stacking": {
               "mode": "none",
               "group": "A"
-            },
-            "thresholdsStyle": {
-              "mode": "line"
             }
           },
           "thresholds": {
@@ -701,10 +284,6 @@
               {
                 "color": "green",
                 "value": null
-              },
-              {
-                "color": "red",
-                "value": 8
               }
             ]
           },
@@ -732,18 +311,18 @@
     },
     {
       "type": "timeseries",
-      "title": "decode_prealloc_queue: prefilled requests waiting for decode KV",
-      "id": 11,
-      "description": "sglang:num_decode_prealloc_queue_reqs{component=decode}. Red line: threshold 8 per replica (AverageValue).",
+      "title": "Request rate",
+      "id": 22,
+      "description": "",
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
       },
       "gridPos": {
         "h": 7,
-        "w": 12,
-        "x": 12,
-        "y": 20
+        "w": 8,
+        "x": 8,
+        "y": 9
       },
       "targets": [
         {
@@ -751,8 +330,81 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(sglang:num_decode_prealloc_queue_reqs{namespace=\"$namespace\",component=\"decode\"})",
-          "legendFormat": "total (KEDA query)",
+          "expr": "sum by (is_streaming) (rate(sglang:num_requests_total{namespace=\"$namespace\",component=\"decode\"}[1m]))",
+          "legendFormat": "streaming={{is_streaming}}",
+          "refId": "A",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "color": {
+            "mode": "palette-classic"
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "End-to-end request latency",
+      "id": 23,
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 16,
+        "y": 9
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(sglang:e2e_request_latency_seconds_bucket{namespace=\"$namespace\",component=\"decode\"}[1m])))",
+          "legendFormat": "P50",
           "refId": "A",
           "range": true,
           "instant": false
@@ -762,8 +414,361 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(sglang:num_decode_prealloc_queue_reqs{namespace=\"$namespace\",component=\"decode\"}) / clamp_min(count(up{job=\"sglang\",namespace=\"$namespace\",component=\"decode\"} == 1) or vector(0), 1)",
-          "legendFormat": "per decode replica",
+          "expr": "histogram_quantile(0.9, sum by (le) (rate(sglang:e2e_request_latency_seconds_bucket{namespace=\"$namespace\",component=\"decode\"}[1m])))",
+          "legendFormat": "P90",
+          "refId": "B",
+          "range": true,
+          "instant": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(sglang:e2e_request_latency_seconds_bucket{namespace=\"$namespace\",component=\"decode\"}[1m])))",
+          "legendFormat": "P99",
+          "refId": "C",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "row",
+      "title": "Autoscaling signals (same queries and thresholds as KEDA ScaledObjects)",
+      "collapsed": false,
+      "id": 1,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 16
+      },
+      "panels": []
+    },
+    {
+      "type": "stat",
+      "title": "Prefill replicas",
+      "id": 2,
+      "description": "Scrape targets that are up: count(up{job=sglang,component=prefill}==1).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 17
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "count(up{job=\"sglang\",namespace=\"$namespace\",component=\"prefill\"} == 1) or vector(0)",
+          "legendFormat": "",
+          "refId": "A",
+          "range": false,
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Decode replicas",
+      "id": 3,
+      "description": "Scrape targets that are up: count(up{job=sglang,component=decode}==1).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 17
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "count(up{job=\"sglang\",namespace=\"$namespace\",component=\"decode\"} == 1) or vector(0)",
+          "legendFormat": "",
+          "refId": "A",
+          "range": false,
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "TTFT P90 (decode engines)",
+      "id": 4,
+      "description": "KEDA trigger ttft_p90, threshold 0.7 s.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 17
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "histogram_quantile(0.9, sum by (le) (rate(sglang:time_to_first_token_seconds_bucket{namespace=\"$namespace\",component=\"decode\"}[1m])))",
+          "legendFormat": "",
+          "refId": "A",
+          "range": false,
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 0.7
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 3
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "TPOT P90 (decode engines)",
+      "id": 5,
+      "description": "KEDA trigger tpot_p90, threshold 0.015 s.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 17
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "histogram_quantile(0.9, sum by (le) (rate(sglang:inter_token_latency_seconds_bucket{namespace=\"$namespace\",component=\"decode\"}[1m])))",
+          "legendFormat": "",
+          "refId": "A",
+          "range": false,
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 0.015
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 4
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto"
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Replicas over time",
+      "id": 6,
+      "description": "Number of up SGLang targets per role.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 21
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "count(up{job=\"sglang\",namespace=\"$namespace\",component=\"prefill\"} == 1) or vector(0)",
+          "legendFormat": "prefill",
+          "refId": "A",
+          "range": true,
+          "instant": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "count(up{job=\"sglang\",namespace=\"$namespace\",component=\"decode\"} == 1) or vector(0)",
+          "legendFormat": "decode",
           "refId": "B",
           "range": true,
           "instant": false
@@ -781,9 +786,6 @@
             "stacking": {
               "mode": "none",
               "group": "A"
-            },
-            "thresholdsStyle": {
-              "mode": "line"
             }
           },
           "thresholds": {
@@ -792,10 +794,90 @@
               {
                 "color": "green",
                 "value": null
-              },
+              }
+            ]
+          },
+          "color": {
+            "mode": "palette-classic"
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Replicas wanted by the queue triggers",
+      "id": 7,
+      "description": "KEDA uses AverageValue for these triggers: desired replicas = ceil(total queue / threshold), threshold 8.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 21
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "ceil(sum(sglang:num_queue_reqs{namespace=\"$namespace\",component=\"prefill\"}) / 8)",
+          "legendFormat": "prefill_queue: ceil(total / 8)",
+          "refId": "A",
+          "range": true,
+          "instant": false
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "ceil(sum(sglang:num_decode_prealloc_queue_reqs{namespace=\"$namespace\",component=\"decode\"}) / 8)",
+          "legendFormat": "decode_prealloc_queue: ceil(total / 8)",
+          "refId": "B",
+          "range": true,
+          "instant": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
               {
-                "color": "red",
-                "value": 8
+                "color": "green",
+                "value": null
               }
             ]
           },
@@ -830,7 +912,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 27
+        "y": 28
       },
       "panels": []
     },
@@ -845,9 +927,9 @@
       },
       "gridPos": {
         "h": 7,
-        "w": 8,
+        "w": 12,
         "x": 0,
-        "y": 28
+        "y": 29
       },
       "targets": [
         {
@@ -918,9 +1000,9 @@
       },
       "gridPos": {
         "h": 7,
-        "w": 8,
-        "x": 8,
-        "y": 28
+        "w": 12,
+        "x": 12,
+        "y": 29
       },
       "targets": [
         {
@@ -983,195 +1065,6 @@
     },
     {
       "type": "timeseries",
-      "title": "PD queues",
-      "id": 15,
-      "description": "",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "gridPos": {
-        "h": 7,
-        "w": 8,
-        "x": 16,
-        "y": 28
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "sum(sglang:num_queue_reqs{namespace=\"$namespace\",component=\"prefill\"})",
-          "legendFormat": "prefill: waiting",
-          "refId": "A",
-          "range": true,
-          "instant": false
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "sum(sglang:num_prefill_bootstrap_queue_reqs{namespace=\"$namespace\",component=\"prefill\"})",
-          "legendFormat": "prefill: bootstrap",
-          "refId": "B",
-          "range": true,
-          "instant": false
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "sum(sglang:num_prefill_inflight_queue_reqs{namespace=\"$namespace\",component=\"prefill\"})",
-          "legendFormat": "prefill: KV in flight",
-          "refId": "C",
-          "range": true,
-          "instant": false
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "sum(sglang:num_decode_prealloc_queue_reqs{namespace=\"$namespace\",component=\"decode\"})",
-          "legendFormat": "decode: prealloc",
-          "refId": "D",
-          "range": true,
-          "instant": false
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "sum(sglang:num_decode_transfer_queue_reqs{namespace=\"$namespace\",component=\"decode\"})",
-          "legendFormat": "decode: KV transfer",
-          "refId": "E",
-          "range": true,
-          "instant": false
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "custom": {
-            "drawStyle": "line",
-            "lineWidth": 1,
-            "fillOpacity": 10,
-            "showPoints": "never",
-            "spanNulls": true,
-            "stacking": {
-              "mode": "none",
-              "group": "A"
-            }
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "color": {
-            "mode": "palette-classic"
-          },
-          "min": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "bottom",
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ]
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      }
-    },
-    {
-      "type": "timeseries",
-      "title": "Per-stage latency P90",
-      "id": 16,
-      "description": "sglang:per_stage_req_latency_seconds by stage (bootstrap, alloc, KV transfer, forward, waiting).",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 35
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "histogram_quantile(0.9, sum by (le, component, stage) (rate(sglang:per_stage_req_latency_seconds_bucket{namespace=\"$namespace\"}[1m])))",
-          "legendFormat": "{{component}} / {{stage}}",
-          "refId": "A",
-          "range": true,
-          "instant": false
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "custom": {
-            "drawStyle": "line",
-            "lineWidth": 1,
-            "fillOpacity": 10,
-            "showPoints": "never",
-            "spanNulls": true,
-            "stacking": {
-              "mode": "none",
-              "group": "A"
-            }
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "color": {
-            "mode": "palette-classic"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "bottom",
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ]
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      }
-    },
-    {
-      "type": "timeseries",
       "title": "KV transfer latency (prefill to decode)",
       "id": 17,
       "description": "sglang:kv_transfer_latency_ms, reported by prefill engines (one sample per TP rank).",
@@ -1181,9 +1074,9 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 35
+        "w": 8,
+        "x": 0,
+        "y": 36
       },
       "targets": [
         {
@@ -1274,10 +1167,10 @@
         "uid": "${datasource}"
       },
       "gridPos": {
-        "h": 7,
-        "w": 12,
-        "x": 0,
-        "y": 43
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 36
       },
       "targets": [
         {
@@ -1347,10 +1240,10 @@
         "uid": "${datasource}"
       },
       "gridPos": {
-        "h": 7,
-        "w": 12,
-        "x": 12,
-        "y": 43
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 36
       },
       "targets": [
         {
@@ -1412,270 +1305,6 @@
     },
     {
       "type": "row",
-      "title": "Throughput and end-to-end latency",
-      "collapsed": false,
-      "id": 20,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 50
-      },
-      "panels": []
-    },
-    {
-      "type": "timeseries",
-      "title": "Token throughput",
-      "id": 21,
-      "description": "",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "gridPos": {
-        "h": 7,
-        "w": 8,
-        "x": 0,
-        "y": 51
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "sum(rate(sglang:prompt_tokens_total{namespace=\"$namespace\",component=\"prefill\"}[1m]))",
-          "legendFormat": "prompt tokens/s (prefill)",
-          "refId": "A",
-          "range": true,
-          "instant": false
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "sum(rate(sglang:generation_tokens_total{namespace=\"$namespace\",component=\"decode\"}[1m]))",
-          "legendFormat": "generated tokens/s (decode)",
-          "refId": "B",
-          "range": true,
-          "instant": false
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "custom": {
-            "drawStyle": "line",
-            "lineWidth": 1,
-            "fillOpacity": 10,
-            "showPoints": "never",
-            "spanNulls": true,
-            "stacking": {
-              "mode": "none",
-              "group": "A"
-            }
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "color": {
-            "mode": "palette-classic"
-          },
-          "min": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "bottom",
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ]
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      }
-    },
-    {
-      "type": "timeseries",
-      "title": "Request rate",
-      "id": 22,
-      "description": "",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "gridPos": {
-        "h": 7,
-        "w": 8,
-        "x": 8,
-        "y": 51
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "sum by (is_streaming) (rate(sglang:num_requests_total{namespace=\"$namespace\",component=\"decode\"}[1m]))",
-          "legendFormat": "streaming={{is_streaming}}",
-          "refId": "A",
-          "range": true,
-          "instant": false
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "reqps",
-          "custom": {
-            "drawStyle": "line",
-            "lineWidth": 1,
-            "fillOpacity": 10,
-            "showPoints": "never",
-            "spanNulls": true,
-            "stacking": {
-              "mode": "none",
-              "group": "A"
-            }
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "color": {
-            "mode": "palette-classic"
-          },
-          "min": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "bottom",
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ]
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      }
-    },
-    {
-      "type": "timeseries",
-      "title": "End-to-end request latency",
-      "id": 23,
-      "description": "",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "gridPos": {
-        "h": 7,
-        "w": 8,
-        "x": 16,
-        "y": 51
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "histogram_quantile(0.5, sum by (le) (rate(sglang:e2e_request_latency_seconds_bucket{namespace=\"$namespace\",component=\"decode\"}[1m])))",
-          "legendFormat": "P50",
-          "refId": "A",
-          "range": true,
-          "instant": false
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "histogram_quantile(0.9, sum by (le) (rate(sglang:e2e_request_latency_seconds_bucket{namespace=\"$namespace\",component=\"decode\"}[1m])))",
-          "legendFormat": "P90",
-          "refId": "B",
-          "range": true,
-          "instant": false
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "histogram_quantile(0.99, sum by (le) (rate(sglang:e2e_request_latency_seconds_bucket{namespace=\"$namespace\",component=\"decode\"}[1m])))",
-          "legendFormat": "P99",
-          "refId": "C",
-          "range": true,
-          "instant": false
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "custom": {
-            "drawStyle": "line",
-            "lineWidth": 1,
-            "fillOpacity": 10,
-            "showPoints": "never",
-            "spanNulls": true,
-            "stacking": {
-              "mode": "none",
-              "group": "A"
-            }
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "color": {
-            "mode": "palette-classic"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "bottom",
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ]
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      }
-    },
-    {
-      "type": "row",
       "title": "EFA / RDMA (EFA node exporter)",
       "collapsed": false,
       "id": 24,
@@ -1683,245 +1312,9 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 58
+        "y": 44
       },
       "panels": []
-    },
-    {
-      "type": "stat",
-      "title": "EFA TX (all nodes)",
-      "id": 25,
-      "description": "Bytes sent on all EFA devices.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 0,
-        "y": 59
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "sum(rate(node_amazonefa_tx_bytes_total[1m]))",
-          "legendFormat": "",
-          "refId": "A",
-          "range": false,
-          "instant": true
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "Bps",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "color": {
-            "mode": "thresholds"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "colorMode": "value",
-        "graphMode": "area",
-        "textMode": "auto"
-      }
-    },
-    {
-      "type": "stat",
-      "title": "EFA RX (all nodes)",
-      "id": 26,
-      "description": "",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 6,
-        "y": 59
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "sum(rate(node_amazonefa_rx_bytes_total[1m]))",
-          "legendFormat": "",
-          "refId": "A",
-          "range": false,
-          "instant": true
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "Bps",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "color": {
-            "mode": "thresholds"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "colorMode": "value",
-        "graphMode": "area",
-        "textMode": "auto"
-      }
-    },
-    {
-      "type": "stat",
-      "title": "RDMA write sent (all nodes)",
-      "id": 27,
-      "description": "rdma_write_bytes. NIXL/Mooncake KV transfer from prefill shows up here.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 12,
-        "y": 59
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "sum(rate(node_amazonefa_rdma_write_bytes_total[1m]))",
-          "legendFormat": "",
-          "refId": "A",
-          "range": false,
-          "instant": true
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "Bps",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "color": {
-            "mode": "thresholds"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "colorMode": "value",
-        "graphMode": "area",
-        "textMode": "auto"
-      }
-    },
-    {
-      "type": "stat",
-      "title": "RDMA write received (all nodes)",
-      "id": 28,
-      "description": "",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 18,
-        "y": 59
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "sum(rate(node_amazonefa_rdma_write_recv_bytes_total[1m]))",
-          "legendFormat": "",
-          "refId": "A",
-          "range": false,
-          "instant": true
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "Bps",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "color": {
-            "mode": "thresholds"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "colorMode": "value",
-        "graphMode": "area",
-        "textMode": "auto"
-      }
     },
     {
       "type": "timeseries",
@@ -1936,7 +1329,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 63
+        "y": 45
       },
       "targets": [
         {
@@ -2009,7 +1402,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 63
+        "y": 45
       },
       "targets": [
         {
@@ -2082,7 +1475,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 71
+        "y": 53
       },
       "targets": [
         {
@@ -2166,7 +1559,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 71
+        "y": 53
       },
       "targets": [
         {
@@ -2250,7 +1643,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 79
+        "y": 61
       },
       "targets": [
         {
@@ -2323,7 +1716,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 79
+        "y": 61
       },
       "targets": [
         {
@@ -2462,7 +1855,7 @@
         "h": 6,
         "w": 24,
         "x": 0,
-        "y": 87
+        "y": 69
       },
       "targets": [
         {
@@ -2596,5 +1989,5 @@
   "uid": "sglang-pd-efa",
   "version": 1,
   "weekStart": "",
-  "description": "SGLang prefill/decode disaggregation: replica counts, the TTFT/TPOT/queue signals used by KEDA, KV transfer, and EFA RDMA throughput. Needs the dcgm/sglang/efa-exporter scrape jobs from eks-managed-observability."
+  "description": "SGLang prefill/decode disaggregation: replica counts, the TTFT/TPOT and queue-trigger signals used by KEDA, KV transfer, and EFA RDMA throughput. Needs the sglang and efa-exporter scrape jobs from eks-managed-observability, and SGLang pods labeled component=prefill|decode."
 }

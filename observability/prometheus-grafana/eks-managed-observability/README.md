@@ -444,16 +444,18 @@ Alternative dashboard: Try ID **22515** ("Better NVIDIA DCGM Dashboard") for enh
 
 [`dashboards/sglang-pd.json`](./dashboards/sglang-pd.json) covers SGLang prefill/decode disaggregation and EFA RDMA throughput. Enable the `sglang` and `efa-exporter` scrape jobs first (see [Scrape Configs](#scrape-configs)).
 
+Most panels filter on `component="prefill"` or `component="decode"`, so the SGLang pods must carry a `component: prefill|decode` label. Currently only [`dsv41flash-pd-autodiscovery`](../../../examples/inference/sglang/dsv41flash-pd-autodiscovery/) sets it.
+
 1. Navigate to **Dashboards** → **New** → **Import** and upload `dashboards/sglang-pd.json`
 2. Select your Prometheus data source and click **Import**
 3. Pick the **Namespace** that runs SGLang (for example `dsv4flash`)
 
 The dashboard has four sections:
 
-- **Autoscaling signals.** Prefill and decode replica counts (`count(up{job="sglang",component=...} == 1)`), TTFT P90, TPOT P90, and the prefill and decode-prealloc queues. The queries and the red threshold lines (TTFT 0.7 s, TPOT 0.015 s, queue 8 per replica) are the ones in the KEDA `ScaledObject`s of [`dsv4flash-pd-KEDA`](../../../examples/inference/sglang/dsv4flash-pd-KEDA/autoscaling/scaledobjects.yaml), so the panels show what the autoscaler sees.
-- **PD pipeline.** Running requests, KV cache usage, PD queues, per-stage latency, and KV transfer latency, speed, and volume.
-- **Throughput and end-to-end latency.** Token throughput, request rate, and end-to-end latency.
-- **EFA / RDMA.** EFA TX/RX and RDMA write/read throughput per node and per device, EFA error counters, and a table of which node each prefill/decode pod runs on.
+- **basic.** TTFT and TPOT P50/P90/P99 with the KEDA thresholds as red lines, then token throughput, request rate, and end-to-end latency.
+- **Autoscaling signals.** Prefill and decode replica counts (`count(up{job="sglang",component=...} == 1)`), TTFT P90, TPOT P90, and the replica counts that the prefill and decode-prealloc queue triggers ask for.
+- **PD pipeline.** Running requests, KV cache usage, and KV transfer latency, speed, and volume.
+- **EFA / RDMA.** EFA TX/RX and RDMA write/read throughput per node, EFA TX per device, EFA error counters, and a table of which node each prefill/decode pod runs on.
 
 Notes:
 
