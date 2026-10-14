@@ -48,11 +48,11 @@ Tear down with `kubectl delete -f qwen-pd-deploy.yaml`.
 - **Why one pod with eight engine processes** instead of one pod per engine:
   intra-node NIXL moves KV pages over NVLink via CUDA IPC, which only works
   between processes that share an IPC namespace and see each other's GPUs —
-  impossible across pods/containers, which each get a disjoint GPU set. The
-  same trade-off is explained in detail in
-  [`../dsv4flash-b300-intra-3p1d`](../dsv4flash-b300-intra-3p1d); the
-  pod-per-role PD shape needs RDMA and is shown in
-  [`../kimi2.6-h200-1p1d`](../kimi2.6-h200-1p1d).
+  impossible across pods/containers, which each get a disjoint GPU set. For
+  the pod-per-engine PD shape see
+  [`../dsv41flash-pd-autodiscovery`](../dsv41flash-pd-autodiscovery) (KV
+  over EFA RDMA, or same-node NVLink with `hostIPC` + `hostPID`) and
+  [`../kimi2.6-h200-1p1d`](../kimi2.6-h200-1p1d) (node-level 1P1D over EFA).
 - Weights are read from the node's NVMe at `/opt/dlami/nvme/huggingface`
   (mounted into the container as `~/.cache/huggingface`) — pre-staged by the
   shared [`../download-model.sh`](../download-model.sh) in the Deploy step
