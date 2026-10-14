@@ -457,7 +457,7 @@ The dashboard has four sections:
 
 Notes:
 
-- `sglang:inter_token_latency_seconds` (TPOT) and `sglang:time_to_first_token_seconds` only get samples from streaming requests that reach the decode engine, so those two panels stay empty until streaming traffic arrives.
+- `sglang:inter_token_latency_seconds` (TPOT) does not exist on an engine until it has served streaming requests, and `sglang:time_to_first_token_seconds` is only populated on the decode engines, so the TPOT panels stay empty until streaming traffic arrives.
 - The dashboard uses a core `Prometheus` data source with SigV4. It does not list data sources of the Amazon Managed Service for Prometheus plugin type.
 
 ### 9. Add Custom Metric Panels
