@@ -21,6 +21,7 @@ Monitor EKS GPU workloads using Amazon Managed Prometheus (AMP) and Amazon Manag
 - EKS cluster with GPU nodes
 - AWS CLI and `kubectl` configured
 - Helm >= 3.14
+- `envsubst` (from the `gettext` package)
 - AWS IAM Identity Center configured (for Grafana authentication)
 
 ## Installing DCGM Exporter
@@ -132,6 +133,7 @@ The script will prompt for:
 - AMP/AMG region (must support Amazon Managed Grafana)
 - Cluster name
 - CloudFormation stack name
+- Which metrics sources to scrape: DCGM Exporter (default `y`) and SGLang (default `n`). See [Scrape Configs](#scrape-configs)
 
 **Note:** Custom DCGM metrics are optional. If a `custom-dcgm-metrics.csv` file exists in this directory, the script creates a `custom-dcgm-metrics` ConfigMap and points DCGM Exporter at it. If the file is absent, the script clears any custom override and leaves DCGM Exporter on the GPU Operator's built-in default metrics.
 
@@ -282,20 +284,26 @@ aws eks create-pod-identity-association \
 
 ### 6. Deploy ADOT Collector
 
-The ADOT Collector scrapes DCGM Exporter metrics and sends them to Amazon Managed Prometheus.
+The ADOT Collector scrapes the selected metrics sources and sends them to Amazon Managed Prometheus.
 
-**Important:** The `adot-collector-prometheus.yaml` file contains environment variables that need substitution:
+**Important:** `adot-collector-prometheus.yaml` is a template with variables that need substitution:
 
 - `$AMP_ENDPOINT` - Your AMP remote write endpoint
 - `$AWS_REGION_AMGP` - Your AMP region
+- `$SCRAPE_CONFIGS` - The Prometheus scrape jobs, built from the files in `scrape-configs/` (see [Scrape Configs](#scrape-configs))
 
-**Note:** The default configuration scrapes DCGM Exporter from the `gpu-operator` namespace. If you installed DCGM Exporter standalone in a different namespace (e.g., `dcgm-exporter`), edit the YAML file and update the namespace in the `kubernetes_sd_configs` section before deploying.
-
-Deploy with variable substitution:
+Build `SCRAPE_CONFIGS` from the sources you want (list only those files), then deploy with variable substitution:
 
 ```bash
-envsubst < adot-collector-prometheus.yaml | kubectl apply -f -
+export SCRAPE_CONFIGS=$(cat scrape-configs/dcgm-exporter.yaml | sed '1!s/^/          /')
+# DCGM + SGLang:
+# export SCRAPE_CONFIGS=$(cat scrape-configs/dcgm-exporter.yaml scrape-configs/sglang.yaml | sed '1!s/^/          /')
+
+envsubst '${AMP_ENDPOINT} ${AWS_REGION_AMGP} ${SCRAPE_CONFIGS}' \
+  < adot-collector-prometheus.yaml | kubectl apply -f -
 ```
+
+The `sed` indents the jobs so they sit under `scrape_configs` in the collector config.
 
 Verify deployment:
 
@@ -306,10 +314,35 @@ kubectl logs -n adot-col -l app.kubernetes.io/component=opentelemetry-collector 
 
 **Key Configuration Notes:**
 
-- The collector uses Kubernetes service discovery to find DCGM Exporter endpoints
+- The collector uses Kubernetes service discovery to find scrape targets
 - TLS config and bearer token are required for Kubernetes API authentication
 - Metrics are scraped every 30 seconds by default
 - SigV4 authentication is used for AMP remote write
+
+#### Scrape Configs
+
+Each metrics source is a standalone Prometheus scrape job under `scrape-configs/`:
+
+| File | Source | Notes |
+| --- | --- | --- |
+| `dcgm-exporter.yaml` | DCGM Exporter GPU metrics | Scrapes the `gpu-operator` namespace. If you installed DCGM Exporter standalone in a different namespace (e.g., `dcgm-exporter`), update the namespace in this file |
+| `sglang.yaml` | SGLang server metrics (`sglang:*`) | Scraped every 10 seconds; see below |
+
+To add another source, drop a new scrape job file into `scrape-configs/` and include it when building `SCRAPE_CONFIGS`.
+
+The SGLang job scrapes pods in any namespace that run SGLang with `--enable-metrics` and carry this label and these annotations:
+
+```yaml
+metadata:
+  labels:
+    sglang-metrics: "true"
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "30000"      # SGLang server port
+    prometheus.io/path: "/metrics"
+```
+
+The SGLang examples under [`examples/inference/sglang/`](../../../examples/inference/sglang/) already set these. The pod's `component` label (e.g. `prefill` / `decode`) is copied to the metrics. Verify in Grafana Explore with a query such as `sglang:num_running_reqs`.
 
 ### 7. Configure Custom DCGM Metrics (Optional)
 
