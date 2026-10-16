@@ -1,0 +1,39 @@
+
+apiVersion: inference.sagemaker.aws.amazon.com/v1
+kind: InferenceEndpointConfig
+metadata:
+  name: mistral-7b
+  namespace: default
+  labels:
+    app: inference-gateway-demo
+    model: mistral-7b
+spec:
+  modelName: mistralai/Mistral-7B-Instruct-v0.3
+  instanceType: ml.g5.12xlarge
+  replicas: 1
+  modelSourceConfig:
+    huggingFaceModel:
+      modelId: mistralai/Mistral-7B-Instruct-v0.3
+    modelSourceType: huggingface
+  worker:
+    image: vllm/vllm-openai:latest
+    modelInvocationPort:
+      containerPort: 8000
+      name: http
+    modelVolumeMount:
+      mountPath: /opt/ml/model
+      name: model-weights
+    resources:
+      limits:
+        nvidia.com/gpu: "4"
+      requests:
+        nvidia.com/gpu: "4"
+    args:
+      - "--model"
+      - "mistralai/Mistral-7B-Instruct-v0.3"
+      - "--max-model-len"
+      - "8192"
+      - "--dtype"
+      - "bfloat16"
+      - "--enable-chunked-prefill"
+

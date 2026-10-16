@@ -1,0 +1,39 @@
+
+apiVersion: inference.sagemaker.aws.amazon.com/v1
+kind: InferenceEndpointConfig
+metadata:
+  name: qwen2-5-7b
+  namespace: default
+  labels:
+    app: inference-gateway-demo
+    model: qwen2-5-7b
+spec:
+  modelName: Qwen/Qwen2.5-7B-Instruct
+  instanceType: ml.g5.2xlarge
+  replicas: 1
+  modelSourceConfig:
+    huggingFaceModel:
+      modelId: Qwen/Qwen2.5-7B-Instruct
+    modelSourceType: huggingface
+  worker:
+    image: vllm/vllm-openai:latest
+    modelInvocationPort:
+      containerPort: 8000
+      name: http
+    modelVolumeMount:
+      mountPath: /opt/ml/model
+      name: model-weights
+    resources:
+      limits:
+        nvidia.com/gpu: "1"
+      requests:
+        nvidia.com/gpu: "1"
+    args:
+      - "--model"
+      - "Qwen/Qwen2.5-7B-Instruct"
+      - "--max-model-len"
+      - "4096"
+      - "--dtype"
+      - "half"
+      - "--enable-chunked-prefill"
+

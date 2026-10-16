@@ -1,0 +1,5 @@
+
+aws-cdk-lib>=2.170.0
+constructs>=10.0.0
+aws-cdk.lambda-layer-kubectl-v31>=2.0.0
+

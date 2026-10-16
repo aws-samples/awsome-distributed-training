@@ -1,0 +1,12 @@
+{
+  "HyperPodInferenceGatewayStack": {
+    "VpcId": "vpc-0c9224a81a7fdc20e",
+    "HyperPodRoleArn": "arn:aws:iam::082424191727:role/HyperPodInferenceGatewayS-HyperPodExecutionRoleC5E6-KhQjiTT2Xh1v",
+    "SecurityGroupId": "sg-00ab74182edc02708",
+    "EksClusterEndpoint": "https://46AC21D8475E6F3A9866F4F1D7034A4F.gr7.us-west-2.eks.amazonaws.com",
+    "FsxFileSystemId": "fs-0edd59f81f1a599ef",
+    "EksClusterName": "hyperpod-ig-demo",
+    "LifecycleBucketName": "hyperpod-ig-demo-082424191727-us-west-2",
+    "PrivateSubnetId": "subnet-08182b7c07920b0bb"
+  }
+}

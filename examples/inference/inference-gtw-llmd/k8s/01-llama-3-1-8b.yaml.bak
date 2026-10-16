@@ -1,0 +1,40 @@
+apiVersion: inference.sagemaker.aws.amazon.com/v1
+kind: InferenceEndpointConfig
+metadata:
+  name: llama-3-1-8b
+  namespace: default
+  labels:
+    app: inference-gateway-demo
+    model: llama-3-1-8b
+spec:
+  modelName: meta-llama/Llama-3.1-8B-Instruct
+  instanceType: ml.g5.2xlarge
+  replicas: 1
+  modelSourceConfig:
+    huggingFaceModel:
+      modelId: meta-llama/Llama-3.1-8B-Instruct
+    modelSourceType: huggingface
+  worker:
+    image: vllm/vllm-openai:latest
+    modelInvocationPort:
+      containerPort: 8000
+      name: http
+    modelVolumeMount:
+      mountPath: /opt/ml/model
+      name: model-weights
+    resources:
+      limits:
+        nvidia.com/gpu: "1"
+      requests:
+        nvidia.com/gpu: "1"
+    args:
+      - "--model"
+      - "meta-llama/Llama-3.1-8B-Instruct"
+      - "--max-model-len"
+      - "4096"
+      - "--dtype"
+      - "half"
+      - "--quantization"
+      - "awq"
+      - "--enable-chunked-prefill"
+

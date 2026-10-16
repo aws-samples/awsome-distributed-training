@@ -1,0 +1,44 @@
+
+stages:
+  - validate
+  - deploy
+
+variables:
+  AWS_DEFAULT_REGION: us-west-2
+  CDK_DEFAULT_ACCOUNT: $AWS_ACCOUNT_ID
+
+validate-cdk:
+  stage: validate
+  image: python:3.12-slim
+  before_script:
+    - pip install -r requirements.txt
+    - npm install -g aws-cdk
+  script:
+    - cdk synth --quiet
+  rules:
+    - if: '$CI_MERGE_REQUEST_ID'
+
+validate-k8s:
+  stage: validate
+  image: bitnami/kubectl:latest
+  script:
+    - kubectl apply --dry-run=client -f k8s/01-qwen2.5-7b.yaml
+    - kubectl apply --dry-run=client -f k8s/03-gateway-routes.yaml
+  rules:
+    - if: '$CI_MERGE_REQUEST_ID'
+
+deploy-infra:
+  stage: deploy
+  image: python:3.12-slim
+  before_script:
+    - pip install -r requirements.txt
+    - npm install -g aws-cdk
+  script:
+    - cdk deploy --require-approval never --outputs-file cdk-outputs.json
+  artifacts:
+    paths:
+      - cdk-outputs.json
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: manual
+
