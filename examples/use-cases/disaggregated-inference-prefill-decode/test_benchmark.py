@@ -9,7 +9,9 @@ import unittest
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 import httpx
-from benchmark import ramp, stream_request
+import benchmark
+from benchmark import ramp, run_rate, stream_request
+from scoring import gap_data_available
 from test_lab import StreamHandler
 
 
@@ -32,6 +34,44 @@ class BenchmarkTests(unittest.TestCase):
         self.assertEqual([c['n'] for c in result['chunks']], [1, 3])
         self.assertLess(result['chunks'][0]['t_ms'], result['chunks'][1]['t_ms'])
         self.assertEqual(result['max_gap_ms'], result['chunks'][1]['t_ms'] - result['chunks'][0]['t_ms'])
+
+    def test_calls_skipped_after_a_failed_first_turn_keep_the_rate_judgeable_under_the_gap_rules(self):
+        async def failed(*_):
+            return {'ok': False, 'text': '', 'error': 'HTTPStatusError', 'chunks': []}
+        data = {'model': 'm', 'revision': 'r', 'tasks': [{'task_id': 't', 'calls': 3}],
+                'shape': {'name': 'A-agentic', 'output_tokens': 4}}
+        args = argparse.Namespace(
+            seed=1, duration_s=0.001, max_tasks=10, url='http://unused', timeout_s=1,
+            context_length_tokens=100, gpus=1, ttft_slo_ms=2000, tpot_slo_ms=100,
+            attainment_fraction=0.9, max_client_lag_ms=1000, architecture='unified',
+            instance_type='test', region='test', evidence_scope='local-mock')
+        original = (benchmark.stream_request, benchmark.initial_prompt)
+        benchmark.stream_request, benchmark.initial_prompt = failed, lambda *_: [1]
+        try:
+            records = asyncio.run(run_rate(data, args, 1, 'measured', None))['requests']
+        finally:
+            benchmark.stream_request, benchmark.initial_prompt = original
+        first_task = [r for r in records if r['task_id'] == 't-0']
+        self.assertEqual([r.get('error') for r in first_task], ['HTTPStatusError'] + ['Skipped after failed predecessor'] * 2)
+        self.assertTrue(gap_data_available(records))
+
+    def test_calls_refused_for_the_context_budget_keep_the_rate_judgeable_under_the_gap_rules(self):
+        data = {'model': 'm', 'revision': 'r', 'tasks': [{'task_id': 't', 'calls': 2}],
+                'shape': {'name': 'A-agentic', 'output_tokens': 4}}
+        args = argparse.Namespace(
+            seed=1, duration_s=0.001, max_tasks=10, url='http://unused', timeout_s=1,
+            context_length_tokens=3, gpus=1, ttft_slo_ms=2000, tpot_slo_ms=100,
+            attainment_fraction=0.9, max_client_lag_ms=1000, architecture='unified',
+            instance_type='test', region='test', evidence_scope='local-mock')
+        original = benchmark.initial_prompt
+        benchmark.initial_prompt = lambda *_: [1]
+        try:
+            records = asyncio.run(run_rate(data, args, 1, 'measured', None))['requests']
+        finally:
+            benchmark.initial_prompt = original
+        first_task = [r for r in records if r['task_id'] == 't-0']
+        self.assertEqual([r.get('error') for r in first_task], ['Context budget exceeded', 'Skipped after failed predecessor'])
+        self.assertTrue(gap_data_available(records))
 
     def test_a_ramp_into_a_directory_with_ramp_files_stops_before_reading_traffic(self):
         with tempfile.TemporaryDirectory() as d:

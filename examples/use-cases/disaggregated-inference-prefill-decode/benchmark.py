@@ -89,7 +89,7 @@ async def run_rate(data, a, rate, phase, tok):
             overlap = None
             failed = False
             for turn in range(item["calls"]):
-                row = {"task_id": identity, "turn_index": turn, "phase": phase, "sent": False, "ok": False, "client_launch_lag_ms": launch_lag, "prefix_overlap_fraction": overlap}
+                row = {"task_id": identity, "turn_index": turn, "phase": phase, "sent": False, "ok": False, "client_launch_lag_ms": launch_lag, "prefix_overlap_fraction": overlap, "chunks": []}
                 if failed:
                     row["error"] = "Skipped after failed predecessor"
                 elif len(prompt) + data["shape"]["output_tokens"] > a.context_length_tokens:
