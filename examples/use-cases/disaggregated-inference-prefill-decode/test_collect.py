@@ -70,8 +70,8 @@ class CollectTests(unittest.TestCase):
         self.assertEqual(row['objective_given_on_command_line'], 'False')
 
     def test_qualified_rates_keep_the_original_fields_and_add_each_rules_rate_and_goodput_at_that_rate(self):
-        # Unified passes 1 and, under mean only, 2 (two calls with a 150 ms gap average 80 ms); it fails 4 with 6 good calls
-        # of 10, which still gives it the largest observed goodput. Disaggregated passes 2 with 9 good calls of 10.
+        # Unified passes 1 and, under mean only, 2 (two calls with a 150 ms gap average 80 ms); it fails 4 with 13 good calls
+        # of 20, which still gives it the largest observed goodput. Disaggregated passes 2 with 9 good calls of 10.
         steady, stalled = _call(10), _call(150)
         with tempfile.TemporaryDirectory() as d:
             runs = sorted({_run(d, 'unified', 1, [steady] * 10, seed=1, rates=[1, 2, 4]),

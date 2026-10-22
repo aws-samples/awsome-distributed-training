@@ -282,7 +282,7 @@ While the disaggregated stack is deployed and port-forwarded:
 python3 4.ramp.py --traffic traffic/b.json --url http://127.0.0.1:8000 --architecture disaggregated --instance-type "$LAB_INSTANCE_TYPE" --region "$LAB_REGION" --evidence-scope mechanism-validation --gpus "$LAB_GPUS" --rates 8 4 2 1 0.5 0.25 --duration-s 30 --stop-failure-fraction 1 --seed 1001 --output results/disaggregated-b-seed1001
 ```
 
-Once Round 1 below has written `results/disaggregated-b`, collect all four directories. A stack's qualifying rate is the highest rate at which any of its files meets the objective; to see whether a rate also held in the reversed ramp, compare that rate's rows for the two seeds (the `seed` column) in `summary.csv`. The two rows differ in both the order and the arrival pattern. `--stop-failure-fraction 1` keeps a reversed ramp from stopping at its first, heaviest rate before it reaches the lighter ones:
+Once Round 2 below has written `results/disaggregated-b`, collect all four directories. A stack's qualifying rate is the highest rate at which any of its files meets the objective; to see whether a rate also held in the reversed ramp, compare that rate's rows for the two seeds (the `seed` column) in `summary.csv`. The two rows differ in both the order and the arrival pattern. `--stop-failure-fraction 1` keeps a reversed ramp from stopping at its first, heaviest rate before it reaches the lighter ones:
 
 ```bash
 python3 5.collect.py --runs results/unified-b results/unified-b-seed1001 results/disaggregated-b results/disaggregated-b-seed1001 --output results/comparison-2-seeds
