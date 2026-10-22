@@ -1,5 +1,5 @@
 """Render scored comparisons as one self-contained HTML page (standard library only). Values come
-from scoring.py; this module only draws them. Page contents: README section "5.collect.py's output".
+from scoring.py; this module only draws them. The glossary here is where the definitions are stated for readers.
 """
 import html as _html
 import math
@@ -52,7 +52,8 @@ def fmt_ms(x):
         return "-"
     if _unavailable(x):
         return "unavailable"
-    return f"{x:,.0f}" if x >= 100 else f"{x:.1f}"
+    text = f"{x:,.1f}" if x >= 1 else f"{x:.2g}"
+    return text[:-2] if text.endswith(".0") else text
 
 
 def fmt_share(x):
@@ -60,8 +61,7 @@ def fmt_share(x):
         return "-"
     if _unavailable(x):
         return "unavailable"
-    v = x * 100
-    return f"{v:.0f}%" if abs(v - round(v)) < 0.05 else f"{v:.1f}%"
+    return f"{x * 100:.2f}".rstrip("0").rstrip(".") + "%"
 
 
 def term(key, text=None):
@@ -89,6 +89,14 @@ def _text(x, y, s, size=11, anchor="start", fill=MUTED, weight="normal"):
             f'font-weight="{weight}">{_esc(s)}</text>')
 
 
+def ttft_side(ctx):
+    """How a call passes the TTFT side under the selected TTFT mode."""
+    metric = ctx.get("ttft_metric") or "per-call"
+    if metric == "per-call":
+        return "its own TTFT is at most the TTFT bound"
+    return f"it completed, because TTFT is judged once per measured file (one seed at one rate) as the {metric} of the completed calls' TTFT against the TTFT bound"
+
+
 def fig_ttft(ctx):
     bound = ctx["objective"][0]
     body = (f'<line x1="20" y1="40" x2="300" y2="40" stroke="{LINE}" stroke-width="2"/>'
@@ -97,7 +105,9 @@ def fig_ttft(ctx):
             + "".join(f'<rect x="{190 + i * 14}" y="33" width="8" height="14" rx="2" fill="{ACCENT}" opacity="{1 if i == 0 else 0.5}"/>' for i in range(8))
             + _text(20, 66, "request sent") + _text(194, 66, "first token", anchor="middle", fill=INK)
             + _text(105, 26, "TTFT", anchor="middle", fill=ACCENT, weight="600"))
-    return _svg(320, 74, body, "time to first token", f"Schematic. A call passes when its TTFT is at most {bound:g} ms.")
+    rule = (f"A call passes when its TTFT is at most {bound:g} ms." if (ctx.get("ttft_metric") or "per-call") == "per-call" else
+            f"Every completed call passes the TTFT side; separately, for each measured file (one seed at one rate), the {ctx['ttft_metric']} of the completed calls' TTFT must be at most {bound:g} ms.")
+    return _svg(320, 74, body, "time to first token", f"Schematic. {rule}")
 
 
 def fig_mean_tpot(ctx):
@@ -123,7 +133,7 @@ def fig_itl_p99(ctx):
             + _text(203, 22, "p99", anchor="end", fill=INK, weight="600") + _text(254, 22, f"{bound:g} ms", fill=BAD, weight="600")
             + _text(15, 106, "per-token gap (ms), short to long"))
     return _svg(320, 112, body, "pooled inter-token latency p99",
-                "Schematic. Each bar counts per-token gap values of one length, pooled from every completed call of one seed at one rate. "
+                "Schematic, not to scale. Each bar counts per-token gap values of one length, pooled from every completed call of one measured file (one seed at one rate). "
                 "99% of the values are at or left of p99 (dashed). p99 must be at or left of the TPOT bound (red).")
 
 
@@ -140,14 +150,17 @@ def fig_worst_itl(ctx):
 
 
 def fig_ttft_percentile(ctx):
-    n = 10
-    k = math.ceil(n * 0.9)
-    body = ("".join(f'<rect x="{20 + i * 26}" y="{80 - (12 + i * 6)}" width="20" height="{12 + i * 6}" '
+    fraction = {"p95": 0.95, "p99": 0.99}.get(ctx.get("ttft_metric"), 0.9)
+    name = {"p95": "p95", "p99": "p99"}.get(ctx.get("ttft_metric"), "p90")
+    n = 10 if fraction == 0.9 else 20
+    k = math.ceil(n * fraction)
+    step = 6 if n == 10 else 3
+    body = ("".join(f'<rect x="{20 + i * 26}" y="{80 - (12 + i * step)}" width="20" height="{12 + i * step}" '
                     f'fill="{INK if i + 1 == k else ACCENT}" opacity="{1 if i + 1 == k else 0.55}"/>' for i in range(n))
-            + f'<line x1="15" y1="80" x2="285" y2="80" stroke="{INK}"/>'
+            + f'<line x1="15" y1="80" x2="{20 + n * 26 + 5}" y2="80" stroke="{INK}"/>'
             + _text(20 + (k - 1) * 26 + 10, 96, f"#{k}", anchor="middle", fill=INK, weight="600"))
-    return _svg(300, 102, body, "TTFT percentile by nearest rank",
-                f"Schematic. Ten calls sorted by TTFT, smallest first. 10 multiplied by 0.9 is 9, so p90 is the value at position {k}.")
+    return _svg(20 + n * 26 + 15, 102, body, "TTFT percentile by nearest rank",
+                f"Schematic. {n} calls sorted by TTFT, smallest first. {n} multiplied by {fraction:g}, rounded up, is {k}, so {name} is the value at position {k}.")
 
 
 def _numeric(x):
@@ -155,6 +168,7 @@ def _numeric(x):
 
 
 def fig_attainment(ctx):
+    # 4.ramp.py and 5.collect.py accept only 0 < attainment <= 1, so 0.9 stands in only when a context has none.
     target = ctx.get("attainment") or 0.9
     rows = ctx.get("evidence", [])
     rule = next((d for d in ("worst-itl", "mean") if any(_numeric(r.get(f"{d}_attainment")) for r in rows)), None)
@@ -170,8 +184,13 @@ def fig_attainment(ctx):
             + _text(20 + w * target, 16, f"target {fmt_share(target)}", anchor="middle", fill=INK, weight="600")
             + _text(20, 70, "0%") + _text(280, 70, "100%", anchor="end"))
     return _svg(300, 76, body, "attainment against the target",
-                f"From this report's data, the row with the lowest share: {row['architecture']}, {_per_second(row['offered'])}, "
+                f"From this report's data, the row with the lowest {rule} share: {row['architecture']}, {_per_second(row['offered'])}, "
                 f"seed {row['seed']}, {rule} rule. {good} of {row['planned_calls']} planned calls were good, which is {fmt_share(share)}.")
+
+
+# The qualifying rate as scoring.highest_qualifying computes it; the glossary and the evidence table both quote it.
+QUALIFYING_RULE = ("A rate qualifies when at least one measured file of the stack at that rate meets the objective; seeds are pooled, "
+                   "as in the original lab. The qualifying rate is the highest such rate. A rate that was not measured counts neither way.")
 
 
 def fig_qualifying_rate(ctx):
@@ -181,7 +200,7 @@ def fig_qualifying_rate(ctx):
         return None
     arch = archs[0]
     mine = [r for r in rows if r["architecture"] == arch]
-    rates = sorted({r["offered"] for r in mine})
+    rates = sorted({x for r in mine for x in (r.get("planned_rates") or [r["offered"]])})
     seeds = sorted({r["seed"] for r in mine}, key=lambda v: (not _numeric(v), v if _numeric(v) else str(v)))
     if not rates or len(rates) > 8 or len(seeds) > 4:
         return None
@@ -192,25 +211,30 @@ def fig_qualifying_rate(ctx):
     for i, seed in enumerate(seeds):
         parts.append(_text(x0 - 14, y0 + i * dy + 4, f"seed {seed}", anchor="end"))
         for j, rate in enumerate(rates):
-            hit = [r for r in mine if r["offered"] == rate and r["seed"] == seed]
-            passed = bool(hit) and hit[0].get("mean_pass") is True
-            parts.append(f'<circle cx="{x0 + j * dx}" cy="{y0 + i * dy}" r="6" fill="{OK}"/>' if passed else
-                         f'<circle cx="{x0 + j * dx}" cy="{y0 + i * dy}" r="5" fill="#fff" stroke="{BAD}" stroke-width="2"/>')
+            hit = [r for r in mine if r["seed"] == seed and r["offered"] == rate]
+            cx, cy = x0 + j * dx, y0 + i * dy
+            if any(r.get("mean_pass") is True for r in hit):
+                parts.append(f'<circle cx="{cx}" cy="{cy}" r="6" fill="{OK}"/>')
+            elif hit:
+                parts.append(f'<circle cx="{cx}" cy="{cy}" r="5" fill="#fff" stroke="{BAD}" stroke-width="2"/>')
+            else:
+                parts.append(f'<line x1="{cx - 5}" y1="{cy}" x2="{cx + 5}" y2="{cy}" stroke="{MUTED}" stroke-width="2"/>')
     if _numeric(qualified) and qualified in rates:
         j = rates.index(qualified)
         parts.append(f'<rect x="{x0 + j * dx - 12}" y="{y0 - 12}" width="24" height="{dy * (len(seeds) - 1) + 24}" rx="6" fill="none" stroke="{INK}" stroke-width="2"/>')
-    return _svg(x0 + dx * len(rates), y0 + dy * len(seeds), "".join(parts), "qualifying rate walk",
-                f"From this report's data: {arch}, mean rule. A filled green dot means the seed passed at that rate; an open red ring means it failed. "
-                f"The qualifying rate, {_per_second(qualified)}, is boxed.")
+    return _svg(x0 + dx * len(rates), y0 + dy * len(seeds), "".join(parts), "qualifying rate",
+                f"From this report's data: {arch}, mean rule, one line per seed. A filled green dot means a file met the objective at that rate; an open red ring means "
+                f"it was measured there and did not; a grey dash means that rate was not measured. "
+                + (f"The qualifying rate, {_per_second(qualified)}, is boxed." if _numeric(qualified) else "No rate qualifies, so no column is boxed."))
 
 
 def fig_goodput(ctx):
     rows = ctx.get("evidence", [])
     for arch in sorted(ctx["archs"]):
         rate = _rate_of(ctx["qualified"].get((arch, "mean")))
-        at = [r for r in rows if r["architecture"] == arch and r["offered"] == rate and _numeric(r.get("mean_goodput"))]
+        at = [r for r in rows if r["architecture"] == arch and r["offered"] == rate and r.get("mean_pass") is True and _numeric(r.get("mean_goodput"))]
         if at:
-            r = min(at, key=lambda x: x["mean_goodput"])
+            r = max(at, key=lambda x: x["mean_goodput"])
             break
     else:
         return None
@@ -219,48 +243,52 @@ def fig_goodput(ctx):
     body = _text(10, 26, f"{good} good calls / {window:.1f} s / {gpus} GPUs = {fmt_goodput(r['mean_goodput'])}", size=14, fill=ACCENT, weight="600")
     return _svg(320, 36, body, "goodput calculation",
                 f"From this report's data: {r['architecture']} at its mean-rule qualifying rate, {_per_second(rate)}, "
-                f"seed {r['seed']} (the smallest goodput across seeds). Good calls are divided by the measurement window, "
+                f"seed {r['seed']} (the largest goodput among the files that met the objective at that rate). Good calls are divided by the measurement window, "
                 f"including the wait for the last calls, and by the GPUs. The unit is useful calls per second per GPU.")
 
 
-# Keep in step with README "Three TPOT definitions" and "How a qualifying rate and its goodput are computed".
+# Keep in step with scoring.summarize and scoring.highest_qualifying.
 GLOSSARY = {
     "ttft": {"term": "TTFT", "figure": fig_ttft,
-             "text": "TTFT (time to first token) is the time from sending a request until the first part of the answer arrives. Each call's TTFT is compared with the TTFT bound."},
+             "text": lambda ctx: "TTFT (time to first token) is the time from sending a request until the first part of the answer arrives; for the first call of a task it is counted from the task's scheduled start, so launch lag is included. "
+                                 f"A call passes the TTFT side when {ttft_side(ctx)}."},
     "tpot": {"term": "TPOT", "figure": fig_mean_tpot,
              "text": "TPOT (time per output token) is the time each token of the answer takes to arrive after the first part of the answer. A larger value means a slower answer. This page judges it in three ways, called rules: mean, itl-p99 and worst-itl."},
     "mean": {"term": "mean", "figure": fig_mean_tpot,
-             "text": "The mean rule takes the time from a call's first chunk to its last chunk and divides it by the number of tokens that arrived after the first chunk. A chunk is one piece of the streamed answer, and it can hold several tokens. The call is good when this value is at most the TPOT bound."},
+             "text": lambda ctx: "The mean rule takes the time from a call's first chunk to its last chunk and divides it by the number of tokens that arrived after the first chunk. "
+                              "A chunk is one piece of the streamed answer, and it can hold several tokens. "
+                              f"The call is good when {ttft_side(ctx)} and this value is at most the TPOT bound; a call answered in one chunk has no value, since benchmark.py records none, and is not good."},
     "itl-p99": {"term": "itl-p99", "figure": fig_itl_p99,
-                "text": "The itl-p99 rule (99th percentile of the inter-token latency) looks at one seed at one rate. It collects every gap between two consecutive chunks from every completed call. Each gap is divided by the number of tokens in the later chunk, and that value is counted once per token. The 99th percentile (p99) of all these values must be at most the TPOT bound. Under this rule, a call only needs to pass the TTFT bound to be good."},
+                "text": "The itl-p99 rule (99th percentile of the inter-token latency) looks at one measured file (one seed at one rate). It collects every gap between two consecutive chunks from every completed call. Each gap is divided by the number of tokens in the later chunk, and that value is counted once per token. The 99th percentile (p99) of all these values must be at most the TPOT bound. Under this rule, a call only needs to pass the TTFT side to be good. A seed with no gap at all, because every completed call came in one chunk, has no p99 and fails."},
     "worst-itl": {"term": "worst-itl", "figure": fig_worst_itl,
-                  "text": "The worst-itl rule takes the single longest gap between two consecutive chunks of one call. The gap is not divided by the number of tokens in the chunk. The call is good when that gap is at most the TPOT bound."},
-    "ttft-percentile": {"term": "TTFT p90", "figure": fig_ttft_percentile,
-                        "text": "TTFT p90 is the 90th percentile of TTFT over the completed calls. To find it, sort the values from smallest to largest, multiply the number of calls by 0.9, round up to a whole number, and take the value at that position (the nearest-rank method)."},
+                  "text": lambda ctx: "The worst-itl rule takes the single longest gap between two consecutive chunks of one call. The gap is not divided by the number of tokens in the chunk. "
+                                   f"The call is good when {ttft_side(ctx)} and that gap is at most the TPOT bound; a call answered in one chunk has no gap and is not good."},
+    "ttft-percentile": {"term": "TTFT percentile", "figure": fig_ttft_percentile,
+                        "text": "This column is a percentile of TTFT over the completed calls: p90 by default, or p95 or p99 when 5.collect.py judges TTFT at that percentile. To find it, sort the values from smallest to largest, multiply the number of calls by 0.9, 0.95 or 0.99, round up to a whole number, and take the value at that position (the nearest-rank method)."},
     "attainment": {"term": "attainment", "figure": fig_attainment,
-                   "text": "Attainment is the share of planned calls that were good under a rule. Failed, truncated and skipped calls stay in the count of planned calls. A seed passes at a rate when its attainment reaches the target."},
+                   "text": "Attainment is the share of planned calls that were good under a rule. Failed, truncated and skipped calls stay in the count of planned calls. A seed passes at a rate when its attainment reaches the target and the rate's other checks pass: the pooled p99 under itl-p99, the TTFT percentile when TTFT is judged as p95 or p99, and the client check on launch lag. A call that could not connect is a failed call."},
     "qualifying-rate": {"term": "qualifying rate", "figure": fig_qualifying_rate,
-                        "text": "The qualifying rate is the highest offered rate at which every seed that ran it passed, and every lower planned rate also passed. The rates are checked from the lowest up, and the check stops at the first rate that fails. A planned rate with no result counts as failing."},
+                        "text": QUALIFYING_RULE},
     "goodput": {"term": "goodput", "figure": fig_goodput,
-                "text": "Goodput is the number of good calls at the qualifying rate, divided by the measurement time and by the number of GPUs. The measurement time includes the wait for the last calls to finish. The unit is useful calls per second per GPU. With several seeds, the smallest value is reported."},
+                "text": "Goodput is the number of good calls at the qualifying rate, divided by the measurement time and by the number of GPUs. The measurement time includes the wait for the last calls to finish. The unit is useful calls per second per GPU. When several files met the objective at that rate, the largest value is reported."},
     "offered-rate": {"term": "offered rate", "figure": None,
-                     "text": "The offered rate is how many new tasks per second the load generator starts, whether or not the server keeps up. In this traffic shape, one task is one call."},
+                     "text": "The offered rate is how many new tasks per second the load generator is asked to start, whether or not the server keeps up; the calls actually sent are counted separately. In traffic shape B a task is one call; in shape A a task is several calls, each sent after the previous one returns."},
     "seed": {"term": "seed", "figure": None,
-             "text": "A seed is a number that fixes the random order and timing of the generated traffic. Repeating a rate with different seeds shows whether a result holds for more than one arrival pattern."},
+             "text": "A seed is a number that fixes the random arrival times of the generated traffic. Repeating a rate with different seeds shows whether a result holds for more than one arrival pattern."},
     "unified": {"term": "unified", "figure": None,
                 "text": "In the unified stack, each copy of the server processes the whole prompt (prefill) and then generates the answer token by token (decode), on the same GPUs. A router, a program that forwards requests, spreads the requests across the copies."},
     "disaggregated": {"term": "disaggregated", "figure": None,
                       "text": "In the disaggregated stack, one set of GPUs processes prompts (prefill) and another set generates answers (decode). Between the two steps, the prompt's KV cache (the key and value tensors the model computed for the prompt) is copied from the prefill GPUs to the decode GPUs."},
     "promise-map": {"term": "promise map", "figure": None,
-                    "text": "A promise map is a grid that repeats the verdict for many pairs of TTFT and TPOT bounds. Each cell shows which stack has the higher qualifying rate for that pair. It shows how the answer changes when the objective changes."},
+                    "text": "A promise map is a grid that repeats the verdict for each pair of TTFT and TPOT bounds. Each cell shows which stack has the higher qualifying rate for that pair. It shows how the answer changes when the objective changes."},
     "tie": {"term": "tie", "figure": None,
             "text": "Tie means both stacks have the same qualifying rate at that objective."},
     "neither": {"term": "neither", "figure": None,
-                "text": "Neither means both stacks were measured and neither met the objective at any offered rate."},
+                "text": "Neither means both stacks were measured and neither qualified at any measured rate at that objective."},
     "incomparable": {"term": "incomparable", "figure": None,
                      "text": "Incomparable means at least one stack was never judged under this rule, usually because its files have no per-chunk timing. It is a gap in the measurement, not a loss."},
     "unavailable": {"term": "unavailable", "figure": None,
-                    "text": "Unavailable means the file has no per-chunk timing, so the itl-p99 and worst-itl rules cannot judge it. The mean rule still can."},
+                    "text": "Unavailable means a file of the stack has no per-chunk timing, so the itl-p99 and worst-itl rules give that stack no qualifying rate. The files are listed at the top of the page; measure those rates again to judge them. The mean rule still judges the stack."},
 }
 
 
@@ -276,9 +304,9 @@ def _objective_text(ctx):
     ttft_ms, tpot_ms = ctx["objective"]
     attainment = ctx.get("attainment")
     metric = ctx.get("ttft_metric") or "per-call"
-    who = "each call's time to first token (TTFT)" if metric == "per-call" else f"the {metric} of the time to first token (TTFT) at each rate"
-    text = (f"{who} is at most {ttft_ms:g} ms, "
-            f"the time per output token (TPOT) is at most {tpot_ms:g} ms under the chosen rule")
+    ttft = (f"a call's time to first token (TTFT) is at most {ttft_ms:g} ms" if metric == "per-call" else
+            f"the {metric} of the time to first token (TTFT) for each measured file is at most {ttft_ms:g} ms")
+    text = f"{ttft}, the chosen TPOT rule is judged at {tpot_ms:g} ms"
     if attainment is not None:
         text += f", and at least {fmt_share(attainment)} of the planned calls are good"
     return text
@@ -294,7 +322,7 @@ def _per_second(rate):
 
 
 RULE_PLAIN = {"mean": "the mean TPOT rule (each call's average time per token)",
-              "itl-p99": "the itl-p99 rule (the 99th percentile of the time between tokens, over all calls)",
+              "itl-p99": "the itl-p99 rule (the 99th percentile of the time between tokens, over the completed calls)",
               "worst-itl": "the worst-itl rule (each call's single longest pause)"}
 
 
@@ -306,29 +334,29 @@ def _rule_sentence(ctx, d):
     if winner in ARCH_LETTER:
         other = [a for a in rates if a != winner][0]
         if rates[other] is None:
-            return (f"{lead} only {winner} met the objective. Its qualifying rate is {_per_second(rates[winner])}, "
+            return (f"{lead} only {winner} has a qualifying rate. Its qualifying rate is {_per_second(rates[winner])}, "
                     f"with a goodput of {fmt_goodput(goodputs[winner])} useful calls per second per GPU. "
-                    f"{other.capitalize()} met it at no offered rate.")
+                    f"{other.capitalize()} did not qualify at any measured rate.")
         return (f"{lead} {winner} has the higher qualifying rate: {_per_second(rates[winner])}, against {_per_second(rates[other])} for {other}. "
-                f"Its goodput there is {fmt_goodput(goodputs[winner])} useful calls per second per GPU, against {fmt_goodput(goodputs[other])} for {other}.")
+                f"Its goodput at that rate is {fmt_goodput(goodputs[winner])} useful calls per second per GPU, against {fmt_goodput(goodputs[other])} for {other} at its own qualifying rate.")
     if winner == "tie":
         rate = next(iter(rates.values()))
         names = sorted(goodputs)
         values = [fmt_goodput(goodputs[a]) for a in names]
-        if len(set(values)) == 1:
+        if len({goodputs[a] for a in names}) == 1:
             gp = f"Both have a goodput of {values[0]} useful calls per second per GPU there."
         else:
             gp = (f"Their goodput there is {values[0]} useful calls per second per GPU for {names[0]} "
                   f"and {' and '.join(f'{v} for {n}' for v, n in zip(values[1:], names[1:]))}.")
         return f"{lead} both stacks have the same qualifying rate, {_per_second(rate)}. {gp}"
     if winner == "neither":
-        return f"{lead} neither stack met the objective at any measured rate."
+        return f"{lead} neither stack qualified at any measured rate."
     return f"{lead} the stacks cannot be compared, because at least one was not judged under this rule."
 
 
 def answer_section(ctx):
     cards = []
-    for d in ctx.get("definitions", TPOT_METRICS):
+    for d in TPOT_METRICS:
         winner, by_arch = _winner(ctx, d)
         rows = "".join(
             f'<div class="stackline"><div class="sname"><span class="dot {arch}"></span>{_esc(arch)}</div>'
@@ -336,7 +364,7 @@ def answer_section(ctx):
                f'<div class="metric"><span class="mid">{_esc(fmt_goodput(_goodput_of(by_arch[arch])))}</span><span class="unit">useful calls/s/GPU</span></div>'
                if isinstance(_rate_of(by_arch[arch]), (int, float)) else
                f'<div class="metric wide"><span class="mid">{"not judged" if _unavailable(_rate_of(by_arch[arch])) else "no qualifying rate"}</span>'
-               f'<span class="unit">{"no per-chunk timing" if _unavailable(_rate_of(by_arch[arch])) else "failed at every offered rate"}</span></div>')
+               f'<span class="unit">{"incomplete per-chunk timing" if _unavailable(_rate_of(by_arch[arch])) else "did not qualify at any measured rate"}</span></div>')
             + '</div>'
             for arch in sorted(ctx["archs"]))
         cards.append(f'<article class="rule-card w-{_esc(winner)}"><header><h3>{term(RULE_TERM[d], RULE_TITLE[d])} rule</h3>'
@@ -345,7 +373,7 @@ def answer_section(ctx):
     return (f'<section id="answer"><h2>The answer</h2>'
             f'<p class="lead">The objective ({_esc(_objective_source(ctx))}): {_esc(_objective_text(ctx))}. There are three rules for judging {term("tpot")}. '
             f'For each rule, the card shows each stack\'s {term("qualifying-rate")} and its {term("goodput")} at that rate.</p>'
-            f'<div class="summary">{"".join(f"<p>{_esc(_rule_sentence(ctx, d))}</p>" for d in ctx.get("definitions", TPOT_METRICS))}</div>'
+            f'<div class="summary">{"".join(f"<p>{_esc(_rule_sentence(ctx, d))}</p>" for d in TPOT_METRICS)}</div>'
             f'<div class="cards">{"".join(cards)}</div></section>')
 
 
@@ -376,7 +404,7 @@ def verdict_table(ctx):
     head = "".join(f'<th scope="col">{_esc(a)}<br><small>{term("qualifying-rate")} (tasks/s)</small></th>'
                    f'<th scope="col">{_esc(a)}<br><small>{term("goodput")} (useful calls/s/GPU)</small></th>' for a in archs)
     rows = []
-    for d in ctx.get("definitions", TPOT_METRICS):
+    for d in TPOT_METRICS:
         winner, by_arch = _winner(ctx, d)
         cells = "".join(f'<td class="num">{_esc(fmt_rate(_rate_of(by_arch[a])))}</td><td class="num">{_esc(fmt_goodput(_goodput_of(by_arch[a])))}</td>' for a in archs)
         rows.append(f'<tr><th scope="row">{term(RULE_TERM[d], RULE_TITLE[d])}</th>{cells}<td><span class="badge w-{_esc(winner)}">{_esc(WINNER_TEXT.get(winner, winner))}</span></td></tr>')
@@ -396,22 +424,23 @@ def _cell_label(cell, archs):
     return f"{ARCH_LETTER.get(winner, winner[:1].upper())} {fmt_rate(_rate_of(by_arch.get(winner)))}"
 
 
-def _cell_detail(definition, ttft, tpot, cell, archs):
+def _cell_detail(definition, ttft, tpot, cell, archs, ttft_metric="per-call"):
     by_arch = cell.get("by_arch", {})
-    parts = [f"TTFT at most {ttft:g} ms, TPOT at most {tpot:g} ms, {RULE_TITLE.get(definition, definition)} rule."]
+    parts = [f"TTFT at most {ttft:g} ms (judged {ttft_metric}), TPOT at most {tpot:g} ms, {RULE_TITLE.get(definition, definition)} rule."]
     for arch in sorted(archs):
         value = by_arch.get(arch)
         if _unavailable(_rate_of(value)):
             parts.append(f"{arch}: not judged under this rule.")
         elif _rate_of(value) is None:
-            parts.append(f"{arch}: does not meet this objective at any measured rate.")
+            parts.append(f"{arch}: did not qualify at any measured rate under this objective.")
         else:
-            parts.append(f"{arch}: qualifying rate {_per_second(_rate_of(value))}, goodput {fmt_goodput(_goodput_of(value))} useful calls per second per GPU.")
+            parts.append(f"{arch}: qualifying rate {_per_second(_rate_of(value))}, where {value['files_met']} of {value['files_measured']} files met the objective; "
+                         f"goodput {fmt_goodput(_goodput_of(value))} useful calls per second per GPU.")
     parts.append(WINNER_TEXT.get(cell.get("winner"), str(cell.get("winner"))) + ".")
     return " ".join(parts)
 
 
-def promise_map(definition, cells, ttft_axis, tpot_axis, archs, objective=None, map_id="m"):
+def promise_map(definition, cells, ttft_axis, tpot_axis, archs, objective=None, map_id="m", ttft_metric="per-call"):
     """One grid as HTML: columns are TTFT bounds, rows TPOT bounds, one button per cell."""
     cols = len(ttft_axis)
     out = [f'<div class="pmap" id="{_esc(map_id)}" data-rule="{_esc(definition)}" style="--cols:{cols}">',
@@ -423,7 +452,7 @@ def promise_map(definition, cells, ttft_axis, tpot_axis, archs, objective=None, 
             cell = cells.get((ttft, tpot), {})
             winner = cell.get("winner") or "neither"
             is_objective = objective is not None and (ttft, tpot) == tuple(objective)
-            detail = _cell_detail(definition, ttft, tpot, cell, archs)
+            detail = _cell_detail(definition, ttft, tpot, cell, archs, ttft_metric)
             out.append(f'<button type="button" class="cell w-{_esc(winner)}{" objective" if is_objective else ""}" '
                        f'data-detail="{_esc(detail)}" data-objective="{"1" if is_objective else "0"}" '
                        f'aria-label="{_esc(detail)}">{_esc(_cell_label(cell, archs))}</button>')
@@ -431,26 +460,33 @@ def promise_map(definition, cells, ttft_axis, tpot_axis, archs, objective=None, 
     return "".join(out)
 
 
-def _legend():
+def _legend(on_axis=True):
     items = [("w-unified", "U", "unified reaches the higher rate"), ("w-disaggregated", "D", "disaggregated reaches the higher rate"),
-             ("w-tie", "=", "tie"), ("w-neither", "-", "neither meets the objective"), ("w-incomparable", "?", "incomparable")]
+             ("w-tie", "=", "tie"), ("w-neither", "-", "neither qualifies at any measured rate"), ("w-incomparable", "?", "incomparable")]
     chips = "".join(f'<span class="chip"><span class="sw {c}">{_esc(sym)}</span>{_esc(t)}</span>' for c, sym, t in items)
-    return (f'<div class="legend">{chips}<span class="chip"><span class="sw objective-sw"></span>objective used for the verdict</span></div>'
+    objective = ("objective used for the verdict" if on_axis else
+                 "the objective used for the verdict is not one of these bounds, so no cell is outlined")
+    return (f'<div class="legend">{chips}<span class="chip"><span class="sw objective-sw"></span>{_esc(objective)}</span></div>'
             f'<p class="hint">The number in a cell is the higher of the two qualifying rates, in tasks per second; for a tie, it is the rate both stacks share. '
             f'Definitions: {term("tie")}, {term("neither")}, {term("incomparable")}.</p>')
 
 
+def _objective_on_axis(ctx):
+    objective = ctx.get("objective")
+    return objective is not None and objective[0] in ctx["ttft_axis"] and objective[1] in ctx["tpot_axis"]
+
+
 def maps_section(ctx, prefix="r"):
-    definitions = ctx.get("definitions", TPOT_METRICS)
+    definitions = TPOT_METRICS
     tabs, panes = [], []
     for i, d in enumerate(definitions):
         tid = f"{prefix}-tab-{i}"
         tabs.append(f'<input type="radio" name="{prefix}-tabs" id="{tid}"{" checked" if i == 0 else ""}><label for="{tid}">{_esc(RULE_TITLE[d])}</label>')
-        panes.append(f'<div class="pane">{promise_map(d, ctx["grid"][d], ctx["ttft_axis"], ctx["tpot_axis"], ctx["archs"], ctx.get("objective"), f"{prefix}-map-{i}")}</div>')
+        panes.append(f'<div class="pane">{promise_map(d, ctx["grid"][d], ctx["ttft_axis"], ctx["tpot_axis"], ctx["archs"], ctx.get("objective"), f"{prefix}-map-{i}", ctx.get("ttft_metric") or "per-call")}</div>')
     return (f'<section id="maps"><h2>Promise maps</h2>'
-            f'<p class="lead">A {term("promise-map")} repeats the verdict for many pairs of TTFT and TPOT bounds. '
+            f'<p class="lead">A {term("promise-map")} repeats the verdict for each pair of TTFT and TPOT bounds. '
             f'Columns are TTFT bounds; the bound gets looser to the right. Rows are TPOT bounds; the bound gets looser further down. '
-            f'Select a cell to read both stacks\' values.</p>{_legend()}'
+            f'Select a cell to read both stacks\' values.</p>{_legend(_objective_on_axis(ctx))}'
             f'<div class="tabs">{"".join(tabs)}<div class="panes">{"".join(panes)}</div></div>'
             f'<div class="detail" aria-live="polite">Select a cell.</div></section>')
 
@@ -474,6 +510,16 @@ def _pass_cell(row, d, target, tpot_bound):
             f'<span class="share{" over" if low else ""}">{_esc(fmt_share(share))}</span>{extra}</td>')
 
 
+def _client_cell(row):
+    n = row.get("unreachable_calls")
+    note = f'<small>{_esc(n)} calls could not connect</small>' if _numeric(n) and n > 0 else ""
+    if row.get("client_valid") is not False:
+        return f'<td class="rule"><span class="pf pass">ok</span>{note}</td>'
+    lag, bound = row.get("max_client_launch_lag_ms"), row.get("max_client_lag_bound_ms")
+    reason = f"launch lag {fmt_ms(lag)} ms over {fmt_ms(bound)} ms" if _numeric(lag) and _numeric(bound) else "launch lag over its bound"
+    return f'<td class="rule"><span class="pf fail">invalid</span> <small class="over">{_esc(reason)}</small>{note}</td>'
+
+
 def evidence_section(ctx):
     rows = ctx.get("evidence", [])
     if not rows:
@@ -483,13 +529,16 @@ def evidence_section(ctx):
     metric = ctx.get("ttft_metric") or "per-call"
     ttft_key = {"p95": "p95_ttft_ms_success_only", "p99": "p99_ttft_ms_success_only"}.get(metric, "p90_ttft_ms_success_only")
     ttft_label = {"p95": "TTFT p95", "p99": "TTFT p99"}.get(metric, "TTFT p90")
-    definitions = ctx.get("definitions", TPOT_METRICS)
+    definitions = TPOT_METRICS
+    pooled_ttft = metric in ("p95", "p99")
+    itl_label = "pass or fail, share of planned calls that completed, pooled p99" if pooled_ttft else "pass or fail, share passing TTFT, pooled p99"
     head = ("<th>Stack</th><th>Rate<br><small>tasks/s</small></th><th>" + term("seed", "Seed") + "</th>"
             "<th>Calls<br><small>completed / planned</small></th>"
             f'<th>{term("ttft-percentile", ttft_label)}<br><small>ms, completed calls</small></th>'
-            "<th>Mean TPOT p90<br><small>ms, over completed calls</small></th>"
-            "<th>Longest gap p90<br><small>ms, longest gap of each completed call</small></th>"
-            + "".join(f'<th>{term(RULE_TERM[d], RULE_TITLE[d])}<br><small>{"pass or fail, share passing TTFT, pooled p99" if d == "itl-p99" else "pass or fail, " + term("attainment")}</small></th>' for d in definitions))
+            "<th>Mean TPOT p90<br><small>ms, over completed calls with a TPOT</small></th>"
+            "<th>Longest gap p90<br><small>ms, longest gap of each completed call with two or more chunks</small></th>"
+            + "".join(f'<th>{term(RULE_TERM[d], RULE_TITLE[d])}<br><small>{itl_label if d == "itl-p99" else "pass or fail, " + term("attainment")}</small></th>' for d in definitions)
+            + "<th>Client<br><small>launch lag; calls that could not connect</small></th>")
     body = []
     for r in sorted(rows, key=lambda x: (x["architecture"], x["offered"], x["seed"] if isinstance(x["seed"], (int, float)) else 0, str(x["seed"]))):
         body.append(f'<tr class="{_esc(r["architecture"])}"><td class="stack"><span class="dot {_esc(r["architecture"])}"></span>{_esc(r["architecture"])}</td>'
@@ -498,10 +547,15 @@ def evidence_section(ctx):
                     f'<td class="num{_flag(r.get(ttft_key), ttft_bound)}">{_esc(fmt_ms(r.get(ttft_key)))}</td>'
                     f'<td class="num{_flag(r.get("p90_tpot_ms_success_only"), tpot_bound)}">{_esc(fmt_ms(r.get("p90_tpot_ms_success_only")))}</td>'
                     f'<td class="num{_flag(r.get("longest_gap_ms_p90"), tpot_bound)}">{_esc(fmt_ms(r.get("longest_gap_ms_p90")))}</td>'
-                    + "".join(_pass_cell(r, d, target, tpot_bound) for d in definitions) + "</tr>")
+                    + "".join(_pass_cell(r, d, target, tpot_bound) for d in definitions) + _client_cell(r) + "</tr>")
     return (f'<section id="evidence"><h2>Evidence for each rate and seed</h2>'
-            f'<p class="lead">Each row is one stack at one offered rate with one seed. A red value is over its bound, or under the {_esc(fmt_share(target))} target. '
-            f'Red values show why that seed failed at that rate. A rate qualifies only when every seed passed there and at every lower rate.</p>'
+            f'<p class="lead">Each row is one stack at one offered rate with one seed. The pass or fail columns decide the verdict, and a red share there is under the {_esc(fmt_share(target))} target; '
+            f'a rate also fails when its launch lag is over its bound (last column, which also counts the calls that could not connect). The latency columns describe the calls, and a red value there is over its bound'
+            + (f'; the TTFT {_esc(metric)} column also decides, since TTFT is judged by it' if pooled_ttft else '')
+            + '. '
+            + QUALIFYING_RULE
+            + (f' TTFT is judged as {_esc(metric)} of the completed calls, once per measured file, so every completed call passes the TTFT side.' if pooled_ttft else '')
+            + '</p>'
             f'<div class="scroll tall"><table class="evidence"><thead><tr>{head}</tr></thead><tbody>{"".join(body)}</tbody></table></div></section>')
 
 
@@ -512,7 +566,7 @@ def _glossary_templates(blocks):
     # A figure drawn from a shape's own data gets one template per shape; the page script picks the one for the shape the term sits in.
     out = []
     for key, entry in GLOSSARY.items():
-        for prefix, ctx in (blocks if entry["figure"] is not None else [(None, None)]):
+        for prefix, ctx in (blocks if entry["figure"] is not None or callable(entry["text"]) else [(None, None)]):
             figure = ""
             if ctx is not None:
                 try:
@@ -520,7 +574,8 @@ def _glossary_templates(blocks):
                 except (KeyError, TypeError, ValueError, ZeroDivisionError):
                     figure = ""
             tid = f"g-{prefix}-{key}" if prefix else f"g-{key}"
-            out.append(f'<template id="{_esc(tid)}"><h4>{_esc(entry["term"])}</h4><p>{_esc(entry["text"])}</p>{figure}</template>')
+            text = entry["text"](ctx) if callable(entry["text"]) else entry["text"]
+            out.append(f'<template id="{_esc(tid)}"><h4>{_esc(entry["term"])}</h4><p>{_esc(text)}</p>{figure}</template>')
     return "".join(out)
 
 
@@ -582,6 +637,7 @@ th small,td small{display:block;font-weight:400;color:var(--text-inactive);font-
 tbody tr:nth-child(even) td,tbody tr:nth-child(even) th{background:var(--bg-page)}
 td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 .over{color:var(--err);font-weight:700}
+.alert{margin:0 0 16px;padding:8px 12px;border:1px solid var(--err);border-radius:8px;background:var(--err-bg);color:var(--text)}
 td.rule,td.stack{white-space:nowrap}
 .pf{display:inline-block;min-width:38px;text-align:center;font-size:var(--fs-s);line-height:var(--lh-s);font-weight:700;border-radius:var(--r-badge);padding:1px 6px;margin-right:6px}
 .pf.pass{background:var(--ok-bg);color:var(--ok);border:1px solid var(--ok)}.pf.fail{background:var(--err-bg);color:var(--err);border:1px solid var(--err)}
@@ -656,34 +712,33 @@ def _page(title, subtitle, body, blocks, toc=True):
     return (f'<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
             f'<title>{_esc(title)}</title><style>{_STYLE}</style></head><body>'
             f'<div class="top"><div class="wrap"><h1>{_esc(title)}</h1><p>{_esc(subtitle)}</p>{nav}</div></div>'
-            f'<main class="wrap">{body}<footer>Generated by 5.collect.py from the stored ramp files. Definitions: README sections '
-            f'"Three TPOT definitions" and "How a qualifying rate and its goodput are computed".</footer></main>'
+            f'<main class="wrap">{body}<footer>Generated by 5.collect.py from the stored ramp files. Definitions: select an underlined term.</footer></main>'
             f'<div id="pop" role="dialog" aria-modal="false" hidden></div>{_glossary_templates(blocks)}<script>{_SCRIPT}</script></body></html>')
 
 
 def _report_body(ctx, prefix="r"):
     # Section ids carry the shape's prefix so that two shapes on one page never share an anchor.
+    marks = "".join(f'<p class="alert">{_esc(m)}; measure again with them aligned to compare like with like.</p>' for m in ctx.get("marks") or [])
     body = answer_section(ctx) + measured_section(ctx) + verdict_table(ctx) + maps_section(ctx, prefix) + evidence_section(ctx)
     for sid in ("answer", "measured", "verdict", "maps", "evidence"):
         body = body.replace(f'<section id="{sid}">', f'<section id="{prefix}-{sid}">')
-    return f'<div class="shape-block" data-shape="{_esc(prefix)}">{body}</div>'
+    return f'<div class="shape-block" data-shape="{_esc(prefix)}">{marks}{body}</div>'
 
 
-def render_report(context):
+def render_report(context, notices=()):
     """`context` keys: shape, archs, objective, attainment, ttft_metric, objective_given (names overridden on the command line), qualified
-    {(arch, definition): result}, grid, ttft_axis, tpot_axis, evidence (5.collect.wide_evidence rows);
-    optional definitions."""
-    try:
-        return _page("Disaggregated vs. unified: results", f"Traffic shape {context.get('shape', '')}", _report_body(context), [(None, context)])
-    except Exception as exc:  # pragma: no cover - 5.collect.py keeps its result files when this fails
-        raise RuntimeError(f"report.py failed to render report.html: {exc}") from exc
+    {(arch, definition): result}, grid, ttft_axis, tpot_axis, marks (differences within the pair), evidence (5.collect.evidence_row rows)."""
+    return render_sections([context], notices)
 
 
-def render_sections(contexts):
-    """render_report for several traffic shapes on one page."""
-    if len(contexts) == 1:
-        return render_report(contexts[0])
-    blocks = [(f"s{i}", ctx) for i, ctx in enumerate(contexts)]
-    body = "".join(f'<h2 class="shape">Traffic shape {_esc(ctx["shape"])}</h2>{_report_body(ctx, prefix)}' for prefix, ctx in blocks)
-    return _page("Disaggregated vs. unified: results", ", ".join(c["shape"] for c in contexts), body, blocks, toc=False)
-
+def render_sections(contexts, notices=()):
+    """One page for every unified/disaggregated pair, with the notices of the whole collection at the top."""
+    single = len(contexts) == 1
+    blocks, parts = [], []
+    for i, ctx in enumerate(contexts):
+        prefix = "r" if single else f"s{i}"
+        blocks.append((None if single else prefix, ctx))
+        parts.append(("" if single else f'<h2 class="shape">Traffic shape {_esc(ctx.get("shape", ""))}</h2>') + _report_body(ctx, prefix))
+    top = "".join(f'<p class="alert">{_esc(n)}</p>' for n in notices)
+    subtitle = ", ".join(str(c.get("shape", "")) for c in contexts)
+    return _page("Disaggregated vs. unified: results", f"Traffic shape {subtitle}" if single else subtitle, top + "".join(parts), blocks, toc=single)

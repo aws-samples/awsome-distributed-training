@@ -1,6 +1,5 @@
-"""Judging and loading for this example: the three TPOT rules, the attainment test (default 90%), the qualifying-rate
-walk, goodput, the promise-map grid, and reading stored ramp files. Definitions: README sections
-"Three TPOT definitions" and "How a qualifying rate and its goodput are computed".
+"""Judging for this example: the three TPOT rules, the qualifying rate and goodput as the original lab computes them,
+the promise-map grid, and reading stored ramp files. report.html's glossary states the same definitions.
 """
 import hashlib
 import json
@@ -10,18 +9,24 @@ from pathlib import Path
 TPOT_METRICS = ("mean", "itl-p99", "worst-itl")
 TTFT_METRICS = ("per-call", "p95", "p99")
 
-# Version 2 adds per-call "chunks"; every record carries the key, an empty list on a failed call.
-SCHEMA_VERSION = 2
-
 # Neither a rate nor None ("qualified at no rate"). Compare with ==: copies come back from JSON.
-UNAVAILABLE = "unavailable (file predates per-chunk recording, or its per-chunk recording is incomplete)"
-
-# A call that never connected says nothing about the stack it was aimed at.
-CLIENT_PATH_ERRORS = ("ConnectError",)
+UNAVAILABLE = "unavailable (a file of this stack has no per-chunk timing)"
 
 # Fixed default axes, so promise maps from different runs line up.
 DEFAULT_TTFT_AXIS_MS = tuple(range(500, 5001, 500))
 DEFAULT_TPOT_AXIS_MS = tuple(range(10, 101, 10))
+
+# The summary keys the original lab's benchmark.py wrote; check_reproduces compares only these.
+ORIGINAL_SUMMARY_KEYS = ("offered_tasks_per_s", "actual_sent_calls_per_s", "measurement_including_drain_s", "planned_calls",
+                         "sent_calls", "completed_calls", "failed_or_skipped_calls", "p90_ttft_ms_success_only",
+                         "p90_tpot_ms_success_only", "slo_ttft_ms", "slo_tpot_ms", "slo_attainment_fraction",
+                         "attainment_target_fraction", "meets_joint_slo", "successful_calls_per_s", "useful_calls_per_s",
+                         "useful_calls_per_s_per_gpu", "gpu_count", "max_client_launch_lag_ms", "prefix_overlap_fraction_min",
+                         "cached_tokens_sum_reported", "input_tokens_sum_sent", "client_valid")
+
+# Measurement settings outside the original grouping key; report.html marks a pair whose files differ in one.
+PAIR_SETTINGS = ("duration_s", "timeout_s", "context_length_tokens", "skip_warmup", "stop_failure_fraction",
+                 "max_client_lag_ms", "traffic_sha256")
 
 
 def validate_grid_axis(values):
@@ -33,7 +38,7 @@ def validate_grid_axis(values):
 
 
 def percentile(values, fraction):
-    """Nearest-rank, not interpolated as in vllm bench serve; None values are dropped."""
+    """Nearest-rank, not interpolated as np.percentile in sglang.bench_serving and vllm bench serve; None values are dropped."""
     values = sorted(x for x in values if x is not None)
     return None if not values else values[max(0, math.ceil(len(values) * fraction) - 1)]
 
@@ -54,133 +59,98 @@ def pooled_itls_ms(records):
     for r in records:
         chunks = r.get("chunks") or []
         for previous, current in zip(chunks, chunks[1:]):
+            # benchmark.py records a chunk only when it adds tokens; a chunk with n == 0 would hide the gap before it.
             if current["n"] > 0:
                 pooled += [(current["t_ms"] - previous["t_ms"]) / current["n"]] * current["n"]
     return pooled or None
 
 
-def chunks_recorded(records):
-    return bool(records) and all("chunks" in r for r in records)
-
-
-def chunk_data_complete(records):
-    """Whether every successful call carries chunks; pooling a partial subset would understate gaps."""
-    ok = [r for r in records if r.get("ok")]
-    return all(r.get("chunks") for r in ok) if ok else True
+def _chunk_ok(c):
+    return isinstance(c, dict) and all(isinstance(c.get(k), (int, float)) and not isinstance(c.get(k), bool) for k in ("t_ms", "n"))
 
 
 def gap_data_available(records):
-    """False means itl-p99 and worst-itl report UNAVAILABLE. True with zero gaps (every call failed,
-    or single-chunk calls) is a real measurement, not missing data."""
-    return chunks_recorded(records) and chunk_data_complete(records)
+    """False means itl-p99 and worst-itl report UNAVAILABLE: some call has no chunks key (a file written
+    before chunks were recorded), a completed call has no chunks, or a chunk lacks its time or token count."""
+    return (all("chunks" in r and isinstance(r["chunks"], list) and all(_chunk_ok(c) for c in r["chunks"]) for r in records)
+            and all(r.get("chunks") for r in records if r.get("ok")))
 
 
-def raw_gap_stats(records):
-    """Descriptive (gap_count, p99 of raw gaps); never used to judge a rate."""
-    gaps = []
-    for r in records:
-        chunks = r.get("chunks") or []
-        gaps += [b["t_ms"] - a["t_ms"] for a, b in zip(chunks, chunks[1:])]
-    return len(gaps), (percentile(gaps, .99) if gaps else None)
-
-
-def summarize(records, duration_s, gpus, ttft_ms, tpot_ms, attainment, offered_tasks_s, max_client_lag_ms, tpot_metric="mean", start_skew_ms=None, start_skew_tolerance_ms=500.0, ttft_metric="per-call"):
-    # start_skew_ms is an input, not a post-hoc override, so re-scoring reproduces the verdict.
+def summarize(records, duration_s, gpus, ttft_ms, tpot_ms, attainment, offered_tasks_s, actual_calls_s,
+              tpot_metric="mean", ttft_metric="per-call"):
+    """One file's verdict before the client check. A call passes the TTFT side when its TTFT is within ttft_ms (per-call),
+    or when it completed (p95/p99, where that percentile of the completed calls' TTFT must be within ttft_ms). A good call
+    passes the TTFT side and, under mean, its own mean TPOT within tpot_ms, or, under worst-itl, its longest undivided gap
+    within tpot_ms; under itl-p99 every call that passes the TTFT side is good, and the file's pooled per-token gap p99
+    must be within tpot_ms. The file meets the objective when good calls / planned calls reaches attainment and those
+    percentiles hold. Under mean and per-call this is the original lab's summary."""
     assert tpot_metric in TPOT_METRICS
     assert ttft_metric in TTFT_METRICS
     ok = [r for r in records if r["ok"]]
     attempts = [r for r in records if r.get("sent", False)]
-    lag = max((r["client_launch_lag_ms"] for r in records), default=0)
-    unreachable = sum(r.get("error", "").startswith(CLIENT_PATH_ERRORS) for r in records)
-    client_valid = lag <= max_client_lag_ms and not unreachable and (start_skew_ms is None or start_skew_ms <= start_skew_tolerance_ms)
-    # Without complete chunk data every gap field is None, never a zero.
-    available = gap_data_available(records)
-    itls = pooled_itls_ms(ok) if available else None
-    itl_p99 = percentile(itls, .99) if itls is not None else None
-    worsts = [worst_itl_ms(r) for r in ok] if available else [None] * len(ok)
-    worsts_present = [w for w in worsts if w is not None]
     ttft_values = [r.get("ttft_ms") for r in ok]
-    ttft_p95 = percentile(ttft_values, .95)
-    ttft_p99 = percentile(ttft_values, .99)
+    # Gap statistics only from complete chunk records; the mean rule does not read chunks.
+    gaps = gap_data_available(records)
     if ttft_metric == "per-call":
-        ttft_good = [r for r in records if r["ok"] and r.get("ttft_ms") is not None and r["ttft_ms"] <= ttft_ms]
+        ttft_good = [r for r in ok if r.get("ttft_ms") is not None and r["ttft_ms"] <= ttft_ms]
         meets_ttft = True
     else:
+        pooled_ttft = percentile(ttft_values, .95 if ttft_metric == "p95" else .99)
+        # benchmark.py records a TTFT for every completed call, so the percentile covers all of them.
         ttft_good = ok
-        pooled_ttft = ttft_p95 if ttft_metric == "p95" else ttft_p99
         meets_ttft = pooled_ttft is not None and pooled_ttft <= ttft_ms
-    # itl-p99 judges the pooled p99 once per rate; mean and worst-itl judge each call.
+    itls = pooled_itls_ms(ok) if gaps else None
+    itl_p99 = percentile(itls, .99) if itls is not None else None
+
     def tpot_ok(r):
         if tpot_metric == "itl-p99":
             return True
         if tpot_metric == "worst-itl":
-            w = worst_itl_ms(r) if available else None
+            w = worst_itl_ms(r) if gaps else None
             return w is not None and w <= tpot_ms
         return r.get("tpot_ms") is not None and r["tpot_ms"] <= tpot_ms
     good = [r for r in ttft_good if tpot_ok(r)]
     hit = len(good) / len(records) if records else 0.0
-    meets_tpot = tpot_metric in ("mean", "worst-itl") or (itl_p99 is not None and itl_p99 <= tpot_ms)
-    meets_joint = hit >= attainment and meets_ttft and meets_tpot
-    # Descriptive only; gap_above_bound_fraction is a share of completed calls, not planned ones.
-    gap_count, gap_p99 = raw_gap_stats(ok) if available else (None, None)
-    gap_above_bound = (sum(1 for w in worsts_present if w > tpot_ms) / len(ok)) if available and ok else None
-    worst_itl_p50 = percentile(worsts, .5) if worsts_present else None
-    worst_itl_p90 = percentile(worsts, .9) if worsts_present else None
-    return {"offered_tasks_per_s": offered_tasks_s, "actual_sent_calls_per_s": len(attempts) / duration_s,
+    meets_tpot = tpot_metric != "itl-p99" or (itl_p99 is not None and itl_p99 <= tpot_ms)
+    return {"offered_tasks_per_s": offered_tasks_s, "actual_sent_calls_per_s": actual_calls_s,
             "measurement_including_drain_s": duration_s, "planned_calls": len(records), "sent_calls": len(attempts),
             "completed_calls": len(ok), "failed_or_skipped_calls": len(records) - len(ok),
-            "p90_ttft_ms_success_only": percentile([r.get("ttft_ms") for r in ok], .9),
-            "p95_ttft_ms_success_only": percentile([r.get("ttft_ms") for r in ok], .95),
-            "p99_ttft_ms_success_only": percentile([r.get("ttft_ms") for r in ok], .99),
+            "p90_ttft_ms_success_only": percentile(ttft_values, .9),
             "p90_tpot_ms_success_only": percentile([r.get("tpot_ms") for r in ok], .9),
-            "itl_ms_p50": percentile(itls, .5) if itls is not None else None,
-            "itl_ms_p95": percentile(itls, .95) if itls is not None else None,
-            "itl_ms_p99": itl_p99,
-            "worst_itl_ms_p50": worst_itl_p50, "worst_itl_ms_p90": worst_itl_p90,
-            "worst_itl_ms_p95": percentile(worsts, .95) if worsts_present else None,
-            "worst_itl_ms_p99": percentile(worsts, .99) if worsts_present else None,
-            "worst_itl_ms_p999": percentile(worsts, .999) if worsts_present else None,
-            # Same values as worst_itl_ms_p50/p90, under the evidence table's name.
-            "longest_gap_ms_p50": worst_itl_p50, "longest_gap_ms_p90": worst_itl_p90,
-            "gap_count": gap_count, "gap_ms_p99": gap_p99, "gap_above_bound_fraction": gap_above_bound,
-            "gap_data_available": available,
             "slo_ttft_ms": ttft_ms, "slo_tpot_ms": tpot_ms, "slo_attainment_fraction": hit,
-            "tpot_metric": tpot_metric, "ttft_metric": ttft_metric,
-            "attainment_target_fraction": attainment, "meets_joint_slo": meets_joint and client_valid,
+            "attainment_target_fraction": attainment, "meets_joint_slo": hit >= attainment and meets_ttft and meets_tpot,
             "successful_calls_per_s": len(ok) / duration_s, "useful_calls_per_s": len(good) / duration_s,
             "useful_calls_per_s_per_gpu": len(good) / duration_s / gpus, "gpu_count": gpus,
-            "max_client_launch_lag_ms": lag, "unreachable_calls": unreachable, "client_valid": client_valid,
-            "start_skew_ms": start_skew_ms, "start_skew_tolerance_ms": start_skew_tolerance_ms if start_skew_ms is not None else None,
+            "max_client_launch_lag_ms": max((r.get("client_launch_lag_ms", 0) for r in records), default=0),
             "prefix_overlap_fraction_min": min((r["prefix_overlap_fraction"] for r in records if r.get("prefix_overlap_fraction") is not None), default=None),
-            # An int, 0 when nothing reports cached tokens, as stored ramp files already carry.
             "cached_tokens_sum_reported": sum(r.get("cached_tokens") or 0 for r in records),
-            "input_tokens_sum_sent": sum(r.get("input_tokens", 0) for r in attempts)}
+            "input_tokens_sum_sent": sum(r.get("input_tokens", 0) for r in attempts),
+            # Added for the gap rules and report.html; a ConnectError is counted here and stays a failed call.
+            "tpot_metric": tpot_metric, "ttft_metric": ttft_metric,
+            "p95_ttft_ms_success_only": percentile(ttft_values, .95), "p99_ttft_ms_success_only": percentile(ttft_values, .99),
+            "itl_ms_p99": itl_p99, "longest_gap_ms_p90": percentile([worst_itl_ms(r) for r in ok], .9) if gaps else None,
+            "unreachable_calls": sum(str(r.get("error", "")).startswith("ConnectError") for r in records)}
 
 
-def stops_ramp(summary, stop_failure_fraction):
-    """The ramp's stop rule; check_runs applies the same rule to stored files."""
-    return summary["failed_or_skipped_calls"] / max(1, summary["planned_calls"]) > stop_failure_fraction
+def client_check(summary, max_client_lag_ms, recorded=None):
+    """The original lab's client check: a rate whose launch lag passed the bound is invalid. Without a recorded
+    bound, the file's recorded client_valid stands."""
+    summary["client_valid"] = summary["max_client_launch_lag_ms"] <= max_client_lag_ms if max_client_lag_ms is not None else recorded is not False
+    summary["meets_joint_slo"] &= summary["client_valid"]
+    return summary
 
 
 def highest_qualifying(rows, ttft_ms, tpot_ms, attainment, score):
-    """Walk the planned rates upward and stop at the first rate any run fails or did not reach;
-    each metric is the minimum across runs at the last qualifying rate."""
-    by_rate = {}
-    for run in {row['run'] for row in rows}:
-        ran = {row['offered']: row for row in rows if row['run'] == run}
-        for rate in next(iter(ran.values()))['rates']:
-            by_rate.setdefault(rate, []).append(score(ran[rate], ttft_ms, tpot_ms, attainment) if rate in ran else None)
-    top = None
-    for rate in sorted(by_rate):
-        if not all(s is not None and s['meets_joint_slo'] for s in by_rate[rate]):
-            break
-        top = rate
-    if top is None:
+    """The original lab's rule: the highest offered rate at which some file meets the objective, seeds pooled.
+    Goodput is the largest among the files that met it at that rate."""
+    scored = [(row, score(row, ttft_ms, tpot_ms, attainment)) for row in rows]
+    met = [s for _row, s in scored if s["meets_joint_slo"]]
+    if not met:
         return None
-    scores = by_rate[top]
-    return {'offered': top, 'useful_per_gpu': min(s['useful_calls_per_s_per_gpu'] for s in scores),
-            'attainment': min(s['slo_attainment_fraction'] for s in scores),
-            'planned_calls': min(s['planned_calls'] for s in scores), 'repeats': len(scores)}
+    top = max(s["offered_tasks_per_s"] for s in met)
+    at = [s for s in met if s["offered_tasks_per_s"] == top]
+    return {"offered": top, "useful_per_gpu": max(s["useful_calls_per_s_per_gpu"] for s in at),
+            "files_met": len(at), "files_measured": sum(1 for row, _s in scored if row["offered"] == top)}
 
 
 def verdict(by_arch):
@@ -194,194 +164,74 @@ def verdict(by_arch):
     return top, (lead[0] if len(lead) == 1 else 'tie' if lead else 'neither'), lead
 
 
-def promise_grid(rows_by_arch, ttft_axis, tpot_axis, attainment, score_factory, availability, definitions=TPOT_METRICS):
+def promise_grid(rows_by_arch, ttft_axis, tpot_axis, attainment, score_factory, availability):
     """{definition: {(ttft_ms, tpot_ms): {"by_arch", "top", "winner", "lead"}}}."""
     grid = {}
-    for definition in definitions:
+    for definition in TPOT_METRICS:
         score = score_factory(definition)
         cells = {}
         for ttft in ttft_axis:
             for tpot in tpot_axis:
-                by_arch = {}
-                for arch, rows in rows_by_arch.items():
-                    # Index, never .get(..., True): an unvouched pair must fail, not default to available.
-                    if not availability[(arch, definition)]:
-                        by_arch[arch] = UNAVAILABLE
-                    else:
-                        by_arch[arch] = highest_qualifying(rows, ttft, tpot, attainment, score)
+                by_arch = {arch: highest_qualifying(rows, ttft, tpot, attainment, score) if availability[(arch, definition)] else UNAVAILABLE
+                           for arch, rows in rows_by_arch.items()}
                 top, winner, lead = verdict(by_arch)
                 cells[(ttft, tpot)] = {"by_arch": by_arch, "top": top, "winner": winner, "lead": lead}
         grid[definition] = cells
     return grid
 
 
+def availability_by_arch(rows_by_arch):
+    """{(arch, definition): bool}; a gap rule needs complete chunk data on every file of the stack."""
+    return {(arch, d): (d == 'mean' or all(gap_data_available(r['requests']) for r in rows))
+            for arch, rows in rows_by_arch.items() for d in TPOT_METRICS}
+
+
 # ---------------------------------------------------------------------------------------------
 # Stored ramp files.
 
-# Equal across every file of one comparison.
-RAMP_MATCHED = ('instance_type', 'region', 'evidence_scope', 'model', 'model_revision', 'shape_sha256', 'gpu_count',
-                'offered_window_s', 'timeout_s', 'max_client_lag_ms', 'context_length_tokens', 'skip_warmup',
-                'stop_failure_fraction', 'tpot_metric', 'ttft_metric')
-ARGUMENTS = ('max_client_lag_ms', 'duration_s', 'timeout_s', 'context_length_tokens', 'skip_warmup', 'stop_failure_fraction', 'rates')
-REQUIRED_METADATA = ('architecture', 'instance_type', 'region', 'evidence_scope', 'model', 'model_revision', 'shape', 'seed', 'phase')
-REQUIRED_REQUEST = ('ok', 'sent', 'client_launch_lag_ms')
-REQUIRED_SUMMARY = ('gpu_count', 'offered_tasks_per_s', 'measurement_including_drain_s', 'attainment_target_fraction',
-                    'slo_ttft_ms', 'slo_tpot_ms')
-SUMMARY_KEYS = ('actual_sent_calls_per_s', 'planned_calls', 'sent_calls', 'completed_calls', 'failed_or_skipped_calls', 'p90_ttft_ms_success_only',
-                'p90_tpot_ms_success_only', 'slo_attainment_fraction', 'meets_joint_slo', 'successful_calls_per_s',
-                'useful_calls_per_s', 'useful_calls_per_s_per_gpu', 'max_client_launch_lag_ms', 'client_valid')
+def load_file(path):
+    """One *-measured.json as a row; ValueError or KeyError when it cannot be read as one."""
+    run = json.loads(Path(path).read_text(encoding="utf-8"))
+    m, s, requests = run["metadata"], run["summary"], run["requests"]
+    if not (isinstance(m, dict) and isinstance(s, dict) and isinstance(requests, list)):
+        raise ValueError("metadata, summary or requests has the wrong type")
+    arguments = m.get("arguments") if isinstance(m.get("arguments"), dict) else {}
+    for r in requests:
+        if not isinstance(r, dict) or "ok" not in r:
+            raise ValueError("a call record has no ok field")
+    for key in ("measurement_including_drain_s", "gpu_count"):
+        if not (isinstance(s.get(key), (int, float)) and s[key] > 0):
+            raise ValueError(f"summary.{key} is not a positive number")
+    rates = arguments.get("rates") if isinstance(arguments.get("rates"), list) else []
+    return {"source": str(path), "architecture": m["architecture"], "instance_type": m["instance_type"], "region": m["region"],
+            "evidence_scope": m["evidence_scope"], "model_revision": m["model_revision"], "shape": m["shape"]["name"],
+            "shape_sha256": hashlib.sha256(json.dumps(m["shape"], sort_keys=True).encode()).hexdigest(),
+            "seed": m.get("seed"), "rates": rates, "offered": s["offered_tasks_per_s"],
+            "duration_s": s["measurement_including_drain_s"], "gpu_count": s["gpu_count"],
+            "max_client_lag_ms": arguments.get("max_client_lag_ms"),
+            # As text, so a value of any type can be compared and shown; None means the file does not record it.
+            "settings": {k: None if v is None else str(v) for k, v in ((k, m.get(k) if k == "traffic_sha256" else arguments.get(k)) for k in PAIR_SETTINGS)},
+            "stored": s, "requests": requests}
 
 
-def load_rows(directories):
-    """An unreadable or incomplete file stops everything, unlike check_reproduces' per-file refusal."""
-    rows = []
-    for directory in directories:
-        files = sorted(Path(directory).glob('*-measured.json'))
-        if not files:
-            raise SystemExit(f'No measured files in {directory}; nothing was scored')
-        for path in files:
-            try:
-                run = json.loads(path.read_text())
-            except ValueError as exc:
-                raise SystemExit(f'{path}: not readable as JSON ({exc}); the ramp may still be writing it') from None
-            absent = [k for k in ('metadata', 'summary', 'requests') if k not in run]
-            if absent:
-                raise SystemExit(f"{path}: not a ramp result file, missing {', '.join(absent)}")
-            m, s = run['metadata'], run['summary']
-            arguments = m.get('arguments') or {}
-            missing = ([f'metadata.{k}' for k in REQUIRED_METADATA if k not in m]
-                       + [f'summary.{k}' for k in REQUIRED_SUMMARY + SUMMARY_KEYS if k not in s]
-                       + [f'metadata.arguments.{k}' for k in ARGUMENTS if arguments.get(k) is None])
-            if missing:
-                raise SystemExit(f"{path}: written by an older or different harness, missing {', '.join(missing)}; "
-                                 'score only ramps written by this revision of benchmark.py')
-            if m['phase'] != 'measured':
-                raise SystemExit(f"{path}: metadata.phase is {m['phase']!r}; only measured windows are scored")
-            bad = next((i for i, r in enumerate(run['requests']) if not all(k in r for k in REQUIRED_REQUEST)), None)
-            if bad is not None:
-                raise SystemExit(f"{path}: requests[{bad}] lacks one of {', '.join(REQUIRED_REQUEST)}")
-            if len(set(arguments['rates'])) != len(arguments['rates']):
-                raise SystemExit(f"{path}: metadata.arguments.rates repeats a rate ({arguments['rates']})")
-            rows.append({
-                'source': str(path), 'run': str(directory), 'ramp_id': arguments.get('ramp_id'),
-                'rates': list(arguments['rates']), 'architecture': m['architecture'], 'instance_type': m['instance_type'],
-                'region': m['region'], 'evidence_scope': m['evidence_scope'], 'model': m['model'],
-                'model_revision': m['model_revision'], 'shape': m['shape']['name'],
-                'shape_sha256': hashlib.sha256(json.dumps(m['shape'], sort_keys=True).encode()).hexdigest(),
-                'traffic_sha256': m.get('traffic_sha256'), 'seed': m['seed'],
-                'offered_window_s': arguments['duration_s'], 'offered_task_count': s.get('offered_task_count'),
-                'timeout_s': arguments['timeout_s'],
-                'context_length_tokens': arguments['context_length_tokens'],
-                'skip_warmup': arguments['skip_warmup'],
-                'stop_failure_fraction': arguments['stop_failure_fraction'],
-                'gpu_count': s['gpu_count'], 'offered': s['offered_tasks_per_s'],
-                'duration_s': s['measurement_including_drain_s'], 'attainment_target': s['attainment_target_fraction'],
-                'max_client_lag_ms': arguments['max_client_lag_ms'], 'stored': s, 'requests': run['requests'],
-                # Defaulted, not in ARGUMENTS: older files lack these and must still load.
-                'tpot_metric': arguments.get('tpot_metric', 'mean'),
-                'ttft_metric': s.get('ttft_metric', 'per-call'),
-                'schema_version': m.get('schema_version'),
-            })
-    return rows
+def score(row, ttft_ms, tpot_ms, attainment, tpot_metric="mean", ttft_metric="per-call"):
+    """summarize() and the client check for a loaded row, at the given objective and modes."""
+    records = row["requests"]
+    s = summarize(records, row["duration_s"], row["gpu_count"], ttft_ms, tpot_ms, attainment, row["offered"],
+                  sum(r.get("sent", False) for r in records) / row["duration_s"], tpot_metric, ttft_metric)
+    return client_check(s, row["max_client_lag_ms"], row["stored"].get("client_valid"))
 
 
-def score(row, ttft_ms, tpot_ms, attainment, tpot_metric=None, ttft_metric=None):
-    """summarize() for a loaded row; None keeps the mode the row was recorded with."""
-    stored = row['stored']
-    # Stored start skew is replayed so a merged run's verdict reproduces.
-    tolerance = stored.get('start_skew_tolerance_ms')
-    return summarize(row['requests'], row['duration_s'], row['gpu_count'], ttft_ms, tpot_ms, attainment,
-                     row['offered'], row['max_client_lag_ms'], tpot_metric or row['tpot_metric'],
-                     stored.get('start_skew_ms'), 500.0 if tolerance is None else tolerance,
-                     ttft_metric or row['ttft_metric'])
-
-
-def score_factory_for(definition, ttft_metric=None):
+def score_factory_for(definition, ttft_metric="per-call"):
     """A score(row, ttft_ms, tpot_ms, attainment) fixed to one TPOT rule and TTFT mode."""
     return lambda row, ttft, tpot, att: score(row, ttft, tpot, att, tpot_metric=definition, ttft_metric=ttft_metric)
 
 
 def check_reproduces(row):
-    """Refuse a file whose stored summary does not come back from its own requests at its recorded
-    objective, before any other objective is applied to it."""
-    stored = row['stored']
-    again = score(row, stored['slo_ttft_ms'], stored['slo_tpot_ms'], stored['attainment_target_fraction'])
-    # Checked when present, so a corrupted descriptive field fails too; older files lack them.
-    optional = ('unreachable_calls', 'tpot_metric', 'ttft_metric', 'itl_ms_p50', 'itl_ms_p95', 'itl_ms_p99',
-                'p95_ttft_ms_success_only', 'p99_ttft_ms_success_only',
-                'worst_itl_ms_p50', 'worst_itl_ms_p90', 'worst_itl_ms_p95', 'worst_itl_ms_p99', 'worst_itl_ms_p999',
-                'start_skew_ms', 'start_skew_tolerance_ms',
-                'gap_count', 'gap_ms_p99', 'longest_gap_ms_p50', 'longest_gap_ms_p90',
-                'gap_above_bound_fraction', 'gap_data_available')
-    for key in SUMMARY_KEYS + tuple(k for k in optional if k in stored):
-        if again[key] != stored[key]:
-            raise SystemExit(f"{row['source']}: re-scoring at the recorded objective changed {key} "
-                             f"({stored[key]} -> {again[key]}); refusing to report")
-
-
-def _fmt_rates(xs):
-    return ', '.join(f'{x:g}' for x in xs)
-
-
-def check_runs(group):
-    """Refuse files that one ramp invocation could not have written."""
-    seen = {}
-    for row in group:
-        key = (row['architecture'], row['offered'], row['seed'])
-        if key in seen:
-            raise SystemExit(f"{row['source']} and {seen[key]} share architecture, rate and seed; "
-                             'a repeat needs another --seed, and each run is passed once')
-        seen[key] = row['source']
-    for run in sorted({row['run'] for row in group}):
-        rows = [row for row in group if row['run'] == run]
-        if len({(row['architecture'], row['seed'], tuple(row['rates']), row['ramp_id']) for row in rows}) != 1:
-            raise SystemExit(f'{run}: files from more than one ramp invocation; give each ramp its own output directory')
-        order, ran = rows[0]['rates'], {row['offered']: row for row in rows}
-        done = order[:len(ran)]
-        if set(done) != set(ran):
-            raise SystemExit(f'{run}: measured {_fmt_rates(sorted(ran))} of {_fmt_rates(order)} tasks/s run in that order; '
-                             'a ramp with a skipped rate is not comparable')
-        stopped = [x for x in done if stops_ramp(ran[x]['stored'], rows[0]['stop_failure_fraction'])]
-        if stopped and stopped[0] != done[-1]:
-            raise SystemExit(f'{run}: the ramp stopped at {stopped[0]:g} tasks/s, yet the directory also holds later rates; '
-                             'give each ramp its own output directory')
-        if done != order and not stopped:
-            raise SystemExit(f'{run}: ended at {done[-1]:g} of {_fmt_rates(order)} tasks/s without exceeding its failure fraction, '
-                             'so the ramp was interrupted; rerun it')
-        below = sorted(x for x in order[len(done):] if x < done[-1])
-        if below:
-            raise SystemExit(f'{run}: stopped at {done[-1]:g} tasks/s before the lower rates {_fmt_rates(below)}; '
-                             'only rates above a stop count as misses, so rerun those rates')
-
-
-def check_matched(shape, group):
-    hashed = [bool(row['traffic_sha256']) for row in group]
-    keys = RAMP_MATCHED + ('traffic_sha256',)
-    if not any(hashed):
-        keys = RAMP_MATCHED
-        print(f'{shape}: these runs predate the traffic hash; compared on the shape definition only')
-    elif not all(hashed):
-        raise SystemExit(f'{shape}: some runs record a traffic hash and some do not; score runs from one harness revision')
-    for key in keys:
-        values = {row['source']: row[key] for row in group}
-        if len(set(values.values())) != 1:
-            raise SystemExit(f'{shape}: runs differ in {key}: ' + ', '.join(f'{source} has {value}' for source, value in sorted(values.items()))
-                             + '; compare one budget, one workload and one ramp protocol at a time')
-
-
-def check_completeness(shape, group):
-    """Enough for a qualifying rate; a promise map also needs matched_protocol to agree."""
-    check_matched(shape, group)
-    check_runs(group)
-    return sorted({row['architecture'] for row in group})
-
-
-def matched_protocol(group, archs):
-    """{arch: sorted (seed, rates) pairs}."""
-    return {a: sorted({(row['seed'], tuple(row['rates'])) for row in group if row['architecture'] == a}) for a in archs}
-
-
-def availability_by_arch(rows_by_arch, definitions=TPOT_METRICS):
-    """{(arch, definition): bool}; a gap rule needs complete chunk data on every row of the arch."""
-    return {(arch, d): (d == 'mean' or all(gap_data_available(r['requests']) for r in rows))
-            for arch, rows in rows_by_arch.items() for d in definitions}
+    """ValueError when the file's stored summary does not come back from its own call records at the objective it
+    recorded (mean, per-call): the records and the summary disagree, so the file cannot be interpreted."""
+    stored = row["stored"]
+    again = score(row, stored["slo_ttft_ms"], stored["slo_tpot_ms"], stored["attainment_target_fraction"])
+    for key in ORIGINAL_SUMMARY_KEYS:
+        if key in stored and again[key] != stored[key]:
+            raise ValueError(f"its call records give {key} {again[key]}, its stored summary {stored[key]}")

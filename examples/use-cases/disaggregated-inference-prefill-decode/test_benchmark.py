@@ -10,7 +10,7 @@ from http.server import ThreadingHTTPServer
 from pathlib import Path
 import httpx
 import benchmark
-from benchmark import ramp, run_rate, stream_request
+from benchmark import run_rate, stream_request
 from scoring import gap_data_available
 from test_lab import StreamHandler
 
@@ -33,7 +33,6 @@ class BenchmarkTests(unittest.TestCase):
         self.assertTrue(result['ok'])
         self.assertEqual([c['n'] for c in result['chunks']], [1, 3])
         self.assertLess(result['chunks'][0]['t_ms'], result['chunks'][1]['t_ms'])
-        self.assertEqual(result['max_gap_ms'], result['chunks'][1]['t_ms'] - result['chunks'][0]['t_ms'])
 
     def test_calls_skipped_after_a_failed_first_turn_keep_the_rate_judgeable_under_the_gap_rules(self):
         async def failed(*_):
@@ -73,22 +72,14 @@ class BenchmarkTests(unittest.TestCase):
         self.assertEqual([r.get('error') for r in first_task], ['Context budget exceeded', 'Skipped after failed predecessor'])
         self.assertTrue(gap_data_available(records))
 
-    def test_a_ramp_into_a_directory_with_ramp_files_stops_before_reading_traffic(self):
-        with tempfile.TemporaryDirectory() as d:
-            (Path(d) / '1-measured.json').write_text('{}')
-            args = argparse.Namespace(output=d, traffic=str(Path(d) / 'missing.json'))
-            with self.assertRaises(SystemExit) as cm:
-                asyncio.run(ramp(args))
-            self.assertIn('already holds ramp files', str(cm.exception))
-
     def test_a_repeated_rate_is_rejected_before_any_traffic(self):
         with tempfile.TemporaryDirectory() as d:
             done = subprocess.run([sys.executable, '4.ramp.py', '--traffic', str(Path(d) / 'missing.json'), '--url', 'http://127.0.0.1:9',
                                    '--output', d, '--architecture', 'unified', '--instance-type', 'test', '--region', 'test',
-                                   '--evidence-scope', 'local-mock', '--gpus', '1', '--rates', '1', '1'],
+                                   '--evidence-scope', 'local-mock', '--gpus', '1', '--rates', '1', '2', '1.0000001'],
                                   capture_output=True, text=True)
             self.assertEqual(done.returncode, 2)
-            self.assertIn('--rates has a repeated value', done.stderr)
+            self.assertIn('--rates names one rate twice', done.stderr)
             self.assertEqual(list(Path(d).iterdir()), [])
 
 

@@ -7,7 +7,7 @@ import random
 import time
 import uuid
 import httpx
-from scoring import SCHEMA_VERSION, stops_ramp, summarize, worst_itl_ms
+from scoring import client_check, summarize
 from traffic import initial_prompt, continuation, tokenizer
 
 
@@ -55,14 +55,11 @@ async def stream_request(client, url, input_ids, output_tokens, timeout_s):
     ended = time.perf_counter()
     # Stream chunks can contain multiple tokens. Record that limitation explicitly.
     token_intervals = result["output_tokens"] - first_count
-    kept_chunks = chunks if result["ok"] else []
     result.update(ttft_ms=None if first is None else (first - started) * 1000,
                   tpot_ms=None if token_intervals <= 0 else (last_token - first) * 1000 / token_intervals,
                   latency_ms=(ended - started) * 1000, first_chunk_tokens=first_count,
                   cached_tokens=meta.get("cached_tokens"), text=text,
-                  chunks=kept_chunks,
-                  max_gap_ms=worst_itl_ms({"chunks": kept_chunks}),
-                  n_gaps=max(0, len(kept_chunks) - 1))
+                  chunks=chunks if result["ok"] else [])
     return result
 
 
@@ -114,22 +111,18 @@ async def run_rate(data, a, rate, phase, tok):
                 records.append(row)
         await asyncio.gather(*(task(i, t) for i, t in enumerate(arrivals)))
     elapsed = max(a.duration_s, time.perf_counter() - start)
-    summary = summarize(records, elapsed, a.gpus, a.ttft_slo_ms, a.tpot_slo_ms, a.attainment_fraction, rate, a.max_client_lag_ms)
+    summary = summarize(records, elapsed, a.gpus, a.ttft_slo_ms, a.tpot_slo_ms, a.attainment_fraction, rate, sum(r["sent"] for r in records) / elapsed)
     summary["offered_window_s"] = a.duration_s
     summary["offered_task_count"] = len(arrivals)
-    traffic_sha256 = hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()
-    # Every record carries "chunks" ([] on a failed call); scoring.chunks_recorded tests the key.
-    return {"metadata": {"schema_version": SCHEMA_VERSION, "architecture": a.architecture, "instance_type": a.instance_type, "region": a.region, "evidence_scope": a.evidence_scope, "model": data["model"], "model_revision": data["revision"], "shape": data["shape"], "traffic_sha256": traffic_sha256, "phase": phase, "seed": a.seed, "run_nonce": nonce, "arguments": vars(a)}, "summary": summary, "requests": records}
+    client_check(summary, a.max_client_lag_ms)
+    return {"metadata": {"architecture": a.architecture, "instance_type": a.instance_type, "region": a.region, "evidence_scope": a.evidence_scope, "model": data["model"], "model_revision": data["revision"], "shape": data["shape"], "traffic_sha256": hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest(), "phase": phase, "seed": a.seed, "run_nonce": nonce, "arguments": vars(a)}, "summary": summary, "requests": records}
 
 
 async def ramp(a):
-    out = Path(a.output)
-    if any(out.glob("*.json")):
-        raise SystemExit(f"{out} already holds ramp files; give each ramp invocation its own --output directory")
     data = json.loads(Path(a.traffic).read_text())
     tok = tokenizer(data["model"], data["revision"])
+    out = Path(a.output)
     out.mkdir(parents=True, exist_ok=True)
-    a.ramp_id = uuid.uuid4().hex
     for rate in a.rates:
         if not a.skip_warmup:
             warm = await run_rate(data, a, rate, "warmup", tok)
@@ -137,6 +130,6 @@ async def ramp(a):
         measured = await run_rate(data, a, rate, "measured", tok)
         (out / f"{rate:g}-measured.json").write_text(json.dumps(measured, indent=2))
         print(json.dumps({"metadata": measured["metadata"], "summary": measured["summary"]}), flush=True)
-        if stops_ramp(measured["summary"], a.stop_failure_fraction):
+        if measured["summary"]["failed_or_skipped_calls"] / max(1, measured["summary"]["planned_calls"]) > a.stop_failure_fraction:
             print("Ramp stopped at configured failure fraction; failures remain in attainment denominator.", flush=True)
             break
