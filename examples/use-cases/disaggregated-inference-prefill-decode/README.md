@@ -83,14 +83,16 @@ mkdir -p rendered
 
 ## Check the example end to end
 
-This block checks that the example works on your allocation, from a fresh clone to cleanup, in one paste. It runs the unit tests, deploys the unified stack and measures shape B at 0.5 and 1 tasks/s for 20 seconds each, does the same for the disaggregated stack, runs `5.collect.py` on both sets of ramp files, and deletes the lab namespace. It takes 10 to 30 minutes on two `g7.48xlarge` nodes, most of it waiting for the model servers to load; the shorter time is with the images and model already cached on the nodes.
+This block checks that the example works on your allocation, from a fresh clone to cleanup, in one paste. It runs the unit tests, deploys the unified stack and measures shape B at 0.5 and 1 tasks/s for 20 seconds each after a warmup of the same length, does the same for the disaggregated stack, runs `5.collect.py` on both sets of ramp files, and deletes the lab namespace. It takes 8 to 30 minutes on two `g7.48xlarge` nodes, most of it waiting for the model servers to load; the shorter time is with the images and model already cached on the nodes.
 
-Set the variables at the top for your environment. `LAB_CONFIG` is a filled-in `config.json` (see "Prepare the image and configuration"); the block reads the Kubernetes context, the namespace, the instance type and the GPU count per stack (two workers of `gpus_per_worker` each) from it, and your kubeconfig must reach that context. `LAB_REGION` is the AWS Region recorded with each ramp file. `LAB_PORT` is a local port that no other program is listening on. The block stops at the first failing step: another program already listens on `LAB_PORT`, the port-forward exits, the router does not answer `/generate`, or a ramp completed no call. After a failure the lab namespace stays up for inspection; paste the block again from the top to retry (it removes `LAB_WORKDIR`, and each deployment replaces the lab's previous one), or delete the namespace with `python3 deployment.py cleanup --config config.json`.
+Set the variables at the top for your environment. `LAB_CONFIG` is a filled-in `config.json` (see "Prepare the image and configuration"); the block reads the Kubernetes context, the namespace, the instance type and the GPU count per stack (two workers of `gpus_per_worker` each) from it, and your kubeconfig must reach that context. `LAB_REGION` is the AWS Region recorded with each ramp file. `LAB_PORT` is a local port that no other program is listening on. The block stops at the first failing step: another program already listens on `LAB_PORT`, the port-forward has exited before a ramp, the router does not answer `/generate`, or a ramp stopped before 1 task/s or completed no call. After a failure the lab namespace stays up for inspection; paste the block again from the top to retry (it removes `LAB_WORKDIR`, and each deployment replaces the lab's previous one), or delete the namespace with `cd "$LAB_WORKDIR/examples/use-cases/disaggregated-inference-prefill-decode" && python3 deployment.py cleanup --config config.json`.
+
+The block was checked with `gpus_per_worker` set to 4 and `efa_per_worker` set to 1 on two `g7.48xlarge` nodes.
 
 ```bash
 export LAB_REPO=https://github.com/awslabs/awsome-distributed-ai.git
-export LAB_BRANCH=feat/disagg-gap-verdicts
-export LAB_WORKDIR="$HOME/aim345-pr1-test"
+export LAB_BRANCH=riv2026/aim345-content
+export LAB_WORKDIR="$HOME/aim345-lab-check"
 export LAB_CONFIG="$HOME/config.json"
 export LAB_REGION=us-west-2
 export LAB_PORT=18000
@@ -127,7 +129,7 @@ wait_router
 kill -0 $PF
 python3 3.generate-long-context.py --output traffic/b.json
 python3 4.ramp.py --traffic traffic/b.json --url "http://127.0.0.1:$LAB_PORT" --architecture unified --instance-type "$LAB_INSTANCE_TYPE" --region "$LAB_REGION" --evidence-scope mechanism-validation --gpus "$LAB_GPUS" --rates 0.5 1 --duration-s 20 --output results/unified-b
-check_completed results/unified-b/*-measured.json
+check_completed results/unified-b/0.5-measured.json results/unified-b/1-measured.json
 kill $PF
 wait $PF 2> /dev/null || true
 python3 deployment.py disaggregated --config config.json
@@ -139,7 +141,7 @@ PF=$!
 wait_router
 kill -0 $PF
 python3 4.ramp.py --traffic traffic/b.json --url "http://127.0.0.1:$LAB_PORT" --architecture disaggregated --instance-type "$LAB_INSTANCE_TYPE" --region "$LAB_REGION" --evidence-scope mechanism-validation --gpus "$LAB_GPUS" --rates 0.5 1 --duration-s 20 --output results/disaggregated-b
-check_completed results/disaggregated-b/*-measured.json
+check_completed results/disaggregated-b/0.5-measured.json results/disaggregated-b/1-measured.json
 kill $PF
 wait $PF 2> /dev/null || true
 python3 5.collect.py --runs results/unified-b results/disaggregated-b --output results/e2e-collected
@@ -268,7 +270,25 @@ python3 4.ramp.py --traffic traffic/b.json --url http://127.0.0.1:8000 --archite
 python3 5.collect.py --config config.json --runs results/unified-a results/unified-b --output results/unified-evidence
 ```
 
-These rates and durations are starting settings, not observed crossover points. Each rate has a discarded warmup run followed by a measured run. All requests drain before the next rate starts; failures and timeouts remain in the result. Warmup uses the same traffic shape and offered rate. Extend the measurement window and repeat rates in reversed order before describing a rate as sustained.
+These rates and durations are starting settings, not observed crossover points. Each rate has a discarded warmup run followed by a measured run. All requests drain before the next rate starts; failures and timeouts remain in the result. Warmup uses the same traffic shape and offered rate. Extend the measurement window and repeat rates in reversed order before describing a rate as sustained. To repeat a ramp with another arrival pattern, give it a new `--output` and the same new `--seed` on both stacks, for example with the rates reversed, while the unified stack is deployed and port-forwarded:
+
+```bash
+python3 4.ramp.py --traffic traffic/b.json --url http://127.0.0.1:8000 --architecture unified --instance-type "$LAB_INSTANCE_TYPE" --region "$LAB_REGION" --evidence-scope mechanism-validation --gpus "$LAB_GPUS" --rates 8 4 2 1 0.5 0.25 --duration-s 30 --stop-failure-fraction 1 --seed 1001 --output results/unified-b-seed1001
+```
+
+While the disaggregated stack is deployed and port-forwarded:
+
+```bash
+python3 4.ramp.py --traffic traffic/b.json --url http://127.0.0.1:8000 --architecture disaggregated --instance-type "$LAB_INSTANCE_TYPE" --region "$LAB_REGION" --evidence-scope mechanism-validation --gpus "$LAB_GPUS" --rates 8 4 2 1 0.5 0.25 --duration-s 30 --stop-failure-fraction 1 --seed 1001 --output results/disaggregated-b-seed1001
+```
+
+Once Round 1 below has written `results/disaggregated-b`, collect all four directories. A stack's qualifying rate is the highest rate at which any of its files meets the objective; to see whether a rate also held in the reversed ramp, compare that rate's rows for the two seeds (the `seed` column) in `summary.csv`. The two rows differ in both the order and the arrival pattern. `--stop-failure-fraction 1` keeps a reversed ramp from stopping at its first, heaviest rate before it reaches the lighter ones:
+
+```bash
+python3 5.collect.py --runs results/unified-b results/unified-b-seed1001 results/disaggregated-b results/disaggregated-b-seed1001 --output results/comparison-2-seeds
+```
+
+A rerun into the same `--output` replaces the files of the rates it completes; a heavier rate it does not reach keeps its earlier file, so move that file away first if it should not count. When calls of a rate could not connect (`report.html` and the `unreachable_calls` column of `summary.csv` count them), rerun the ramp from that rate into the same `--output` this way.
 
 For Round 1, stop the port-forward command, deploy disaggregation, wait for each engine and router, then restart port forwarding:
 
@@ -361,7 +381,9 @@ Restart port forwarding after the router changes. Repeat the shape B ramp with `
 
 ## Read the measurements and locate the crossover
 
-`summary.csv` has one row per measured rate and TPOT definition and records hardware, evidence scope, offered task rate, actual call rate, successful-call throughput, useful-call throughput, GPU-normalized useful throughput, joint SLO attainment, and successful-request latency percentiles. Useful throughput is calls satisfying both latency bounds divided by the full interval including drain. Failed requests, truncated streams, timeouts, and skipped dependent calls contribute no useful work and stay in the attainment denominator. Successful-request percentiles alone can hide failures. Average TPOT comes from server token counts and client stream timing; chunks containing several tokens limit per-token resolution.
+Read `report.html` first; `summary.csv` and `qualified-rates.json` hold the results per file and per group (see "5.collect.py's output").
+
+`summary.csv` records hardware, evidence scope, offered task rate, actual call rate, successful-call throughput, useful-call throughput, GPU-normalized useful throughput, joint SLO attainment, and successful-request latency percentiles. Useful throughput is calls satisfying both latency bounds divided by the full interval including drain. Failed requests, truncated streams, timeouts, and skipped dependent calls contribute no useful work and stay in the attainment denominator. Successful-request percentiles alone can hide failures. Under `--ttft-metric p95` or `p99`, every completed call passes the TTFT side, and in the `itl_p99_` columns every call that passes the TTFT side passes the TPOT side; in both cases the file passes only when the file's percentile is within its bound. Average TPOT comes from server token counts and client stream timing; chunks containing several tokens limit per-token resolution.
 
 The harness never caps concurrent tasks to hide overload. `max_client_launch_lag_ms` detects controller-side scheduling lag; excessive lag marks the rate invalid. For agentic traffic, later calls depend on earlier responses, so the offered task rate and realized call rate differ. The highest tested qualifying rate is a finite-window observation. Extend runs and inspect queue growth before calling it sustained goodput capacity.
 
@@ -369,119 +391,32 @@ For Round 3, edit one factor at a time in a copy of the shape JSON and regenerat
 
 The session budget is framing for 5 minutes, Round 0 for 12 minutes, Round 1 for 15 minutes, Round 2 for 13 minutes, Round 3 for 8 minutes, and wrap-up for 5 minutes, leaving 2 minutes for transitions. These are teaching allocations. Image preparation, model loading, and the full benchmark sweep belong in rehearsal. Round 3 can use a guided comparison of measurements already collected if time is short.
 
-## Three TPOT definitions
+## How the results are judged
 
-Every ramp records each call's own TTFT, average TPOT, and the arrival time and token count of each chunk a completed call received, so a stored run can be judged under three senses of "TPOT" without new traffic. Gaps are taken only from completed calls; a stream broken partway through says nothing reliable about the gaps inside it.
-
-| Definition | What it judges | Compares with |
-|---|---|---|
-| `mean` (default) | A request's own averaged TPOT: `(last_chunk_ts - first_chunk_ts) / (output_tokens - first_chunk_tokens)`. Must be `<=` the bound for that request to count as good. | Closest to a simple end-to-end-latency read; most sensitive to a few very fast or very slow responses averaging out. |
-| `itl-p99` | Every per-chunk gap of the seed at that rate, divided by its new-token count and repeated once per token -- the same pooled construction `sglang.bench_serving --backend sglang` reports as ITL -- pooled and its p99 checked once per rate. A request only has to pass TTFT to count as good; TPOT is not a per-request test. | Closest to `sglang.bench_serving`'s own ITL metric, with a nearest-rank percentile (`scoring.percentile`) rather than `vllm bench serve`'s interpolated one. |
-| `worst-itl` | A request's own single longest gap between two consecutive chunks, not divided by token count: a chunk that batches several tokens after a long stall is one real pause, not several short ones averaged away. Must be `<=` the bound for that request to count as good -- a per-request test, like `mean`, but on the worst gap instead of the average. | Catches a response that stalled badly once even though its average TPOT looked fine; `mean` and `itl-p99` can both pass a request `worst-itl` fails. |
-
-A seed at a rate qualifies only once at least `--attainment-fraction` (default 0.9) of its *planned* calls are good under the chosen definition -- failed, truncated and skipped calls stay in that denominator. A ramp file without per-chunk records, or whose successful calls do not all carry them, is reported as `unavailable` under `itl-p99` and `worst-itl` rather than approximated; `mean` still scores it.
-
-## How a qualifying rate and its goodput are computed
-
-Each rule's own per-call or per-seed test, next to the function that implements it:
-
-| Rule | What a call (or seed) must do to count as good | Function |
-|---|---|---|
-| `mean` | That call's own averaged TPOT `<=` the bound. | `scoring.summarize`'s `tpot_ok`, reading `tpot_ms` |
-| `itl-p99` | Not a per-call test: every per-chunk gap of the seed at that rate, divided by its new-token count, is pooled (`scoring.pooled_itls_ms`) and the pool's nearest-rank p99 (`scoring.percentile`) must be `<=` the bound; a call only needs a passing TTFT to count as good. | `scoring.pooled_itls_ms`, `scoring.percentile` |
-| `worst-itl` | That call's own single longest raw gap between two chunks (not divided by token count) `<=` the bound. | `scoring.worst_itl_ms` |
-
-`scoring.summarize`'s `slo_attainment_fraction` is the share of a seed's *planned* calls (not only completed ones) that were good under the chosen rule; a seed at a rate qualifies once that fraction reaches `--attainment-fraction` (default 0.9). A rate qualifies when every seed that ran it qualified and every lower planned rate also qualified (`scoring.highest_qualifying`); a rate the ramp stopped before reaching counts as failing.
-
-Goodput at a qualifying rate is `useful_calls_per_s_per_gpu`: calls that are good under the chosen rule, divided by the measurement window including drain, divided by the GPU count. Under `mean` and `worst-itl` a good call passed TTFT and its own TPOT or longest-gap test; under `itl-p99` every TTFT-passing call counts, at a rate whose pooled p99 met the bound.
-
-## Worked example: three verdicts and goodput by hand
-
-This walks one rate, one seed, through `scoring.py` by hand, using four made-up responses rather than a real measurement. The target in this example is TTFT `<=` 2,000 ms, TPOT `<=` 100 ms, and at least 90% of calls good.
-
-**Four responses.** `benchmark.py` records each chunk's arrival time and the number of new tokens it carried:
-
-| Response | TTFT (ms) | Chunk gaps, with the tokens each chunk carried |
-|---|---|---|
-| R1 | 500 | 20 ms (1 token) x 4 |
-| R2 | 600 | 20 ms (1 token) x 19, then one 640 ms gap (1 token) |
-| R3 | 2,500 | 20 ms (1 token) x 4 |
-| R4 | 400 | 20 ms (1 token) x 10, then one 200 ms gap (4 tokens) |
-
-R2's 640 ms gap is one chunk arriving late after many fast ones. R4's 200 ms gap arrives as a single chunk carrying four tokens at once -- the stall produced one chunk, not four.
-
-**Step 1 -- is each call good under each rule?** Every rule requires TTFT `<=` 2,000 ms first; only R3 fails that gate. Above that gate, the three rules read TPOT differently:
-
-| Rule | What it reads | R1 | R2 | R3 | R4 |
-|---|---|---|---|---|---|
-| `mean` | `(last_chunk_ts - first_chunk_ts) / (output_tokens - first_chunk_tokens)`; each response's first chunk carries 1 token here, so this reads `(output_tokens - 1)` | 80/4 = 20 ms, good | (19x20+640)/20 = 51 ms, good | fails TTFT | (10x20+200)/14 ~ 29 ms, good |
-| `worst-itl` (`scoring.worst_itl_ms`) | the single longest raw gap, not divided by that chunk's token count | 20 ms, good | 640 ms > 100, fails | fails TTFT | 200 ms > 100, fails |
-| `itl-p99` | no per-call test here; TTFT passing is enough. TPOT is judged once per seed, in step 2 | good | good | fails TTFT | good |
-
-`mean` divides R2's 640 ms stall and R4's 200 ms stall across their surrounding fast gaps, so both average out to a passing TPOT. `worst-itl` takes R4's 200 ms gap un-divided, as the one real pause the caller waited through, which is why it fails there even though `mean` passes it.
-
-**Step 2 -- does the seed qualify at this rate?** `scoring.summarize`'s `slo_attainment_fraction` is good calls divided by *planned* calls, including any that failed or never ran, checked against `--attainment-fraction` (default 0.9). Say this seed planned 10 calls at this rate and got back responses shaped like R1 x 6, R2 x 2, R4 x 1, R3 x 1:
-
-| Rule | Good calls | Fraction | Qualifies? |
-|---|---|---|---|
-| `mean` | R1 x 6 + R2 x 2 + R4 x 1 = 9 | 9/10 = 90% | yes |
-| `worst-itl` | R1 x 6 = 6 | 6/10 = 60% | no |
-
-`itl-p99` is judged differently, over the same 10-call seed as the attainment table above (R1 x 6, R2 x 2, R4 x 1, R3 x 1), not a per-call test. `scoring.pooled_itls_ms` pools every chunk gap from every *completed* call in that seed -- R3 counts too, since it finished; only its TTFT failed -- dividing each gap by its chunk's token count and repeating it once per token, the same construction `sglang.bench_serving --backend sglang` reports as ITL. Pooling R1's 6 copies, R2's 2, R4's 1 and R3's 1 gives 76 values of 20 ms, 4 values of 50 ms (R4's 200 ms gap split across its 4 tokens), and 2 values of 640 ms (R2's two calls): 82 values in all. `scoring.percentile`'s nearest-rank p99 sits at position `ceil(82 x 0.99) = 82`, the single largest value, 640 ms -- over the 100 ms bound, so `itl-p99` fails here too. A much larger pool with that same kind of rare stall diluted among far more fast gaps would push it past the 99th-percentile position and let p99 pass: a long stall drops out of the 99th percentile once enough other traffic is pooled with it. An `itl-p99` seed qualifies only when both this pooled p99 and the 90% attainment on TTFT-passing calls hold.
-
-**Step 3 -- does the rate qualify?** `scoring.highest_qualifying` walks rates from lowest to highest and takes the last one where every seed that ran it qualified and every lower rate also qualified; a rate with no file at all, because the ramp stopped early, fails exactly like a rate whose file failed.
-
-| Rate (tasks/s) | seed 345 | seed 1001 | seed 1002 | This rate |
-|---|---|---|---|---|
-| 0.25 | pass | pass | pass | qualifies |
-| 0.5 | pass | pass | pass | qualifies |
-| 1 | pass | fail | pass | fails -- walk stops here |
-| 2 | pass | pass | pass | not read (a lower rate already failed) |
-
-The qualifying rate here is 0.5, even though every seed passed at rate 2: rate 1 failing underneath it is enough to disqualify it.
-
-**Step 4 -- what goodput looks like, by rule.** `useful_calls_per_s_per_gpu` is good calls at a qualifying rate, divided by the measurement window (including drain), divided by GPU count. Reusing the step-2 counts (9 good under `mean`, 6 under `worst-itl`, 9 TTFT-passing under `itl-p99`) with a 22 s window and 4 GPUs:
-
-| Rule | Good calls | `useful_calls_per_s_per_gpu` |
-|---|---|---|
-| `mean` | 9 | 9/22/4 ~ 0.102 |
-| `worst-itl` | 6 | 6/22/4 ~ 0.068 |
-| `itl-p99` | 9 (every TTFT-passing call; not a per-call TPOT subset) | 9/22/4 ~ 0.102 |
-
-On this made-up seed, only `mean` actually qualifies this rate: step 2 showed `worst-itl` at 60% attainment (below the 90% target) and `itl-p99`'s pooled p99 at 640 ms (over the 100 ms bound). The `worst-itl`/`itl-p99` rows above show how the formula computes from the same counts, not a goodput this toy rate actually earned under those two rules -- `5.collect.py`/`report.html` only ever report this figure for a rule a rate qualified under.
-
-**A file with no or incomplete chunk recording.** `itl-p99` and `worst-itl` report such a file as `unavailable` rather than scoring it as zero; `mean` still scores it.
+`5.collect.py` judges every measured file under three TPOT rules, `mean`, `itl-p99` and `worst-itl`, and takes each stack's qualifying rate and goodput under each rule. The definitions are in `report.html` (select an underlined term) and in the docstrings of `scoring.summarize` and `scoring.highest_qualifying`.
 
 ## Score against another objective
 
-`5.collect.py` judges every file at the objective `4.ramp.py` recorded with it. To read the same stored runs at another objective, give any of `--ttft-slo-ms`, `--tpot-slo-ms`, `--attainment-fraction` and `--ttft-metric` (`per-call`, `p95` or `p99`); the values not given stay as recorded. No traffic is sent:
+`5.collect.py` judges every file at the objective `4.ramp.py` recorded with it. To judge the same stored runs at another objective, give any of `--ttft-slo-ms`, `--tpot-slo-ms`, `--attainment-fraction` and `--ttft-metric` (`per-call`, `p95` or `p99`); the values not given stay as recorded, and no traffic is sent. Under `p95` or `p99`, every completed call passes the TTFT side, and that percentile of the completed calls' TTFT, for each measured file, must be within the TTFT bound. For example, at a 30 ms TPOT bound, and with TTFT judged as p95:
 
 ```bash
 python3 5.collect.py --runs results/unified-b results/disaggregated-b --tpot-slo-ms 30 --output results/tpot-30
+python3 5.collect.py --runs results/unified-b results/disaggregated-b --ttft-metric p95 --output results/ttft-p95
 ```
 
-`report.html` states whether its objective was recorded with the runs or given on the command line, and its promise maps still cover the whole `--ttft-ms` x `--tpot-ms` grid.
+`summary.csv`, `qualified-rates.json` and `report.html` are then computed at the given objective, and `summary.csv` and `report.html` say so (`objective_given_on_command_line`); the `*-measured.json` files keep the summary recorded when they were measured.
 
 ## 5.collect.py's output
 
-`5.collect.py` reads the `*-measured.json` files under each `--runs` directory, scores each one under `mean`, `itl-p99` and `worst-itl` at the objective it was recorded with (or one given on the command line, see "Score against another objective"), and writes `summary.csv` and `qualified-rates.json` into `--output`, plus `report.html` when at least one shape was measured on both `unified` and `disaggregated` with the same seeds and planned rates and `--no-report` is not given. It sends no traffic.
+`5.collect.py` reads the `*-measured.json` files under each `--runs` directory and writes `summary.csv` and `qualified-rates.json` into `--output`, plus `report.html` with a promise map for each unified and disaggregated group that share instance type, Region, evidence scope, model revision, traffic shape, GPU count and objective, unless `--no-report` is given. It sends no traffic.
 
 | File | One row or entry is | What it holds | Read it to |
 |---|---|---|---|
-| `summary.csv` | One measured file (one stack, seed and rate) under one TPOT definition. Two stacks measured at two rates with one seed give 12 rows. | `shape`, `stack`, `seed`, `rate`, `definition`, `source` first; then that row's verdict (`meets_joint_slo`), the share of planned calls that counted as good (`slo_attainment_fraction`) and goodput (`useful_calls_per_s_per_gpu`) -- under `itl-p99` both count every call that passed TTFT, and the pooled p99 enters only the verdict; then the file's identity, the bounds it was judged at, and every latency, gap and validity statistic of that file. | See why one seed at one rate passed or failed under one definition, and trace the row back to its file. Filter on `definition` to read one definition at a time. |
-| `qualified-rates.json` | One stack's result for one shape under one TPOT definition, under `by_definition`. | The qualifying rate (`highest_qualifying_offered_tasks_per_s`) and the goodput at that rate (`useful_calls_per_s_per_gpu`); the objective each shape was judged at (`objectives_by_shape`); and the reason for any shape that could not be scored (`refused`). A rate of `null` means the stack qualified at no measured rate, so there is no goodput either. | Get one number per stack and definition: how much load the stack took inside the objective, and how much of it was useful. |
-| `report.html` | One page, with one section per shape measured on both `unified` and `disaggregated` with the same seeds and planned rates. | In order: the answer (each stack's qualifying rate and goodput under each definition, in one sentence per definition), what was measured (stacks, shape, rates, seeds, GPUs, instance type, objective), the verdict table, one promise map per definition over the `--ttft-ms` x `--tpot-ms` grid (see "The promise map and its two walls"), and the evidence table with one row per stack, rate and seed. Selecting a promise-map cell shows both stacks' qualifying rate and goodput at that objective. Selecting an underlined term opens its definition, with a diagram for the latency, attainment, qualifying-rate and goodput terms. | See the comparison at a glance, and how the winner changes when the objective is tighter or looser. |
+| `summary.csv` | One measured file (one stack, seed and rate). | The original columns at the objective in use, judged by the mean rule; `useful_calls_per_s_per_gpu` is the file's figure whether or not the rate qualified. Then statistics for the gap rules and the TTFT percentiles, `unreachable_calls` (calls that could not connect, counted as failed calls), `seed`, `objective_given_on_command_line`, the `itl_p99_` and `worst_itl_` columns with each gap rule's `meets_joint_slo`, `slo_attainment_fraction` and `useful_calls_per_s_per_gpu` for that file, and `gap_data_available`. | See why one seed at one rate passed or failed. |
+| `qualified-rates.json` | One group: one stack on one hardware, workload, GPU count and objective. | The original `highest_tested_offered_tasks_per_s_meeting_slo` and `max_observed_useful_calls_per_s_per_gpu` (the largest over every file of the group), then `by_rule` with each rule's highest rate met by some file and `useful_calls_per_s_per_gpu_at_that_rate`, the largest goodput among the files that met the objective at that rate (both `null` when no rate qualifies). A gap rule's entry is `scoring.UNAVAILABLE` when any file of the group has no per-chunk timing. | Get one number per stack and rule. |
+| `report.html` | One page, one section per unified and disaggregated pair. | The answer, what was measured, the verdict table, one promise map per rule and the evidence table; an underlined term opens its definition. Notices at the top list files left out, files without per-chunk timing, calls that could not connect, and settings, planned rates or seeds that differ within a pair. | See the comparison, and how the winner changes with the objective. |
 
-A value starting with `unavailable` (`scoring.UNAVAILABLE`) in an `itl-p99` or `worst-itl` row's verdict, attainment and goodput means the file has no complete per-chunk recording, so the gap-based rule cannot be judged; it is never counted as a failure. A file that cannot be read as a ramp file stops `5.collect.py` before it writes anything. When a file whose stored summary no longer matches its own calls, or a shape, is refused, `5.collect.py` still writes its files for everything else, then exits with a non-zero status that names each refusal. A shape measured on only one stack still appears in `summary.csv` and `qualified-rates.json`, and gets no `report.html` section because there is no second stack to draw a promise map against. How the qualifying rate and goodput are computed is in "How a qualifying rate and its goodput are computed" above.
-
-## The promise map and its two walls
-
-A promise map (the maps in `5.collect.py`'s `report.html`) answers one question at each TTFT/TPOT cell: at this latency bound, which architecture tolerates the higher offered rate before failing the attainment target? It is a screen over the finite windows this lab actually measured, not a confidence bound or a capacity estimate -- re-run a chosen cell with more repeats before trusting it as a production threshold.
-
-Two different things can make a cell say "neither qualifies" or refuse to pick a winner, and they are not interchangeable:
-
-- **Both measured, neither qualifies ("-")**: every architecture was run at that cell's objective and none met the attainment target. The wall is real; raise the bound or lower the rate to find where either one does qualify.
-- **Incomparable ("?")**: at least one architecture was never judged under this cell's TPOT definition at all -- usually a file written before per-chunk recording existed, or a shape only measured on one architecture. This is a measurement gap, not evidence that the missing side performs worse.
+`scoring.UNAVAILABLE`, a text that starts with `unavailable`, means a gap rule could not judge: in `summary.csv`, because that file has no complete per-chunk timing; in `qualified-rates.json` and `report.html`, because some file of the stack has none. The notices at the top of `report.html` name those files; measure those rates again to judge them. A pair whose files differ in a measurement setting, planned rates or seeds still gets a promise map, with the difference marked above it. A file that cannot be read, or whose call records give other values than its stored summary in the original lab's summary fields, cannot be interpreted, so it is left out and listed. `5.collect.py` exits non-zero when it leaves a file out or `report.html` fails to render; the other files are still written. When no file can be read, it writes nothing and removes an earlier `report.html`. When it draws no promise map, it removes an earlier `report.html` from `--output` and prints why.
 
 ## Cleanup and local checks
 
