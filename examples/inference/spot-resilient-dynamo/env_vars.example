@@ -1,0 +1,10 @@
+# Environment variables for spot-resilient-dynamo
+# Copy to env_vars and edit before running scripts:
+#   cp env_vars.example env_vars && source env_vars
+
+export AWS_REGION="us-west-2"
+export AWS_ACCOUNT_ID="108782062953"
+export EKS_CLUSTER_NAME="dynamo-spot"
+export DYNAMO_NAMESPACE="dynamo"
+export MODEL_ID="Qwen/Qwen2.5-3B-Instruct"
+export DYNAMO_VERSION="1.5.1"

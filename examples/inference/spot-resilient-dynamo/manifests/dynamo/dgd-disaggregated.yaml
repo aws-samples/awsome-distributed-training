@@ -1,0 +1,82 @@
+# DynamoGraphDeployment — disaggregated prefill/decode serving
+# Qwen2.5-3B-Instruct on 2× GPU Spot nodes
+apiVersion: nvidia.com/v1beta1
+kind: DynamoGraphDeployment
+metadata:
+  name: qwen-disagg
+  namespace: dynamo
+spec:
+  backendFramework: vllm
+
+  components:
+    # Frontend (system node)
+    - name: frontend
+      type: frontend
+      podTemplate:
+        spec:
+          nodeSelector:
+            role: system
+          containers:
+          - name: main
+            image: nvcr.io/nvidia/ai-dynamo/dynamo-frontend:1.5.1
+            env:
+            - name: DYN_MIGRATION_LIMIT
+              value: "3"
+
+    # Prefill worker (GPU Spot node 1)
+    - name: prefill
+      type: prefill
+      runtimeVersionOverride: "1.5.1"
+      podTemplate:
+        spec:
+          nodeSelector:
+            role: prefill
+          terminationGracePeriodSeconds: 90
+          containers:
+          - name: main
+            image: nvcr.io/nvidia/ai-dynamo/vllm-runtime:1.5.1
+            args:
+            - "python -m dynamo.vllm --model Qwen/Qwen2.5-3B-Instruct --max-model-len 8192 --gpu-memory-utilization 0.85 --kv-transfer-config '{\"kv_connector\":\"NixlConnector\",\"kv_role\":\"kv_both\",\"kv_connector_extra_config\":{\"backends\":[\"UCX\"]}}'"
+            env:
+            - name: DYN_RUNTIME_GRACEFUL_SHUTDOWN_TIMEOUT_SECS
+              value: "60"
+            resources:
+              limits:
+                nvidia.com/gpu: "1"
+            volumeMounts:
+            - name: shm
+              mountPath: /dev/shm
+          volumes:
+          - name: shm
+            emptyDir:
+              medium: Memory
+              sizeLimit: 8Gi
+
+    # Decode worker (GPU Spot node 2)
+    - name: decode
+      type: decode
+      runtimeVersionOverride: "1.5.1"
+      podTemplate:
+        spec:
+          nodeSelector:
+            role: decode
+          terminationGracePeriodSeconds: 90
+          containers:
+          - name: main
+            image: nvcr.io/nvidia/ai-dynamo/vllm-runtime:1.5.1
+            args:
+            - "python -m dynamo.vllm --model Qwen/Qwen2.5-3B-Instruct --max-model-len 8192 --gpu-memory-utilization 0.85 --kv-transfer-config '{\"kv_connector\":\"NixlConnector\",\"kv_role\":\"kv_both\",\"kv_connector_extra_config\":{\"backends\":[\"UCX\"]}}'"
+            env:
+            - name: DYN_RUNTIME_GRACEFUL_SHUTDOWN_TIMEOUT_SECS
+              value: "60"
+            resources:
+              limits:
+                nvidia.com/gpu: "1"
+            volumeMounts:
+            - name: shm
+              mountPath: /dev/shm
+          volumes:
+          - name: shm
+            emptyDir:
+              medium: Memory
+              sizeLimit: 8Gi

@@ -1,0 +1,17 @@
+# AWS Node Termination Handler — Helm values
+# IMDS DaemonSet mode (polls instance metadata for Spot ITN)
+#
+# Install:
+#   helm repo add eks https://aws.github.io/eks-charts
+#   helm install nth eks/aws-node-termination-handler \
+#     --namespace kube-system -f manifests/nth/values.yaml
+
+enableSpotInterruptionDraining: true
+enableScheduledEventDraining: true
+nodeTerminationGracePeriod: 120
+
+# Emit K8s events so we can track the interruption timeline
+emitKubernetesEvents: true
+
+# Log level
+logLevel: info

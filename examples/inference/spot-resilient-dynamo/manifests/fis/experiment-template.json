@@ -1,0 +1,32 @@
+{
+  "description": "Interrupt the Dynamo GPU Spot Instance",
+  "targets": {
+    "spotGpuNode": {
+      "resourceType": "aws:ec2:spot-instance",
+      "resourceArns": [
+        "arn:aws:ec2:us-west-2:ACCOUNT_ID:instance/INSTANCE_ID"
+      ],
+      "selectionMode": "ALL"
+    }
+  },
+  "actions": {
+    "interruptSpot": {
+      "actionId": "aws:ec2:send-spot-instance-interruptions",
+      "parameters": {
+        "durationBeforeInterruption": "PT2M"
+      },
+      "targets": {
+        "SpotInstances": "spotGpuNode"
+      }
+    }
+  },
+  "stopConditions": [
+    {
+      "source": "none"
+    }
+  ],
+  "roleArn": "arn:aws:iam::ACCOUNT_ID:role/FIS_ROLE_ARN",
+  "tags": {
+    "project": "dynamo-spot"
+  }
+}

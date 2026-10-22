@@ -1,0 +1,47 @@
+# EKS cluster config for spot-resilient-dynamo
+# Usage: eksctl create cluster -f manifests/cluster/01-eks-cluster.yaml
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: dynamo-spot
+  region: us-west-2
+  version: "1.32"
+
+iam:
+  withOIDC: true
+
+managedNodeGroups:
+  - name: system
+    instanceType: m5.large
+    desiredCapacity: 1
+    minSize: 1
+    maxSize: 2
+    labels:
+      role: system
+    tags:
+      project: dynamo-spot
+
+nodeGroups:
+  - name: gpu-worker
+    instancesDistribution:
+      instanceTypes:
+        - g6.xlarge
+        - g6.2xlarge
+        - g5.xlarge
+        - g5.2xlarge
+        - g7.2xlarge
+        - g4dn.xlarge
+        - g4dn.2xlarge
+      onDemandBaseCapacity: 0
+      onDemandPercentageAboveBaseCapacity: 0
+      spotAllocationStrategy: capacity-optimized
+    desiredCapacity: 1
+    minSize: 0
+    maxSize: 1
+    labels:
+      role: gpu-spot
+    tags:
+      project: dynamo-spot
+    amiFamily: AmazonLinux2023
+    volumeSize: 100
